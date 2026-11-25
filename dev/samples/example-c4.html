@@ -8522,9 +8522,11 @@ function c4rBadgeSize(step) {
 // Hash grid of rectangles {x, y, w, h} (top-left): cells hold the rects touching them.
 function c4rGrid() {
   const cells = new Map(), K = C4R.CELL, seen = new Set();
-  const key = (i, j) => (i + 50000) * 100000 + (j + 50000);
+  const key = (i, j) => (i >= -16384 && i < 16384 && j >= -16384 && j < 16384 ? ((i + 16384) << 15) | (j + 16384) : (i + 50000) * 100000 + (j + 50000));
   return {
+    empty: true,
     add(r) {
+      this.empty = false;
       const i0 = Math.floor(r.x / K), i1 = Math.floor((r.x + r.w) / K);
       const j0 = Math.floor(r.y / K), j1 = Math.floor((r.y + r.h) / K);
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
@@ -8535,22 +8537,41 @@ function c4rGrid() {
     },
     // visits each distinct rect near r (grown by pad) that passes pred; cb returns true to stop
     scan(r, pad, pred, cb, dedupe) {
+      if (this.empty) return;
       const rx0 = r.x - pad, rx1 = r.x + r.w + pad, ry0 = r.y - pad, ry1 = r.y + r.h + pad;
       const i0 = Math.floor(rx0 / K), i1 = Math.floor(rx1 / K), j0 = Math.floor(ry0 / K), j1 = Math.floor(ry1 / K);
-      if (dedupe) seen.clear();
+      const needDedupe = dedupe && (i0 !== i1 || j0 !== j1);
+      if (needDedupe) seen.clear();
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         const c = cells.get(key(i, j));
         if (c) for (let u = 0; u < c.length; u++) {
           const o = c[u];
-          if (rx0 < o.x + o.w && o.x < rx1 && ry0 < o.y + o.h && o.y < ry1 && (!dedupe || !seen.has(o)) && (!pred || pred(o))) {
-            if (dedupe) seen.add(o);
+          if (rx0 < o.x + o.w && o.x < rx1 && ry0 < o.y + o.h && o.y < ry1 && (!needDedupe || !seen.has(o)) && (!pred || pred(o))) {
+            if (needDedupe) seen.add(o);
             if (cb && cb(o)) return;
           }
         }
       }
     },
-    hit(r, pad, pred) { let h = false; this.scan(r, pad, pred, () => (h = true)); return h; },
-    count(r, pad, pred) { let n = 0; this.scan(r, pad, pred, () => { n++; }, true); return n; }
+    hit(r, pad, pred) {
+      if (this.empty) return false;
+      const rx0 = r.x - pad, rx1 = r.x + r.w + pad, ry0 = r.y - pad, ry1 = r.y + r.h + pad;
+      const i0 = Math.floor(rx0 / K), i1 = Math.floor(rx1 / K), j0 = Math.floor(ry0 / K), j1 = Math.floor(ry1 / K);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = cells.get(key(i, j));
+        if (c) for (let u = 0; u < c.length; u++) {
+          const o = c[u];
+          if (rx0 < o.x + o.w && o.x < rx1 && ry0 < o.y + o.h && o.y < ry1 && (!pred || pred(o))) return true;
+        }
+      }
+      return false;
+    },
+    count(r, pad, pred, cap = Infinity) {
+      if (this.empty || cap <= 0) return 0;
+      let n = 0;
+      this.scan(r, pad, pred, () => ++n >= cap, true);
+      return n;
+    }
   };
 }
 
@@ -9010,7 +9031,7 @@ function routeC4Edges(nodes, edges, opts) {
 
   // ---- badges & labels, in input order: off every box, tag band, frame border, other route, badge and pill ----
   const pills = c4rGrid(), routes = c4rGrid(), borders = c4rGrid();
-  const allFrames = opts && opts.frames ? opts.frames : Array.from(frames.values());
+  const allFrames = detours && opts && opts.frames ? opts.frames : Array.from(frames.values());
   for (const f of allFrames) {
     const r = rectOf(f);
     borders.add({ x: r.x, y: r.y - 1, w: r.w, h: 2 });
@@ -9127,7 +9148,7 @@ function routeC4Edges(nodes, edges, opts) {
         if (s.room > 0) {
           // centre of the part the arrowhead leaves free on the last segment; slide outwards from there
           const t0 = last ? Math.max(0, s.len - C4R.ARROW - 6) / 2 / s.len : 0.5;
-          const steps = Math.min(12, Math.ceil(s.room / 8));
+          const steps = Math.min(8, Math.ceil(s.room / 12));
           for (const dy of yOffs) {
             for (let n = 0; n <= 2 * steps; n++) {
               const off = (n === 0 ? 0 : (n & 1 ? 1 : -1) * Math.ceil(n / 2)) * (steps ? s.room / 2 / steps : 0);
@@ -9147,10 +9168,21 @@ function routeC4Edges(nodes, edges, opts) {
         }
       }
       if (!pos) {                                             // nothing free: the candidate with the least overlap
-        const score = (r) => 100 * pills.count(r, 2) + 20 * (boxes.count(r, 2) + tags.count(r, 2)) + 8 * borders.count(r, 2) + 4 * routes.count(r, 2, mine);   // pills worst, then boxes/bands, then borders, then lines
+        const score = (r, cap) => {
+          let sc = 100 * pills.count(r, 2, null, Math.ceil(cap / 100));
+          if (sc >= cap) return sc;
+          const bLim = Math.ceil((cap - sc) / 20);
+          sc += 20 * boxes.count(r, 2, null, bLim);
+          if (sc >= cap) return sc;
+          sc += 20 * tags.count(r, 2, null, Math.ceil((cap - sc) / 20));
+          if (sc >= cap) return sc;
+          sc += 8 * borders.count(r, 2, null, Math.ceil((cap - sc) / 8));
+          if (sc >= cap) return sc;
+          return sc + 4 * routes.count(r, 2, mine, Math.ceil((cap - sc) / 4));
+        };   // pills worst, then boxes/bands, then borders, then lines
         let best = Infinity, bestCand = null;
         for (const c of tried) {
-          const n = score(c.r);
+          const n = score(c.r, best);
           if (n < best) { best = n; bestCand = c; }
         }
         pos = bestCand || { cx: pts[0][0], cy: pts[0][1], r: { x: pts[0][0] - w / 2, y: pts[0][1] - h / 2, w, h } };
@@ -9165,7 +9197,8 @@ function routeC4Edges(nodes, edges, opts) {
               if (!d1 && !d2) continue;
               const nx = base.cx + (seg.horiz ? d2 : d1), ny = base.cy + (seg.horiz ? d1 : d2);
               const nr = { x: nx - w / 2, y: ny - h / 2, w, h };
-              const n = score(nr) + (d1 ? 5 : 2);
+              const pen = d1 ? 5 : 2;
+              const n = score(nr, best - pen) + pen;
               if (n < best) { best = n; pos = { cx: nx, cy: ny, r: nr }; if (n < 20) break nudge; }
             }
           }

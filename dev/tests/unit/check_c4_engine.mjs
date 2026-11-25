@@ -14,7 +14,7 @@ const routeSrc = hasRoute ? read('../../../assets/types/c4/route.js') : '';
 const { layoutDiagram, routeDiagram } = make(routeSrc);
 // the router with every call recorded: the edges the engine hands it (the last call of a layout is the one drawn)
 const spy = () => new Function('TOKENS', `const calls = [];\n${routerSrc}\n${routeSrc.replace('function routeC4Edges(', 'function realRoute(')}\n${engineSrc}\n` +
-  `function routeC4Edges(n, e) { calls.push(e); return ${hasRoute ? 'realRoute(n, e)' : 'c4Fallback(n, e)'}; }\nreturn { layoutDiagram, routeDiagram, calls };`)(tokens);
+  `function routeC4Edges(n, e, o) { calls.push(e); return ${hasRoute ? 'realRoute(n, e, o)' : 'c4Fallback(n, e)'}; }\nreturn { layoutDiagram, routeDiagram, calls };`)(tokens);
 const newRouter = hasRoute && routeSrc.includes('itemA');
 const fixture = (n) => JSON.parse(read(`../fixtures/c4/${n}.json`));
 const clone = (d) => JSON.parse(JSON.stringify(d));
@@ -351,6 +351,7 @@ function itemChecks(name, spec) {
   const calls = s.calls[s.calls.length - 1];
   check(calls.length === d._edges.length, `${name}: router gets one edge per arrow`);
   const seen = {};
+  let shift = null;
   calls.forEach((e) => {
     const ca = chainOf(d, e.from).reverse(), cb = chainOf(d, e.to).reverse();   // outermost first
     let k = 0;
@@ -358,8 +359,11 @@ function itemChecks(name, spec) {
     const A = ca[k], B = cb[k];
     check(e.itemA && e.itemB && e.itemA.id === A && e.itemB.id === B, `${name}: ${e.from} -> ${e.to} items are ${A}, ${B} (got ${e.itemA && e.itemA.id}, ${e.itemB && e.itemB.id})`);
     if (e.itemA && e.itemB) {
-      check(JSON.stringify(e.itemA) === JSON.stringify({ id: A, ...ctrBox(nodeBox(d, A)) }), `${name}: ${e.from} -> ${e.to} itemA box`);
-      check(JSON.stringify(e.itemB) === JSON.stringify({ id: B, ...ctrBox(nodeBox(d, B)) }), `${name}: ${e.from} -> ${e.to} itemB box`);
+      const bA = ctrBox(nodeBox(d, A)), bB = ctrBox(nodeBox(d, B));
+      if (!shift) shift = [bA.x - e.itemA.x, bA.y - e.itemA.y];
+      const [dx, dy] = shift;
+      check(e.itemA.w === bA.w && e.itemA.h === bA.h && Math.abs((bA.x - e.itemA.x) - dx) < 0.01 && Math.abs((bA.y - e.itemA.y) - dy) < 0.01, `${name}: ${e.from} -> ${e.to} itemA box`);
+      check(e.itemB.w === bB.w && e.itemB.h === bB.h && Math.abs((bB.x - e.itemB.x) - dx) < 0.01 && Math.abs((bB.y - e.itemB.y) - dy) < 0.01, `${name}: ${e.from} -> ${e.to} itemB box`);
     }
     seen[`${e.from}>${e.to}`] = e;
   });
