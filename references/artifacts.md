@@ -2,6 +2,13 @@
 
 Applies only when your tools include `Artifact`. `--target artifact` builds a folder of split files (`index.html`, `diagram.json`, `app.css`, `app.js`) in scratch so diagram data stays separate from editor code. Never use WebFetch or curl on an artifact link, and never open `app.css`, `app.js`, or a legacy single-file `.html` page whole with a file-read tool.
 
+## Output choice
+
+Decide once, before writing anything:
+1. The user already said ("as an artifact", "save to docs/flow.html"): follow it.
+2. Else check `output` in `<project>/.claude/ultimate-diagram.json`, else in `~/.claude/ultimate-diagram.json`. `artifact` or `file`: follow it. `ask` or no file: go to 3.
+3. Else ask once with `AskUserQuestion`: **Artifact** (private claude.ai page, editable, Save updates it in place, shareable by link) or **HTML file** (`<title-slug>.html` in the project folder, works offline). If you cannot ask, stop and put the question in your reply; write nothing until the user answers. Keep the answer for the rest of the conversation. If the user says "always", write `{"output": "artifact"}` (or `file`) to `<project>/.claude/ultimate-diagram.json`.
+
 ## Create
 
 1. Build with `--target artifact` into a scratch directory:
