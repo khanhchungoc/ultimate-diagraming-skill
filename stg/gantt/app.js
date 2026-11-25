@@ -5676,7 +5676,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
 // 100% deterministic: never calls Date.now() or new Date() without an explicit UTC date.
 
 const GANTT_ZOOMS = {
-  day:     { pxPerDay: 36,  snapDays: 1, showWeekends: true,  label: 'Day' },
+  day:     { pxPerDay: 44,  snapDays: 1, showWeekends: true,  label: 'Day' },
   week:    { pxPerDay: 18,  snapDays: 1, showWeekends: true,  label: 'Week' },
   month:   { pxPerDay: 6,   snapDays: 1, showWeekends: false, label: 'Month' },
   quarter: { pxPerDay: 2.4, snapDays: 7, showWeekends: false, label: 'Quarter' },
@@ -5684,22 +5684,22 @@ const GANTT_ZOOMS = {
 };
 
 const GANTT_PAD_DAYS = {
-  day:     { before: 3,  after: 5 },
-  week:    { before: 7,  after: 14 },
-  month:   { before: 14, after: 21 },
-  quarter: { before: 30, after: 45 },
-  year:    { before: 45, after: 60 }
+  day:     { before: 90,  after: 180 },
+  week:    { before: 180, after: 365 },
+  month:   { before: 365, after: 730 },
+  quarter: { before: 730, after: 1095 },
+  year:    { before: 730, after: 1460 }
 };
 
 const GANTT_FALLBACK_START = '2026-01-01';
 const GANTT_FALLBACK_END   = '2026-03-31';
 
 const GANTT_METRICS = {
-  ROW_H: 36,
-  BAR_H: 22,
-  GROUP_BAR_H: 14,
-  MILESTONE_SIZE: 14,
-  HEADER_H: 52,
+  ROW_H: 44,
+  BAR_H: 26,
+  GROUP_BAR_H: 10,
+  MILESTONE_SIZE: 16,
+  HEADER_H: 58,
   SIDEBAR_W: 260,
   DEP_STUB: 14,
   DEP_RADIUS: 6,
@@ -5933,11 +5933,21 @@ function layoutDiagram(data) {
     rangeEnd = ganttAddDays(latest, padCfg.after);
   }
 
+  const contentStart = earliest || rangeStart;
+  const contentEnd = latest || rangeEnd;
+
+  const extraStart = ganttFormatDate(data._extraStart);
+  if (extraStart && extraStart < rangeStart) rangeStart = extraStart;
+  const extraEnd = ganttFormatDate(data._extraEnd);
+  if (extraEnd && extraEnd > rangeEnd) rangeEnd = extraEnd;
+
   const totalDays = Math.max(1, ganttDiffDays(rangeStart, rangeEnd) + 1);
   const timelineWidth = Math.round(totalDays * pxPerDay);
   data._range = {
     start: rangeStart,
     end: rangeEnd,
+    contentStart,
+    contentEnd,
     totalDays,
     pxPerDay,
     timelineWidth
@@ -7166,6 +7176,7 @@ function toMermaid(data, opts) {
   const marqueeEl = document.getElementById('gantt-marquee');
   const notesEl = document.getElementById('gantt-notes');
   const dragTipEl = document.getElementById('gantt-drag-tip');
+  const legendWrap = document.getElementById('gantt-legend-wrap');
   const colorKeyHost = document.getElementById('gantt-color-key');
   const btnLegend = document.getElementById('btn-legend');
 
@@ -7177,17 +7188,22 @@ function toMermaid(data, opts) {
   const btnAddMarker = document.getElementById('btn-add-marker');
   const btnAddNote = document.getElementById('btn-add-note');
   const btnAddInline = document.getElementById('btn-add-inline');
+  const btnToggleAll = document.getElementById('btn-toggle-all');
   const btnNotes = document.getElementById('btn-notes');
   const btnDeps = document.getElementById('btn-deps');
+  const btnWeekends = document.getElementById('btn-weekends');
   const btnToday = document.getElementById('btn-today');
   const btnHolidays = document.getElementById('btn-holidays');
   const holidaysPop = document.getElementById('gantt-holidays-pop');
   const holidaysList = document.getElementById('gantt-holidays-list');
   const holDateInput = document.getElementById('gantt-hol-date');
+  const holEndInput = document.getElementById('gantt-hol-end');
   const holNameInput = document.getElementById('gantt-hol-name');
   const holAddBtn = document.getElementById('gantt-hol-add');
   const holCloseBtn = document.getElementById('gantt-hol-close');
   const zoomPills = document.getElementById('gantt-zoom-pills');
+
+  const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
 
   // --- STATE ---
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
@@ -7202,6 +7218,7 @@ function toMermaid(data, opts) {
   let hoveredRowId = null;         // item ID currently hovered for synchronized row highlight
   let showDeps = true;             // whether dependency arrows layer is visible
   let legendOpen = false;          // whether #gantt-color-key popover is open (closed by default)
+  let legendPinned = false;        // whether legend was explicitly pinned open via click/keyboard
   let connectState = null;         // { fromId, type: 'fs' | 'ss', pointerDrag?: boolean }
   let activeDrag = null;           // active bar/resize/marker/marquee/splitter/row drag state
   let actionBarEl = null;          // floating ui.actionBar element
@@ -7209,6 +7226,10 @@ function toMermaid(data, opts) {
   let sidebarWidth = GANTT_METRICS.SIDEBAR_W;
   let renderedDepsSvg = null;      // SVG element inside or equal to #gantt-deps
   let isSyncingScroll = false;
+  let didInitialScroll = false;
+  let isExtendingTimeline = false;
+  let ghostBarEl = null;
+  let ghostRowId = null;
 
   const els = {
     rows: new Map(),               // itemId -> sidebar row element
@@ -7301,6 +7322,71 @@ function toMermaid(data, opts) {
     if (!startIso) return '';
     if (!endIso || startIso === endIso) return formatShortDate(startIso);
     return `${formatShortDate(startIso)} – ${formatShortDate(endIso)}`;
+  }
+
+  function formatBarTip(it) {
+    if (!it || !it._start) return '';
+    const endIso = it._end || it._start;
+    const days = Math.max(1, ganttDiffDays(it._start, endIso) + 1);
+    return `${formatDateRange(it._start, endIso)} · ${days}d`;
+  }
+
+  const showWeekendsPref = () => chartData.showWeekends !== false;
+  const showWeekendsActive = (zoomKey) => {
+    const z = zoomKey || currentZoom();
+    return showWeekendsPref() && Boolean(GANTT_ZOOMS[z] && GANTT_ZOOMS[z].showWeekends);
+  };
+
+  function dateFromClientX(clientX) {
+    const range = chartData._range;
+    if (!range || !bodyEl) return getTodayStr();
+    const rect = bodyEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const snapDays = (GANTT_ZOOMS[currentZoom()] || GANTT_ZOOMS.month).snapDays;
+    const rawDays = x / range.pxPerDay;
+    const snapped = Math.round(rawDays / snapDays) * snapDays;
+    return ganttAddDays(range.start, snapped);
+  }
+
+  function itemFromClientY(clientY) {
+    if (!bodyEl) return null;
+    const rect = bodyEl.getBoundingClientRect();
+    const y = clientY - rect.top;
+    if (y < 0) return null;
+    const rowIdx = Math.floor(y / GANTT_METRICS.ROW_H);
+    const vis = visibleItems();
+    return (rowIdx >= 0 && rowIdx < vis.length) ? vis[rowIdx] : null;
+  }
+
+  function hideGhostBar() {
+    if (ghostBarEl) {
+      ghostBarEl.remove();
+      ghostBarEl = null;
+    }
+    ghostRowId = null;
+  }
+
+  function showGhostBar(it, startDate, endDate, customLabel) {
+    const range = chartData._range;
+    if (!range || !barsEl || !it || typeof it._row !== 'number' || it._row < 0) return;
+    const s = startDate <= endDate ? startDate : endDate;
+    const e = startDate <= endDate ? endDate : startDate;
+    const spanDays = Math.max(1, ganttDiffDays(s, e) + 1);
+    const x = ganttDiffDays(range.start, s) * range.pxPerDay;
+    const w = Math.max(range.pxPerDay, spanDays * range.pxPerDay);
+    const h = GANTT_METRICS.BAR_H;
+    const y = it._row * GANTT_METRICS.ROW_H + (GANTT_METRICS.ROW_H - h) / 2;
+    if (!ghostBarEl) {
+      ghostBarEl = htmlEl('div', 'gantt-ghost-bar');
+      ghostBarEl.setAttribute('data-export-skip', '');
+      barsEl.appendChild(ghostBarEl);
+    }
+    ghostRowId = it.id;
+    ghostBarEl.style.left = `${x}px`;
+    ghostBarEl.style.top = `${y}px`;
+    ghostBarEl.style.width = `${w}px`;
+    ghostBarEl.style.height = `${h}px`;
+    ghostBarEl.textContent = customLabel || `${formatDateRange(s, e)} · ${spanDays}d`;
   }
 
   // ISO week number (UTC)
@@ -7480,6 +7566,7 @@ function toMermaid(data, opts) {
     }
 
     if (zoomKey === 'day') {
+      const showWknd = showWeekendsActive(zoomKey);
       forEachMonth(({ y, m, left, width }) => {
         addTick(headerTop, left, width, `${MONTH_LONG[m]} ${y}`, 'gantt-tick-top');
       });
@@ -7489,7 +7576,14 @@ function toMermaid(data, opts) {
         const dow = dt.getUTCDay();
         const isWknd = dow === 0 || dow === 6;
         const left = i * pxPerDay;
-        addTick(headerBottom, left, pxPerDay, `${dt.getUTCDate()} ${WEEKDAY_SHORT[dow].slice(0, 2)}`, `gantt-tick-bot${isWknd ? ' is-weekend' : ''}`);
+        const cell = htmlEl('div', `gantt-tick gantt-tick-bot is-day${isWknd && showWknd ? ' is-weekend' : ''}`);
+        cell.style.left = `${left}px`;
+        cell.style.width = `${pxPerDay}px`;
+        cell.append(
+          htmlEl('span', 'gantt-day-num', String(dt.getUTCDate())),
+          htmlEl('span', 'gantt-day-dow', WEEKDAY_SHORT[dow])
+        );
+        headerBottom.appendChild(cell);
         gridLines.push({ x: left, major: dt.getUTCDate() === 1 });
       }
     } else if (zoomKey === 'week') {
@@ -7576,8 +7670,10 @@ function toMermaid(data, opts) {
     gridEl.style.height = `${totalH}px`;
 
     // Horizontal row stripes
+    const edit = !presenting();
     visItems.forEach((it, idx) => {
-      const rowBg = htmlEl('div', `gantt-row-bg${idx % 2 === 1 ? ' is-alt' : ''}${selItems.has(it.id) ? ' is-selected' : ''}${hoveredRowId === it.id ? ' is-hovered' : ''}`);
+      const isUnscheduledLeaf = !it._bar && it.kind !== 'group' && !it._hasChildren;
+      const rowBg = htmlEl('div', `gantt-row-bg${idx % 2 === 1 ? ' is-alt' : ''}${selItems.has(it.id) ? ' is-selected' : ''}${hoveredRowId === it.id ? ' is-hovered' : ''}${isUnscheduledLeaf ? ' is-unscheduled' : ''}`);
       rowBg.dataset.rowId = it.id;
       rowBg.style.top = `${idx * rowH}px`;
       rowBg.style.height = `${rowH}px`;
@@ -7585,13 +7681,69 @@ function toMermaid(data, opts) {
       rowBg.addEventListener('pointerenter', () => setHoveredRow(it.id));
       rowBg.addEventListener('pointerleave', () => {
         if (hoveredRowId === it.id) setHoveredRow(null);
+        if (!activeDrag && ghostRowId === it.id) hideGhostBar();
       });
+      if (edit && isUnscheduledLeaf) {
+        rowBg.addEventListener('pointermove', (ev) => {
+          if (activeDrag || connectState) return;
+          const d = dateFromClientX(ev.clientX);
+          const previewEnd = it.kind === 'milestone' ? d : ganttAddDays(d, 6);
+          showGhostBar(it, d, previewEnd, `+ Schedule · ${formatShortDate(d)}`);
+        });
+        rowBg.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0 || e.shiftKey || activeDrag || connectState) return;
+          e.stopPropagation();
+          const anchorDate = dateFromClientX(e.clientX);
+          const startX = e.clientX;
+          let endDate = anchorDate;
+          let dragged = false;
+          activeDrag = { kind: 'schedule', item: it };
+          removeActionBar();
+          showGhostBar(it, anchorDate, it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6), `+ Schedule · ${formatShortDate(anchorDate)}`);
+
+          const onMove = (ev) => {
+            if (!dragged && Math.abs(ev.clientX - startX) > 4) dragged = true;
+            if (!dragged) return;
+            endDate = dateFromClientX(ev.clientX);
+            const s = anchorDate <= endDate ? anchorDate : endDate;
+            const en = it.kind === 'milestone' ? s : (anchorDate <= endDate ? endDate : anchorDate);
+            showGhostBar(it, s, en);
+            const days = Math.max(1, ganttDiffDays(s, en) + 1);
+            showDragTip(ev.clientX, ev.clientY, `${formatDateRange(s, en)} · ${days}d`);
+          };
+          const onUp = (ev) => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+            activeDrag = null;
+            hideGhostBar();
+            hideDragTip();
+            if (ev.type === 'pointerup') {
+              if (dragged) {
+                const s = anchorDate <= endDate ? anchorDate : endDate;
+                const en = anchorDate <= endDate ? endDate : anchorDate;
+                it.start = s;
+                it.end = it.kind === 'milestone' ? s : en;
+              } else {
+                it.start = anchorDate;
+                it.end = it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6);
+              }
+              selectSingleItem(it.id);
+              render();
+              updateStatus(true);
+            }
+          };
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
+        });
+      }
       gridEl.appendChild(rowBg);
       els.rowBgs.set(it.id, rowBg);
     });
 
-    // Weekend bands (Day / Week only)
-    if (GANTT_ZOOMS[zoomKey].showWeekends) {
+    // Weekend bands (Day / Week only, when showWeekends is enabled)
+    if (showWeekendsActive(zoomKey)) {
       const pxPerDay = range.pxPerDay;
       for (let i = 0; i < range.totalDays; i++) {
         const iso = ganttAddDays(range.start, i);
@@ -7658,7 +7810,7 @@ function toMermaid(data, opts) {
         chev.type = 'button';
         chev.setAttribute('aria-expanded', String(!it.collapsed));
         chev.setAttribute('aria-label', it.collapsed ? `Expand ${it.label || it.id}` : `Collapse ${it.label || it.id}`);
-        chev.innerHTML = ui.icon(it.collapsed ? 'chevron-up' : 'chevron-down', { size: 'xs', bold: true });
+        chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
         if (it.collapsed) chev.classList.add('is-collapsed');
         chev.addEventListener('pointerdown', (e) => e.stopPropagation());
         chev.addEventListener('click', (e) => {
@@ -7677,6 +7829,7 @@ function toMermaid(data, opts) {
 
       // Label
       const lbl = htmlEl('span', 'gantt-tree-label', it.label || it.id);
+      lbl.title = it.label || it.id;
       lbl.dataset.tip = it.label || it.id;
       row.appendChild(lbl);
 
@@ -7712,10 +7865,10 @@ function toMermaid(data, opts) {
 
   function renderBars(visItems, todayStr) {
     if (!barsEl) return;
+    hideGhostBar();
     barsEl.textContent = '';
     els.bars.clear();
     const edit = !presenting();
-    const charW = GANTT_METRICS.CHAR_W;
     const hasOutFs = new Set();
     (chartData._deps || []).forEach((d) => {
       if (d && d.from && d.type !== 'ss') hasOutFs.add(d.from);
@@ -7743,6 +7896,7 @@ function toMermaid(data, opts) {
         if (selItems.has(it.id)) ms.classList.add('selected');
         if (note) ms.classList.add('has-note');
         ms.dataset.tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
+        ms.title = ms.dataset.tip;
 
         const diamond = htmlEl('div', 'gantt-ms-diamond');
         ms.appendChild(diamond);
@@ -7797,7 +7951,7 @@ function toMermaid(data, opts) {
         return;
       }
 
-      // Task bar or Parent summary bar
+      // Task bar or Parent summary bar (never render task text inside bars; sidebar is frozen)
       const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
       bar.dataset.itemId = it.id;
       bar.dataset.nodeId = it.id;
@@ -7813,18 +7967,9 @@ function toMermaid(data, opts) {
       if (note) bar.classList.add('has-note');
       if (hasOutFs.has(it.id)) bar.classList.add('has-out-dep');
 
-      const tipText = `${it.label || it.id} · ${formatDateRange(it._start, it._end)}`;
+      const tipText = formatBarTip(it);
       bar.dataset.tip = tipText;
       bar.title = tipText;
-
-      // Render label inside the bar only when it fits (hover tooltip carries full details on short bars)
-      const labelText = it.label || it.id;
-      const fitsInside = !isParent && b.w >= labelText.length * charW + 18;
-      let lbl = null;
-      if (fitsInside) {
-        lbl = htmlEl('span', 'gantt-bar-label', labelText);
-        bar.appendChild(lbl);
-      }
 
       if (note) {
         const badge = htmlEl('button', 'note-badge');
@@ -7879,7 +8024,7 @@ function toMermaid(data, opts) {
         if (!edit) return;
         e.stopPropagation();
         const row = els.rows.get(it.id);
-        startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : lbl);
+        startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : null);
       });
 
       barsEl.appendChild(bar);
@@ -7916,6 +8061,11 @@ function toMermaid(data, opts) {
       if (edit) {
         line.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
         flag.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
+        flag.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          const raw = markerById(m.id);
+          if (raw) openMarkerRenamePop(flag, raw);
+        });
       }
 
       if (markersEl) markersEl.appendChild(line);
@@ -8107,10 +8257,12 @@ function toMermaid(data, opts) {
     });
   }
 
-  function toggleLegendPop(force) {
+  function toggleLegendPop(force, pin) {
     if (!colorKeyHost) return;
     const show = typeof force === 'boolean' ? force : !legendOpen;
     legendOpen = show;
+    if (!show) legendPinned = false;
+    else if (typeof pin === 'boolean') legendPinned = pin;
     colorKeyHost.hidden = !show;
     if (btnLegend) btnLegend.setAttribute('aria-expanded', String(show));
   }
@@ -8128,6 +8280,7 @@ function toMermaid(data, opts) {
     const hasOverlap = (chartData._deps || []).some((d) => d && d.violated);
     if (!used.length && !hasOverlap) {
       legendOpen = false;
+      legendPinned = false;
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
@@ -8138,6 +8291,7 @@ function toMermaid(data, opts) {
     let box = used.length ? ui.colorKey(used, chartData.colorKey || {}, { prompts: !presenting() }) : null;
     if (!box && !hasOverlap) {
       legendOpen = false;
+      legendPinned = false;
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
@@ -8174,6 +8328,7 @@ function toMermaid(data, opts) {
 
   function editColorKeySlot(slot, lbl) {
     if (presenting() || !slot || !lbl) return;
+    legendPinned = true;
     lbl.contentEditable = 'true';
     lbl.focus();
     const finish = () => {
@@ -8422,6 +8577,35 @@ function toMermaid(data, opts) {
     });
   }
 
+  function syncWeekendsButton() {
+    const btn = btnWeekends || document.getElementById('btn-weekends');
+    if (!btn) return;
+    const pref = showWeekendsPref();
+    const supported = Boolean(GANTT_ZOOMS[currentZoom()] && GANTT_ZOOMS[currentZoom()].showWeekends);
+    btn.setAttribute('aria-checked', String(pref));
+    btn.classList.toggle('is-dimmed', !supported);
+    btn.title = supported
+      ? (pref ? 'Hide weekend shading' : 'Show weekend shading')
+      : 'Weekends show in Day and Week views';
+  }
+
+  function parentItems() {
+    return itemsList().filter((it) => it && (it._hasChildren || it.kind === 'group'));
+  }
+
+  function syncToggleAllButton() {
+    const btn = btnToggleAll || document.getElementById('btn-toggle-all');
+    if (!btn) return;
+    const parents = parentItems();
+    btn.disabled = parents.length === 0;
+    const anyExpanded = parents.some((it) => !it.collapsed);
+    const label = anyExpanded ? 'Collapse all' : 'Expand all';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-expanded', String(anyExpanded));
+    btn.innerHTML = ui.icon(anyExpanded ? 'chevron-up' : 'chevron-down', { size: 'xs', bold: true });
+  }
+
   // --- MAIN RENDER ---
   function render() {
     applyLayout();
@@ -8466,10 +8650,22 @@ function toMermaid(data, opts) {
     renderNotes();
     renderColorKey();
     updateNotesButton();
+    syncWeekendsButton();
+    syncToggleAllButton();
     renderHolidaysList();
     syncSelectionUi();
     syncZoomPills(zoomKey);
     if (typeof showZoom === 'function') showZoom();
+
+    if (!didInitialScroll && timeline && range) {
+      didInitialScroll = true;
+      const anchorDate = range.contentStart || range.start;
+      const anchorX = ganttDiffDays(range.start, anchorDate) * range.pxPerDay;
+      const targetLeft = Math.max(0, Math.round(anchorX - 48));
+      isExtendingTimeline = true;
+      timeline.scrollLeft = targetLeft;
+      requestAnimationFrame(() => { isExtendingTimeline = false; });
+    }
   }
 
   // Fast live geometry refresh during drag/resize without rebuilding the entire DOM
@@ -8478,10 +8674,6 @@ function toMermaid(data, opts) {
     const range = chartData._range;
     const visItems = visibleItems();
     const todayStr = getTodayStr();
-    const hasOutFs = new Set();
-    (chartData._deps || []).forEach((d) => {
-      if (d && d.from && d.type !== 'ss') hasOutFs.add(d.from);
-    });
 
     visItems.forEach((it) => {
       const el = els.bars.get(it.id);
@@ -8492,14 +8684,14 @@ function toMermaid(data, opts) {
       el.style.width = `${Math.max(4, b.w)}px`;
       el.style.height = `${b.h}px`;
       el.dataset.timeState = getTimeState(it, todayStr);
-      if (!el.classList.contains('gantt-summary') && !el.classList.contains('gantt-milestone')) {
-        const fits = b.w >= (it.label || it.id).length * GANTT_METRICS.CHAR_W + 18;
-        const lbl = el.querySelector('.gantt-bar-label');
-        if (fits && !lbl) {
-          el.appendChild(htmlEl('span', 'gantt-bar-label', it.label || it.id));
-        } else if (!fits && lbl) {
-          lbl.remove();
-        }
+      if (el.classList.contains('gantt-milestone')) {
+        const tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
+        el.dataset.tip = tip;
+        el.title = tip;
+      } else {
+        const tip = formatBarTip(it);
+        el.dataset.tip = tip;
+        el.title = tip;
       }
     });
 
@@ -8696,6 +8888,7 @@ function toMermaid(data, opts) {
     let anchor = null;
     const bar = ui.actionBar('actionbar gantt-actionbar', 'Selection actions');
     bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+    const pickColor = (current, onPick) => swatchPicker(current || '', onPick, { triggerClass: 'ab-btn', btnClass: 'ab-swatch', act: 'color' });
 
     if (selMarkerId) {
       const m = markerById(selMarkerId);
@@ -8703,13 +8896,10 @@ function toMermaid(data, opts) {
       if (!m || !rec) return;
       anchor = rec.flag;
 
-      const btnRen = ui.abButton('ab-btn', 'rename', ui.icon('rename', { size: 'sm' }), 'Rename marker');
-      btnRen.addEventListener('click', () => openMarkerRenamePop(btnRen, m));
-
       const btnDate = ui.abButton('ab-btn', 'date', ui.icon('calendar', { size: 'sm' }), `Date: ${m.date}`);
       btnDate.addEventListener('click', () => openMarkerDatePop(btnDate, m));
 
-      const swatches = swatchRow(m.color || '', (slot) => {
+      const swatches = pickColor(m.color, (slot) => {
         if (slot) m.color = slot; else delete m.color;
         render();
         updateStatus(true);
@@ -8718,7 +8908,7 @@ function toMermaid(data, opts) {
       const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete marker');
       btnDel.addEventListener('click', () => deleteSelection());
 
-      bar.append(btnRen, btnDate, ui.abSep(), swatches, ui.abSep(), btnDel);
+      bar.append(btnDate, ui.abSep('ab-sep'), swatches, ui.abSep('ab-sep'), btnDel);
     } else if (selDepKey) {
       const dep = depsList().find((d) => depKeyOf(d) === selDepKey);
       const rec = els.deps.get(selDepKey);
@@ -8753,7 +8943,7 @@ function toMermaid(data, opts) {
       const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete dependency');
       btnDel.addEventListener('click', () => deleteSelection());
 
-      bar.append(btnType, btnRev, ui.abSep(), btnDel);
+      bar.append(btnType, btnRev, ui.abSep('ab-sep'), btnDel);
     } else if (selItems.size === 1) {
       const id = [...selItems][0];
       const it = itemById(id);
@@ -8763,26 +8953,18 @@ function toMermaid(data, opts) {
       const isParent = Boolean(it._hasChildren || it.kind === 'group');
       const isMilestone = it.kind === 'milestone' && !it._hasChildren;
 
-      const btnRen = ui.abButton('ab-btn', 'rename', ui.icon('rename', { size: 'sm' }), 'Rename');
-      btnRen.addEventListener('click', () => {
-        const row = els.rows.get(id);
-        startInlineRename(id, row ? row.querySelector('.gantt-tree-label') : null);
-      });
-      bar.append(btnRen);
-
       if (!isParent) {
         const btnDates = ui.abButton('ab-btn', 'dates', ui.icon('calendar', { size: 'sm' }), isMilestone ? 'Set date' : 'Set dates');
         btnDates.addEventListener('click', () => openItemDatesPop(btnDates, it, isMilestone));
-        bar.append(btnDates);
+        bar.append(btnDates, ui.abSep('ab-sep'));
       }
 
-      bar.append(ui.abSep());
-      const swatches = swatchRow(it.color || '', (slot) => {
+      const swatches = pickColor(it.color, (slot) => {
         if (slot) it.color = slot; else delete it.color;
         render();
         updateStatus(true);
       });
-      bar.append(swatches, ui.abSep());
+      bar.append(swatches, ui.abSep('ab-sep'));
 
       if (!isMilestone) {
         const btnSub = ui.abButton('ab-btn', 'subtask', ui.icon('plus', { size: 'sm' }), 'Add subtask');
@@ -8796,17 +8978,7 @@ function toMermaid(data, opts) {
 
       const btnNote = ui.abButton('ab-btn', 'note', ui.icon('note', { size: 'sm' }), noteForTarget(id) ? 'Edit note' : 'Add note');
       btnNote.addEventListener('click', () => addOrEditNoteForTarget(id));
-      bar.append(btnNote, ui.abSep());
-
-      const { indices, pos } = siblingIndices(id);
-      const btnUp = ui.abButton('ab-btn', 'move-up', ui.icon('chevron-up', { size: 'sm' }), 'Move up');
-      btnUp.disabled = pos <= 0;
-      btnUp.addEventListener('click', () => moveItemSibling(id, -1));
-
-      const btnDown = ui.abButton('ab-btn', 'move-down', ui.icon('chevron-down', { size: 'sm' }), 'Move down');
-      btnDown.disabled = pos < 0 || pos >= indices.length - 1;
-      btnDown.addEventListener('click', () => moveItemSibling(id, 1));
-      bar.append(btnUp, btnDown, ui.abSep());
+      bar.append(btnNote, ui.abSep('ab-sep'));
 
       const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete');
       btnDel.addEventListener('click', () => deleteSelection(btnDel));
@@ -8817,11 +8989,11 @@ function toMermaid(data, opts) {
       if (!anchor) return;
 
       const countLbl = htmlEl('span', 'gantt-ab-count', `${ids.length} selected`);
-      bar.append(countLbl, ui.abSep());
+      bar.append(countLbl, ui.abSep('ab-sep'));
 
       const firstColor = (itemById(ids[0]) || {}).color || '';
       const sameColor = ids.every((id) => ((itemById(id) || {}).color || '') === firstColor) ? firstColor : '';
-      const swatches = swatchRow(sameColor, (slot) => {
+      const swatches = pickColor(sameColor, (slot) => {
         ids.forEach((id) => {
           const it = itemById(id);
           if (!it) return;
@@ -8830,11 +9002,11 @@ function toMermaid(data, opts) {
         render();
         updateStatus(true);
       });
-      bar.append(swatches, ui.abSep());
+      bar.append(swatches, ui.abSep('ab-sep'));
 
       const btnShift = ui.abButton('ab-btn', 'shift', ui.icon('calendar', { size: 'sm' }), 'Shift dates (± days)');
       btnShift.addEventListener('click', () => openShiftDatesPop(btnShift, ids));
-      bar.append(btnShift, ui.abSep());
+      bar.append(btnShift, ui.abSep('ab-sep'));
 
       const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete selected');
       btnDel.addEventListener('click', () => deleteSelection(btnDel));
@@ -9023,6 +9195,18 @@ function toMermaid(data, opts) {
     if (!presenting()) updateStatus(true);
   }
 
+  function toggleCollapseAll() {
+    const parents = parentItems();
+    if (!parents.length) return;
+    const anyExpanded = parents.some((it) => !it.collapsed);
+    parents.forEach((it) => {
+      if (anyExpanded) it.collapsed = true;
+      else delete it.collapsed;
+    });
+    render();
+    if (!presenting()) updateStatus(true);
+  }
+
   // --- ADD / DELETE ---
   function defaultNewDates(parentId) {
     const p = parentId ? itemById(parentId) : null;
@@ -9035,14 +9219,19 @@ function toMermaid(data, opts) {
       const s = ganttAddDays(selIt._end, 1);
       return { start: s, end: ganttAddDays(s, 13) };
     }
-    const base = (chartData._range && chartData._range.start) ? ganttAddDays(chartData._range.start, 7) : getTodayStr();
+    const base = (chartData._range && (chartData._range.contentStart || chartData._range.start))
+      ? ganttAddDays(chartData._range.contentStart || chartData._range.start, 7)
+      : getTodayStr();
     return { start: base, end: ganttAddDays(base, 13) };
   }
 
-  function addTask(parentId) {
+  function addTask(parentId, opts) {
     if (presenting()) return;
     if (!Array.isArray(chartData.items)) chartData.items = [];
-    const { start, end } = defaultNewDates(parentId);
+    const o = opts || {};
+    const def = defaultNewDates(parentId);
+    const start = o.start || def.start;
+    const end = o.end || (o.start ? ganttAddDays(o.start, 13) : def.end);
     const it = { id: newId('t'), kind: 'task', label: 'New task', start, end };
     if (parentId) {
       const p = itemById(parentId);
@@ -9059,22 +9248,23 @@ function toMermaid(data, opts) {
     if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
   }
 
-  function addSubtask(parentId) {
+  function addSubtask(parentId, opts) {
     const pid = parentId || (selItems.size === 1 ? [...selItems][0] : null);
     const p = pid ? itemById(pid) : null;
     if (p && p.kind === 'milestone') {
       ui.toast('Milestones cannot have subtasks');
       return;
     }
-    addTask(p ? p.id : null);
+    addTask(p ? p.id : null, opts);
   }
 
-  function addMilestone() {
+  function addMilestone(opts) {
     if (presenting()) return;
     if (!Array.isArray(chartData.items)) chartData.items = [];
-    const pid = selItems.size === 1 ? [...selItems][0] : null;
+    const o = opts || {};
+    const pid = o.parentId !== undefined ? o.parentId : (selItems.size === 1 ? [...selItems][0] : null);
     const p = pid ? itemById(pid) : null;
-    const d = (p && p._end) ? p._end : defaultNewDates(null).start;
+    const d = o.date || ((p && p._end) ? p._end : defaultNewDates(null).start);
     const it = { id: newId('t'), kind: 'milestone', label: 'Milestone', start: d, end: d };
     if (p && p.kind !== 'milestone') {
       it.parent = p.id;
@@ -9088,13 +9278,14 @@ function toMermaid(data, opts) {
     if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
   }
 
-  function addVerticalMarker() {
+  function addVerticalMarker(opts) {
     if (presenting()) return;
     if (!Array.isArray(chartData.markers)) chartData.markers = [];
+    const o = opts || {};
     const range = chartData._range;
-    const midDate = range
-      ? ganttAddDays(range.start, Math.floor(range.totalDays / 2))
-      : getTodayStr();
+    const midDate = o.date || (range
+      ? ganttAddDays(range.contentStart || range.start, Math.floor(Math.min(range.totalDays, 60) / 2))
+      : getTodayStr());
     const m = { id: newId('m'), label: 'Milestone', date: midDate, color: '4' };
     chartData.markers.push(m);
     selectMarker(m.id);
@@ -9415,7 +9606,15 @@ function toMermaid(data, opts) {
     const fb = fromIt._bar;
     const sx = depType === 'ss' ? fb.x : fb.x + fb.w;
     const sy = fb.y + fb.h / 2;
-    const bodyRect = bodyEl.getBoundingClientRect();
+    const modeLabel = depType === 'ss' ? 'Same start' : 'After finish';
+    let hoveredTargetEl = null;
+
+    const clearDepTarget = () => {
+      if (hoveredTargetEl) {
+        hoveredTargetEl.classList.remove('is-dep-target');
+        hoveredTargetEl = null;
+      }
+    };
 
     const preview = svgEl('path', {
       class: 'gantt-dep-preview',
@@ -9423,12 +9622,27 @@ function toMermaid(data, opts) {
       d: `M ${sx} ${sy} L ${sx} ${sy}`
     });
     svg.appendChild(preview);
+    showDragTip(e.clientX, e.clientY, modeLabel);
 
     const onMove = (ev) => {
+      const bodyRect = bodyEl.getBoundingClientRect();
       const tx = ev.clientX - bodyRect.left;
       const ty = ev.clientY - bodyRect.top;
       const mx = Math.round((sx + tx) / 2);
       preview.setAttribute('d', `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`);
+
+      const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
+      const targetEl = hitEl && hitEl.closest('.gantt-bar, .gantt-milestone');
+      if (targetEl && targetEl.dataset.itemId && targetEl.dataset.itemId !== fromId) {
+        if (hoveredTargetEl !== targetEl) {
+          clearDepTarget();
+          hoveredTargetEl = targetEl;
+          hoveredTargetEl.classList.add('is-dep-target');
+        }
+      } else {
+        clearDepTarget();
+      }
+      showDragTip(ev.clientX, ev.clientY, modeLabel);
     };
 
     const onUp = (ev) => {
@@ -9436,10 +9650,12 @@ function toMermaid(data, opts) {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       preview.remove();
+      clearDepTarget();
+      hideDragTip();
       const st = connectState;
       connectState = null;
       const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
-      const targetBar = hitEl && hitEl.closest('[data-item-id]');
+      const targetBar = hitEl && (hitEl.closest('.gantt-bar, .gantt-milestone') || hitEl.closest('[data-item-id]'));
       if (st && targetBar && targetBar.dataset.itemId) {
         finishConnection(st.fromId, targetBar.dataset.itemId, st.type);
       }
@@ -9672,7 +9888,19 @@ function toMermaid(data, opts) {
     updateStatus(true);
   }
 
-  // --- SIDEBAR SPLITTER DRAG ---
+  // --- SIDEBAR SPLITTER DRAG & DOUBLE-CLICK AUTO-FIT ---
+  function autoFitSidebarWidth() {
+    if (!treeEl) return;
+    let maxW = 200;
+    treeEl.querySelectorAll('.gantt-tree-row').forEach((row) => {
+      const lbl = row.querySelector('.gantt-tree-label');
+      if (!lbl) return;
+      const needed = Math.ceil((lbl.offsetLeft || 44) + lbl.scrollWidth + 36);
+      if (needed > maxW) maxW = needed;
+    });
+    applySidebarWidth(Math.max(200, Math.min(480, maxW)));
+  }
+
   if (splitter) {
     splitter.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
@@ -9695,22 +9923,71 @@ function toMermaid(data, opts) {
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     });
+    splitter.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      autoFitSidebarWidth();
+    });
   }
 
-  // --- SCROLL SYNCHRONIZATION ---
+  // --- SCROLL SYNCHRONIZATION & AUTO-EXTENDING TIMELINE ---
+  let suppressExtendUntil = 0;
+  function maybeExtendTimeline() {
+    if (isExtendingTimeline || activeDrag || !timeline || !chartData._range) return;
+    if (performance.now() < suppressExtendUntil) return;
+    if (timeline.scrollWidth <= timeline.clientWidth) return;
+    const range = chartData._range;
+    const step = EXTEND_DAYS[currentZoom()] || 180;
+
+    if (timeline.scrollLeft < 120) {
+      const oldStart = range.start;
+      const baseStart = (chartData._extraStart && chartData._extraStart < oldStart) ? chartData._extraStart : oldStart;
+      chartData._extraStart = ganttAddDays(baseStart, -step);
+      isExtendingTimeline = true;
+      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollTop = timeline.scrollTop;
+      render();
+      const newStart = chartData._range ? chartData._range.start : oldStart;
+      const addedDays = ganttDiffDays(newStart, oldStart);
+      const deltaPx = addedDays > 0 ? Math.round(addedDays * chartData._range.pxPerDay) : 0;
+      isSyncingScroll = true;
+      timeline.scrollLeft = prevScrollLeft + deltaPx;
+      timeline.scrollTop = prevScrollTop;
+      if (treeEl) treeEl.scrollTop = prevScrollTop;
+      isSyncingScroll = false;
+      requestAnimationFrame(() => { isExtendingTimeline = false; });
+    } else if (timeline.scrollLeft + timeline.clientWidth > timeline.scrollWidth - 120) {
+      const oldEnd = range.end;
+      const baseEnd = (chartData._extraEnd && chartData._extraEnd > oldEnd) ? chartData._extraEnd : oldEnd;
+      chartData._extraEnd = ganttAddDays(baseEnd, step);
+      isExtendingTimeline = true;
+      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollTop = timeline.scrollTop;
+      render();
+      isSyncingScroll = true;
+      timeline.scrollLeft = prevScrollLeft;
+      timeline.scrollTop = prevScrollTop;
+      if (treeEl) treeEl.scrollTop = prevScrollTop;
+      isSyncingScroll = false;
+      requestAnimationFrame(() => { isExtendingTimeline = false; });
+    }
+  }
+
   if (timeline && treeEl) {
     timeline.addEventListener('scroll', () => {
-      if (isSyncingScroll) return;
-      isSyncingScroll = true;
-      treeEl.scrollTop = timeline.scrollTop;
-      if (actionBarEl) removeActionBar();
-      isSyncingScroll = false;
+      if (!isSyncingScroll) {
+        isSyncingScroll = true;
+        if (treeEl.scrollTop !== timeline.scrollTop) treeEl.scrollTop = timeline.scrollTop;
+        if (actionBarEl) removeActionBar();
+        isSyncingScroll = false;
+      }
+      maybeExtendTimeline();
     }, { passive: true });
 
     treeEl.addEventListener('scroll', () => {
       if (isSyncingScroll) return;
       isSyncingScroll = true;
-      timeline.scrollTop = treeEl.scrollTop;
+      if (timeline.scrollTop !== treeEl.scrollTop) timeline.scrollTop = treeEl.scrollTop;
       if (actionBarEl) removeActionBar();
       isSyncingScroll = false;
     }, { passive: true });
@@ -9769,7 +10046,9 @@ function toMermaid(data, opts) {
     // 4. Restore scroll position to keep centerDate anchored
     if (timeline && centerDate && chartData._range) {
       const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
+      isExtendingTimeline = true;
       timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
+      requestAnimationFrame(() => { isExtendingTimeline = false; });
     }
 
     // 5. Morph bars from old rects to new rects
@@ -9787,28 +10066,41 @@ function toMermaid(data, opts) {
       if (idx >= 0 && idx < ZOOM_ORDER.length - 1) setZoomPreset(ZOOM_ORDER[idx + 1]);
     },
     reset(animate) {
-      // Pick the finest zoom preset where the roadmap fits inside the visible timeline width
+      // Pick the finest zoom preset where the roadmap content fits inside the visible timeline width
       const availW = (timeline && timeline.clientWidth) ? timeline.clientWidth - 24 : 900;
       const range = chartData._range;
+      const contentDays = (range && range.contentStart && range.contentEnd)
+        ? Math.max(1, ganttDiffDays(range.contentStart, range.contentEnd) + 14)
+        : (range ? range.totalDays : 90);
       let chosen = 'month';
-      if (range && range.totalDays > 0) {
+      if (contentDays > 0) {
         chosen = 'year';
         for (let i = 0; i < ZOOM_ORDER.length; i++) {
           const z = ZOOM_ORDER[i];
-          if (range.totalDays * GANTT_ZOOMS[z].pxPerDay <= availW) {
+          if (contentDays * GANTT_ZOOMS[z].pxPerDay <= availW) {
             chosen = z;
             break;
           }
         }
       }
+      const scrollToContent = () => {
+        if (!timeline || !chartData._range) return;
+        const r = chartData._range;
+        const anchorDate = r.contentStart || r.start;
+        const anchorX = ganttDiffDays(r.start, anchorDate) * r.pxPerDay;
+        const left = Math.max(0, Math.round(anchorX - 48));
+        isExtendingTimeline = true;
+        timeline.scrollTo({ left, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+        requestAnimationFrame(() => { isExtendingTimeline = false; });
+      };
       if (chosen !== currentZoom()) {
         const oldRects = (animate && motion.enabled()) ? captureBarRects() : null;
         chartData.zoom = chosen;
         render();
-        if (timeline) timeline.scrollTo({ left: 0, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+        scrollToContent();
         if (oldRects) playZoomMorph(oldRects);
-      } else if (timeline) {
-        timeline.scrollTo({ left: 0, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+      } else {
+        scrollToContent();
       }
     },
     getLabel() {
@@ -9823,6 +10115,7 @@ function toMermaid(data, opts) {
     const range = chartData._range;
     const x = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
     const targetScroll = Math.max(0, Math.round(x - timeline.clientWidth / 2));
+    suppressExtendUntil = performance.now() + 700;
     timeline.scrollTo({
       left: targetScroll,
       behavior: motion.enabled() ? 'smooth' : 'auto'
@@ -9892,35 +10185,127 @@ function toMermaid(data, opts) {
   if (holAddBtn) {
     holAddBtn.addEventListener('click', () => {
       if (presenting()) return;
-      const d = holDateInput ? ganttFormatDate(holDateInput.value) : '';
-      if (!d) { ui.toast('Pick a valid holiday date'); return; }
+      const start = holDateInput ? ganttFormatDate(holDateInput.value) : '';
+      if (!start) { ui.toast('Pick a valid holiday start date'); return; }
+      const endInput = holEndInput || document.getElementById('gantt-hol-end');
+      const rawEnd = endInput && endInput.value ? ganttFormatDate(endInput.value) : '';
+      if (endInput && endInput.value && !rawEnd) { ui.toast('Pick a valid holiday end date'); return; }
+      const end = rawEnd || start;
+      if (end < start) { ui.toast('End date must be on or after start date'); return; }
       const name = cleanLabel(holNameInput ? holNameInput.value : '', 'Holiday');
       if (!Array.isArray(chartData.holidays)) chartData.holidays = [];
-      if (chartData.holidays.some((h) => h && h.date === d && h.name === name)) {
+      if (chartData.holidays.some((h) => h && h.date === start && (h.end || h.date) === end && h.name === name)) {
         ui.toast('Holiday already listed');
         return;
       }
-      chartData.holidays.push({ date: d, end: d, name });
+      chartData.holidays.push({ date: start, end, name });
       chartData.holidays.sort((a, b) => String(a.date).localeCompare(String(b.date)));
       if (holDateInput) holDateInput.value = '';
+      if (endInput) endInput.value = '';
       if (holNameInput) holNameInput.value = '';
       render();
       updateStatus(true);
     });
   }
 
-  // --- TOOLBAR BUTTON WIRING ---
-  if (btnAddTask) btnAddTask.addEventListener('click', () => addTask(null));
-  if (btnAddSubtask) btnAddSubtask.addEventListener('click', () => addSubtask(null));
-  if (btnAddMilestone) btnAddMilestone.addEventListener('click', () => addMilestone());
-  if (btnAddMarker) btnAddMarker.addEventListener('click', () => addVerticalMarker());
-  if (btnAddNote) {
-    btnAddNote.addEventListener('click', () => {
-      const targetId = selItems.size ? [...selItems][0] : null;
-      addOrEditNoteForTarget(targetId);
+  // --- TOOLBAR BUTTON WIRING (+ DRAG-FROM-ADD TILES) ---
+  function wireAddTileDrag(btn, kind, label, onClickFn) {
+    if (!btn) return;
+    let suppressClick = false;
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || presenting()) return;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let dragging = false;
+      let ghost = null;
+
+      const isOverTimeline = (cx, cy) => {
+        if (!timeline) return false;
+        const r = timeline.getBoundingClientRect();
+        return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+      };
+
+      const onMove = (ev) => {
+        if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) <= 6) return;
+        if (!dragging) {
+          dragging = true;
+          const wrap = addPop && addPop.closest('[data-dock-pop]');
+          if (wrap) wrap.classList.remove('open');
+          if (btnAdd) btnAdd.setAttribute('aria-expanded', 'false');
+          document.body.classList.add('palette-dragging');
+          ghost = htmlEl('div', 'gantt-add-ghost', label);
+          ghost.setAttribute('data-export-skip', '');
+          document.body.appendChild(ghost);
+        }
+        ghost.style.left = `${ev.clientX + 12}px`;
+        ghost.style.top = `${ev.clientY - 14}px`;
+        if (isOverTimeline(ev.clientX, ev.clientY)) {
+          const dropDate = dateFromClientX(ev.clientX);
+          const rowItem = itemFromClientY(ev.clientY);
+          ghost.textContent = `${label} · ${formatShortDate(dropDate)}`;
+          setHoveredRow(rowItem ? rowItem.id : null);
+        } else {
+          ghost.textContent = label;
+          setHoveredRow(null);
+        }
+      };
+
+      const onUp = (ev) => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        if (ghost) { ghost.remove(); ghost = null; }
+        document.body.classList.remove('palette-dragging');
+        setHoveredRow(null);
+        if (!dragging) return;
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 0);
+        if (ev.type !== 'pointerup' || !isOverTimeline(ev.clientX, ev.clientY)) return;
+        const dropDate = dateFromClientX(ev.clientX);
+        const rowItem = itemFromClientY(ev.clientY);
+        if (kind === 'task') {
+          const parentId = (rowItem && (rowItem._hasChildren || rowItem.kind === 'group'))
+            ? rowItem.id
+            : (rowItem && rowItem.parent ? rowItem.parent : null);
+          addTask(parentId, { start: dropDate, end: ganttAddDays(dropDate, 13) });
+        } else if (kind === 'subtask') {
+          const parentId = (rowItem && rowItem.kind !== 'milestone')
+            ? rowItem.id
+            : (selItems.size === 1 ? [...selItems][0] : null);
+          addSubtask(parentId, { start: dropDate, end: ganttAddDays(dropDate, 13) });
+        } else if (kind === 'milestone') {
+          const parentId = (rowItem && rowItem.kind !== 'milestone') ? rowItem.id : null;
+          addMilestone({ date: dropDate, parentId });
+        } else if (kind === 'marker') {
+          addVerticalMarker({ date: dropDate });
+        } else if (kind === 'note') {
+          const targetId = rowItem ? rowItem.id : (selItems.size ? [...selItems][0] : null);
+          addOrEditNoteForTarget(targetId);
+        }
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+
+    btn.addEventListener('click', () => {
+      if (suppressClick) { suppressClick = false; return; }
+      onClickFn();
     });
   }
+
+  wireAddTileDrag(btnAddTask, 'task', 'Task', () => addTask(null));
+  wireAddTileDrag(btnAddSubtask, 'subtask', 'Subtask', () => addSubtask(null));
+  wireAddTileDrag(btnAddMilestone, 'milestone', 'Milestone', () => addMilestone());
+  wireAddTileDrag(btnAddMarker, 'marker', 'Date Line', () => addVerticalMarker());
+  wireAddTileDrag(btnAddNote, 'note', 'Note', () => {
+    const targetId = selItems.size ? [...selItems][0] : null;
+    addOrEditNoteForTarget(targetId);
+  });
+
   if (btnAddInline) btnAddInline.addEventListener('click', () => addTask(null));
+  if (btnToggleAll) btnToggleAll.addEventListener('click', () => toggleCollapseAll());
   if (btnNotes) btnNotes.addEventListener('click', () => toggleShowNotes());
   if (btnDeps) {
     btnDeps.addEventListener('click', () => {
@@ -9928,10 +10313,30 @@ function toMermaid(data, opts) {
       syncDepsVisibility();
     });
   }
+  if (btnWeekends) {
+    btnWeekends.addEventListener('click', () => {
+      if (chartData.showWeekends === false) delete chartData.showWeekends;
+      else chartData.showWeekends = false;
+      if (!GANTT_ZOOMS[currentZoom()].showWeekends) {
+        ui.toast('Weekends show in Day and Week views');
+      }
+      render();
+      if (!presenting()) updateStatus(true);
+    });
+  }
+  if (legendWrap) {
+    legendWrap.addEventListener('mouseenter', () => {
+      if (!legendOpen) toggleLegendPop(true, false);
+    });
+    legendWrap.addEventListener('mouseleave', () => {
+      if (!legendPinned && legendOpen) toggleLegendPop(false, false);
+    });
+  }
   if (btnLegend) {
     btnLegend.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleLegendPop();
+      if (legendOpen && legendPinned) toggleLegendPop(false, false);
+      else toggleLegendPop(true, true);
     });
   }
   if (btnToday) btnToday.addEventListener('click', () => jumpToToday());
@@ -9950,7 +10355,35 @@ function toMermaid(data, opts) {
     });
   }
   if (treeEl) treeEl.addEventListener('pointerleave', () => setHoveredRow(null));
-  if (bodyEl) bodyEl.addEventListener('pointerleave', () => setHoveredRow(null));
+  if (bodyEl) {
+    bodyEl.addEventListener('pointerleave', () => {
+      setHoveredRow(null);
+      if (!activeDrag) hideGhostBar();
+    });
+  }
+
+  // Keyboard shortcuts: F2 inline rename, Alt+ArrowUp / Alt+ArrowDown reorder siblings
+  window.addEventListener('keydown', (e) => {
+    if (presenting() || isTyping()) return;
+    if (e.key === 'F2') {
+      if (selItems.size === 1) {
+        e.preventDefault();
+        const id = [...selItems][0];
+        const row = els.rows.get(id);
+        startInlineRename(id, row ? row.querySelector('.gantt-tree-label') : null);
+      } else if (selMarkerId) {
+        const m = markerById(selMarkerId);
+        const rec = els.markers.get(selMarkerId);
+        if (m && rec && rec.flag) {
+          e.preventDefault();
+          openMarkerRenamePop(rec.flag, m);
+        }
+      }
+    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && selItems.size === 1) {
+      e.preventDefault();
+      moveItemSibling([...selItems][0], e.key === 'ArrowUp' ? -1 : 1);
+    }
+  });
 
   // Close popovers / commit note on outside click
   window.addEventListener('pointerdown', (e) => {
@@ -9961,7 +10394,7 @@ function toMermaid(data, opts) {
       toggleHolidaysPop(false);
     }
     if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
-      toggleLegendPop(false);
+      toggleLegendPop(false, false);
     }
     if (editingNoteId) {
       const card = els.notes.get(editingNoteId);
@@ -10135,7 +10568,10 @@ function toMermaid(data, opts) {
         const tw = parseFloat(t.style.width) || 0;
         parts.push(`<line x1="${lx}" y1="${headerH / 2}" x2="${lx}" y2="${h}" stroke="${escXml(border)}" stroke-width="1" stroke-opacity="0.55"/>`);
         if (tw > 14) {
-          parts.push(`<text x="${lx + 4}" y="${headerH - 8}" font-size="10" fill="${escXml(muted)}">${escXml(t.textContent)}</text>`);
+          const numEl = t.querySelector('.gantt-day-num');
+          const dowEl = t.querySelector('.gantt-day-dow');
+          const tickText = (numEl && dowEl) ? `${numEl.textContent} ${dowEl.textContent}` : t.textContent;
+          parts.push(`<text x="${lx + 4}" y="${headerH - 8}" font-size="10" fill="${escXml(muted)}">${escXml(tickText)}</text>`);
         }
       });
     }
@@ -10172,11 +10608,6 @@ function toMermaid(data, opts) {
         parts.push(`<rect x="${bx}" y="${by}" width="${Math.max(4, b.w)}" height="${b.h}" rx="4" fill="${escXml(c.border)}" fill-opacity="0.85"/>`);
       } else {
         parts.push(`<rect x="${bx}" y="${by}" width="${Math.max(4, b.w)}" height="${b.h}" rx="5" fill="${escXml(c.fill)}" stroke="${escXml(c.border)}" stroke-width="1.2"/>`);
-        const lbl = it.label || it.id;
-        const fits = b.w >= lbl.length * GANTT_METRICS.CHAR_W + 18;
-        if (fits) {
-          parts.push(`<text x="${bx + 8}" y="${by + Math.round(b.h / 2 + 4)}" font-size="11" font-weight="500" fill="${escXml(c.text)}">${escXml(lbl)}</text>`);
-        }
       }
     });
 
@@ -10210,7 +10641,7 @@ function toMermaid(data, opts) {
 
   // --- DISK FORMAT (mirrors gantt_to_disk / gantt_from_disk in scripts/disk_format.py) ---
   const GANTT_KEYS = [
-    'diagramType', 'schemaVersion', 'title', 'zoom', 'showNotes', 'showToday',
+    'diagramType', 'schemaVersion', 'title', 'zoom', 'showNotes', 'showToday', 'showWeekends',
     'colorKey', 'holidays', 'markers', 'items', 'dependencies', 'notes'
   ];
   const GENERATED_ID = /^(n|c|e|lane|t|m)_\d{12,}(_\d+)?$/;
@@ -10296,6 +10727,7 @@ function toMermaid(data, opts) {
   }
 
   function fromDisk(data) {
+    didInitialScroll = false;
     const d = JSON.parse(JSON.stringify(data));
     delete d.layout;
     slotColors(d, 'items', 'markers');
@@ -10313,7 +10745,7 @@ function toMermaid(data, opts) {
       node: '.gantt-bar, .gantt-milestone',
       label: '.gantt-dep-group',
       labelText: '.gantt-dep-label',
-      nodeText: '.gantt-bar-label, .gantt-ms-label'
+      nodeText: '.gantt-ms-label'
     },
     render,
     applyLayout,

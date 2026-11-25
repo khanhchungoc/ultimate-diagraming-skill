@@ -141,6 +141,10 @@
       <button id="btn-holidays" type="button" class="btn" data-dock-group="layout" title="Manage public holidays" aria-label="Holidays" aria-haspopup="dialog" aria-expanded="false" aria-controls="gantt-holidays-pop">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg><span class="btn-label">Holidays</span>
       </button>
+      <!-- Weekends: shows or hides weekend shading in Day and Week views -->
+      <button id="btn-weekends" type="button" class="btn btn-switch" role="switch" aria-checked="true" data-dock-group="layout" title="Show or hide weekend shading in Day and Week views" aria-label="Weekends">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg><span class="btn-label">Weekends</span>
+      </button>
       <!-- Shown only while something is selected (plugin.hasSelection) -->
       <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg><span class="btn-label">Delete</span>
@@ -174,11 +178,13 @@
   </div>
   </div>
 
-  <!-- Color key legend popover & compact bottom-right toggle button -->
-  <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
-  <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Legend</span>
-  </button>
+  <!-- Color key legend popover & compact bottom-right hover/click toggle button -->
+  <div id="gantt-legend-wrap" class="gantt-legend-wrap" data-export-skip>
+    <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
+    <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Legend</span>
+    </button>
+  </div>
 
   <!-- Public holidays popover: view, add, or remove shaded holidays -->
   <div id="gantt-holidays-pop" class="popover gantt-holidays-pop" role="dialog" aria-label="Public holidays" hidden>
@@ -188,9 +194,21 @@
     </div>
     <div id="gantt-holidays-list" class="gantt-holidays-list"></div>
     <div class="gantt-hol-form">
-      <input id="gantt-hol-date" type="date" aria-label="Holiday date">
-      <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
-      <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+      <div class="gantt-hol-dates">
+        <label class="gantt-hol-date-field">
+          <span class="gantt-hol-field-lbl">Start</span>
+          <input id="gantt-hol-date" type="date" aria-label="Holiday date">
+        </label>
+        <span class="gantt-hol-date-sep" aria-hidden="true">–</span>
+        <label class="gantt-hol-date-field">
+          <span class="gantt-hol-field-lbl">End</span>
+          <input id="gantt-hol-end" type="date" aria-label="Holiday end date (optional)" title="End date (optional, for multi-day holiday range)">
+        </label>
+      </div>
+      <div class="gantt-hol-submit">
+        <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
+        <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+      </div>
     </div>
   </div>
 
@@ -203,7 +221,7 @@
         <aside id="gantt-sidebar" class="gantt-sidebar" aria-label="Task list">
           <div class="gantt-sidebar-head">
             <span>Tasks</span>
-            <button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+            <div class="gantt-sidebar-actions"><button id="btn-toggle-all" type="button" class="btn btn-icon gantt-toggle-all" title="Collapse all phases" aria-label="Collapse all phases"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button><button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button></div>
           </div>
           <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
         </aside>
