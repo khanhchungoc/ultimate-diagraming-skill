@@ -483,6 +483,51 @@ test('cyclic parent references do not hang', () => {
   assert.equal(data.items[1]._row, 1);
 });
 
+test('_filterIds compacts visible rows while preserving parent rollups and timeline range', () => {
+  const data = {
+    diagramType: 'gantt',
+    zoom: 'month',
+    items: [
+      { id: 'p1', kind: 'group', label: 'Phase 1' },
+      { id: 'past', kind: 'task', label: 'Past task', parent: 'p1', start: '2026-02-01', end: '2026-02-20' },
+      { id: 'act1', kind: 'task', label: 'Active 1', parent: 'p1', start: '2026-05-01', end: '2026-06-01' },
+      { id: 'p2', kind: 'group', label: 'Phase 2' },
+      { id: 'act2', kind: 'task', label: 'Active 2', parent: 'p2', start: '2026-05-15', end: '2026-06-15' }
+    ],
+    dependencies: [
+      { from: 'past', to: 'act1', type: 'fs' },
+      { from: 'act1', to: 'act2', type: 'fs' }
+    ]
+  };
+  layoutDiagram(data);
+  const fullRangeStart = data._range.start;
+  const fullRangeEnd = data._range.end;
+
+  data._filterIds = new Set(['p1', 'act1', 'p2', 'act2']);
+  layoutDiagram(data);
+  const byId = Object.fromEntries(data.items.map((it) => [it.id, it]));
+
+  // Timeline range and parent rollup stay stable
+  assert.equal(data._range.start, fullRangeStart);
+  assert.equal(data._range.end, fullRangeEnd);
+  assert.equal(byId.p1._start, '2026-02-01');
+  assert.equal(byId.p1._end, '2026-06-01');
+
+  // Filtered-out row is hidden and remaining rows pack densely 0..3
+  assert.equal(byId.past._hidden, true);
+  assert.equal(byId.past._row, -1);
+  assert.equal(byId.past._bar, null);
+  assert.equal(byId.p1._row, 0);
+  assert.equal(byId.act1._row, 1);
+  assert.equal(byId.p2._row, 2);
+  assert.equal(byId.act2._row, 3);
+
+  // Only dependency between visible items is routed
+  assert.equal(data._deps.length, 1);
+  assert.equal(data._deps[0].from, 'act1');
+  assert.equal(data._deps[0].to, 'act2');
+});
+
 if (process.exitCode) {
   console.error(`\nFailed (${passed} passed before failure).`);
 } else {

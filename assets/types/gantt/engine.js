@@ -186,6 +186,7 @@ function layoutDiagram(data) {
   }
 
   // 2. Depth-first traversal: compute _depth, _hasChildren, _hidden, _row, and bottom-up _start/_end rollup
+  const filterSet = (data._filterIds && typeof data._filterIds.has === 'function') ? data._filterIds : null;
   let visibleRow = 0;
   const orderedItems = [];
 
@@ -193,7 +194,7 @@ function layoutDiagram(data) {
     const kids = childrenByParent.get(it.id) || [];
     it._depth = depth;
     it._hasChildren = kids.length > 0;
-    it._hidden = Boolean(ancestorCollapsed);
+    it._hidden = Boolean(ancestorCollapsed) || Boolean(filterSet && !filterSet.has(it.id));
     it._row = it._hidden ? -1 : visibleRow++;
     orderedItems.push(it);
 

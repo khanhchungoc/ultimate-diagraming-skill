@@ -1,64 +1,138 @@
 gantt
-    title Q2–Q3 Product Roadmap
+    title 2026 Platform Transformation Roadmap
     dateFormat YYYY-MM-DD
     %% @zoom month
     %% @holidays none
     %% @holiday 2026-05-25 Memorial Day
     %% @holiday 2026-07-03 Independence Day (Observed)
-    %% @colorKey 1: Engineering, 2: Design, 3: Security, 4: Go-to-Market
-    %% @marker Launch Day : 2026-07-15 4
+    %% @holiday 2026-09-07 Labor Day
+    %% @colorKey 1: Engineering, 2: Design, 3: Security, 4: Go-to-Market, 5: Data & AI
+    %% @marker Beta Freeze : 2026-06-22 1
+    %% @marker Launch Day : 2026-08-20 4
 
-    section Discovery
-    User research              :res, 2026-04-01, 2026-04-14
+    section Phase 1 · Discovery & Strategy
+    User research & interviews       :res, 2026-02-02, 2026-02-20
     %% @color res 2
-    %% @note res Interview 12 enterprise buyers across US and APAC.
-    Wireframes & prototypes    :ux, after res, 14d
+    %% @note res Interview 18 enterprise buyers across US, EU, and APAC.
+    Competitive & pricing teardown   :market, 2026-02-09, 2026-02-27
+    %% @color market 4
+    Wireframes & interactive prototypes :ux, 2026-02-21, 2026-03-18
     %% @color ux 2
-    Technical architecture     :spec, 2026-04-10, 2026-04-24
+    %% @dep ux fs res
+    Technical architecture RFC       :spec, 2026-02-23, 2026-03-20
     %% @color spec 1
     %% @dep spec ss res
-    Scope sign-off             :milestone, signoff, after ux, 0d
+    Scope sign-off                   :milestone, signoff, 2026-03-20, 0d
     %% @color signoff 2
+    %% @dep signoff fs ux
+    Customer advisory board sync     :cab, 2026-05-04, 2026-06-12
+    %% @color cab 4
+    %% @note cab Monthly executive check-in carried over from Discovery.
 
-    section Build
-    Core platform              :plat, 2026-04-25, 2026-06-22
+    section Phase 2 · Cloud Foundations
+    Multi-region Kubernetes clusters :infra, 2026-03-02, 2026-03-27
+    %% @color infra 1
+    %% @dep infra ss spec
+    CI/CD & canary rollout pipeline  :ci, 2026-03-16, 2026-04-10
+    %% @color ci 1
+    %% @dep ci ss infra
+    OpenTelemetry & SLO dashboards   :obs, 2026-03-28, 2026-04-24
+    %% @color obs 1
+    Disaster recovery failover drill :dr, 2026-07-06, 2026-07-24
+    %% @color dr 3
+
+    section Phase 3 · Core Platform Build
+    Core platform                    :plat, 2026-04-13, 2026-06-26
     %% @color plat 1
-    API layer                  :api, 2026-04-25, 2026-05-26
+    API layer & webhooks             :api, 2026-04-13, 2026-05-28
     %% @parent api plat
     %% @color api 1
     %% @dep api fs spec
     %% @note api GraphQL and REST endpoints with versioned webhooks.
-    Auth & SSO                 :auth, 2026-04-29, 16d
+    Auth & enterprise SSO            :auth, 2026-04-20, 2026-05-12
     %% @parent auth api
     %% @color auth 3
     %% @dep auth ss api
-    Security review            :audit, after auth, 10d
+    Security review                  :audit, 2026-05-12, 2026-05-26
     %% @parent audit api
     %% @color audit 3
+    %% @dep audit fs auth
     %% @note audit External pen-test and SOC 2 access controls check.
-    Web application            :ui, 2026-05-18, 2026-06-15
+    Edge caching & rate limits       :cache, 2026-05-04, 2026-06-05
+    %% @parent cache plat
+    %% @color cache 1
+    Web application shell            :ui, 2026-05-18, 2026-06-18
     %% @parent ui plat
     %% @color ui 2
     %% @dep ui fs api
     %% @note ui Starts on mocked API contracts; intentional overlap with API freeze.
-    Integration & load testing :qa, after ui, 7d
+    Responsive mobile workflows      :mobile, 2026-05-25, 2026-06-22
+    %% @parent mobile plat
+    %% @color mobile 2
+    Integration & load testing       :qa, 2026-06-15, 2026-06-26
     %% @parent qa plat
     %% @color qa 1
-    Beta ready                 :milestone, beta, after qa, 0d
+    %% @dep qa fs ui
+    Beta ready                       :milestone, beta, 2026-06-26, 0d
     %% @parent beta plat
     %% @color beta 1
+    %% @dep beta fs qa
 
-    section Launch
-    Docs & migration guide     :docs, 2026-06-18, 2026-07-08
+    section Phase 4 · Data & AI Pipeline
+    Streaming event ingestion        :ingest, 2026-06-01, 2026-06-26
+    %% @color ingest 5
+    %% @dep ingest fs api
+    Analytics warehouse schema       :warehouse, 2026-06-22, 2026-07-17
+    %% @color warehouse 5
+    %% @dep warehouse fs ingest
+    Semantic search indexing         :search_idx, 2026-07-06, 2026-07-31
+    %% @color search_idx 5
+    %% @dep search_idx ss warehouse
+    Copilot quality & safety evals   :evals, 2026-07-20, 2026-08-14
+    %% @color evals 5
+    %% @dep evals ss search_idx
+    AI pipeline ready                :milestone, ai_ready, 2026-08-14, 0d
+    %% @color ai_ready 5
+    %% @dep ai_ready fs evals
+
+    section Phase 5 · Security & Compliance
+    SOC 2 Type II evidence collection :soc2, 2026-05-04, 2026-06-19
+    %% @color soc2 3
+    External penetration test        :pentest, 2026-05-18, 2026-06-12
+    %% @color pentest 3
+    %% @dep pentest ss audit
+    Vulnerability remediation        :remed, 2026-06-12, 2026-06-26
+    %% @color remed 3
+    %% @dep remed fs pentest
+    EU data residency sign-off       :gdpr, 2026-06-29, 2026-07-17
+    %% @color gdpr 3
+    %% @dep gdpr fs remed
+    Compliance cleared               :milestone, comp_done, 2026-07-17, 0d
+    %% @color comp_done 3
+    %% @dep comp_done fs gdpr
+
+    section Phase 6 · Launch & Rollout
+    Docs & migration guide           :docs, 2026-06-22, 2026-07-24
     %% @color docs 4
     %% @dep docs ss qa
-    Customer beta pilot        :pilot, after beta, 16d
+    Customer beta pilot              :pilot, 2026-06-29, 2026-08-07
     %% @color pilot 4
+    %% @dep pilot fs beta
     %% @note pilot Five design-partner teams running production workloads.
-    Launch campaign            :gtm, 2026-07-01, 2026-07-22
+    Metered billing & plans          :billing, 2026-07-06, 2026-07-31
+    %% @color billing 1
+    Support playbooks & training     :support, 2026-07-20, 2026-08-14
+    %% @color support 4
+    Launch campaign & press kit      :gtm, 2026-07-27, 2026-08-28
     %% @color gtm 4
     %% @dep gtm ss pilot
-    General availability       :milestone, ga, 2026-07-15, 0d
+    General availability             :milestone, ga, 2026-08-20, 0d
     %% @color ga 4
     %% @dep ga fs pilot
-    %% @dep ga fs docs
+    %% @dep ga fs comp_done
+    %% @dep ga fs ai_ready
+    Enterprise customer migration    :onboard, 2026-08-24, 2026-09-25
+    %% @color onboard 4
+    %% @dep onboard fs ga
+    Post-launch telemetry review     :post_tel, 2026-09-01, 2026-09-30
+    %% @color post_tel 5
