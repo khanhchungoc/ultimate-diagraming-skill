@@ -334,7 +334,8 @@ try {
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
   await t.clickOn('.seq-ab-btn[data-act="fkind"][data-value="alt"]');
-  await t.clickOn('.seq-ab-btn[data-act="color"][data-value="5"]');
+  await t.clickOn('.seq-actionbar .swatch-trigger');
+  await t.clickOn('.seq-actionbar .swatch-btn[data-act="color"][data-value="5"]');
   await t.clickOn('.seq-add-branch');
   const brEdit = await editing();
   await t.type('stock low');
@@ -775,12 +776,12 @@ try {
     !JSON.parse(await rails()).includes('bus') && (await summaries()) < 4 && (await count('.seq-participant.is-rail')) < 4, `${await rails()} ${await summaries()}`);
   await t.clickOn('#btn-show-all');
   t.check('Show all expands every frame again (and then hides itself)', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)));
-  // Focus is a toggle in the frame's tag; the frame's action bar has no Focus, two rows, and one bin
+  // Focus is a toggle in the frame's tag; the frame's action bar has no Focus, a single row with colour picker, and one bin
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-kind, .frame-tag[data-frag-id="f3"] .seq-frag-text');
   const fbar = await t.ev(`JSON.stringify([...document.querySelectorAll('.seq-actionbar .seq-ab-btn')].filter((b) => /delete/.test(b.dataset.act)).map((b) => [b.dataset.act, b.textContent.trim(), !!b.title]))`);
-  const rows = await t.ev(`(() => { const r = [...document.querySelectorAll('.seq-actionbar .seq-ab-row')]; return r.length === 2 && r[1].getBoundingClientRect().top > r[0].getBoundingClientRect().bottom - 1 ? 2 : r.length; })()`);
-  t.check('a frame\'s action bar has no Focus, two rows, and one bin icon with a tooltip',
-    (await count('.seq-actionbar .seq-ab-btn[data-act="focus"]')) === 0 && fbar === JSON.stringify([['delete-frame', '', true]]) && rows === 2, `${fbar} rows=${rows}`);
+  const hasPicker = (await count('.seq-actionbar .swatch-trigger')) === 1;
+  t.check('a frame\'s action bar has no Focus, a colour picker trigger, and one bin icon with a tooltip',
+    (await count('.seq-actionbar .seq-ab-btn[data-act="focus"]')) === 0 && fbar === JSON.stringify([['delete-frame', '', true]]) && hasPicker, `${fbar} picker=${hasPicker}`);
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const viaBar = await summaries();
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
@@ -916,7 +917,8 @@ try {
     return { top: c.borderTopWidth, topColor: c.borderTopColor, bg: c.backgroundColor, scoped: b.classList.contains('swatch-scope') }; })()`);
   const plain = await boxStyle('p2');
   await t.clickOn('.seq-participant[data-node-id="p2"]');
-  t.check('a participant\'s action bar has a "none" swatch and the eight flowchart swatches', (await count('.seq-actionbar .swatch-btn')) === 9);
+  await t.clickOn('.seq-actionbar .swatch-trigger');
+  t.check('a participant\'s action bar has a "none" swatch and the nine palette swatches', (await count('.seq-actionbar .swatch-btn')) === 10);
   await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${SKY}"]`);
   const coloured = await boxStyle('p2');
   const lifeStroke = await t.ev(`getComputedStyle(document.querySelector('.seq-lifeline[data-node-id="p2"]')).stroke`);
@@ -937,6 +939,7 @@ try {
   t.check('the key label edits by double-click and is saved in colorKey, the participant colour as its slot',
     d.colorKey && d.colorKey[SKY] === 'Our services' && d.participants[1].color === SKY && Object.keys(d)[Object.keys(d).indexOf('participants') - 1] === 'colorKey', JSON.stringify([d.colorKey, d.participants[1]]));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
+  await t.clickOn('.seq-actionbar .swatch-trigger');
   await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${AMBER}"]`);
   t.check('a second colour adds a second key entry', (await count('.color-key-item')) === 2);
   // Export: the SVG carries the colours and the key
@@ -951,11 +954,13 @@ try {
     && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
   // Clearing: "none" removes the colour, and an unused key entry is dropped on save
   await t.clickOn('.seq-participant[data-node-id="p2"]');
+  await t.clickOn('.seq-actionbar .swatch-trigger');
   await t.clickOn('.seq-actionbar .swatch-btn[data-value="#ffffff"]');
   d = await saved();
   t.check('the first swatch is a real white (not the colour by position); a key entry no participant uses is dropped on save',
     d.participants[1].color === '#ffffff' && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
+  await t.clickOn('.seq-actionbar .swatch-trigger');
   await t.clickOn('.seq-actionbar .swatch-btn[data-value="#ffffff"]');
   d = await saved();
   t.check('with no colour left, the key goes too', d.colorKey === undefined && (await count('.seq-key')) === 0, JSON.stringify(d.colorKey));

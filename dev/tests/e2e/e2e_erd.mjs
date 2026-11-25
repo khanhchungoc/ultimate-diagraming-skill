@@ -485,12 +485,15 @@ sys.stdout.write(format_json(out))`;
   await freshPage();
   const col0 = await saved();
   await t.clickOn(head('address'));
-  t.check('a selected table’s action bar has the swatch row (none and the eight colours)', (await count('.erd-actionbar .swatch-btn')) === 9);
+  t.check('a selected table’s action bar has the colour picker trigger', await present('.erd-actionbar .swatch-trigger'));
+  await t.clickOn('.erd-actionbar .swatch-trigger');
+  t.check('opening the colour picker shows the swatch grid (none and the nine palette colours)', (await count('.erd-actionbar .swatch-btn')) === 10);
   await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]');
   d = await saved();
   const tinted = await t.ev(`(() => { const e = document.querySelector('.erd-entity[data-node-id="address"]'); return e.classList.contains('swatch-scope') && e.style.getPropertyValue('--swatch-color') === '#fef3c7' && getComputedStyle(e.querySelector('.erd-head')).backgroundColor !== getComputedStyle(document.querySelector('.erd-entity[data-node-id="customer"] .erd-head')).backgroundColor; })()`);
   t.check('a swatch sets the table’s own colour (saved on the table), the table is tinted, no other table changes',
     ent(d, 'address').color === '2' && tinted && d.entities.every((e) => e.id === 'address' || e.color === ent(col0, e.id).color), J(ent(d, 'address')));
+  await t.clickOn('.erd-actionbar .swatch-trigger');
   await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
   d = await saved();
   t.check('the none swatch clears the colour', !('color' in ent(d, 'address')));
@@ -503,6 +506,7 @@ sys.stdout.write(format_json(out))`;
   const ctrlClickA = async (sel) => { const q = await t.at(sel); await t.click(q.x, q.y, { modifiers: 2 }); };
   await ctrlClickA(head('product'));
   await ctrlClickA(head('category'));
+  await t.clickOn('.erd-actionbar .swatch-trigger');
   await t.clickOn('.erd-actionbar .swatch-btn[data-value="5"]');
   d = await saved();
   t.check('with several tables selected a swatch colours all of them', ent(d, 'product').color === '5' && ent(d, 'category').color === '5' && ent(d, 'review').color === ent(col0, 'review').color);
@@ -817,7 +821,7 @@ sys.stdout.write(format_json(out))`;
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
-    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); await t.press('Escape'); }],
+    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-trigger'); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); await t.press('Escape'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
@@ -1421,13 +1425,16 @@ sys.stdout.write(format_json(out))`;
     await t.clickOn(head('customer'));
     t.check('legend: no table bar has a Name colour button', (await count('.erd-actionbar [data-act="namecolor"]')) === 0);
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     d = await saved();
     t.check('legend: tinting a table invites a name: the legend opens with that colour in edit, nothing is saved yet', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1 && d.colorKey === undefined && ent(d, 'order').color === '1');
     await t.press('Escape');
     t.check('legend: Esc with no text leaves no legend and no colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     await nameIt('Billing');
     d = await saved();
@@ -1460,13 +1467,16 @@ sys.stdout.write(format_json(out))`;
     // a named colour no table uses is not listed and is not saved
     await freshPage(blank);
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     await nameIt('Billing');
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
     d = await saved();
     t.check('legend: with the colour taken off every table the legend is gone and Save drops colorKey', (await count(key)) === 0 && d.colorKey === undefined && !('color' in ent(d, 'order')), J(d.colorKey));
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     t.check('legend: tinting again brings the name back while the page is open', (await text(`${key} .color-key-label`)) === 'Billing');
     // ?present and exports: a named legend shows, no names shows nothing (the example names two colours)
@@ -1477,6 +1487,7 @@ sys.stdout.write(format_json(out))`;
     t.check('legend: an SVG export carries the named legend', !!withNames && withNames.includes('Sales') && withNames.includes('Catalog'));
     await freshPage(blank);
     await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     await t.press('Escape');   // the offered name is optional: leave it empty
     const noNames = await svgOf();

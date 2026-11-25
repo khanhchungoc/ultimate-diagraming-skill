@@ -1746,9 +1746,10 @@
         bar.appendChild(abSep());
         if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
         bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
+        bar.appendChild(abSep());
+        bar.appendChild(swatchPicker(o.color || '', setColor, { triggerClass: 'uc-ab-btn', btnClass: 'uc-ab-swatch' }));
+        bar.appendChild(abSep());
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
-        bar.appendChild(abBreak());
-        bar.appendChild(swatchRow(o.color || '', setColor, { btnClass: 'uc-ab-swatch' }));
         return anchorOfBox(boxOf(o));
       }
       function multiBar(bar) {
@@ -1763,9 +1764,9 @@
           bar.appendChild(b);
         }
         if (nActors === 1 && nCases >= 1) bar.appendChild(abButton('connect', `${ui.icon('link', { size: 'sm' })}<span>Connect to ${nCases}</span>`, `Associate the actor with the ${nCases} selected use case${nCases === 1 ? '' : 's'}`));
+        bar.appendChild(swatchPicker(swatchOf(selIds), setColor, { triggerClass: 'uc-ab-btn', btnClass: 'uc-ab-swatch' }));
+        bar.appendChild(abSep());
         bar.appendChild(abButton('delete', `${ui.icon('trash')}<span>Delete ${selIds.length}</span>`, `Delete these ${selIds.length} items and their lines`, undefined, undefined, 'is-danger'));
-        bar.appendChild(abBreak());
-        bar.appendChild(swatchRow(swatchOf(selIds), setColor, { btnClass: 'uc-ab-swatch' }));
         const x0 = Math.min(...objs.map((o) => o.x)), y0 = Math.min(...objs.map((o) => o.y));
         const x1 = Math.max(...objs.map((o) => o.x + (o.w || 0))), y1 = Math.max(...objs.map((o) => o.y + (o.h || 0)));
         return anchorOfBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });

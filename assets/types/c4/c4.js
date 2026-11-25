@@ -1658,10 +1658,8 @@
       const ab = (act, content, title, pressed, value, extra) => ui.abButton('ab-btn', act, content, title, pressed, value, extra);
       const abMenu = (act, icon, text, title) => { const b = ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, title); b.dataset.menu = ''; return b; };
       const abText = (act, icon, text, title, pressed) => ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>`, title, pressed);
-      function colourRow(current) {
-        const row = swatchRow(current || '', setColor, { btnClass: 'ab-swatch' });
-        row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = 'color'; });
-        return row;
+      function colourPicker(current) {
+        return swatchPicker(current || '', setColor, { triggerClass: 'ab-btn', btnClass: 'ab-swatch', act: 'color' });
       }
       const uniform = (objs) => { const cs = [...new Set(objs.map((o) => o.color || ''))]; return cs.length === 1 ? cs[0] : ''; };
       const boxOf = (o) => ({ x: o.x, y: o.y, w: o.w || 0, h: o.h || 0 });
@@ -1671,9 +1669,10 @@
         bar.setAttribute('aria-label', 'Element');
         bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
         if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(colourPicker(o.color));
+        bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete (and its arrows)', undefined, undefined, 'is-danger'));
-        bar.appendChild(ui.abBreak('ab-break'));
-        bar.appendChild(colourRow(o.color));
         return anchorOfBox(boxOf(o));
       }
       function groupBar(bar, g) {
@@ -1689,9 +1688,10 @@
           bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
         }
         bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(colourPicker(g.color));
+        bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
-        bar.appendChild(ui.abBreak('ab-break'));
-        bar.appendChild(colourRow(g.color));
         return anchorOfBox(boxOf(g));
       }
       function edgeBar(bar, e) {
@@ -1722,8 +1722,8 @@
         bar.appendChild(htmlEl('span', 'c4-ab-tag', `${sel.length} selected`));
         bar.appendChild(ui.abSep('ab-sep'));
         if (selIds('element').length) bar.appendChild(abMenu('group', 'frame', 'Group', 'Move the selected elements to a group'));
+        if (nodes.length) { bar.appendChild(colourPicker(uniform(nodes))); bar.appendChild(ui.abSep('ab-sep')); }
         bar.appendChild(ab('delete', `${ui.icon('trash')}<span>Delete ${sel.length}</span>`, `Delete these ${sel.length} items`, undefined, undefined, 'is-danger'));
-        if (nodes.length) { bar.appendChild(ui.abBreak('ab-break')); bar.appendChild(colourRow(uniform(nodes))); }
         const boxes = nodes.map(boxOf).concat(sel.filter((s) => s.kind === 'edge').map((s) => edgeOf(s.id)).filter((e) => e && e.labelBox).map((e) => e.labelBox));
         const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
         const x1 = Math.max(...boxes.map((b) => b.x + (b.w || 0))), y1 = Math.max(...boxes.map((b) => b.y + (b.h || 0)));

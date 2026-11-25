@@ -1190,8 +1190,8 @@
         --sw-disc: color-mix(in srgb, var(--sw-line) var(--swatch-disc-mix), var(--swatch-disc-base));   /* dark: the line colour deepened, as the slots do */
       }
     }
-    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
-    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    /* swatchRow(): 2-row grid of colour buttons (a "none" button, then one per palette slot) */
+    .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
@@ -1199,11 +1199,26 @@
     }
     .swatch-btn:hover { background: var(--bg-hover); }
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-pill-bg); border: 1px solid var(--sw-line); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
     .swatch-btn:hover .swatch-dot { transform: scale(1.15); }
     .swatch-btn[aria-pressed="true"] .swatch-dot { animation: swatch-pop 160ms var(--curve-spring-tactile); }
     @keyframes swatch-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+    /* swatchPicker(): a single trigger button showing the active swatch, opening a popover with swatchRow() */
+    .swatch-picker { position: relative; display: inline-flex; align-items: center; }
+    .swatch-trigger { gap: 4px; width: auto; padding: 0 7px; }
+    .swatch-trigger[aria-expanded="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-trigger .swatch-caret-wrap { display: inline-flex; align-items: center; color: var(--text-muted); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
+    .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
+    .swatch-popover {
+      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0; z-index: 60;
+      padding: 4px; border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-lg);
+      white-space: nowrap;
+    }
+    .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
+    .swatch-popover[hidden] { display: none; }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
        with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
@@ -3018,7 +3033,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         row.setAttribute('role', 'group');
         row.setAttribute('aria-label', 'Colour');
         const now = current ? colorSlot(current) : '';
-        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(SWATCHES).forEach((sw) => {
+        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(PALETTE).forEach((sw) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
@@ -3039,6 +3054,141 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           row.appendChild(b);
         });
         return row;
+      }
+      // A single colour-dot button that opens a popover with swatchRow() on click.
+      // opts: { btnClass, triggerClass, act, white }
+      function swatchPicker(current, onPick, opts) {
+        const o = opts || {};
+        const picker = document.createElement('span');
+        picker.className = 'swatch-picker';
+        const trig = document.createElement('button');
+        trig.type = 'button';
+        trig.className = `${o.triggerClass || 'ab-btn'} swatch-trigger`;
+        trig.setAttribute('aria-haspopup', 'true');
+        trig.setAttribute('aria-expanded', 'false');
+        const dot = document.createElement('span');
+        const syncTrigger = (val) => {
+          const slot = val ? colorSlot(val) : '';
+          const w = slot ? paletteOf(slot) : null;
+          dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
+          if (slot) setSwatch(dot, slot);
+          else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
+          const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
+          trig.title = label;
+          trig.setAttribute('aria-label', label);
+        };
+        syncTrigger(current);
+        trig.appendChild(dot);
+        const caret = document.createElement('span');
+        caret.className = 'swatch-caret-wrap';
+        caret.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+        const caretSvg = caret.querySelector('svg');
+        if (caretSvg) caretSvg.classList.add('swatch-caret');
+        trig.appendChild(caret);
+
+        const pop = document.createElement('div');
+        pop.className = 'swatch-popover';
+        pop.hidden = true;
+        let offDoc = null;
+        const close = (restoreFocus) => {
+          if (pop.hidden) return;
+          const above = pop.classList.contains('is-above');
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            motion.ghostExit(pop, {
+              duration: 100,
+              transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`,
+              clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 25% 0 round 8px)',
+              origin: above ? 'bottom center' : 'top center'
+            });
+          }
+          pop.hidden = true;
+          pop.classList.remove('is-above');
+          pop.style.removeProperty('--pop-shift');
+          trig.setAttribute('aria-expanded', 'false');
+          if (offDoc) { offDoc(); offDoc = null; }
+          if (restoreFocus && trig.isConnected) trig.focus();
+        };
+        const row = swatchRow(current, (slot) => {
+          syncTrigger(slot);
+          close(true);
+          onPick(slot);
+        }, o);
+        if (o.act) row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = o.act; });
+        pop.appendChild(row);
+        picker.append(trig, pop);
+
+        const open = () => {
+          document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
+            if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
+          });
+          pop.hidden = false;
+          pop.classList.remove('is-above');
+          pop.style.removeProperty('--pop-shift');
+          trig.setAttribute('aria-expanded', 'true');
+          const bar = picker.closest('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar');
+          const preferAbove = !(bar && bar.classList.contains('is-below'));
+          const r = pop.getBoundingClientRect();
+          const tr = trig.getBoundingClientRect();
+          const pad = 8;
+          const hasRoomAbove = tr.top - r.height - 6 > ui.chromeTop() + pad;
+          const hasRoomBelow = r.bottom <= window.innerHeight - pad;
+          if ((preferAbove && hasRoomAbove) || (!preferAbove && !hasRoomBelow && hasRoomAbove)) {
+            pop.classList.add('is-above');
+          }
+          const r2 = pop.getBoundingClientRect();
+          let shift = 0;
+          if (r2.left < pad) shift = pad - r2.left;
+          else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
+          if (shift) {
+            const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+            pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
+          }
+          const above = pop.classList.contains('is-above');
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            motion.anim(pop, [
+              { transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`, clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 100% 0 round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: 130, easing: motion.curve('curve-out') });
+          }
+          const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
+          if (active) active.focus();
+          const onDocPointer = (e) => {
+            if (!picker.isConnected) { close(false); return; }
+            if (!picker.contains(e.target)) close(false);
+          };
+          const onDocKey = (e) => {
+            if (!picker.isConnected) { close(false); return; }
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+          };
+          document.addEventListener('pointerdown', onDocPointer, true);
+          document.addEventListener('keydown', onDocKey, true);
+          offDoc = () => {
+            document.removeEventListener('pointerdown', onDocPointer, true);
+            document.removeEventListener('keydown', onDocKey, true);
+          };
+        };
+        pop._closeSwatchPop = close;
+
+        trig.addEventListener('pointerdown', (e) => e.stopPropagation());
+        trig.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (pop.hidden) open(); else close(false);
+        });
+        pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+        pop.addEventListener('keydown', (e) => {
+          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? 5 : e.key === 'ArrowUp' ? -5 : 0;
+          if (step) {
+            const btns = [...row.querySelectorAll('.swatch-btn')];
+            const idx = btns.indexOf(document.activeElement);
+            if (idx === -1) return;
+            e.preventDefault();
+            e.stopPropagation();
+            btns[(idx + step + btns.length) % btns.length].focus();
+          } else if (e.key === 'Tab') {
+            close(false);
+          }
+        });
+        return picker;
       }
 
       // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
@@ -3208,6 +3358,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           t.addEventListener('pointerdown', (e) => e.stopPropagation());
           t.addEventListener('click', (e) => {
             e.stopPropagation();
+            document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => { if (el._closeSwatchPop) el._closeSwatchPop(false); });
             // Every bar on the page morphs from its old box to its new one (motion kernel: ghostMorph)
             const bars = [...document.querySelectorAll('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar')];
             const was = bars.map((b) => b.getBoundingClientRect());
@@ -11157,16 +11308,15 @@ function toMermaid(data, opts) {
           // The lane's action bar (shown while the lane is selected, over the pill; below it near the viewport's top edge):
           // rename, delete (hide lanes on the only lane), colour (none = the colour for its position)
           if (editable) {
-            const bar = ui.actionBar('actionbar is-wrap lane-bar', 'Swimlane');
+            const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
             const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
-            // Two rows like the other bars: the actions, then the colours (a lane moves by dragging its pill)
             bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
             bar.appendChild(ui.abSep());
             if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
             // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
             else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
-            bar.appendChild(ui.abBreak());
-            bar.appendChild(swatchRow(lane.color || '', (slot) => setLaneColor(lane.id, slot), { btnClass: 'ab-swatch' }));
+            bar.appendChild(ui.abSep());
+            bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
             // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
             bar.addEventListener('pointerdown', (e) => e.stopPropagation());
             bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
