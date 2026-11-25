@@ -38,7 +38,7 @@
     .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }

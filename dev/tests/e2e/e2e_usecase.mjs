@@ -473,8 +473,8 @@ sys.stdout.write(f.format_json(out))`;
   await sleep(100);
   t.check('leaving hover clears hl-in and hl-out', (await count('.hl-in, .hl-out')) === 0);
   // connection ports keep constant screen size when zoomed out
-  await t.clickOn('#btn-zoom-out');
-  await t.clickOn('#btn-zoom-out');
+  await t.ev(t.key('-', { ctrlKey: true }));
+  await t.ev(t.key('-', { ctrlKey: true }));
   await sleep(120);
   await t.clickOn(item('checkout'));
   await sleep(120);
