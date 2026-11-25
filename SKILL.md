@@ -1,7 +1,7 @@
 ---
 name: ultimate-diagram
 version: 1.1.78
-description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships), UML use case diagrams (actors, use cases, system boundaries, include/extend), C4 system landscape and layered architecture diagrams (people, systems, containers, layers, relations), and Gantt roadmap timelines (calendar dates, Day–Year zoom, nested subtasks, FS/SS dependencies, milestones, notes, live Today line, local holidays). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
+description: "Create, edit, and read interactive HTML/Artifact diagrams (swimlane flowcharts, sequence, ERD, UML use case, C4, Gantt). To read/explain a diagram-data .html, run --extract; never open it whole."
 ---
 
 # Ultimate Diagram Skill
@@ -17,12 +17,7 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 
 ## Output choice (Claude Code only)
 
-Applies only if your tools include `Artifact` (it publishes claude.ai Artifacts). Without it, write the HTML file as below and do not ask. Otherwise decide once, before writing anything:
-1. The user already said ("as an artifact", "save to docs/flow.html"): follow it.
-2. Else a saved default: `output` in `<project>/.claude/ultimate-diagram.json`, else in `~/.claude/ultimate-diagram.json`. `artifact` or `file`: follow it. `ask` or no file: go to 3.
-3. Else ask once with `AskUserQuestion`: **Artifact** (private claude.ai page, editable, Save updates it in place, shareable by link) or **HTML file** (`<title-slug>.html` in the project folder, works offline). If you cannot ask, stop and put the question in your reply; write nothing until the user answers. Keep the answer for the rest of the conversation. If the user says "always", write `{"output": "artifact"}` (or `file`) to `<project>/.claude/ultimate-diagram.json`.
-
-*Artifact output* changes the procedures below only as stated in [Artifact output](#artifact-output).
+Applies only if your tools include `Artifact`; otherwise write the HTML file as below and do not ask. If `Artifact` is available, read [references/artifacts.md](references/artifacts.md) first to resolve Artifact vs. HTML file.
 
 ---
 
@@ -39,7 +34,7 @@ The first line of the Mermaid decides the type.
 | `c4` (JSON, `diagramType: "c4"`) | C4 system landscapes & layered architectures (Levels 1–2, groups, relations, tech logos; see [icon packs](references/icon-packs.md)) | [references/types/c4.md](references/types/c4.md) |
 | `gantt` | High-level roadmap timelines: dates, Day–Year zoom, nested subtasks, FS/SS dependencies, milestones, notes, Today & holidays | [references/types/gantt.md](references/types/gantt.md) |
 
-`state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the Mermaid conventions, the writing rules and the one complete example to copy.
+`state` is not supported; say so instead of forcing a flowchart.
 
 ---
 
@@ -103,9 +98,13 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ---
 
-## Embed in another page
+## Embed in another page or Markdown
 
-To show a diagram inside another HTML page or Artifact you are writing (present mode by default), read [references/embedding.md](references/embedding.md).
+Only when creating or updating a diagram linked with or alongside another HTML page, claude.ai Artifact, or `.md` file:
+- **HTML page or Artifact** (present mode by default): read [references/embedding.md](references/embedding.md).
+- **Markdown (`.md`) file**: after creating or updating the diagram, ask once whether to embed it as a **static PNG image** or a **Mermaid block**:
+  - **Static PNG** (recommended for `usecase`, `c4`, or to preserve exact layout, swimlanes, icons, and styling): run `python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <target.png> --no-report` and insert `![<title>](<relative-path-to-png>)` into the `.md` file. Works in VS Code, Kiro, Cursor, Antigravity, and GitHub.
+  - **Mermaid block** (standard `flowchart`, `sequenceDiagram`, `erDiagram`, `gantt` only — not `usecase` or `c4`): run `python "<skill-dir>/scripts/layout_engine.py" --extract <target.html>` and insert a ` ```mermaid ` fenced block into the `.md` file.
 
 ---
 
@@ -121,21 +120,10 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
-- problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
-- actionable `[INFO]` lines only (`Layout:` issues, `Positions reset`, dropped/changed Mermaid items, `Subprocess candidate`, `Direct-save helper not configured yet`, `Update available`); omit routine auto-defaults such as `Lane icons`, `Direction`, `Subprocess flows`, and `Loaded N holidays`.
-
----
-
-## Direct-save helper (first run)
-
-Only when `layout_engine.py` prints `[INFO] Direct-save helper not configured yet`: ask the user once in plain English whether to turn on one-click saving for diagrams (**default: Yes**), explaining what happens with and without it (avoid technical jargon like `127.0.0.1` or `listener`):
-- **With it (Yes, default):** Normally web browsers block HTML files from saving changes back to themselves; a tiny helper on your computer (stops automatically when idle) lets **Save** (`Ctrl+S`) update your diagram file right away in any browser with no extra popups or duplicate copies.
-- **Without it (No):** Nothing runs in the background. You will have to pick and overwrite the file on your first save before it can save without opening the file browser.
-
-Once the user answers, run `python scripts/save_helper.py config --enable` (Yes) or `python scripts/save_helper.py config --disable` (No) so the choice is saved and never asked again. Never enable or start the helper before the user answers. Once enabled, `layout_engine.py` automatically starts or reuses the helper in the background on every `--layout` / `--extract` run (and `SessionStart` hooks start it where supported)—no manual start step is needed.
-
----
-
-## Update check
-
-Do not make a web-fetch or shell call to check for updates yourself. `scripts/version_check.py` checks GitHub Releases asynchronously in the background (via the `SessionStart` hook where installed, and automatically during `layout_engine.py` runs, cached for 24 hours). Only when a session hook or `[INFO] Update available` reports a newer version: mention it once and let the user choose whether you should run the reported update command for them or they prefer to update it themselves (for zip installs: `https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest`). Never run an update without the user's confirmation.
+- actionable issues only — translate each into plain English with a clear next step the user can take (omit anything the user cannot act on or that fails the "So What?" test, and omit routine auto-defaults such as `Lane icons`, `Direction`, `Subprocess flows`, and `Loaded N holidays`):
+  - remaining `[WARN]`, shortened labels, or a split diagram → name what changed or failed and ask if they want it adjusted;
+  - `Layout:` issues (overlaps or small text) → tell the user where it is cramped and offer to split, shorten labels, or re-render;
+  - `Positions reset` → tell the user manual positions were reset because items changed, and offer a separate file if they want the old layout kept;
+  - dropped/changed Mermaid items → name what was dropped or changed so the user can confirm or restore it;
+  - `Subprocess candidate` → name the dense section and offer to move it into a subprocess tab;
+  - `Update available` → tell the user a newer version is out and ask before running the update command (or link `https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest` for zip installs); never check for updates yourself.
