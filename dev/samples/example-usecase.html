@@ -2323,12 +2323,9 @@ html.is-loading #page-loading { display: grid; }
     .uc-kw { color: var(--text-muted); }
     .uc-actor[data-sw] { --ring: var(--sw-line); }
     .uc-actor[data-sw] .uc-figure { background: var(--sw-tint, var(--sw-pill-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
-    .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
+    .uc-actor:hover .uc-figure,
+    .uc-actor:is(.hl-in, .hl-out):not(.selected) .uc-figure { box-shadow: var(--shadow-md); }
     .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
-    .uc-actor.hl-in:not(.selected) { --ring: var(--edge-in); }
-    .uc-actor.hl-out:not(.selected) { --ring: var(--edge-out); }
-    .uc-actor.hl-in:not(.selected) .uc-figure { color: var(--edge-in); border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-in-glow); }
-    .uc-actor.hl-out:not(.selected) .uc-figure { color: var(--edge-out); border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
     .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
     @media (max-width: 720px) { .uc-search { left: 12px; right: 12px; } .uc-search input { width: auto; flex: 1 1 auto; min-width: 0; } }
 
@@ -11143,7 +11140,7 @@ function toMermaid(data, opts) {
       canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'touch' || e.buttons || drag || document.body.classList.contains('palette-dragging')) { setHoverSubject(null); return; }
         const t = e.target;
-        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-case, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
+        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
         const subEl = t.closest('.uc-subject');
         setHoverSubject(subEl ? subEl.dataset.subjectId : subjectIdAtClient(e.clientX, e.clientY));
       });

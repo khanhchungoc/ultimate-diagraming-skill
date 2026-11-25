@@ -1179,7 +1179,7 @@
       canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'touch' || e.buttons || drag || document.body.classList.contains('palette-dragging')) { setHoverSubject(null); return; }
         const t = e.target;
-        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-case, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
+        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
         const subEl = t.closest('.uc-subject');
         setHoverSubject(subEl ? subEl.dataset.subjectId : subjectIdAtClient(e.clientX, e.clientY));
       });

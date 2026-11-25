@@ -564,9 +564,9 @@ sys.stdout.write(f.format_json(out))`;
   await t.mouse('mouseMoved', 6, 300);
   await sleep(80);
   const subLeft = await subStyle('office');
-  t.check('hovering a subject interior or title bar applies the hover border/shadow while keeping pointer-events: none',
+  t.check('hovering a subject interior, use case, or title bar applies the hover border/shadow while keeping pointer-events: none',
     subRest.pe === 'none' && !subRest.hover && subHovInner.hover && subHovInner.border !== subRest.border && subHovInner.shadow !== subRest.shadow
-      && !subOnCase.hover && subOnTitle.hover && !subLeft.hover,
+      && subOnCase.hover && subOnTitle.hover && !subLeft.hover,
     `${J(subRest)} | ${J(subHovInner)} | ${J(subOnCase)} | ${J(subOnTitle)} | ${J(subLeft)}`);
   // collapse a subject; expanding it again puts every use case back where it was, with nothing on top of another
   const boxes = () => t.ev(`JSON.stringify([...document.querySelectorAll('.uc-case')].map((e) => [e.dataset.nodeId, e.style.left, e.style.top, e.style.width, e.style.height]).sort())`);
