@@ -381,5 +381,28 @@ check(JSON.stringify(routeC4Edges(plain(nodes), edges)) === JSON.stringify(res),
   check(JSON.stringify(routeC4Edges(gn, ge, { detours: true, frames: gFrames })) === JSON.stringify(gr), 'p2 group endpoints + badges: deterministic');
 }
 
+// ---------- vertical tight-segment side offset and label size bounds ----------
+{
+  // 1. Borderline single-line wrap label must reserve conservative single-line width (avoid overlap on parallel arrows)
+  const pn = {
+    p1: { x: 0, y: 0, w: 156, h: 112 }, p2: { x: 240, y: 0, w: 156, h: 112 },
+    t: { x: 120, y: 300, w: 156, h: 112 },
+  };
+  const pr = routeC4Edges(pn, [
+    { from: 'p1', to: 't', label: 'Browses and orders', tech: 'HTTPS', hint: 'v' },
+    { from: 'p2', to: 't', label: 'Manages shipments', tech: 'HTTPS', hint: 'v' },
+  ]);
+  check(pr[0].w >= 115 && pr[0].w <= 140 && pr[0].h >= 44, `borderline wrap label bounds (${pr[0].w}x${pr[0].h})`);
+  const b0 = { x0: pr[0].lx - pr[0].w / 2, x1: pr[0].lx + pr[0].w / 2, y0: pr[0].ly - pr[0].h / 2, y1: pr[0].ly + pr[0].h / 2 };
+  const b1 = { x0: pr[1].lx - pr[1].w / 2, x1: pr[1].lx + pr[1].w / 2, y0: pr[1].ly - pr[1].h / 2, y1: pr[1].ly + pr[1].h / 2 };
+  check(!(b0.x0 < b1.x1 && b1.x0 < b0.x1 && b0.y0 < b1.y1 && b1.y0 < b0.y1), 'parallel vertical labels with realistic bounds do not overlap');
+
+  // 2. Short manual vertical gap (< labelH + arrow + 2*stem) shifts label beside line instead of hiding it
+  const tn = { a: { x: 0, y: 0, w: 156, h: 112 }, b: { x: 0, y: 182, w: 156, h: 112 } }; // 70px vertical gap
+  const tr = routeC4Edges(tn, [{ from: 'a', to: 'b', label: 'Reads and writes state', tech: 'SQL', hint: 'v' }]);
+  check(tr[0].h >= 59, `3-line tech pill reserves >= 59px height (got ${tr[0].h})`);
+  check(Math.abs(tr[0].lx - tr[0].points[0][0]) >= tr[0].w / 2, `tightVert shifts label beside short vertical arrow (lx=${tr[0].lx}, lineX=${tr[0].points[0][0]})`);
+}
+
 console.log(failures ? `${failures} check(s) failed` : `OK: ${edges.length} edges routed, all checks passed`);
 process.exit(failures ? 1 : 0);
