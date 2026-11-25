@@ -46,7 +46,7 @@ def normalize_runtime(runtime: str) -> str:
     return r
 
 COPY_IGNORED = (".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs",
-                "skills-lock.json", "__pycache__", ".gitignore")
+                "skills-lock.json", "__pycache__", ".gitignore", "theme.json")
 
 
 def is_link(target: Path) -> bool:
@@ -211,7 +211,7 @@ def main() -> int:
         choices=["ask", "artifact", "file"],
         default=None,
         help="Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each time "
-             "(default: ask). Saved to .claude/ultimate-diagram.json, never inside the skill folder; "
+             "(default: artifact). Saved to .claude/ultimate-diagram.json, never inside the skill folder; "
              "prompted when run in a terminal without this flag.",
     )
     parser.add_argument(
@@ -280,13 +280,13 @@ def main() -> int:
     claude_output = args.claude_output
     if claude_selected and claude_output is None and sys.stdin.isatty() and sys.stdout.isatty():
         print("In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?")
-        print("  1) ask each time (default)\n  2) claude.ai Artifact (private page, Save updates it in place)\n"
+        print("  1) claude.ai Artifact (private page, Save updates it in place) (default)\n  2) ask each time\n"
               "  3) HTML file (in the project folder, works offline)")
         try:
             answer = input("Choose [1-3]: ").strip().lower()
         except EOFError:
             answer = ""
-        claude_output = {"2": "artifact", "artifact": "artifact", "3": "file", "file": "file"}.get(answer, "ask")
+        claude_output = {"2": "ask", "ask": "ask", "3": "file", "file": "file"}.get(answer, "artifact")
         print()
     if claude_selected and claude_output is not None:
         try:
@@ -341,15 +341,22 @@ def main() -> int:
 
         print(f"==> Processing [{rt}] -> {dest}")
         dest.parent.mkdir(parents=True, exist_ok=True)
+        saved_theme: bytes | None = None
         if dest.exists() or is_link(dest):
+            if not is_link(dest) and (dest / "theme.json").is_file():
+                saved_theme = (dest / "theme.json").read_bytes()
             print(f"    Existing installation found at {dest}. Replacing...")
             remove_existing(dest)
 
         if args.mode == "symlink":
             create_link(repo_root, dest)
+            if saved_theme is not None and not is_link(dest):
+                (dest / "theme.json").write_bytes(saved_theme)
             print(f"    [+] Linked to {dest}")
         else:
             copy_skill(repo_root, dest)
+            if saved_theme is not None:
+                (dest / "theme.json").write_bytes(saved_theme)
             print(f"    [+] Copied to {dest}")
         installed += 1
         last_dest = dest
@@ -372,7 +379,7 @@ def main() -> int:
     print()
     print(f"[SUCCESS] Installed ultimate-diagram to {installed} target(s).")
     if claude_selected:
-        shown = claude_output if claude_output is not None else "ask (default)"
+        shown = claude_output if claude_output is not None else "artifact (default)"
         print(f"    Claude Code output: {shown}. Change it with --claude-output or \"output\" in {claude_config}")
     print(flush=True)
     # Check the installed copy itself, so a copy that missed files is caught.

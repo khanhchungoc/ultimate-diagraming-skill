@@ -80,15 +80,18 @@
       const px = (v) => `${v}px`;
       const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-      // The red-hot marker variants (primary colour): the base markers are in stage.html
+      // Marker variants: the base markers are in stage.html; in / out / sel take the directional or primary colour (--mk)
       (function makeMarkerVariants() {
+        const VARIANTS = { in: '--edge-in', out: '--edge-out', sel: '--primary' };
         ['uc-mk-open', 'uc-mk-tri'].forEach((id) => {
           const base = document.getElementById(id);
           if (!base) return;
-          const copy = base.cloneNode(true);
-          copy.id = `${id}-sel`;
-          copy.style.setProperty('--mk', 'var(--primary)');
-          base.parentNode.appendChild(copy);
+          Object.entries(VARIANTS).forEach(([k, tok]) => {
+            const copy = base.cloneNode(true);
+            copy.id = `${id}-${k}`;
+            copy.style.setProperty('--mk', `var(${tok})`);
+            base.parentNode.appendChild(copy);
+          });
         });
       })();
 
@@ -400,6 +403,8 @@
         if (badge) el.appendChild(badge);
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
+          hoverItemId = o.id;
+          applyFocus();
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
         });
         el.addEventListener('pointerleave', () => {
@@ -429,9 +434,10 @@
       const linkVisible = (l) => !!l.points && l.points.length >= 2 && drawn(l.from) !== false && (kindOf(l.from) === 'actor' || !isHiddenByLevel(l.from)) && (kindOf(l.to) === 'actor' || !isHiddenByLevel(l.to));
       const isHiddenByLevel = (id) => { const u = caseOf(id); return !!u && !levelsOn && u.level === 'subfunction'; };
       function setMarkers(line, kind) {
-        const m = kind ? `url(#uc-mk-${kind})` : 'none', ms = kind ? `url(#uc-mk-${kind}-sel)` : 'none';
-        line.style.setProperty('--mk-e', m);
-        line.style.setProperty('--mk-e-sel', ms);
+        line.style.setProperty('--mk-e', kind ? `url(#uc-mk-${kind})` : 'none');
+        line.style.setProperty('--mk-e-in', kind ? `url(#uc-mk-${kind}-in)` : 'none');
+        line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
+        line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
       }
       function linkTitle(l) {
         const a = itemOf(l.from), b = itemOf(l.to);
@@ -603,38 +609,52 @@
         }
         return lit;
       }
-      // What an item connects to directly: the other end of each of its lines, its parent and its children
-      function direct(id) {
-        const lit = new Set([id]);
-        linksOf().forEach((l) => { if (l.from === id) lit.add(l.to); if (l.to === id) lit.add(l.from); });
-        const o = itemOf(id);
-        if (o && o.parent) lit.add(o.parent);
-        actors().concat(cases()).forEach((x) => { if (x.parent === id) lit.add(x.id); });
-        return lit;
-      }
       function applyFocus() {
-        let lit = null, hover = null;
         if (hoverItemId && !itemOf(hoverItemId)) hoverItemId = null;
-        if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
-        else if (selIds.length === 1 && !selOther) lit = reach(selIds[0]);
-        els.items.forEach((el, id) => {
-          el.classList.toggle('is-dim', !!lit && !lit.has(id));
-          el.classList.toggle('hl', !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
-        });
-        // hovering lights only the item's own lines; a selection lights every line inside what it reaches
-        const lineLit = (from, to) => !!lit && (hover ? from === hover || to === hover : lit.has(from) && lit.has(to));
+        const hover = hoverItemId && !drag ? hoverItemId : null;
+        const selId = selIds.length === 1 && !selOther ? selIds[0] : null;
+        const lit = selId ? reach(selId) : null;   // only a click dims the rest; hover highlights without dimming
+        const focusId = hover || selId;
+        const dirOf = (from, to) => !focusId ? null : from === focusId ? 'out' : to === focusId ? 'in' : null;
+        const peerDir = new Map();
+        const notePeer = (from, to, dir) => {
+          if (!dir) return;
+          const peer = dir === 'out' ? to : from;
+          if (peer !== focusId && (!peerDir.has(peer) || dir === 'out')) peerDir.set(peer, dir);
+        };
+        const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
         els.links.forEach((rec, id) => {
           const l = linkOf(id);
           if (!l) return;
           const on = lineLit(l.from, l.to);
-          rec.g.classList.toggle('is-dim', !!lit && !on);
+          const dir = dirOf(l.from, l.to);
+          notePeer(l.from, l.to, dir);
+          rec.g.classList.toggle('is-dim', !!lit && !on && !dir);
           rec.g.classList.toggle('hl', on);
-          if (rec.label) { rec.label.classList.toggle('is-dim', !!lit && !on); rec.label.classList.toggle('hl', on); }
+          rec.g.classList.toggle('hl-in', dir === 'in');
+          rec.g.classList.toggle('hl-out', dir === 'out');
+          if (rec.label) {
+            rec.label.classList.toggle('is-dim', !!lit && !on && !dir);
+            rec.label.classList.toggle('hl', on);
+            rec.label.classList.toggle('hl-in', dir === 'in');
+            rec.label.classList.toggle('hl-out', dir === 'out');
+          }
         });
         els.parents.forEach((g) => {
-          const on = lineLit(g.dataset.from, g.dataset.to);
-          g.classList.toggle('is-dim', !!lit && !on);
+          const from = g.dataset.from, to = g.dataset.to;
+          const on = lineLit(from, to);
+          const dir = dirOf(from, to);
+          notePeer(from, to, dir);
+          g.classList.toggle('is-dim', !!lit && !on && !dir);
           g.classList.toggle('hl', on);
+          g.classList.toggle('hl-in', dir === 'in');
+          g.classList.toggle('hl-out', dir === 'out');
+        });
+        els.items.forEach((el, id) => {
+          const dir = peerDir.get(id) || null;
+          el.classList.toggle('is-dim', !!lit && !lit.has(id) && !dir && id !== hover);
+          el.classList.toggle('hl-in', dir === 'in');
+          el.classList.toggle('hl-out', dir === 'out');
         });
         els.subjects.forEach((el) => el.classList.remove('is-dim'));
         document.body.classList.toggle('uc-has-match', !!lit);
@@ -1782,22 +1802,18 @@
         if (!l || !l.points) return null;
         bar.setAttribute('aria-label', 'Line');
         const caseCase = isCaseCase(l);
-        const typeBtn = (type, label, title) => {
-          const b = abButton('type', `${lineGlyph(type, false)}<span>${label}</span>`, title, l.type === type, type);
-          if (type === 'association' ? caseCase : !caseCase) b.setAttribute('aria-disabled', 'true');
-          return b;
-        };
-        bar.appendChild(typeBtn('association', 'Association', 'Association: an actor takes part in a use case'));
-        bar.appendChild(typeBtn('include', 'Include', '«include»: the base always needs the part'));
-        bar.appendChild(typeBtn('extend', 'Extend', '«extend»: an optional addition to the base, only sometimes'));
-        if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
-        bar.appendChild(abBreak());
+        if (!caseCase) {
+          bar.appendChild(abButton('type', `${lineGlyph('association', false)}<span>Association</span>`, 'Association: an actor takes part in a use case', l.type === 'association', 'association'));
+          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
+        } else {
+          bar.appendChild(abButton('type', `${lineGlyph('include', false)}<span>Include</span>`, '«include»: the base always needs the part', l.type === 'include', 'include'));
+          bar.appendChild(abButton('type', `${lineGlyph('extend', false)}<span>Extend</span>`, '«extend»: an optional addition to the base, only sometimes', l.type === 'extend', 'extend'));
+        }
+        bar.appendChild(abSep());
         bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
-        if (l.type === 'extend') {
-          const base = caseOf(l.to);
+        if (l.type === 'extend' && caseOf(l.to)) {
           const b = abButton('point-menu', `<span>${l.extensionPoint ? esc(l.extensionPoint) : 'Extension point'}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'The extension point of the base where this extension applies');
           b.dataset.menu = '';
-          if (!base) b.setAttribute('aria-disabled', 'true');
           bar.appendChild(b);
         }
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete this line', undefined, undefined, 'is-danger'));
@@ -1809,7 +1825,6 @@
         const b = e.target.closest('.uc-ab-btn');
         if (!b) return;
         e.stopPropagation();
-        if (b.getAttribute('aria-disabled') === 'true' && b.dataset.act !== 'type') return;
         runAction(b.dataset.act, b.dataset.value, b);
       });
 

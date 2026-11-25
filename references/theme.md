@@ -9,15 +9,40 @@ Two ways to get one, then the same finishing step:
 | Website | nothing | `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview` |
 | Brand guide (PDF, image, CSS file) | read the guide, write `partial.json` as described below | `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview` |
 
-`--complete` always runs: it fills missing keys, derives shades, builds the palette, measures the font, checks contrast in light and dark, and fixes failures. The result goes to `.ultimate-diagram/theme.json` in the current project (change it with `--out`). Show the user the printed report and the preview images, and keep the theme only if they accept it.
+`--complete` always runs: it fills missing keys, derives shades, builds the palette, measures the font, checks contrast in light and dark, and fixes failures. The result goes to `<skill-dir>/theme.json` (inside the skill folder — applies across projects for user-level installs without adding files to your project repo, and is preserved across skill updates; use `--out .ultimate-diagram/theme.json` for a per-project override). Show the user the printed report and the preview images, and keep the theme only if they accept it.
 
 ## Workflow
 
 When the user gives a website URL or a brand guide (PDF, image, CSS) and wants diagrams in that look:
 
-1. Website: `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview`. Brand guide: read it yourself, write the partial theme JSON described below, then `... --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
-2. Show the user the printed report (every `[FIX]` and `[WARN]`) and the three preview PNGs. Keep the theme only if they accept it; it is saved as `.ultimate-diagram/theme.json` in the project.
-3. From then on every `--layout` in that project uses it; pages already saved take it on their next re-layout (the run prints a `[NOTE]`: say so in the report). `--theme <file>` overrides it for one run. Exit 1 from the extractor means a contrast check could not be met: do not use that theme.
+1. **Website URL:** Always read the page in a real browser — run `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview` (it opens the link in headless Chrome; never rely on plain HTTP/web-fetch alone, because sites load styles via CSS/JS).
+   - **If extraction exits `2` (no meaningful styling found or page failed to load):** No `theme.json` is written.
+     - If the output prints `[CAPTURE] <path>`, inspect that browser screenshot first: if the brand page rendered visually (for example an image-, SVG-, or canvas-heavy design), extract its visible colours and style into `<scratch>/partial.json` and run the `--from` command below.
+     - If the screenshot is blank/blocked/error or Chrome could not load the URL, and you have a browser tool available, try opening the link in the browser and capturing a screenshot from there (never attempt to bypass a login wall or CAPTCHA/bot check — stop and ask the user if gated).
+2. **Brand guide (PDF, image, CSS, screenshot):** Read it yourself, write `<scratch>/partial.json` as described below, then run `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
+3. **If no meaningful styling can be read or extracted (from a webpage or any file):** Do **not** save an empty/default `theme.json` or guess colours. Tell the user clearly why extraction did not work (for example: site requires login, blocked automated access, file had no readable styling, or only default black-on-white system styles were found) and suggest they try one of these:
+   - Open the website or brand page in their browser, take a **screenshot**, and share the image.
+   - Upload a **brand guide** (PDF, image, CSS/design-tokens file) or save the webpage from their browser (`File → Save Page As`).
+   - Share their **brand basics** directly (main brand hex colour(s), optional secondary colours, font name, and light/dark or corner-radius preference).
+4. **Review and confirm:** Show the user the printed report (every `[FIX]` and `[WARN]`) and the three preview PNGs. Keep `<skill-dir>/theme.json` only if they accept it (delete it if they decline).
+5. **Reuse:** From then on every `--layout` using this skill installation picks up `<skill-dir>/theme.json` (unless overridden by `--theme`, a theme stored in an existing page, or a project `.ultimate-diagram/theme.json`); pages saved before themes take it on their next re-layout (the run prints a `[NOTE]`: say so in the report). Exit `1` from the extractor means a contrast check could not be met: do not use that theme.
+
+## Edit an existing theme
+
+When the user asks to tweak their saved theme (for example changing a colour, font, corner radius, or dark-mode shade):
+
+1. Read the active theme file: `.ultimate-diagram/theme.json` if present in the project, else `<skill-dir>/theme.json` (or extract from an existing page with `layout_engine.py --extract-theme <page.html>`).
+2. Apply the user's requested changes into `<scratch>/partial.json`. Drop any previously derived keys that depend on what changed so `--complete` recalculates them cleanly (for example: when changing `color.light.primary`, drop `color.dark.primary`, `primary-hover`, `primary-ring`, `primary-glow`, `primary-wash`, `banner-*`, `on-primary`, and `palette` unless the user explicitly asked to keep them; when changing `color.light.bg-page` or `text-main`, drop `color.dark.*` and neutral surface keys so they re-derive).
+3. Run `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview` (pass `--out .ultimate-diagram/theme.json` if editing a project override). Show the report and previews; keep the updated theme once confirmed.
+4. To apply the updated theme to an **existing** diagram HTML file without moving anything the user placed:
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --layout <page.html> -o <page.html> --keep-layout --theme "<skill-dir>/theme.json"
+   ```
+
+## Reset to default
+
+- **Future diagrams (global / project reset):** Run `python "<skill-dir>/scripts/extract_tokens.py" --reset`. This removes `<skill-dir>/theme.json` (and `.ultimate-diagram/theme.json` in the current project if present; add `--out <path>` to remove only one specific file).
+- **An existing diagram page:** Run `python "<skill-dir>/scripts/layout_engine.py" --layout <page.html> -o <page.html> --keep-layout --theme default` to strip its stored theme and rebuild it in the default look without moving anything the user placed.
 
 ---
 
@@ -75,14 +100,14 @@ Read the guide yourself. Write only what the guide states; leave everything else
 
 ## What the report shows
 
-Each line starts with a tag: `[MAP]` a value taken from the site or file (with its source), `[DERIVE]` a value computed from another, `[FIX]` a value moved to pass a contrast or colour-blindness check (old and new value with both ratios; only OKLCH lightness moves, so hue stays on brand), `[NOTE]` a decision, `[WARN]` something the user should look at (for example the font did not load, so the default `font.metrics` stay), `[FAIL]` a check that could not be met (the command then exits 1: do not use that theme).
+Each line starts with a tag: `[MAP]` a value taken from the site or file (with its source), `[DERIVE]` a value computed from another, `[FIX]` a value moved to pass a contrast or colour-blindness check (old and new value with both ratios; only OKLCH lightness moves, so hue stays on brand), `[NOTE]` a decision, `[WARN]` something the user should look at (for example the font did not load, so the default `font.metrics` stay), `[CAPTURE]` a browser screenshot saved when automatic style extraction found nothing usable, `[SUGGEST]` recommended next steps for the user when no meaningful styling was found (exit `2`, no theme written), `[FAIL]` a check that could not be met (the command then exits `1`: do not use that theme).
 
 Report to the user: the brand colour that changed most through a `[FIX]` (a pale yellow brand colour becomes olive in diagram lines, for example), the fonts that fall back, and whether the icon set was matched.
 
 ## How a theme is used
 
-- `layout_engine.py --layout x.json -o x.html` picks the theme in this order: `--theme <file>`, the theme stored in the page being updated, `.ultimate-diagram/theme.json` in the current directory, the default. The page keeps a copy (`<script id="diagram-theme">` after the data block), so Save, republish and moving the file keep the look.
-- A page saved before themes has no stored theme, so it takes the project theme on its next `--layout`. The run prints a `[NOTE]` saying so; mention it in the report.
+- `layout_engine.py --layout x.json -o x.html` picks the theme in this order: `--theme <file>`, the theme stored in the page being updated, `.ultimate-diagram/theme.json` in the current directory (optional per-project override), `<skill-dir>/theme.json` (the default skill-folder theme), the default. The page keeps a copy (`<script id="diagram-theme">` after the data block), so Save, republish and moving the file keep the look.
+- A page saved before themes has no stored theme, so it takes the project or skill theme on its next `--layout`. The run prints a `[NOTE]` saying so; mention it in the report.
 - `layout_engine.py --extract-theme <page.html> -o theme.json` writes out the theme a page carries.
 - Old diagrams that store default-palette hex colours still map to the same slot numbers under any theme: `--layout` migrates them with the default palette before the theme applies.
 - `python "<skill-dir>/scripts/measure_font.py" --theme <file> --check` verifies `font.metrics` against the font; add `--write` to refresh them. Exit 2 means the font did not load: the stored metrics are then the defaults, and labels in a wider font may overflow.

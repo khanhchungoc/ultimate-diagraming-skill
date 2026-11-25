@@ -98,7 +98,7 @@ test('determinism: two runs produce identical JSON', () => {
 
 test('all 5 zoom presets and 1-day bar width', () => {
   const expected = {
-    day:     { pxPerDay: 36,  snapDays: 1, showWeekends: true,  label: 'Day' },
+    day:     { pxPerDay: 44,  snapDays: 1, showWeekends: true,  label: 'Day' },
     week:    { pxPerDay: 18,  snapDays: 1, showWeekends: true,  label: 'Week' },
     month:   { pxPerDay: 6,   snapDays: 1, showWeekends: false, label: 'Month' },
     quarter: { pxPerDay: 2.4, snapDays: 7, showWeekends: false, label: 'Quarter' },
@@ -290,7 +290,7 @@ test('FS and SS dependency routing and violated flag', () => {
 test('row milestones, vertical markers, and clipped holidays', () => {
   const data = {
     diagramType: 'gantt',
-    zoom: 'day', // pxPerDay = 36, pad before = 3, after = 5
+    zoom: 'day', // pxPerDay = 44, pad before = 90, after = 180
     items: [
       { id: 't1', kind: 'task', label: 'Work', start: '2026-06-10', end: '2026-06-12' },
       { id: 'm_row', kind: 'milestone', label: 'Sign-off', start: '2026-06-12', end: '2026-06-12' }
@@ -300,34 +300,37 @@ test('row milestones, vertical markers, and clipped holidays', () => {
     ],
     holidays: [
       { date: '2026-06-11', end: '2026-06-11', name: 'Company Day', country: 'US' },
-      { date: '2026-06-01', end: '2026-06-08', name: 'Early Span', country: 'US' }, // clipped at range start 2026-06-07
-      { date: '2026-01-01', end: '2026-01-01', name: 'Out of Range', country: 'US' }
+      { date: '2026-03-01', end: '2026-03-13', name: 'Early Span', country: 'US' }, // clipped at range start 2026-03-12
+      { date: '2025-01-01', end: '2025-01-01', name: 'Out of Range', country: 'US' }
     ]
   };
   layoutDiagram(data);
 
-  // Earliest is 2026-06-10 (-3 => 2026-06-07), latest is marker 2026-06-15 (+5 => 2026-06-20)
-  assert.equal(data._range.start, '2026-06-07');
-  assert.equal(data._range.end, '2026-06-20');
+  // Earliest is 2026-06-10 (-90 => 2026-03-12), latest is marker 2026-06-15 (+180 => 2026-12-12)
+  assert.equal(data._range.start, '2026-03-12');
+  assert.equal(data._range.end, '2026-12-12');
+  assert.equal(data._range.contentStart, '2026-06-10');
+  assert.equal(data._range.contentEnd, '2026-06-15');
 
-  // Row milestone centered on 2026-06-12 (day offset 5 => center 5*36 + 18 = 198)
+  // Row milestone centered on 2026-06-12 (day offset 92 => center 92*44 + 22 = 4070)
   const msBar = data.items[1]._bar;
-  assert.equal(msBar.w, msBar.h);
-  assert.equal(msBar.x + msBar.w / 2, 5 * 36 + 18);
+  assert.equal(msBar.w, 16);
+  assert.equal(msBar.h, 16);
+  assert.equal(msBar.x + msBar.w / 2, 92 * 44 + 22);
 
-  // Vertical marker on 2026-06-15 (day offset 8 => center 8*36 + 18 = 306)
+  // Vertical marker on 2026-06-15 (day offset 95 => center 95*44 + 22 = 4202)
   assert.equal(data._markers.length, 1);
-  assert.equal(data._markers[0].x, 8 * 36 + 18);
+  assert.equal(data._markers[0].x, 95 * 44 + 22);
 
-  // Holidays: 2 in range, 1 excluded; Early Span clipped to 2026-06-07..2026-06-08 (2 days = 72px)
+  // Holidays: 2 in range, 1 excluded; Early Span clipped to 2026-03-12..2026-03-13 (2 days = 88px)
   assert.equal(data._holidays.length, 2);
   assert.equal(data._holidays[0].start, '2026-06-11');
-  assert.equal(data._holidays[0].x, 4 * 36);
-  assert.equal(data._holidays[0].w, 36);
-  assert.equal(data._holidays[1].start, '2026-06-07');
-  assert.equal(data._holidays[1].end, '2026-06-08');
+  assert.equal(data._holidays[0].x, 91 * 44);
+  assert.equal(data._holidays[0].w, 44);
+  assert.equal(data._holidays[1].start, '2026-03-12');
+  assert.equal(data._holidays[1].end, '2026-03-13');
   assert.equal(data._holidays[1].x, 0);
-  assert.equal(data._holidays[1].w, 2 * 36);
+  assert.equal(data._holidays[1].w, 2 * 44);
 });
 
 test('empty chart fallback range and canvas', () => {
@@ -335,14 +338,133 @@ test('empty chart fallback range and canvas', () => {
   layoutDiagram(data);
   assert.equal(data._range.start, '2026-01-01');
   assert.equal(data._range.end, '2026-03-31');
+  assert.equal(data._range.contentStart, '2026-01-01');
+  assert.equal(data._range.contentEnd, '2026-03-31');
   assert.equal(data._range.totalDays, 90);
   assert.equal(data._range.pxPerDay, 6);
   assert.equal(data._range.timelineWidth, 540);
   assert.deepEqual(data._deps, []);
   assert.deepEqual(data._markers, []);
   assert.deepEqual(data._holidays, []);
+  assert.equal(data.canvas.rowHeight, 44);
+  assert.equal(data.canvas.headerHeight, 58);
   assert.equal(data.canvas.width, data.canvas.sidebarWidth + 540);
   assert.equal(data.canvas.height, data.canvas.headerHeight + data.canvas.rowHeight);
+});
+
+test('updated layout metrics for rows, bars, groups, milestones, and header', () => {
+  const data = {
+    diagramType: 'gantt',
+    zoom: 'month',
+    items: [
+      { id: 'g1', kind: 'group', label: 'Phase 1', collapsed: false },
+      { id: 't1', kind: 'task', label: 'Task 1', parent: 'g1', start: '2026-04-01', end: '2026-04-10' },
+      { id: 'm1', kind: 'milestone', label: 'Gate', parent: 'g1', start: '2026-04-10', end: '2026-04-10' }
+    ]
+  };
+  layoutDiagram(data);
+  assert.equal(data.canvas.rowHeight, 44);
+  assert.equal(data.canvas.headerHeight, 58);
+  assert.equal(data.canvas.height, 58 + 3 * 44);
+  assert.equal(data.items[0]._bar.h, 10);
+  assert.equal(data.items[1]._bar.h, 26);
+  assert.equal(data.items[2]._bar.w, 16);
+  assert.equal(data.items[2]._bar.h, 16);
+});
+
+test('runtime range extension via _extraStart/_extraEnd preserves contentStart/contentEnd', () => {
+  const base = {
+    diagramType: 'gantt',
+    zoom: 'day',
+    items: [
+      { id: 't1', kind: 'task', label: 'Core', start: '2026-06-10', end: '2026-06-20' }
+    ]
+  };
+
+  // Earlier _extraStart and later _extraEnd extend _range without altering contentStart/contentEnd
+  const extended = clone(base);
+  extended._extraStart = '2025-01-01';
+  extended._extraEnd = '2028-01-01';
+  layoutDiagram(extended);
+  assert.equal(extended._range.start, '2025-01-01');
+  assert.equal(extended._range.end, '2028-01-01');
+  assert.equal(extended._range.contentStart, '2026-06-10');
+  assert.equal(extended._range.contentEnd, '2026-06-20');
+
+  // Narrower or invalid hints are ignored
+  const narrower = clone(base);
+  narrower._extraStart = '2026-06-01';
+  narrower._extraEnd = '2026-07-01';
+  layoutDiagram(narrower);
+  assert.equal(narrower._range.start, ganttAddDays('2026-06-10', -90));
+  assert.equal(narrower._range.end, ganttAddDays('2026-06-20', 180));
+
+  const invalid = clone(base);
+  invalid._extraStart = 'not-a-date';
+  invalid._extraEnd = '2026-02-31';
+  layoutDiagram(invalid);
+  assert.equal(invalid._range.start, ganttAddDays('2026-06-10', -90));
+  assert.equal(invalid._range.end, ganttAddDays('2026-06-20', 180));
+});
+
+test('unscheduled leaf tasks stay visible with _bar === null and do not break rollup or range', () => {
+  const data = {
+    diagramType: 'gantt',
+    zoom: 'month',
+    items: [
+      { id: 'g1', kind: 'group', label: 'Mixed Group', collapsed: false },
+      { id: 't_sched', kind: 'task', label: 'Scheduled', parent: 'g1', start: '2026-04-01', end: '2026-04-15' },
+      { id: 't_unsched', kind: 'task', label: 'Unscheduled child', parent: 'g1' },
+      { id: 'g_empty', kind: 'group', label: 'Unscheduled Group', collapsed: false },
+      { id: 't_unsched2', kind: 'task', label: 'Unscheduled leaf', parent: 'g_empty' },
+      { id: 't_root_unsched', kind: 'task', label: 'Backlog item' }
+    ],
+    dependencies: [
+      { from: 't_sched', to: 't_unsched', type: 'fs' }
+    ]
+  };
+  layoutDiagram(data);
+  const byId = Object.fromEntries(data.items.map((it) => [it.id, it]));
+
+  // All rows remain visible in DFS order
+  assert.deepEqual(
+    ['g1', 't_sched', 't_unsched', 'g_empty', 't_unsched2', 't_root_unsched'].map((id) => byId[id]._row),
+    [0, 1, 2, 3, 4, 5]
+  );
+
+  // Unscheduled items have null dates and null bar
+  for (const id of ['t_unsched', 'g_empty', 't_unsched2', 't_root_unsched']) {
+    assert.equal(byId[id]._hidden, false);
+    assert.equal(byId[id]._start, null);
+    assert.equal(byId[id]._end, null);
+    assert.equal(byId[id]._bar, null);
+  }
+
+  // Mixed group still rolls up scheduled child cleanly
+  assert.equal(byId.g1._start, '2026-04-01');
+  assert.equal(byId.g1._end, '2026-04-15');
+  assert.ok(byId.g1._bar !== null);
+
+  // Dependency targeting an unscheduled item is safely skipped
+  assert.deepEqual(data._deps, []);
+
+  // Chart with only unscheduled tasks falls back cleanly without crashing
+  const onlyUnscheduled = {
+    diagramType: 'gantt',
+    zoom: 'month',
+    items: [
+      { id: 'u1', kind: 'task', label: 'Idea 1' },
+      { id: 'u2', kind: 'task', label: 'Idea 2' }
+    ]
+  };
+  layoutDiagram(onlyUnscheduled);
+  assert.equal(onlyUnscheduled.items[0]._row, 0);
+  assert.equal(onlyUnscheduled.items[0]._bar, null);
+  assert.equal(onlyUnscheduled.items[1]._row, 1);
+  assert.equal(onlyUnscheduled.items[1]._bar, null);
+  assert.equal(onlyUnscheduled._range.start, '2026-01-01');
+  assert.equal(onlyUnscheduled._range.end, '2026-03-31');
+  assert.equal(onlyUnscheduled.canvas.height, 58 + 2 * 44);
 });
 
 test('cyclic parent references do not hang', () => {
@@ -359,6 +481,51 @@ test('cyclic parent references do not hang', () => {
   assert.equal(data.items[1]._depth, 0);
   assert.equal(data.items[0]._row, 0);
   assert.equal(data.items[1]._row, 1);
+});
+
+test('_filterIds compacts visible rows while preserving parent rollups and timeline range', () => {
+  const data = {
+    diagramType: 'gantt',
+    zoom: 'month',
+    items: [
+      { id: 'p1', kind: 'group', label: 'Phase 1' },
+      { id: 'past', kind: 'task', label: 'Past task', parent: 'p1', start: '2026-02-01', end: '2026-02-20' },
+      { id: 'act1', kind: 'task', label: 'Active 1', parent: 'p1', start: '2026-05-01', end: '2026-06-01' },
+      { id: 'p2', kind: 'group', label: 'Phase 2' },
+      { id: 'act2', kind: 'task', label: 'Active 2', parent: 'p2', start: '2026-05-15', end: '2026-06-15' }
+    ],
+    dependencies: [
+      { from: 'past', to: 'act1', type: 'fs' },
+      { from: 'act1', to: 'act2', type: 'fs' }
+    ]
+  };
+  layoutDiagram(data);
+  const fullRangeStart = data._range.start;
+  const fullRangeEnd = data._range.end;
+
+  data._filterIds = new Set(['p1', 'act1', 'p2', 'act2']);
+  layoutDiagram(data);
+  const byId = Object.fromEntries(data.items.map((it) => [it.id, it]));
+
+  // Timeline range and parent rollup stay stable
+  assert.equal(data._range.start, fullRangeStart);
+  assert.equal(data._range.end, fullRangeEnd);
+  assert.equal(byId.p1._start, '2026-02-01');
+  assert.equal(byId.p1._end, '2026-06-01');
+
+  // Filtered-out row is hidden and remaining rows pack densely 0..3
+  assert.equal(byId.past._hidden, true);
+  assert.equal(byId.past._row, -1);
+  assert.equal(byId.past._bar, null);
+  assert.equal(byId.p1._row, 0);
+  assert.equal(byId.act1._row, 1);
+  assert.equal(byId.p2._row, 2);
+  assert.equal(byId.act2._row, 3);
+
+  // Only dependency between visible items is routed
+  assert.equal(data._deps.length, 1);
+  assert.equal(data._deps[0].from, 'act1');
+  assert.equal(data._deps[0].to, 'act2');
 });
 
 if (process.exitCode) {

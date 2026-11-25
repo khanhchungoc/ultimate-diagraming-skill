@@ -1,8 +1,10 @@
-  <!-- Color key legend popover & compact bottom-right toggle button -->
-  <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
-  <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
-    {{icon:layers}}<span class="btn-label">Legend</span>
-  </button>
+  <!-- Color key legend popover & compact bottom-right hover/click toggle button -->
+  <div id="gantt-legend-wrap" class="gantt-legend-wrap" data-export-skip>
+    <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
+    <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
+      {{icon:layers}}<span class="btn-label">Legend</span>
+    </button>
+  </div>
 
   <!-- Public holidays popover: view, add, or remove shaded holidays -->
   <div id="gantt-holidays-pop" class="popover gantt-holidays-pop" role="dialog" aria-label="Public holidays" hidden>
@@ -12,8 +14,20 @@
     </div>
     <div id="gantt-holidays-list" class="gantt-holidays-list"></div>
     <div class="gantt-hol-form">
-      <input id="gantt-hol-date" type="date" aria-label="Holiday date">
-      <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
-      <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+      <div class="gantt-hol-dates">
+        <label class="gantt-hol-date-field">
+          <span class="gantt-hol-field-lbl">Start</span>
+          <input id="gantt-hol-date" type="date" aria-label="Holiday date">
+        </label>
+        <span class="gantt-hol-date-sep" aria-hidden="true">–</span>
+        <label class="gantt-hol-date-field">
+          <span class="gantt-hol-field-lbl">End</span>
+          <input id="gantt-hol-end" type="date" aria-label="Holiday end date (optional)" title="End date (optional, for multi-day holiday range)">
+        </label>
+      </div>
+      <div class="gantt-hol-submit">
+        <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
+        <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+      </div>
     </div>
   </div>

@@ -10,7 +10,7 @@
 partial theme; --complete fills it up: missing keys come from the default, hover/ring/glow/wash shades and the dark set are
 derived (OKLCH), palette slots 1-8 are built from the brand colours, text sizes are clamped, the font is measured
 (scripts/measure_font.py), every contrast pair is checked in both modes and failing values are moved along OKLCH
-lightness only. The output (default .ultimate-diagram/theme.json) lists only the keys that differ from the default; the
+lightness only. The output (default <skill-dir>/theme.json) lists only the keys that differ from the default; the
 loader fills the rest. The report says where each value came from. Standard library plus Chrome.
 
 A website is untrusted data: nothing it contains is copied into the theme except colours (rebuilt as hex), numbers,
@@ -20,6 +20,7 @@ font family names matching [\\w .-], and a fonts.googleapis.com href. Every valu
 from __future__ import annotations
 
 import argparse
+import base64
 import copy
 import json
 import math
@@ -27,6 +28,7 @@ import re
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -39,7 +41,7 @@ from tokens import _HREF, _TONES, TOKENS_VERSION, _is_shadow, merge_theme, resol
 
 MODES = ("light", "dark")
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUT = Path(".ultimate-diagram") / "theme.json"
+DEFAULT_OUT = ROOT / "theme.json"
 
 # --- colour maths: sRGB, OKLab/OKLCH (Ottosson), colour-blindness simulation (Machado 2009, severity 1) ----------------
 
@@ -176,13 +178,14 @@ COLLECT_JS = r"""(async () => {
     const top = r.top + scrollY, w = Math.max(0, Math.min(r.right, W) - Math.max(r.left, 0)), h = Math.max(0, Math.min(top + r.height, H) - Math.max(top, 0));
     return w * h > 0 ? { cs, area: w * h, w: r.width, h: r.height } : null;
   };
-  const out = { width: W, surfaces: [], text: [], borders: [], buttons: [], links: [], cards: [], type: {}, fonts: {}, googleHrefs: [],
+  const out = { url: location.href, width: W, visibleCount: 0, textChars: 0, surfaces: [], text: [], borders: [], buttons: [], links: [], cards: [], type: {}, fonts: {}, googleHrefs: [],
                 vars: {}, icons: { classes: {}, fonts: [], sprites: [], strokes: [] } };
   // surfaces: own background of body, html and every visible element, with the area it covers
   const bodyBg = rgb(getComputedStyle(document.body).backgroundColor), htmlBg = rgb(getComputedStyle(document.documentElement).backgroundColor);
   out.canvas = (bodyBg && bodyBg[3] > 0.9 ? bodyBg : htmlBg && htmlBg[3] > 0.9 ? htmlBg : [255, 255, 255, 1]).slice(0, 3);
   for (const el of els) {
     const v = vis(el); if (!v) continue;
+    out.visibleCount += 1;
     const bg = rgb(v.cs.backgroundColor), role = el.closest('header,nav') ? 'header' : el.closest('main') ? 'main' : el.closest('footer') ? 'footer' : 'other';
     if (bg && bg[3] > 0.9 && !el.closest('button,a,[role=button]')) out.surfaces.push({ c: bg.slice(0, 3), a: Math.round(v.area), role });
     const bw = parseFloat(v.cs.borderTopWidth), bc = rgb(v.cs.borderTopColor);
@@ -190,6 +193,7 @@ COLLECT_JS = r"""(async () => {
     const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim().length).reduce((x, y) => x + y, 0);
     const tc = rgb(v.cs.color);
     if (own > 0 && tc && tc[3] > 0.5) {
+      out.textChars += own;
       const inLink = !!el.closest('a,button,[role=button]');
       out.text.push({ c: tc.slice(0, 3), n: own, link: inLink, small: !!el.closest('small,figcaption,[class*=caption],[class*=muted],[class*=small],[class*=secondary]') });
     }
@@ -248,7 +252,110 @@ COLLECT_JS = r"""(async () => {
 })()"""
 
 
-def collect_site(url: str, browser: Optional[str]) -> Dict[str, Any]:
+class ExtractionEmptyError(Exception):
+    """Raised when a website or brand file yields no meaningful styling (no theme file should be written)."""
+
+    def __init__(self, reason: str, capture: Optional[Path] = None):
+        super().__init__(reason)
+        self.reason = reason
+        self.capture = capture
+
+
+def format_suggestions(capture: Optional[Path] = None) -> str:
+    """Plain-English next steps when extraction cannot read meaningful styling."""
+    steps = (
+        "  1. Open the website or brand page in your browser, take a screenshot, and share the image.\n"
+        "  2. Share a brand guide (PDF, image, CSS/design-tokens file) or save the webpage from your browser (File -> Save Page As).\n"
+        "  3. Share your brand basics directly: main brand hex colour(s), optional secondary colours, font name, and light/dark preference."
+    )
+    if capture:
+        return (
+            f"[CAPTURE] {capture}\n"
+            "[SUGGEST] Inspect the captured browser screenshot above. If the brand page rendered visually (for example image- or canvas-based styling), "
+            "extract its colours and style into a partial theme JSON and run --from <partial.json> --complete. "
+            "If the screenshot is blank, blocked, or shows a login/verification page, ask the user to:\n" + steps
+        )
+    return "[SUGGEST] No usable brand styling was found, so no theme file was written. Suggest the user try one of these:\n" + steps
+
+
+BROWSER_DEFAULT_FONTS = {
+    "times", "times new roman", "dejavu serif", "dejavu sans", "liberation serif", "liberation sans",
+    "arial", "helvetica", "helvetica neue", "segoe ui", "tahoma", "verdana", "roboto", "cantarell", "ubuntu",
+}
+
+
+def _is_custom_font(fam: Optional[str]) -> bool:
+    return bool(fam and fam.strip().lower() not in BROWSER_DEFAULT_FONTS)
+
+
+def has_meaningful_site_style(raw: Dict[str, Any], partial: Dict[str, Any]) -> Tuple[bool, str]:
+    """True if the site yielded at least one meaningful brand signal (brand colour, custom font, or non-default canvas)."""
+    if raw.get("visibleCount", 1) == 0:
+        return False, "page rendered no visible elements"
+    mode_colors = partial.get("color", {}).get("dark") or partial.get("color", {}).get("light") or {}
+    has_primary = bool(mode_colors.get("primary"))
+    has_brand_colors = bool((partial.get("brand") or {}).get("colors"))
+    has_font = _is_custom_font((partial.get("font") or {}).get("family"))
+    canvas = str(mode_colors.get("bg-page", "#ffffff")).lower()
+    has_non_default_bg = canvas not in ("#ffffff", "#fff")
+    if not any((has_primary, has_brand_colors, has_font, has_non_default_bg)):
+        return False, "no brand colour, custom font, or non-default background was found on the page"
+    return True, ""
+
+
+def has_meaningful_partial(partial: Dict[str, Any]) -> bool:
+    """True if a --from partial theme JSON contains at least one styling key."""
+    if not isinstance(partial, dict):
+        return False
+    color = partial.get("color") or {}
+    if isinstance(color, dict) and any(isinstance(color.get(m), dict) and bool(color.get(m)) for m in MODES):
+        return True
+    if (partial.get("brand") or {}).get("colors"):
+        return True
+    font = partial.get("font") or {}
+    if isinstance(font, dict) and (font.get("family") or font.get("href")):
+        return True
+    if partial.get("type") or partial.get("_type"):
+        return True
+    if partial.get("radius") or partial.get("_radius") is not None:
+        return True
+    if partial.get("shadow") or partial.get("_shadow"):
+        return True
+    if partial.get("palette"):
+        return True
+    icon = partial.get("icon") or {}
+    icons_raw = partial.get("_icons") or {}
+    if (isinstance(icon, dict) and bool(icon)) or any(v is not None for v in icons_raw.values()):
+        return True
+    return False
+
+
+def _raw_looks_weak(raw: Dict[str, Any]) -> bool:
+    """Fast pre-check on raw COLLECT_JS data to decide whether to capture a browser screenshot before closing Chrome."""
+    if raw.get("visibleCount", 1) == 0:
+        return True
+    canvas = hx(raw["canvas"]).lower()
+    if canvas != "#ffffff":
+        return False
+    if _is_custom_font(named((raw.get("fonts") or {}).get("body", ""))):
+        return False
+    if any(b.get("bg") and chroma(hx(b["bg"])) > 0.06 for b in raw.get("buttons", [])):
+        return False
+    if any(re.search(r"(primary|brand)(-?colou?r)?(-500|-600)?$", n) for n in raw.get("vars", {})):
+        return False
+    if any(chroma(hx(l["c"])) > 0.06 for l in raw.get("links", [])):
+        return False
+    if any(chroma(hx(s["c"])) > 0.09 for s in raw.get("surfaces", [])):
+        return False
+    return True
+
+
+def collect_site(
+    url: str,
+    browser: Optional[str],
+    capture_path: Optional[Path] = None,
+    capture_on_weak: Optional[Path] = None,
+) -> Tuple[Dict[str, Any], Optional[Path]]:
     from measure_font import chrome_session
     u = urlparse(url)
     if u.scheme not in ("http", "https", "file"):
@@ -256,7 +363,9 @@ def collect_site(url: str, browser: Optional[str]) -> Dict[str, Any]:
     with chrome_session(browser, 90, ("--window-size=1280,900", "--hide-scrollbars", "--mute-audio")) as call:
         call("Page.enable")
         call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": False})
-        call("Page.navigate", {"url": url})
+        nav = call("Page.navigate", {"url": url})
+        if nav.get("errorText"):
+            raise ExtractionEmptyError(f"could not load {url}: {nav['errorText']}")
         # A pending third-party stylesheet holds back script execution, so even this poll can stall: after 15 s stop the load and read the page as it is.
         call.settimeout(15)
         try:
@@ -269,7 +378,22 @@ def collect_site(url: str, browser: Optional[str]) -> Dict[str, Any]:
         res = call("Runtime.evaluate", {"expression": COLLECT_JS, "awaitPromise": True, "returnByValue": True})
         if "exceptionDetails" in res:
             raise RuntimeError(f"could not read the page: {res['exceptionDetails'].get('text')}")
-        return res["result"]["value"]
+        raw = res["result"]["value"]
+        page_url = raw.get("url") or ""
+        if page_url.startswith("chrome-error://") or (page_url == "about:blank" and not url.startswith("about:")):
+            raise ExtractionEmptyError(f"browser landed on an error or blank page ({page_url})")
+        saved_capture: Optional[Path] = None
+        target = capture_path or (capture_on_weak if _raw_looks_weak(raw) else None)
+        if target is not None:
+            try:
+                shot = call("Page.captureScreenshot", {"format": "png"})
+                if shot.get("data"):
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(base64.b64decode(shot["data"]))
+                    saved_capture = target
+            except (RuntimeError, OSError):
+                saved_capture = None
+        return raw, saved_capture
 
 
 GENERIC = {"system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "ui-rounded", "sans-serif", "serif", "monospace", "cursive", "fantasy",
@@ -913,6 +1037,13 @@ def self_test() -> None:
         t = merge_theme(complete_theme({"tokensVersion": 1, "name": "b", "_type": {"bodySize": body}}, [], measure=False))
         px = lambda style: float(t["type"]["size"][t["type"]["styles"][style]["size"]][:-2])  # noqa: E731
         assert 12 <= px("label") <= 15 and px("detail") >= 12 and px("caption") >= 10, (body, px("label"))
+    # meaningful styling checks: blank/default-only inputs are rejected
+    assert not has_meaningful_partial({"tokensVersion": 1, "name": "empty"})
+    assert has_meaningful_partial({"tokensVersion": 1, "color": {"light": {"primary": "#0e7c66"}}})
+    assert not has_meaningful_site_style({"visibleCount": 0}, {"color": {"light": {"bg-page": "#ffffff"}}})[0]
+    assert not has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#ffffff"}}})[0]
+    assert has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#111827"}}})[0]
+    assert has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#ffffff", "primary": "#0e7c66"}}})[0]
     print("[PASS] extract_tokens self-test")
 
 
@@ -920,9 +1051,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", help="website to read (http, https or file address)")
     ap.add_argument("--from", dest="src", help="partial theme JSON (the brand-guide path)")
+    ap.add_argument("--reset", action="store_true", help="remove saved theme.json and return to the default theme")
     ap.add_argument("--complete", action="store_true", help="fill, derive, measure and contrast-check the theme (always use it)")
     ap.add_argument("--out", help=f"output file (default {DEFAULT_OUT})")
     ap.add_argument("--preview", help="folder for one rendered example per diagram type")
+    ap.add_argument("--capture", help="save a browser PNG screenshot of --url here (also saved automatically when no meaningful styling is extracted)")
     ap.add_argument("--browser", help="Chrome/Chromium path")
     ap.add_argument("--offline", action="store_true", help="no Google Fonts lookup and no font download (font.metrics is not measured)")
     ap.add_argument("--no-measure", action="store_true", help="skip scripts/measure_font.py")
@@ -931,15 +1064,38 @@ def main() -> int:
     if a.self_test:
         self_test()
         return 0
+    if a.reset:
+        if a.url or a.src:
+            ap.error("--reset cannot be combined with --url or --from")
+        targets = [Path(a.out)] if a.out else [DEFAULT_OUT, Path(".ultimate-diagram") / "theme.json"]
+        removed: List[str] = []
+        for p in targets:
+            if p.is_file():
+                p.unlink()
+                removed.append(str(p))
+        if removed:
+            print(f"[OK] Reset to default theme (removed: {', '.join(removed)}).")
+        else:
+            print("[NOTE] Already using the default theme (no theme.json found).")
+        return 0
     if bool(a.url) == bool(a.src):
-        ap.error("give exactly one of --url and --from")
+        ap.error("give exactly one of --url and --from (or use --reset)")
     notes: List[str] = []
+    captured: Optional[Path] = None
     try:
         if a.url:
             name = re.sub(r"[^a-z0-9-]+", "-", (urlparse(a.url).hostname or Path(urlparse(a.url).path).stem or "site").lower()).strip("-") or "site"
-            partial = site_to_partial(collect_site(a.url, a.browser), name, not a.offline, notes)
+            capture_explicit = Path(a.capture) if a.capture else None
+            capture_weak = capture_explicit or (Path(a.preview) / "site-capture.png" if a.preview else Path(tempfile.gettempdir()) / f"ultimate-diagram-capture-{name}.png")
+            raw, captured = collect_site(a.url, a.browser, capture_explicit, capture_weak)
+            partial = site_to_partial(raw, name, not a.offline, notes)
+            ok, why = has_meaningful_site_style(raw, partial)
+            if not ok:
+                raise ExtractionEmptyError(why, captured)
         else:
             partial = json.loads(Path(a.src).read_text(encoding="utf-8"))
+            if not has_meaningful_partial(partial):
+                raise ExtractionEmptyError(f"no styling keys found in {a.src}")
             partial.setdefault("tokensVersion", TOKENS_VERSION)
             notes.append(f"[MAP] the theme keys come from {a.src}")
         if a.complete:
@@ -948,6 +1104,12 @@ def main() -> int:
             theme = {k: v for k, v in partial.items() if not k.startswith("_") and k != "brand"}
             merge_theme(theme, "the extracted theme")
             notes.append("[WARN] not completed: run again with --complete (derived shades, dark set, palette, measured font, contrast check)")
+    except ExtractionEmptyError as exc:
+        if notes:
+            print("\n".join(notes))
+        print(f"[WARN] No meaningful brand styling extracted: {exc.reason}")
+        print(format_suggestions(exc.capture))
+        return 2
     except (ValueError, RuntimeError, OSError, json.JSONDecodeError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
@@ -955,6 +1117,8 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(theme, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("\n".join(notes))
+    if captured:
+        print(f"[CAPTURE] {captured}")
     print(f"[OK] theme {theme['name']!r} written to {out}")
     if a.preview:
         preview(out, Path(a.preview), a.browser)

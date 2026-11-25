@@ -125,9 +125,14 @@ for rt in "${RUNTIMES[@]}"; do
         continue
     fi
 
+    saved_theme=""
     if [[ -L "$dest" ]]; then
         rm "$dest"                       # the link only, never what it points to
     elif [[ -e "$dest" ]]; then
+        if [[ "$MODE" != "symlink" && -f "$dest/theme.json" ]]; then
+            saved_theme="$(mktemp)"
+            cp "$dest/theme.json" "$saved_theme"
+        fi
         echo "    Removing existing target at $dest"
         rm -rf "$dest"
     fi
@@ -140,11 +145,14 @@ for rt in "${RUNTIMES[@]}"; do
         mkdir -p "$dest"
         for item in "$REPO_ROOT"/*; do
             case "$(basename "$item")" in
-                node_modules|dev|bin|docs|skills-lock.json) continue ;;
+                node_modules|dev|bin|docs|skills-lock.json|theme.json) continue ;;
                 *) cp -R "$item" "$dest/" ;;
             esac
         done
         find "$dest" -name __pycache__ -type d -prune -exec rm -rf {} +
+        if [[ -n "$saved_theme" ]]; then
+            mv "$saved_theme" "$dest/theme.json"
+        fi
     fi
     installed=$((installed + 1))
     last_dest="$dest"

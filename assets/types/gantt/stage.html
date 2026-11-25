@@ -2,9 +2,11 @@
         <aside id="gantt-sidebar" class="gantt-sidebar" aria-label="Task list">
           <div class="gantt-sidebar-head">
             <span>Tasks</span>
-            <button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task">{{icon:plus}}</button>
+            <div class="gantt-sidebar-actions"><button id="btn-toggle-all" type="button" class="btn btn-icon gantt-toggle-all" title="Collapse all phases" aria-label="Collapse all phases">{{icon:chevron-up}}</button><button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task">{{icon:plus}}</button></div>
           </div>
+          <button id="gantt-sticky-phase" type="button" class="gantt-sticky-phase" hidden title="Jump to phase header" data-export-skip></button>
           <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
+          <div id="gantt-filter-bar" class="gantt-filter-bar" role="status" aria-live="polite" hidden data-export-skip></div>
         </aside>
         <div id="gantt-splitter" class="gantt-splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize task list"></div>
         <section id="gantt-timeline" class="gantt-timeline" aria-label="Timeline">
@@ -19,9 +21,16 @@
             <div id="gantt-today" class="gantt-today"></div>
             <svg id="gantt-deps" class="gantt-deps" aria-hidden="true"></svg>
             <div id="gantt-bars" class="gantt-bars"></div>
+            <div id="gantt-offscreen" class="gantt-offscreen" data-export-skip></div>
             <div id="gantt-marquee" class="gantt-marquee" hidden></div>
             <div id="gantt-notes" class="note-layer"></div>
             <div id="gantt-drag-tip" class="gantt-drag-tip" hidden></div>
+          </div>
+          <div id="gantt-empty-filter" class="gantt-empty-filter" role="status" aria-live="polite" hidden data-export-skip></div>
+          <div id="gantt-inview-hint" class="gantt-inview-hint" role="status" aria-live="polite" hidden data-export-skip>
+            <span id="gantt-inview-hint-text" class="gantt-inview-hint-text"></span>
+            <button id="btn-inview-hint-apply" type="button" class="gantt-inview-hint-btn">Compact to In View</button>
+            <button id="btn-inview-hint-dismiss" type="button" class="gantt-inview-hint-close" title="Dismiss hint" aria-label="Dismiss hint">{{icon:close:xs:bold}}</button>
           </div>
         </section>
       </div>
