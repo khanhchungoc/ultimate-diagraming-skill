@@ -350,6 +350,8 @@ sys.stdout.write(f.format_json(out))`;
   t.check('the action bar offers Colour, Subject and Delete 3 (no Connect: no actor selected)',
     (await present('.uc-actionbar .uc-ab-swatch')) && (await present('.uc-actionbar [data-act="subject"]')) && (await text('.uc-actionbar [data-act="delete"]')).includes('Delete 3') && !(await present('.uc-actionbar [data-act="connect"]')));
   const before = await saved();
+  await t.clickOn('.uc-actionbar .swatch-trigger');
+  await sleep(150);
   await t.clickOn('.uc-actionbar .uc-ab-swatch[data-value="3"]');
   await sleep(120);
   d = await saved();

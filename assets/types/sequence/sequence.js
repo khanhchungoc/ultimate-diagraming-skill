@@ -1730,7 +1730,6 @@
           const p = byId[sel.id];
           if (!p) return;
           bar.setAttribute('aria-label', 'Participant');
-          bar.classList.add('is-wrap');
           if (p.rail) {
             bar.appendChild(abButton('show', `${ui.icon('eye')}`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
@@ -1738,14 +1737,14 @@
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
-          bar.appendChild(delSep());
-          bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
-          bar.appendChild(htmlEl('span', 'seq-ab-break'));
-          bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch', white: WHITE }));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(swatchPicker(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', white: WHITE }));
           if (p.column) {
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
           }
+          bar.appendChild(delSep());
+          bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
           // With lifespans: drag the start box or the cap outward to make the lifeline begin earlier or end later
           const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
           if (sp && sp[0] > 0) addHandle('pstart', p.id, p.x, p.top, 'seq-edge');
@@ -1756,17 +1755,17 @@
           const f = fragById(sel.id);
           if (!f || f.x === undefined) return;
           bar.setAttribute('aria-label', 'Frame');
-          bar.classList.add('is-rows');
-          // Two rows: the kind and delete, then the colours
-          const row1 = htmlEl('div', 'seq-ab-row'), row2 = htmlEl('div', 'seq-ab-row');
-          FRAG_KINDS.forEach((k) => row1.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
-          row1.appendChild(delSep());
-          row1.appendChild(ui.abButton('seq-ab-btn', 'delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)', undefined, undefined, 'is-danger'));
-          row2.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
-          const fc = swatchOf(f);
-          PALETTE.forEach((w) => row2.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
-          bar.append(row1, row2);
-          // Focus lives in the frame's tag only. Two rows tall: clear of the tag and the top handle
+          FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
+          bar.appendChild(delSep());
+          bar.appendChild(swatchPicker(swatchOf(f) || '', (slot) => {
+            if ((f.color || '') === slot) return;
+            pendingColorAnim = slot ? captureColorStyles('fragment', f.id) : null;
+            if (slot) f.color = slot; else delete f.color;
+            relayout();
+          }, { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', act: 'color' }));
+          bar.appendChild(delSep());
+          bar.appendChild(ui.abButton('seq-ab-btn', 'delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)', undefined, undefined, 'is-danger'));
+          // Focus lives in the frame's tag only. Clear of the tag and the top handle
           at = { x: f.x + 150, top: f.y, bottom: f.y + 30 };
           if (!f.collapsed) {
             addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');

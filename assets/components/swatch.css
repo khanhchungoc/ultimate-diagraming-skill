@@ -34,8 +34,8 @@
         --sw-disc: color-mix(in srgb, var(--sw-line) var(--swatch-disc-mix), var(--swatch-disc-base));   /* dark: the line colour deepened, as the slots do */
       }
     }
-    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
-    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    /* swatchRow(): 2-row grid of colour buttons (a "none" button, then one per palette slot) */
+    .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
@@ -43,9 +43,23 @@
     }
     .swatch-btn:hover { background: var(--bg-hover); }
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-pill-bg); border: 1px solid var(--sw-line); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
     .swatch-btn:hover .swatch-dot { transform: scale(1.15); }
     .swatch-btn[aria-pressed="true"] .swatch-dot { animation: swatch-pop 160ms var(--curve-spring-tactile); }
     @keyframes swatch-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
-
+    /* swatchPicker(): a single trigger button showing the active swatch, opening a popover with swatchRow() */
+    .swatch-picker { position: relative; display: inline-flex; align-items: center; }
+    .swatch-trigger { gap: 4px; width: auto; padding: 0 7px; }
+    .swatch-trigger[aria-expanded="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-trigger .swatch-caret-wrap { display: inline-flex; align-items: center; color: var(--text-muted); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
+    .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
+    .swatch-popover {
+      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0; z-index: 60;
+      padding: 4px; border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-lg);
+      white-space: nowrap;
+    }
+    .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
+    .swatch-popover[hidden] { display: none; }

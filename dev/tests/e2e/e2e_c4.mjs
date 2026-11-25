@@ -661,7 +661,8 @@ try {
     await blank();
     // colour
     await clickName('Customer');
-    await clickAct('color');
+    await t.clickOn('.c4-actionbar .swatch-trigger');
+    await sleep(150);
     const sw = await t.ev(`document.querySelectorAll(${J(A.swatch)}).length`);
     if (sw > 1) {
       const ps = await t.ev(`(() => { const e = document.querySelectorAll(${J(A.swatch)})[2]; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
@@ -713,7 +714,8 @@ try {
     t.check('core on the group toggles it off', !(await saved()).groups[0].core);
     await undo();
     await t.clickOn(A.tag);
-    await clickAct('color');
+    await t.clickOn('.c4-actionbar .swatch-trigger');
+    await sleep(150);
     const ps = await t.ev(`(() => { const e = document.querySelectorAll(${J(A.swatch)})[1]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (ps) { await t.click(ps.x, ps.y); await sleep(250); if ((await editing()) !== null) { await t.press('Enter'); await sleep(150); } }
     t.check('colour on the group is saved', !!(await saved()).groups[0].color, J((await saved()).groups[0]));
@@ -808,7 +810,8 @@ try {
     await blank();
     await clickName('Customer');
     await clickName('Mail Gateway', { modifiers: 2 });
-    await clickAct('color');
+    await t.clickOn('.c4-actionbar .swatch-trigger');
+    await sleep(150);
     const ps = await t.ev(`(() => { const e = document.querySelectorAll(${J(A.swatch)})[1]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (ps) { await t.click(ps.x, ps.y); await sleep(250); if ((await editing()) !== null) { await t.press('Enter'); await sleep(150); } }
     const dc = await saved();
