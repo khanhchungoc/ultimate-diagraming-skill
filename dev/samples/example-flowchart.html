@@ -9283,16 +9283,22 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (!groups.has(k)) groups.set(k, { laneId: n.laneId, r, list: [] });
             groups.get(k).list.push(n);
           });
+          const hasOut = new Set(edges.filter(e => nodeMap[e.from] && nodeMap[e.to] && e.from !== e.to).map(e => e.from));
+          const isTerminal = (n) => !hasOut.has(n.id);
           const sub = {};
           [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
             if (g.list.length > 1) {
               const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks, sub)]));
               // Ties (typically branches of one decision) go by where each node's arrows lead: a node whose
               // successors sit in lanes above (or that has none) takes the upper row, one heading to a lane below
-              // the lower row, so its arrow leaves toward its target instead of wrapping around its sibling
+              // the lower row, so its arrow leaves toward its target instead of wrapping around its sibling.
+              // On exact ties, keep continuing steps ahead of terminal ends so ends sit on the outer edge to wrap.
               const pl = new Map(g.list.map(n => [n.id, successorPull(n.id, g.laneId)]));
               g.list.sort((a, b) => (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9
-                ? bc.get(a.id) - bc.get(b.id) : pl.get(a.id) - pl.get(b.id)));
+                ? bc.get(a.id) - bc.get(b.id)
+                : Math.abs(pl.get(a.id) - pl.get(b.id)) > 1e-9
+                  ? pl.get(a.id) - pl.get(b.id)
+                  : (isTerminal(a) ? 1 : 0) - (isTerminal(b) ? 1 : 0)));
             }
             g.list.forEach((n, i) => { sub[n.id] = i; });
           });
@@ -9311,6 +9317,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const siblings = (a, b) => (fwdIn[a.id] || []).some(p => (fwdIn[b.id] || []).includes(p));
           const clear = (xa, xb) => Math.abs(xa - xb) >= LE.NODE_W + LE.MIN_GAP;
           const lastX = Math.max(...nodes.map(n => X[n.id]));
+          const slid = new Set();
           groups.forEach(g => {
             if (g.list.length < 2) return;
             let next = 1;
@@ -9339,25 +9346,26 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 const maxSlide = (!succ.length && hasSameLanePred) ? 0 : 1.5 * LE.COL_WIDTH;
                 const slot = slots.find(x => x - X[n.id] <= maxSlide
                   && row0.every(m => clear(x, X[m.id])) && !blocked(x));
-                if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
+                if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; slid.add(n.id); return; }
               }
               sub[n.id] = next++;
             });
           });
-          // Wrap terminal-node fan-outs that exceed a lane's natural subrow width/height. When a single decision
-          // fans out to 3+ terminal nodes (no outgoing edges) at the same (laneId, rank), stacking them all across
-          // the lane bloats its width/height; wrap the overflow onto subsequent flow columns instead.
-          const hasOut = new Set(edges.filter(e => nodeMap[e.from] && nodeMap[e.to] && e.from !== e.to).map(e => e.from));
-          const isTerminal = (n) => !hasOut.has(n.id);
+          // Wrap terminal-node fan-outs that exceed the lane's track cap: up to 2 sub-tracks for <= 3 stacked
+          // branches, or up to 3 sub-tracks when > 3 branches fan out at the same (laneId, rank). Overflow terminal
+          // nodes wrap onto subsequent flow columns instead of bloating the lane's width/height.
           const nonEndSubrows = {};
           lanes.forEach(l => { nonEndSubrows[l.id] = 1; });
           nodes.forEach(n => {
             if (!isTerminal(n)) nonEndSubrows[n.laneId] = Math.max(nonEndSubrows[n.laneId] || 1, sub[n.id] + 1);
           });
           [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
-            const cap = Math.max(2, nonEndSubrows[g.laneId] || 1);
-            const terms = g.list.filter(isTerminal);
-            if (terms.length <= cap) return;
+            const stacked = g.list.filter(n => !slid.has(n.id));
+            const branchCap = stacked.length > 3 ? 3 : 2;
+            const cap = Math.max(branchCap, nonEndSubrows[g.laneId] || 1);
+            const terms = stacked.filter(isTerminal);
+            const maxSub = stacked.reduce((m, n) => Math.max(m, sub[n.id]), 0);
+            if (!terms.length || maxSub < cap) return;
             const termSet = new Set(terms.map(n => n.id));
             const laneNodes = nodes.filter(m => m.laneId === g.laneId && !termSet.has(m.id));
             const placed = [];
