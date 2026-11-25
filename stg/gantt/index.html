@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add("is-loading"); for (const ev of ["pageswap", "pagereveal"]) addEventListener(ev, (e) => { const t = e.viewTransition; if (t) for (const k of ["ready", "finished", "updateCallbackDone"]) t[k].catch(() => {}); }); addEventListener("unhandledrejection", (e) => { if (e.reason && /Transition was (skipped|aborted)/.test(e.reason.message || "")) e.preventDefault(); });</script>
 </head><body>
-<title>Q2–Q3 Product Roadmap</title>
+<title>2026 Platform Transformation Roadmap</title>
 <!-- For agents: the diagram model (JSON, disk format) is in diagram.json in this artifact (Artifact read with path: "diagram.json"). Do not read app.css or app.js to understand the diagram. -->
   <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
   <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
@@ -18,7 +18,7 @@
     <div class="toolbar-left">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="10" height="3.5" rx="1.5"/><rect x="8" y="10.25" width="11" height="3.5" rx="1.5"/><rect x="12" y="16.5" width="8" height="3.5" rx="1.5"/><path d="M6 16.5l2 2-2 2-2-2z"/></svg>
       <div class="app-title-container">
-        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Q2–Q3 Product Roadmap</h1>
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">2026 Platform Transformation Roadmap</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
       </div>
     </div>
@@ -133,7 +133,38 @@
       <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg><span class="btn-label">Arrows</span>
       </button>
-      <!-- Today: scrolls smoothly to center today's date -->
+      <!-- View filter dropdown: Active & Upcoming (default), In View, or All Tasks -->
+      <div id="gantt-view-wrap" class="dock-pop-wrap gantt-view-wrap" data-dock-pop data-dock-group="layout">
+        <button id="btn-view-filter" type="button" class="btn dock-pop-trigger gantt-view-trigger" aria-label="Filter visible tasks" aria-haspopup="menu" aria-expanded="false" aria-controls="gantt-view-pop" title="Filter visible tasks">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span id="gantt-view-label" class="btn-label">Active &amp; Upcoming</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="gantt-view-pop" class="dock-pop gantt-view-pop" aria-labelledby="btn-view-filter">
+          <div class="gantt-view-menu" focusgroup="menu nomemory" aria-labelledby="btn-view-filter">
+            <div role="group" aria-label="Task visibility">
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="active" aria-checked="true">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">Active &amp; Upcoming</span>
+                  <span class="gantt-view-opt-desc">Hide tasks finished before today</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="in-view" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">In View</span>
+                  <span class="gantt-view-opt-desc">Compact to tasks in current dates</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="all" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">All Tasks</span>
+                  <span class="gantt-view-opt-desc">Show the complete roadmap</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Today: scrolls smoothly to center today's date and active work -->
       <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg><span class="btn-label">Today</span>
       </button>
@@ -223,7 +254,9 @@
             <span>Tasks</span>
             <div class="gantt-sidebar-actions"><button id="btn-toggle-all" type="button" class="btn btn-icon gantt-toggle-all" title="Collapse all phases" aria-label="Collapse all phases"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button><button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button></div>
           </div>
+          <button id="gantt-sticky-phase" type="button" class="gantt-sticky-phase" hidden title="Jump to phase header" data-export-skip></button>
           <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
+          <div id="gantt-filter-bar" class="gantt-filter-bar" role="status" aria-live="polite" hidden data-export-skip></div>
         </aside>
         <div id="gantt-splitter" class="gantt-splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize task list"></div>
         <section id="gantt-timeline" class="gantt-timeline" aria-label="Timeline">
@@ -238,9 +271,16 @@
             <div id="gantt-today" class="gantt-today"></div>
             <svg id="gantt-deps" class="gantt-deps" aria-hidden="true"></svg>
             <div id="gantt-bars" class="gantt-bars"></div>
+            <div id="gantt-offscreen" class="gantt-offscreen" data-export-skip></div>
             <div id="gantt-marquee" class="gantt-marquee" hidden></div>
             <div id="gantt-notes" class="note-layer"></div>
             <div id="gantt-drag-tip" class="gantt-drag-tip" hidden></div>
+          </div>
+          <div id="gantt-empty-filter" class="gantt-empty-filter" role="status" aria-live="polite" hidden data-export-skip></div>
+          <div id="gantt-inview-hint" class="gantt-inview-hint" role="status" aria-live="polite" hidden data-export-skip>
+            <span id="gantt-inview-hint-text" class="gantt-inview-hint-text"></span>
+            <button id="btn-inview-hint-apply" type="button" class="gantt-inview-hint-btn">Compact to In View</button>
+            <button id="btn-inview-hint-dismiss" type="button" class="gantt-inview-hint-close" title="Dismiss hint" aria-label="Dismiss hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
           </div>
         </section>
       </div>
