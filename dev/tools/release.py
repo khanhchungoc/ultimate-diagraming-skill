@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Release helper. Source of truth for the version: package.json.
 
-  release.py version   print the version
-  release.py bump      patch+1 in package.json, package-lock.json and SKILL.md
-  release.py zip       build ultimate-diagram-v<version>.zip in the repo root
+  release.py version                   print the version
+  release.py bump [patch|minor|major]  bump version in package.json, package-lock.json and SKILL.md (default: patch)
+  release.py zip                       build ultimate-diagram-v<version>.zip in the repo root
 
 Standard library only. See dev/versioning.md.
 """
@@ -15,15 +15,23 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+BUMP_LEVELS = ("patch", "minor", "major")
 
 
 def version() -> str:
     return json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
 
 
-def bump() -> str:
-    major, minor, patch = version().split(".")
-    new = f"{major}.{minor}.{int(patch) + 1}"
+def bump(level: str = "patch") -> str:
+    if level not in BUMP_LEVELS:
+        raise ValueError(f"Unsupported bump level {level!r}; expected one of {', '.join(BUMP_LEVELS)}.")
+    major, minor, patch = (int(part) for part in version().split("."))
+    if level == "major":
+        new = f"{major + 1}.0.0"
+    elif level == "minor":
+        new = f"{major}.{minor + 1}.0"
+    else:
+        new = f"{major}.{minor}.{patch + 1}"
     for name, pattern in (("package.json", r'("version": ")[^"]+'),
                           ("package-lock.json", r'("version": ")[^"]+'),
                           ("SKILL.md", r"(?m)^(version: ).+")):
@@ -58,7 +66,13 @@ if __name__ == "__main__":
     if cmd == "version":
         print(version())
     elif cmd == "bump":
-        print(bump())
+        if len(sys.argv) > 3:
+            sys.exit(__doc__)
+        level = sys.argv[2] if len(sys.argv) == 3 else "patch"
+        try:
+            print(bump(level))
+        except ValueError as exc:
+            sys.exit(str(exc))
     elif cmd == "zip":
         print(zip_release())
     else:
