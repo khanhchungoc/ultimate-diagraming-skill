@@ -188,6 +188,17 @@
     return `${formatDateRange(it._start, endIso)} · ${days}d`;
   }
 
+  function effectiveColor(it) {
+    const seen = new Set();
+    let cur = it;
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      if (cur.color) return cur.color;
+      cur = cur.parent ? itemById(cur.parent) : null;
+    }
+    return it && it.kind === 'milestone' ? '4' : '1';
+  }
+
   const showWeekendsPref = () => chartData.showWeekends !== false;
   const showWeekendsActive = (zoomKey) => {
     const z = zoomKey || currentZoom();
@@ -681,7 +692,7 @@
 
       // Kind indicator dot / diamond
       const dot = htmlEl('span', `gantt-tree-dot is-${it.kind || 'task'}`);
-      setSwatch(dot, it.color || (it.kind === 'milestone' ? '4' : '1'));
+      setSwatch(dot, effectiveColor(it));
       row.appendChild(dot);
 
       // Label
@@ -749,7 +760,7 @@
         ms.style.top = `${b.y}px`;
         ms.style.width = `${b.w}px`;
         ms.style.height = `${b.h}px`;
-        setSwatch(ms, it.color || '4');
+        setSwatch(ms, effectiveColor(it));
         if (selItems.has(it.id)) ms.classList.add('selected');
         if (note) ms.classList.add('has-note');
         ms.dataset.tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
@@ -819,7 +830,7 @@
       bar.style.top = `${b.y}px`;
       bar.style.width = `${barW}px`;
       bar.style.height = `${b.h}px`;
-      setSwatch(bar, it.color || '1');
+      setSwatch(bar, effectiveColor(it));
       if (selItems.has(it.id)) bar.classList.add('selected');
       if (note) bar.classList.add('has-note');
       if (hasOutFs.has(it.id)) bar.classList.add('has-out-dep');
@@ -1816,7 +1827,7 @@
         bar.append(btnDates, ui.abSep('ab-sep'));
       }
 
-      const swatches = pickColor(it.color, (slot) => {
+      const swatches = pickColor(effectiveColor(it), (slot) => {
         if (slot) it.color = slot; else delete it.color;
         render();
         updateStatus(true);
@@ -3453,7 +3464,7 @@
       const b = it._bar;
       const bx = sideW + b.x;
       const by = headerH + b.y;
-      const c = swatchColors(it.color || (it.kind === 'milestone' ? '4' : '1'));
+      const c = swatchColors(effectiveColor(it));
 
       if (it.kind === 'milestone' && !it._hasChildren) {
         const cx = bx + b.w / 2;
