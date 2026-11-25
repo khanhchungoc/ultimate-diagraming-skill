@@ -1978,6 +1978,56 @@
       padding: 10px 14px 12px;
       flex: 1 1 auto;
     }
+    .help-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 10px 8px 14px;
+      border-top: 1px solid var(--border-color);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      flex: none;
+    }
+    .help-credit {
+      font-weight: var(--weight-medium);
+    }
+    .help-repo {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: var(--weight-semibold);
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+    }
+    .help-repo:hover {
+      background: var(--bg-hover);
+      color: var(--text-main);
+    }
+    .help-repo:focus-visible {
+      background: var(--bg-hover);
+      color: var(--text-main);
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    @media (pointer: coarse) {
+      .help-repo { min-height: 32px; }
+    }
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
     .help-group + .help-group {
       margin-top: 10px;
       padding-top: 10px;
@@ -3384,7 +3434,7 @@ html.is-loading #page-loading { display: grid; }
     </div>
   </div>
 
-  <!-- Help & Shortcuts Popover -->
+  <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
     <div class="help-head">
       <span id="help-title">Shortcuts</span>
@@ -3414,6 +3464,12 @@ html.is-loading #page-loading { display: grid; }
           <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
         </ul>
       </div>
+    </div>
+    <div class="help-foot">
+      <span class="help-credit">Ultimate Diagram</span>
+      <a class="help-repo" href="https://github.com/khanhchungoc/ultimate-diagraming-skill" target="_blank" rel="noopener noreferrer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></svg><span>GitHub</span><span class="visually-hidden"> (khanhchungoc/ultimate-diagraming-skill, opens in a new tab)</span>
+      </a>
     </div>
   </aside>
 

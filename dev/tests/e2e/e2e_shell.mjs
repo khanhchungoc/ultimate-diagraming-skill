@@ -758,6 +758,19 @@ try {
   await t.ev(`document.getElementById('btn-theme').click()`);
   await t.ev(`document.getElementById('btn-help').click()`);
   t.check('Help button opens the help drawer', await t.ev(`document.getElementById('help-drawer').classList.contains('open')`));
+  t.check('Help drawer includes GitHub repo link and HTML comment',
+    await t.ev(`(() => {
+      const a = document.querySelector('#help-drawer .help-repo');
+      if (!a) return false;
+      const r = a.getBoundingClientRect();
+      const rel = (a.getAttribute('rel') || '').split(/\\s+/);
+      const commentOk = [...document.body.childNodes].some(n => n.nodeType === 8 && n.nodeValue.includes('https://github.com/khanhchungoc/ultimate-diagraming-skill'));
+      return a.getAttribute('href') === 'https://github.com/khanhchungoc/ultimate-diagraming-skill'
+        && a.getAttribute('target') === '_blank'
+        && rel.includes('noopener')
+        && r.width >= 24 && r.height >= 24
+        && commentOk;
+    })()`));
   await t.ev(`document.getElementById('help-close').click()`);
   t.check('closing help returns focus to #btn-help', await t.ev(`document.activeElement.id === 'btn-help'`));
   t.check('no page errors in the header checks', t.errors.length === 0, t.errors.join(' | '));

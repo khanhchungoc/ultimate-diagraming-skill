@@ -116,6 +116,10 @@ def check_split_bundle(label: str, kind: str, data: dict, files: dict[str, str],
           and appjs.index("//@engine-begin") < appjs.index("//@engine-end"))
     check(f"{label}: no external references beyond the font in index.html, app.css, app.js",
           le.find_external_refs(idx) == [] and le.find_external_refs(css) == [] and le.find_external_refs(appjs) == [])
+    repo_comment = f"Built with Ultimate Diagram: {le.REPO_URL}"
+    repo_anchor = f'class="help-repo" href="{le.REPO_URL}"'
+    check(f"{label}: index.html includes repo comment and help-drawer link",
+          repo_comment in idx and repo_anchor in idx)
 
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", label)
     art_dir = tmp_dir / slug
@@ -130,7 +134,8 @@ def check_split_bundle(label: str, kind: str, data: dict, files: dict[str, str],
           extract(art_dir / "index.html") == expected_ext and extract(art_dir / "diagram.json") == expected_ext)
     check(f"{label}: file target is the unmodified shell.html fill",
           file_page.startswith("<!DOCTYPE html>\n<!-- For agents:")
-          and df.DATA_OPEN_TAG in file_page and df.DATA_END_MARKER in file_page)
+          and df.DATA_OPEN_TAG in file_page and df.DATA_END_MARKER in file_page
+          and repo_comment in file_page and repo_anchor in file_page)
 
 
 tmp = Path(tempfile.mkdtemp(prefix="artifact_shape_"))
@@ -149,6 +154,13 @@ check("the ERD fixtures are covered by the split checks above", len(erd_fixtures
 example = le.normalize_diagram_type(json.loads((ROOT / "dev" / "examples" / "example-erd.json").read_text(encoding="utf-8")))
 erd_laid = le.run_layout("erd", example, timeout=30, browser=None)
 check_split_bundle("example-erd", "erd", erd_laid, le.assemble_artifact("erd", erd_laid), tmp)
+
+check("find_external_refs allows passive <a> links while still flagging fetched external resources",
+      le.find_external_refs(f'<a href="{le.REPO_URL}">GitHub</a>') == []
+      and len(le.find_external_refs('<link rel="stylesheet" href="https://evil.example/a.css">')) == 1
+      and len(le.find_external_refs('<script src="https://evil.example/a.js"></script>')) == 1
+      and len(le.find_external_refs('<use href="https://evil.example/a.svg#i"/>')) == 1
+      and len(le.find_external_refs(f'<a href="{le.REPO_URL}" style="background:url(https://evil.example/a.png)">x</a>')) == 1)
 
 sample_fx = ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "linear-single-lane.json"
 for out_name, out_arg in (("dir", tmp / "cli-dir"), ("index.html", tmp / "cli-idx" / "index.html")):
