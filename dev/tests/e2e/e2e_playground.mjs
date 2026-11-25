@@ -73,8 +73,8 @@ const TYPES = {
 };
 const ids = Object.keys(TYPES);
 const flowchartStarterNodes = JSON.parse(readFileSync(join(root, 'dev', 'playground', 'flowchart.json'), 'utf8')).nodes.length;
-// c4 is in the menu but joins the per-type checks above once it has dock editing and Mermaid (plan-c4 phases 4 and 6); until then it is opened and checked below
-const menuIds = [...ids, 'c4'];
+// c4 and gantt are in the menu alongside the four types checked in the loop below
+const menuIds = [...ids, 'c4', 'gantt'];
 // The first Mermaid line that is not front matter or a %% comment
 const headLine = (text) => text.replace(/^---[\s\S]*?\n---\n/, '').split('\n').find((l) => l.trim() && !l.startsWith('%%')) || '';
 

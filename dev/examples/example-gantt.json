@@ -1,0 +1,59 @@
+{
+  "diagramType": "gantt",
+  "schemaVersion": 1,
+  "title": "Q2–Q3 Product Roadmap",
+  "zoom": "month",
+  "showNotes": false,
+  "showToday": true,
+  "colorKey": { "1": "Engineering", "2": "Design", "3": "Security", "4": "Go-to-Market" },
+  "holidays": [
+    { "date": "2026-05-25", "end": "2026-05-25", "name": "Memorial Day" },
+    { "date": "2026-07-03", "end": "2026-07-03", "name": "Independence Day (Observed)" }
+  ],
+  "markers": [
+    { "id": "m_launch_day", "label": "Launch Day", "date": "2026-07-15", "color": "4" }
+  ],
+  "items": [
+    { "id": "discovery", "kind": "group", "label": "Discovery" },
+    { "id": "res", "kind": "task", "label": "User research", "parent": "discovery", "start": "2026-04-01", "end": "2026-04-14", "color": "2" },
+    { "id": "ux", "kind": "task", "label": "Wireframes & prototypes", "parent": "discovery", "start": "2026-04-14", "end": "2026-04-28", "color": "2" },
+    { "id": "spec", "kind": "task", "label": "Technical architecture", "parent": "discovery", "start": "2026-04-10", "end": "2026-04-24", "color": "1" },
+    { "id": "signoff", "kind": "milestone", "label": "Scope sign-off", "parent": "discovery", "start": "2026-04-28", "end": "2026-04-28", "color": "2" },
+    { "id": "build", "kind": "group", "label": "Build" },
+    { "id": "plat", "kind": "task", "label": "Core platform", "parent": "build", "start": "2026-04-25", "end": "2026-06-22", "color": "1" },
+    { "id": "api", "kind": "task", "label": "API layer", "parent": "plat", "start": "2026-04-25", "end": "2026-05-26", "color": "1" },
+    { "id": "auth", "kind": "task", "label": "Auth & SSO", "parent": "api", "start": "2026-04-29", "end": "2026-05-15", "color": "3" },
+    { "id": "audit", "kind": "task", "label": "Security review", "parent": "api", "start": "2026-05-15", "end": "2026-05-25", "color": "3" },
+    { "id": "ui", "kind": "task", "label": "Web application", "parent": "plat", "start": "2026-05-18", "end": "2026-06-15", "color": "2" },
+    { "id": "qa", "kind": "task", "label": "Integration & load testing", "parent": "plat", "start": "2026-06-15", "end": "2026-06-22", "color": "1" },
+    { "id": "beta", "kind": "milestone", "label": "Beta ready", "parent": "plat", "start": "2026-06-22", "end": "2026-06-22", "color": "1" },
+    { "id": "launch", "kind": "group", "label": "Launch" },
+    { "id": "docs", "kind": "task", "label": "Docs & migration guide", "parent": "launch", "start": "2026-06-18", "end": "2026-07-08", "color": "4" },
+    { "id": "pilot", "kind": "task", "label": "Customer beta pilot", "parent": "launch", "start": "2026-06-22", "end": "2026-07-08", "color": "4" },
+    { "id": "gtm", "kind": "task", "label": "Launch campaign", "parent": "launch", "start": "2026-07-01", "end": "2026-07-22", "color": "4" },
+    { "id": "ga", "kind": "milestone", "label": "General availability", "parent": "launch", "start": "2026-07-15", "end": "2026-07-15", "color": "4" }
+  ],
+  "dependencies": [
+    { "from": "res", "to": "ux", "type": "fs" },
+    { "from": "ux", "to": "signoff", "type": "fs" },
+    { "from": "auth", "to": "audit", "type": "fs" },
+    { "from": "ui", "to": "qa", "type": "fs" },
+    { "from": "qa", "to": "beta", "type": "fs" },
+    { "from": "beta", "to": "pilot", "type": "fs" },
+    { "from": "res", "to": "spec", "type": "ss" },
+    { "from": "spec", "to": "api", "type": "fs" },
+    { "from": "api", "to": "auth", "type": "ss" },
+    { "from": "api", "to": "ui", "type": "fs" },
+    { "from": "qa", "to": "docs", "type": "ss" },
+    { "from": "pilot", "to": "gtm", "type": "ss" },
+    { "from": "pilot", "to": "ga", "type": "fs" },
+    { "from": "docs", "to": "ga", "type": "fs" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Interview 12 enterprise buyers across US and APAC.", "target": "res" },
+    { "id": "n2", "text": "GraphQL and REST endpoints with versioned webhooks.", "target": "api" },
+    { "id": "n3", "text": "External pen-test and SOC 2 access controls check.", "target": "audit" },
+    { "id": "n4", "text": "Starts on mocked API contracts; intentional overlap with API freeze.", "target": "ui" },
+    { "id": "n5", "text": "Five design-partner teams running production workloads.", "target": "pilot" }
+  ]
+}

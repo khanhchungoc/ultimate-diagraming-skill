@@ -1,0 +1,18 @@
+{
+  "diagramType": "gantt",
+  "schemaVersion": 1,
+  "title": "Project Roadmap",
+  "zoom": "month",
+  "showNotes": false,
+  "showToday": true,
+  "items": [
+    { "id": "phase_1", "kind": "group", "label": "Phase 1" },
+    { "id": "task_1", "kind": "task", "label": "Plan scope", "parent": "phase_1", "start": "2026-04-01", "end": "2026-04-14", "color": "1" },
+    { "id": "task_2", "kind": "task", "label": "Build core", "parent": "phase_1", "start": "2026-04-14", "end": "2026-05-05", "color": "1" },
+    { "id": "milestone_1", "kind": "milestone", "label": "Release", "parent": "phase_1", "start": "2026-05-05", "end": "2026-05-05" }
+  ],
+  "dependencies": [
+    { "from": "task_1", "to": "task_2", "type": "fs" },
+    { "from": "task_2", "to": "milestone_1", "type": "fs" }
+  ]
+}
