@@ -2329,27 +2329,49 @@ html.is-loading #page-loading { display: grid; }
     /* The icon picker and step popover (screen-fixed, under its button) */
     .c4-pop {
       position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; width: 280px; max-width: calc(100vw - 16px); padding: 10px;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); color: var(--text-main);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl); box-shadow: var(--shadow-xl); color: var(--text-main);
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .c4-pop {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .c4-pop {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     .c4-step-pop { width: 210px; }
     .c4-step-row { display: flex; gap: 6px; align-items: center; }
     .c4-step-pop .c4-step-hint { color: var(--text-muted); font-size: var(--t-overline-size); }
     .c4-icons-note, .c4-icons-missing { color: var(--text-muted); }
     .c4-input {
-      width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-md);
+      width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
     }
     .c4-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .c4-icons { width: 300px; }
-    .c4-icon-list { max-height: 260px; overflow-y: auto; }
+    .c4-icon-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+    .c4-icon-list::-webkit-scrollbar { display: none; }
     .c4-icon-head { color: var(--text-muted); margin: 8px 0 4px; }
     .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; }
     .c4-icon-opt {
-      display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-lg);
       background: transparent; color: var(--text-soft); cursor: pointer;
     }
     .c4-icon-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-round); background: var(--swatch-disc-logo); }
     .c4-icon-opt:hover { background: var(--bg-hover); color: var(--text-main); }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .c4-icon-opt:hover { background: var(--glass-hover); color: var(--text-glass); }
+    }
     .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
