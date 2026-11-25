@@ -5,7 +5,7 @@
 // 100% deterministic: never calls Date.now() or new Date() without an explicit UTC date.
 
 const GANTT_ZOOMS = {
-  day:     { pxPerDay: 36,  snapDays: 1, showWeekends: true,  label: 'Day' },
+  day:     { pxPerDay: 44,  snapDays: 1, showWeekends: true,  label: 'Day' },
   week:    { pxPerDay: 18,  snapDays: 1, showWeekends: true,  label: 'Week' },
   month:   { pxPerDay: 6,   snapDays: 1, showWeekends: false, label: 'Month' },
   quarter: { pxPerDay: 2.4, snapDays: 7, showWeekends: false, label: 'Quarter' },
@@ -13,22 +13,22 @@ const GANTT_ZOOMS = {
 };
 
 const GANTT_PAD_DAYS = {
-  day:     { before: 3,  after: 5 },
-  week:    { before: 7,  after: 14 },
-  month:   { before: 14, after: 21 },
-  quarter: { before: 30, after: 45 },
-  year:    { before: 45, after: 60 }
+  day:     { before: 90,  after: 180 },
+  week:    { before: 180, after: 365 },
+  month:   { before: 365, after: 730 },
+  quarter: { before: 730, after: 1095 },
+  year:    { before: 730, after: 1460 }
 };
 
 const GANTT_FALLBACK_START = '2026-01-01';
 const GANTT_FALLBACK_END   = '2026-03-31';
 
 const GANTT_METRICS = {
-  ROW_H: 36,
-  BAR_H: 22,
-  GROUP_BAR_H: 14,
-  MILESTONE_SIZE: 14,
-  HEADER_H: 52,
+  ROW_H: 44,
+  BAR_H: 26,
+  GROUP_BAR_H: 10,
+  MILESTONE_SIZE: 16,
+  HEADER_H: 58,
   SIDEBAR_W: 260,
   DEP_STUB: 14,
   DEP_RADIUS: 6,
@@ -262,11 +262,21 @@ function layoutDiagram(data) {
     rangeEnd = ganttAddDays(latest, padCfg.after);
   }
 
+  const contentStart = earliest || rangeStart;
+  const contentEnd = latest || rangeEnd;
+
+  const extraStart = ganttFormatDate(data._extraStart);
+  if (extraStart && extraStart < rangeStart) rangeStart = extraStart;
+  const extraEnd = ganttFormatDate(data._extraEnd);
+  if (extraEnd && extraEnd > rangeEnd) rangeEnd = extraEnd;
+
   const totalDays = Math.max(1, ganttDiffDays(rangeStart, rangeEnd) + 1);
   const timelineWidth = Math.round(totalDays * pxPerDay);
   data._range = {
     start: rangeStart,
     end: rangeEnd,
+    contentStart,
+    contentEnd,
     totalDays,
     pxPerDay,
     timelineWidth

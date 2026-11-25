@@ -51,7 +51,7 @@ C4_LAYER_DIRECTIONS = ("horizontal", "vertical")
 C4_SIDES = ("N", "S", "E", "W")  # author hint for the side of the centre an item sits on
 C4_ELEMENT_KINDS = ("person", "system", "container", "component", "database", "queue", "external")
 C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved for Level 3; the audit rejects it in v1
-GANTT_KEYS = ("diagramType", "schemaVersion", "title", "zoom", "showNotes", "showToday", "colorKey",
+GANTT_KEYS = ("diagramType", "schemaVersion", "title", "zoom", "showNotes", "showToday", "showWeekends", "colorKey",
               "holidays", "markers", "items", "dependencies", "notes")
 GANTT_SCHEMA_VERSION = 1
 GANTT_ZOOMS = ("day", "week", "month", "quarter", "year")
