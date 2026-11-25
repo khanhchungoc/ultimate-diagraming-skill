@@ -320,13 +320,17 @@ def _block(selector: str, decls: Dict[str, str], scheme: str) -> str:
 
 
 def _type_vars(tokens: Dict[str, Any]) -> Dict[str, str]:
-    """--font-ui|diagram|mono, the --text/--weight/--leading/--line/--tracking scales and --t-<style>-* for every text style."""
+    """--font-ui|diagram|mono, the --text/--text-rem/--weight/--leading/--line/--tracking scales and --t-<style>-* for every text style."""
     f, ty = tokens["font"], tokens["type"]
     out = {f"font-{k}": f'"{f["family"]}", {f["stack"]}' if v == "font.family" else v for k, v in ty["family"].items()}
     for var, group in (("text", "size"), ("weight", "weight"), ("leading", "leading"), ("line", "lineBox"), ("tracking", "tracking")):
         out.update({f"{var}-{k}": str(v) for k, v in ty[group].items()})
+    for k, v in ty["size"].items():
+        if isinstance(v, str) and v.endswith("px"):
+            out[f"text-rem-{k}"] = f"{float(v[:-2]) / 16:g}rem"
     for name, st in ty["styles"].items():
         out.update({f"t-{name}-family": f"var(--font-{st['family']})", f"t-{name}-size": f"var(--text-{st['size']})",
+                    f"t-{name}-rem-size": f"var(--text-rem-{st['size']})",
                     f"t-{name}-weight": f"var(--weight-{st['weight']})",
                     f"t-{name}-leading": f"var(--leading-{st.get('leading', 'normal')})",
                     f"t-{name}-tracking": f"var(--tracking-{st.get('tracking', 'normal')})"})
@@ -388,8 +392,8 @@ if __name__ == "__main__":
     css = tokens_css(t)
     assert "--primary: #2563eb;" in css and tokens_js(t).startswith("const TOKENS = {")
     assert '"fitMin":"11px"' in tokens_js(t) and '"fitMinOverview":"9px"' in tokens_js(t)
-    for want in ("--font-ui: \"Nunito Sans\", ", "--font-mono: ui-monospace", "--text-md: 13px;", "--weight-bold: 700;", "--leading-tight: 1.2;",
-                 "--tracking-caps: 0.04em;", "--t-label-size: var(--text-md);", "--t-overline-tracking: var(--tracking-caps);",
+    for want in ("--font-ui: \"Nunito Sans\", ", "--font-mono: ui-monospace", "--text-md: 13px;", "--text-rem-sm: 0.75rem;", "--weight-bold: 700;", "--leading-tight: 1.2;",
+                 "--tracking-caps: 0.04em;", "--t-label-size: var(--text-md);", "--t-body-rem-size: var(--text-rem-lg);", "--t-overline-tracking: var(--tracking-caps);",
                  "--t-code-family: var(--font-mono);", "--radius-lg: 8px;", "--radius-pill: 999px;", "--radius-round: 50%;",
                  "--shadow-ring: 0 0 0 3px var(--primary-ring);", "--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);", ".t-control { font-family: var(--t-control-family);"):
         assert want in css, want

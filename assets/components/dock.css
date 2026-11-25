@@ -117,7 +117,7 @@
       position: relative;   /* above the tail */
       z-index: 1;
       display: grid;
-      grid-template-columns: repeat(var(--pop-cols, 4), 60px);
+      grid-template-columns: repeat(var(--pop-cols, 4), minmax(68px, max-content));
       gap: 6px;
     }
     /* Only a grid with more rows than fit scrolls (shell.js adds .scrolls); otherwise the tiles' springy
@@ -128,9 +128,11 @@
       overscroll-behavior: contain;
     }
     .dock-pop-grid > .btn {
-      width: 60px;
-      height: 60px;
-      padding: 0;
+      min-width: 68px;
+      width: auto;
+      min-height: 60px;
+      height: auto;
+      padding: 6px;
       justify-content: center;
       color: var(--text-soft);
       border-color: transparent;
@@ -151,21 +153,21 @@
     .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
     .dock-pop-heading {
       padding: 0 4px 4px;
-      font-size: var(--t-overline-size);
+      font-size: var(--text-rem-sm);
       font-weight: var(--weight-semibold);
       letter-spacing: var(--t-overline-tracking);
       text-transform: uppercase;
       color: var(--text-soft);
     }
     /* Optional caption under a tile's icon */
-    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 1px; }
+    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 2px; }
     .tile-caption {
       max-width: 100%;
       padding: 0 2px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: var(--t-overline-size);
+      font-size: var(--text-rem-sm);
       font-weight: var(--weight-medium);
       line-height: var(--t-overline-leading);
     }
