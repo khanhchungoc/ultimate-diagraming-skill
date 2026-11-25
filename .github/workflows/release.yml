@@ -1,8 +1,12 @@
 name: release
 
-# Manual release (via GitHub Actions UI or `gh workflow run release.yml`):
+# Auto-release when a PR from stg is merged into main, or run manually
+# (via GitHub Actions UI or `gh workflow run release.yml`):
 # bump the patch version, commit it, tag it, publish a release zip and npm package.
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       notes:
@@ -20,6 +24,11 @@ concurrency:
 
 jobs:
   release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'stg' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,4 +105,7 @@ jobs:
               git merge --abort || true
               echo "::warning::Could not auto-sync v${{ steps.v.outputs.version }} into stg; merge origin/main into stg manually."
             fi
+          else
+            git fetch origin main
+            git push origin origin/main:refs/heads/stg
           fi
