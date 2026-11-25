@@ -6,7 +6,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
   <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
   <title>Checkout</title>
@@ -138,6 +138,7 @@
       --ring-lg: 3px;
       --ring-fill: 100px;
       --stroke-thin: 1.25px;
+      --glass-blur: 14px;
       --dim: 0.28;
       --dim-line: 0.12;
       --dim-filter: grayscale(0.85);
@@ -160,6 +161,7 @@
       --radius-lg: 8px;
       --radius-xl: 10px;
       --radius-2xl: 12px;
+      --radius-3xl: 15px;
       --radius-pill: 999px;
       --radius-round: 50%;
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -173,6 +175,9 @@
       --shadow-ring: 0 0 0 3px var(--primary-ring);
       --shadow-glow: 0 2px 8px;
       --shadow-glow-tight: 0 0 4px;
+      --shadow-glass-md: inset 0 1px 0 var(--glass-rim), 0 1px 3px var(--shadow-tint), 0 6px 18px -4px var(--shadow-tint-md), 0 0 0 1px var(--glass-outer-ring);
+      --shadow-glass-lg: inset 0 1px 0 var(--glass-rim), 0 2px 6px var(--shadow-tint), 0 12px 28px -6px var(--shadow-tint-lg), 0 0 0 1px var(--glass-outer-ring);
+      --shadow-primary-btn: 0 2px 10px -2px var(--primary-btn-glow), inset 0 1px 0 var(--primary-btn-rim);
       --bg-page: #f8fafc;
       --bg-panel: #ffffff;
       --border-color: #e2e8f0;
@@ -261,6 +266,25 @@
       --dot-edge: rgba(0, 0, 0, 0.18);
       --dot-edge-soft: rgba(0, 0, 0, 0.15);
       --menu-border: #cbd5e1;
+      --glass-top: rgba(255, 255, 255, 0.62);
+      --glass-bottom: rgba(255, 255, 255, 0.44);
+      --glass-bg: rgba(255, 255, 255, 0.53);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-outer-ring: rgba(15, 23, 42, 0.10);
+      --glass-rim: rgba(255, 255, 255, 0.96);
+      --glass-hover: rgba(15, 23, 42, 0.07);
+      --text-glass: #020617;
+      --vignette-center: #ffffff;
+      --vignette-mid: #f1f5f9;
+      --vignette-edge: #e2e8f0;
+      --shadow-tint: rgba(15, 23, 42, 0.05);
+      --shadow-tint-md: rgba(15, 23, 42, 0.10);
+      --shadow-tint-lg: rgba(15, 23, 42, 0.13);
+      --primary-grad-end: #4f46e5;
+      --primary-grad-hover-end: #4338ca;
+      --primary-btn-glow: rgba(37, 99, 235, 0.36);
+      --primary-btn-rim: rgba(255, 255, 255, 0.32);
+      --scrim-bg: rgba(15, 23, 42, 0.36);
       --sw-1-fill: #b9e5ff;
       --sw-1-line: #2f7da8;
       --sw-1-ink: #00436a;
@@ -418,6 +442,25 @@
       --lane-hover-bg: #1a2742;
       --on-primary: #0b1220;
       --on-danger: #1a1a1a;
+      --glass-top: rgba(24, 35, 58, 0.62);
+      --glass-bottom: rgba(13, 20, 38, 0.46);
+      --glass-bg: rgba(18, 28, 48, 0.54);
+      --glass-border: rgba(148, 163, 184, 0.28);
+      --glass-outer-ring: rgba(0, 0, 0, 0.36);
+      --glass-rim: rgba(255, 255, 255, 0.20);
+      --glass-hover: rgba(255, 255, 255, 0.10);
+      --text-glass: #ffffff;
+      --vignette-center: #18233a;
+      --vignette-mid: #0f172a;
+      --vignette-edge: #070b14;
+      --shadow-tint: rgba(0, 0, 0, 0.28);
+      --shadow-tint-md: rgba(0, 0, 0, 0.42);
+      --shadow-tint-lg: rgba(0, 0, 0, 0.50);
+      --primary-grad-end: #6366f1;
+      --primary-grad-hover-end: #4f46e5;
+      --primary-btn-glow: rgba(99, 102, 241, 0.45);
+      --primary-btn-rim: rgba(255, 255, 255, 0.28);
+      --scrim-bg: rgba(2, 6, 23, 0.56);
       --sw-1-fill: #194259;
       --sw-1-line: #69b4e2;
       --sw-1-ink: #c6eaff;
@@ -514,7 +557,9 @@
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
       position: fixed;
-      left: 20px; right: 20px; bottom: 20px;
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
       z-index: 100;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
@@ -531,7 +576,7 @@
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .toolbar-center {
@@ -580,7 +625,7 @@
       padding: 6px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-2xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
       transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
       transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.82);
@@ -716,12 +761,22 @@
 
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
-      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
+      .dock-area {
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        grid-template-columns: 1fr;
+      }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 1; grid-row: 2; justify-content: space-evenly; position: relative; z-index: 1; }
       .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
+    }
+    @media (max-width: 560px) {
+      .dock-pop { max-width: calc(100vw - 24px); }
+      .dock-pop-grid { grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); }
+      .dock-pop-grid > .btn { width: 100%; min-width: 52px; }
     }
     /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
        Between 721px and 1300px the edit dock sits at the bottom-right corner to align with the top-right pill. */
@@ -733,6 +788,50 @@
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 2; grid-row: 1; justify-self: end; }
+    }
+    @media (pointer: coarse) {
+      .toolbar-zoom > .btn { width: 36px; height: 36px; }
+      .toolbar-center > .btn,
+      .dock-pop-trigger { height: 40px; }
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .toolbar-center,
+      .toolbar-zoom {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-md);
+        color: var(--text-glass);
+      }
+      .dock-pop {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      .dock-pop::after { display: none; }
+      .toolbar-center .btn:not(.dock-delete):not([aria-checked="true"]),
+      .toolbar-zoom .btn { background: transparent; }
+      .toolbar-center .btn:not(.dock-delete):hover,
+      .toolbar-zoom .btn:hover,
+      .dock-pop-wrap.open > .dock-pop-trigger,
+      .dock-pop-grid > .btn:not([aria-checked="true"]):hover {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar-center,
+      .toolbar-zoom,
+      .dock-pop {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     .badge {
       font-size: var(--text-sm);
@@ -806,13 +905,20 @@
       transform: none;
     }
     .btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-grad-end) 100%);
       color: var(--on-primary);
-      border-color: var(--primary);
+      border-color: transparent;
+      box-shadow: var(--shadow-primary-btn);
     }
     .btn-primary:hover {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-grad-hover-end) 100%);
+      border-color: transparent;
+    }
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    }
+    [data-theme="dark"] .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
     }
     .btn-success {
       background: var(--success);
@@ -855,7 +961,7 @@
     .btn-switch[aria-checked="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
     /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
     .toast {
-      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50;
       pointer-events: none;   /* a status line, never a target: it must not swallow clicks meant for the action bar beneath */
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
@@ -894,7 +1000,7 @@
     .menu-wrap { position: relative; }
     .menu {
       position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
-      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
     .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
@@ -914,6 +1020,25 @@
       color: var(--text-muted); user-select: none;
     }
     .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .menu {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      .menu button:hover, .menu button:focus-visible { background: var(--glass-hover); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .menu {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
 
     /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
        .confirm-title is optional; with one, the message below it is the quiet explanation. */
@@ -923,11 +1048,11 @@
       width: 260px;
       box-sizing: border-box;
       padding: 14px 14px 12px;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-main);
-      box-shadow: var(--shadow-xl);
+      box-shadow: var(--shadow-glass-lg);
       font-size: var(--t-control-size);
       line-height: var(--t-control-leading);
     }
@@ -968,6 +1093,16 @@
     }
     .save-folder-tip:last-of-type { margin-bottom: 12px; }
     .save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
+    @media (max-width: 560px) {
+      .confirm,
+      .confirm.has-alt,
+      .confirm.confirm-wide {
+        max-width: calc(100vw - 24px);
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%);
+      }
+    }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -1210,13 +1345,31 @@
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
     .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
-    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
-      box-shadow: none;
-      filter: drop-shadow(var(--shadow-md));
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .swatch-popover {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        border-radius: var(--radius-2xl);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+      }
+      .swatch-btn:hover { background: var(--glass-hover); }
     }
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
-      box-shadow: none;
+    @media (prefers-reduced-transparency: reduce) {
+      .swatch-popover {
+        background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      .swatch-btn:hover { background: var(--bg-hover); }
+    }
+    body.capture .swatch-popover, body.exporting .swatch-popover {
+      background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    @media (pointer: coarse) {
+      .swatch-row { gap: 4px; }
+      .swatch-btn { width: 34px; height: 34px; }
     }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
@@ -1302,14 +1455,17 @@
        lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
     .actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
       -webkit-user-select: none; user-select: none;
     }
-    /* Never zoomed: every type's bar (shared and the three prefixed twins) undoes the stage zoom (--ui-scale, set by the shell) about
-       the edge that touches its anchor: the bottom centre over the element, the top centre under it. Types override the origin
-       only where the bar hangs off a corner. */
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { scale: var(--ui-scale, 1); transform-origin: 50% 100%; }
+    /* Never zoomed: every type's bar (shared and the three prefixed twins) shares the surface and undoes the stage zoom
+       (--ui-scale, set by the shell) about the edge that touches its anchor: the bottom centre over the element, the top
+       centre under it. Types override the origin only where the bar hangs off a corner. */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      scale: var(--ui-scale, 1); transform-origin: 50% 100%;
+    }
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
@@ -1329,7 +1485,7 @@
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
-    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .ab-btn.is-danger { color: var(--danger); }
@@ -1337,10 +1493,40 @@
     .ab-btn svg { display: block; }
     .ab-swatch { height: 30px; width: 30px; }
     /* Two rows: a .ab-break item splits them (the bar then has .is-wrap) */
-    .actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 340px; row-gap: 2px; }
+    .actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(340px, calc(100vw - 24px)); row-gap: 2px; }
     .ab-break { flex-basis: 100%; height: 0; }
     .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        border-radius: var(--radius-2xl);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-md);
+      }
+      :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
+      .ab-toggle:hover { background: var(--glass-hover); color: var(--text-glass); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+        background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
+      .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
+    }
+    body.capture :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar),
+    body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+      background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    @media (pointer: coarse) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { height: 36px; min-width: 36px; }
+      .ab-toggle { width: 28px; height: 36px; }
+      body:not(.bars-collapsed) :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { padding-right: 34px; }
+    }
     /* Colour key: a legend of the swatches a diagram uses and what each means (`colorKey`), built by ui.colorKey. The type
        positions it (sequence: above the card's top-left corner; ERD: above the tables). An entry with no label is a prompt in
        edit and is left out of ?present and exports. */
@@ -1357,12 +1543,12 @@
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
        Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next. */
     /* Below the top-right pill: opens into the search bar; #btn-search stays visible inside the pill */
-    #search-dock { position: fixed; top: 66px; right: 20px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
+    #search-dock { position: fixed; top: calc(66px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
     #search-dock > * { pointer-events: auto; }
     /* One rounded box like the other panels: icon, text, count, previous, next. Controls are flat (no boxes); the focus ring is the pill's */
     #search-bar {
       display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; height: 40px; box-sizing: border-box;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); transform-origin: top right;
       transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
@@ -1382,7 +1568,35 @@
     #search-dock svg { width: var(--icon-lg); height: var(--icon-lg); }   /* same icon size as the header toolbar */
     .search-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
     .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    @media (max-width: 720px) { #search-dock { top: 60px; left: 12px; right: 12px; } #search-bar { flex: 1 1 auto; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      #search-bar {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      #search-bar:focus-within { border-color: var(--primary); }
+      #search-bar .btn:hover:not(:disabled) { background: var(--glass-hover); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      #search-bar {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    @media (max-width: 720px) {
+      #search-dock {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+      }
+      #search-bar { flex: 1 1 auto; }
+      #search-input { flex: 1 1 auto; min-width: 0; width: auto; }
+    }
 
 
     * {
@@ -1409,9 +1623,9 @@
     /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css; z-index 200 clears .flow-tabs at 120 and #search-dock at 150 so header menus stay on top) */
     header {
       position: fixed;
-      top: 16px;
-      left: 20px;
-      right: 20px;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       z-index: 200;
       display: flex;
       align-items: flex-start;
@@ -1428,7 +1642,7 @@
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .toolbar-left {
@@ -1533,10 +1747,17 @@
       position: relative;
       overflow: hidden;
       background-color: var(--bg-viewport);
-      background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
-      background-size: 24px 24px;
+      background-image:
+        radial-gradient(var(--grid-dot) 1px, transparent 1px),
+        radial-gradient(ellipse 78% 72% at 50% 48%, var(--vignette-center) 0%, var(--vignette-mid) 58%, var(--vignette-edge) 100%);
+      background-size: 24px 24px, 100% 100%;
       cursor: grab;
       touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
+    }
+    body.capture #viewport,
+    body.exporting #viewport {
+      background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+      background-size: 24px 24px;
     }
     #viewport.panning {
       cursor: grabbing;
@@ -1583,14 +1804,14 @@
     /* Help & Shortcuts Popover */
     #help-drawer {
       position: fixed;
-      top: 66px;
-      right: 20px;
+      top: calc(66px + env(safe-area-inset-top, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       bottom: auto;
       width: min(360px, calc(100vw - 32px));
-      max-height: calc(100vh - 84px);
+      max-height: calc(100vh - 84px - env(safe-area-inset-top, 0px));
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
       font-size: var(--text-sm);
       color: var(--text-soft);
@@ -1730,9 +1951,9 @@
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
     /* The top pills collapse to nothing; only the Present button stays, pinned to the top-right corner. */
-    body.presentation header { height: 0; top: 16px; right: 20px; left: auto; justify-content: flex-end; }
-    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-    body.presentation #btn-present { position: fixed; top: 16px; right: 20px; z-index: 101; box-shadow: var(--shadow-md); }
+    body.presentation header { height: 0; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); left: auto; justify-content: flex-end; }
+    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.presentation #btn-present { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 101; box-shadow: var(--shadow-md); }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
@@ -1747,12 +1968,21 @@
     }
     /* Narrow screens (a shared link opened on a phone): tighter corner insets */
     @media (max-width: 720px) {
-      header { top: 12px; left: 12px; right: 12px; gap: 8px; }
+      header {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        gap: 8px;
+      }
       .toolbar-left { padding: 4px 8px 4px 10px; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
       #btn-help, [data-more="help"] { display: none; }   /* a phone has no keyboard shortcuts to list */
-      #help-drawer { top: 60px; right: 12px; bottom: auto; }
+      #help-drawer {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        bottom: auto;
+      }
     }
     @media (max-width: 560px) {
       body:not(.presentation) header .toolbar-right #btn-save .btn-label { display: none; }
@@ -1807,6 +2037,65 @@ html.is-loading #page-loading { display: grid; }
     #btn-theme span { display: inline-flex; }
     #btn-theme[aria-pressed="true"] { background: transparent; border-color: transparent; color: inherit; }
     #btn-theme[aria-pressed="true"]:hover { background: var(--bg-hover); }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-md);
+        color: var(--text-glass);
+      }
+      #help-drawer {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      header .btn-icon:hover,
+      header .btn-icon:focus-visible,
+      header .btn-icon[aria-expanded="true"],
+      header .type-btn:hover,
+      header .type-btn:focus-visible,
+      #btn-theme[aria-pressed="true"]:hover {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary) {
+        background: transparent;
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):hover,
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):focus-visible {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right,
+      #help-drawer {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    body.capture .toolbar-left,
+    body.capture .toolbar-right,
+    body.capture #help-drawer,
+    body.exporting .toolbar-left,
+    body.exporting .toolbar-right,
+    body.exporting #help-drawer {
+      background: var(--bg-panel);
+      border-color: var(--border-dark);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
     /* Sequence diagram */
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
@@ -1944,7 +2233,7 @@ html.is-loading #page-loading { display: grid; }
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; }
     /* The participant action bar has a second row for the swatches */
-    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 400px; row-gap: 2px; }
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(360px, calc(100vw - 24px)); row-gap: 2px; }
     .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
     .seq-ab-row { display: flex; align-items: center; gap: 2px; }
     .seq-ab-break { flex-basis: 100%; height: 0; }
@@ -1999,8 +2288,7 @@ html.is-loading #page-loading { display: grid; }
     .seq-plus:active, .seq-insert:active { transform: scale(0.92); }
     .seq-actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 9;
-      translate: -50% 0; background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md); white-space: nowrap;
+      translate: -50% 0; white-space: nowrap;
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
@@ -2009,7 +2297,6 @@ html.is-loading #page-loading { display: grid; }
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
-    .seq-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-ab-btn.is-danger { color: var(--danger); }
     .seq-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .seq-ab-btn:active { transform: scale(0.94); }
