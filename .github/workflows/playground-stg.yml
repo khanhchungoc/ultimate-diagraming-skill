@@ -1,0 +1,77 @@
+name: playground-stg
+
+# Build the staging playground and fresh example pages, and publish them to /stg/ on gh-pages
+# (preserving the production root) on every push to stg that changes what a page runs or what an example is built from.
+on:
+  push:
+    branches: [stg]
+    paths:
+      - assets/**
+      - scripts/**
+      - dev/tools/build_playground.py
+      - dev/tools/build_examples.py
+      - dev/tests/e2e/cdp.mjs
+      - dev/tests/e2e/e2e_playground.mjs
+      - dev/examples/**
+      - dev/samples/example-*.html
+      - dev/playground/**
+      - .github/workflows/playground-stg.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: python dev/tools/build_playground.py -o _site
+      # Build fresh example pages for staging preview at stg/examples/<name>/, plus stg/examples/index.html.
+      - run: |
+          python dev/tools/build_examples.py
+          mkdir -p _site/examples
+          for f in dev/samples/example-*.html; do
+            n=$(basename "$f" .html); n=${n#example-}
+            mkdir -p "_site/examples/$n"; cp "$f" "_site/examples/$n/index.html"
+          done
+          { echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagram examples (staging)</title><h1>Diagram examples (staging)</h1><ul>'
+            for d in _site/examples/*/; do n=$(basename "$d"); echo "<li><a href=\"$n/\">$n</a></li>"; done
+            echo '</ul>'; } > _site/examples/index.html
+      # Gate: a build that does not load every type in a real browser never deploys.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          node dev/tests/e2e/e2e_playground.mjs --browser "$CHROME" --dir _site
+      - name: Publish to gh-pages /stg/
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf _gh_pages
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" _gh_pages
+          else
+            git init _gh_pages
+            git -C _gh_pages checkout --orphan gh-pages
+            git -C _gh_pages remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+          git -C _gh_pages config user.name "github-actions[bot]"
+          git -C _gh_pages config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf _gh_pages/stg
+          mkdir -p _gh_pages/stg
+          cp -a _site/. _gh_pages/stg/
+          touch _gh_pages/.nojekyll
+          git -C _gh_pages add -A
+          if ! git -C _gh_pages diff --cached --quiet; then
+            git -C _gh_pages commit -m "Deploy staging playground (${GITHUB_SHA::7})"
+            git -C _gh_pages push origin gh-pages
+          fi
