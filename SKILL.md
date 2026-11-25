@@ -107,6 +107,12 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 To show a diagram inside another HTML page or Artifact you are writing (present mode by default), read [references/embedding.md](references/embedding.md).
 
+## Embed in Markdown
+
+Only when the user provided or asked for a `.md` file that references the diagram: after creating or updating the diagram, ask once whether to embed it as a **static PNG image** or a **Mermaid block**.
+- **Static PNG** (recommended for `usecase`, `c4`, or to preserve exact layout, swimlanes, icons, and styling): run `python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <target.png> --no-report` and insert `![<title>](<relative-path-to-png>)` into the `.md` file. Works in VS Code, Kiro, Cursor, Antigravity, and GitHub.
+- **Mermaid block** (standard `flowchart`, `sequenceDiagram`, `erDiagram`, `gantt` only — not `usecase` or `c4`): run `python "<skill-dir>/scripts/layout_engine.py" --extract <target.html>` and insert a ` ```mermaid ` fenced block into the `.md` file.
+
 ---
 
 ## Use your brand
@@ -122,7 +128,13 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
-- actionable `[INFO]` lines only (`Layout:` issues, `Positions reset`, dropped/changed Mermaid items, `Subprocess candidate`, `Direct-save helper not configured yet`, `Update available`); omit routine auto-defaults such as `Lane icons`, `Direction`, `Subprocess flows`, and `Loaded N holidays`.
+- actionable `[INFO]` lines only — translate each into plain English with a clear next step the user can take (omit anything the user cannot act on or that fails the "So What?" test, and omit routine auto-defaults such as `Lane icons`, `Direction`, `Subprocess flows`, and `Loaded N holidays`):
+  - `Layout:` issues (overlaps or small text) → tell the user where it is cramped and offer to split, shorten labels, or re-render;
+  - `Positions reset` → tell the user manual positions were reset because items changed, and offer a separate file if they want the old layout kept;
+  - dropped/changed Mermaid items → name what was dropped or changed so the user can confirm or restore it;
+  - `Subprocess candidate` → name the dense section and offer to move it into a subprocess tab;
+  - `Direct-save helper not configured yet` → ask the Yes/No question below;
+  - `Update available` → tell the user a newer version is out and ask if they want it installed.
 
 ---
 
