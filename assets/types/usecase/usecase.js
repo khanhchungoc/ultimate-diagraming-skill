@@ -438,23 +438,27 @@
         line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
         line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
       }
-      function linkTitle(l) {
-        const a = itemOf(l.from), b = itemOf(l.to);
-        const word = l.type === 'association' ? 'association' : `«${l.type}»`;
-        return `${nameOf(a)} ${l.type === 'association' ? '—' : '→'} ${nameOf(b)} (${word}${l.condition ? `, [${l.condition}]` : ''})`;
-      }
       function renderLinks() {
         linksOf().forEach((l) => {
           if (!LINK_TYPES.includes(l.type) || !l.points || l.points.length < 2) return;
           if (isHiddenByLevel(l.from) || isHiddenByLevel(l.to)) return;
           const d = pathOf(l.points);
           const g = svgEl('g', { class: `uc-link${l.type !== 'association' ? ' is-dashed' : ''}`, 'data-edge-id': l.id, 'data-from': l.from, 'data-to': l.to, 'data-type': l.type });
-          const tip = svgEl('title', { 'data-export-skip': '' });
-          tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
-          g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
-                    g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+          g.append(svgEl('path', { class: 'edge-hit', d }), line);
+          g.addEventListener('pointerenter', (ev) => {
+            if (ev.pointerType === 'touch' || drag) return;
+            hoverLinkId = l.id;
+            applyLinkState();
+          });
+          g.addEventListener('pointerleave', (ev) => {
+            if (hoverLinkId !== l.id) return;
+            const rec = els.links.get(l.id);
+            if (rec && rec.label && ev.relatedTarget && rec.label.contains(ev.relatedTarget)) return;
+            hoverLinkId = null;
+            applyLinkState();
+          });
           g.addEventListener('pointerdown', (ev) => {
             if (ev.button === 0 && !presenting()) {
               ev.stopPropagation();
@@ -469,11 +473,9 @@
         (chartData._parents || []).forEach((p) => {
           if (!p.points || p.points.length < 2 || !drawn(p.from) || !drawn(p.to)) return;
           const g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
-          const tip = svgEl('title', { 'data-export-skip': '' });
-          tip.textContent = `${nameOf(itemOf(p.from))} is a kind of ${nameOf(itemOf(p.to))}`;
           const line = svgEl('path', { class: 'edge-line', d: p.ortho ? roundedPath(p.points, 10) : pathOf(p.points) });
           setMarkers(line, 'tri');
-          g.append(tip, line);
+          g.append(line);
           linksG.appendChild(g);
           els.parents.push(g);
         });
@@ -485,10 +487,20 @@
           const el = htmlEl('div', 'edge-label uc-label');
           el.dataset.edgeId = l.id;
           Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
-          el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
           if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+          el.addEventListener('pointerenter', (ev) => {
+            if (ev.pointerType === 'touch' || drag) return;
+            hoverLinkId = l.id;
+            applyLinkState();
+          });
+          el.addEventListener('pointerleave', (ev) => {
+            if (hoverLinkId !== l.id) return;
+            const linkRec = els.links.get(l.id);
+            if (linkRec && ev.relatedTarget && linkRec.g.contains(ev.relatedTarget)) return;
+            hoverLinkId = null;
+            applyLinkState();
+          });
           el.addEventListener('pointerdown', (ev) => {
             if (ev.button === 0 && !presenting()) {
               ev.stopPropagation();
@@ -1802,14 +1814,15 @@
         bar.setAttribute('aria-label', 'Line');
         const caseCase = isCaseCase(l);
         if (!caseCase) {
-          bar.appendChild(abButton('type', `${lineGlyph('association', false)}<span>Association</span>`, 'Association: an actor takes part in a use case', l.type === 'association', 'association'));
-          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
+          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show direction with an open arrowhead', l.navigable === true, undefined, 'uc-ab-glyph'));
         } else {
           bar.appendChild(abButton('type', `${lineGlyph('include', false)}<span>Include</span>`, '«include»: the base always needs the part', l.type === 'include', 'include'));
           bar.appendChild(abButton('type', `${lineGlyph('extend', false)}<span>Extend</span>`, '«extend»: an optional addition to the base, only sometimes', l.type === 'extend', 'extend'));
         }
-        bar.appendChild(abSep());
-        bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
+        if (bar.children.length) bar.appendChild(abSep());
+        if (l.type !== 'association' || l.navigable === true) {
+          bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
+        }
         if (l.type === 'extend' && caseOf(l.to)) {
           const b = abButton('point-menu', `<span>${l.extensionPoint ? esc(l.extensionPoint) : 'Extension point'}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'The extension point of the base where this extension applies');
           b.dataset.menu = '';
