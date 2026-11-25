@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-version: 1.1.77
+version: 1.1.78
 description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships), UML use case diagrams (actors, use cases, system boundaries, include/extend), C4 system landscape and layered architecture diagrams (people, systems, containers, layers, relations), and Gantt roadmap timelines (calendar dates, Day–Year zoom, nested subtasks, FS/SS dependencies, milestones, notes, live Today line, local holidays). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
