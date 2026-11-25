@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import subprocess_flow
 from tokens import load_tokens
 
-SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4")  # add a type here when its engine and reference exist
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4", "gantt")  # add a type here when its engine and reference exist
 
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "children", "layout")
@@ -51,9 +51,13 @@ C4_LAYER_DIRECTIONS = ("horizontal", "vertical")
 C4_SIDES = ("N", "S", "E", "W")  # author hint for the side of the centre an item sits on
 C4_ELEMENT_KINDS = ("person", "system", "container", "component", "database", "queue", "external")
 C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved for Level 3; the audit rejects it in v1
+GANTT_KEYS = ("diagramType", "schemaVersion", "title", "zoom", "showNotes", "showToday", "colorKey",
+              "holidays", "markers", "items", "dependencies", "notes")
+GANTT_SCHEMA_VERSION = 1
+GANTT_ZOOMS = ("day", "week", "month", "quarter", "year")
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
-GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
+GENERATED_ID = re.compile(r"^(n|c|e|lane|t|m)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
 SLUG_MAX = 30
 
 
@@ -724,6 +728,85 @@ def c4_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     return d
 
 
+def validate_gantt(data: Dict[str, Any]) -> None:
+    if not isinstance(data, dict):
+        raise ValueError("gantt diagram must be a JSON object")
+    for k in ("items", "dependencies", "markers", "holidays", "notes"):
+        if k in data and not isinstance(data[k], list):
+            raise ValueError(f"gantt '{k}' must be a list")
+
+
+def _rename_gantt_ids(d: Dict[str, Any]) -> Dict[str, str]:
+    items = d.get("items") or []
+    markers = d.get("markers") or []
+    notes = d.get("notes") or []
+    used = {o.get("id") for o in items + markers + notes if isinstance(o, dict) and o.get("id") is not None}
+    rename: Dict[str, str] = {}
+
+    def take(base: str) -> str:
+        new, k = base, 2
+        while new in used:
+            new, k = f"{base}_{k}", k + 1
+        used.add(new)
+        return new
+
+    def generated(o: Dict[str, Any]) -> bool:
+        return bool(GENERATED_ID.match(str(o.get("id", ""))))
+
+    for group, fallback in ((items, "task"), (markers, "marker")):
+        for o in group:
+            if isinstance(o, dict) and generated(o):
+                rename[o["id"]] = take(slug(o.get("label")) or fallback)
+    count = 1
+    for o in notes:
+        if isinstance(o, dict) and generated(o):
+            while f"n{count}" in used:
+                count += 1
+            rename[o["id"]] = take(f"n{count}")
+    if not rename:
+        return rename
+    r = lambda i: rename.get(i, i)  # noqa: E731
+    for o in items + markers + notes:
+        if isinstance(o, dict) and "id" in o:
+            o["id"] = r(o["id"])
+    for o in items:
+        if isinstance(o, dict) and "parent" in o:
+            o["parent"] = r(o["parent"])
+    for dep in d.get("dependencies") or []:
+        if isinstance(dep, dict):
+            for k in ("from", "to"):
+                if k in dep:
+                    dep[k] = r(dep[k])
+    for n in notes:
+        if isinstance(n, dict) and "target" in n:
+            n["target"] = r(n["target"])
+    return rename
+
+
+def gantt_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    validate_gantt(data)
+    d = copy.deepcopy(data)
+    for k in [k for k in d if k in ("layout", "canvas") or (k.startswith("_") and k != README_KEY)]:
+        del d[k]
+    d["schemaVersion"] = GANTT_SCHEMA_VERSION
+    _slot_colors(d, "items", "markers")
+    for list_key in ("items", "dependencies", "markers", "holidays", "notes"):
+        for o in d.get(list_key) or []:
+            if isinstance(o, dict):
+                for k in [k for k in o if k.startswith("_")]:
+                    del o[k]
+    _rename_gantt_ids(d)
+    return _ordered(d, GANTT_KEYS)
+
+
+def gantt_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    validate_gantt(data)
+    d = copy.deepcopy(data)
+    d.pop("layout", None)
+    _slot_colors(d, "items", "markers")
+    return d
+
+
 Codec = Tuple[Callable[[Dict[str, Any]], Dict[str, Any]], Callable[[Dict[str, Any]], Dict[str, Any]]]
 DISK_CODECS: Dict[str, Codec] = {
     "flowchart": (flowchart_to_disk, flowchart_from_disk),
@@ -731,6 +814,7 @@ DISK_CODECS: Dict[str, Codec] = {
     "erd": (erd_to_disk, erd_from_disk),
     "usecase": (usecase_to_disk, usecase_from_disk),
     "c4": (c4_to_disk, c4_from_disk),
+    "gantt": (gantt_to_disk, gantt_from_disk),
 }
 
 

@@ -1,0 +1,27 @@
+      <div id="gantt-root" class="gantt-root" data-zoom="month">
+        <aside id="gantt-sidebar" class="gantt-sidebar" aria-label="Task list">
+          <div class="gantt-sidebar-head">
+            <span>Tasks</span>
+            <button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task">{{icon:plus}}</button>
+          </div>
+          <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
+        </aside>
+        <div id="gantt-splitter" class="gantt-splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize task list"></div>
+        <section id="gantt-timeline" class="gantt-timeline" aria-label="Timeline">
+          <div id="gantt-header" class="gantt-header">
+            <div id="gantt-header-top" class="gantt-header-top"></div>
+            <div id="gantt-header-bottom" class="gantt-header-bottom"></div>
+            <div id="gantt-header-markers" class="gantt-header-markers"></div>
+          </div>
+          <div id="gantt-body" class="gantt-body">
+            <div id="gantt-grid" class="gantt-grid"></div>
+            <div id="gantt-markers" class="gantt-markers"></div>
+            <div id="gantt-today" class="gantt-today"></div>
+            <svg id="gantt-deps" class="gantt-deps" aria-hidden="true"></svg>
+            <div id="gantt-bars" class="gantt-bars"></div>
+            <div id="gantt-marquee" class="gantt-marquee" hidden></div>
+            <div id="gantt-notes" class="note-layer"></div>
+            <div id="gantt-drag-tip" class="gantt-drag-tip" hidden></div>
+          </div>
+        </section>
+      </div>
