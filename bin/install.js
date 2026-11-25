@@ -35,6 +35,9 @@ let targetPath = process.cwd();
 let claudeOutput = null;   // ask | artifact | file; null = not given (prompt when interactive)
 let noHooks = false;
 let saveHelper = null;
+const SAVE_HELPER_FEATURE_ENABLED = ['1', 'true', 'yes'].includes(
+  (process.env.ULTIMATE_DIAGRAM_ENABLE_SAVE_HELPER || '').trim().toLowerCase()
+);
 const CLAUDE_OUTPUTS = ['ask', 'artifact', 'file'];
 
 // Detect if running from a temporary npx cache
@@ -87,6 +90,9 @@ for (let i = 0; i < args.length; i++) {
 }
 
 function printHelp() {
+  const saveHelperHelp = SAVE_HELPER_FEATURE_ENABLED
+    ? `\n  --save-helper             Enable the local background direct-save helper (one-click Ctrl+S on file:// diagrams)\n  --no-save-helper          Disable the local background direct-save helper`
+    : '';
   console.log(`
 ${c.cyan}${c.bold}Ultimate Diagram Installer${c.reset}
 ${c.dim}Interactive, standalone diagrams (flowcharts, sequence, ERD, use case, and C4) for AI assistants.${c.reset}
@@ -106,9 +112,7 @@ ${c.bold}Options:${c.reset}
   --claude-output <ask|artifact|file>
                             Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each
                             time (default: ask). Saved to .claude/ultimate-diagram.json (never in the skill folder);
-                            prompted when run in a terminal without this flag.
-  --save-helper             Enable the local background direct-save helper (one-click Ctrl+S on file:// diagrams)
-  --no-save-helper          Disable the local background direct-save helper
+                            prompted when run in a terminal without this flag.${saveHelperHelp}
   --no-hooks                Skip registering async SessionStart version-check hooks in runtime settings.json files
   -h, --help                Show this help message
 
@@ -245,16 +249,18 @@ async function promptSaveHelper() {
   }
 }
 
-if (saveHelper === null && process.stdin.isTTY && process.stdout.isTTY) {
-  saveHelper = await promptSaveHelper();
-}
-if (saveHelper !== null) {
-  const cacheCfgPath = getCacheConfigPath();
-  let cfg = {};
-  try { cfg = JSON.parse(fs.readFileSync(cacheCfgPath, 'utf8')) || {}; } catch { /* none yet */ }
-  cfg.direct_save_helper = saveHelper;
-  fs.mkdirSync(path.dirname(cacheCfgPath), { recursive: true });
-  fs.writeFileSync(cacheCfgPath, JSON.stringify(cfg, null, 2) + '\n');
+if (SAVE_HELPER_FEATURE_ENABLED) {
+  if (saveHelper === null && process.stdin.isTTY && process.stdout.isTTY) {
+    saveHelper = await promptSaveHelper();
+  }
+  if (saveHelper !== null) {
+    const cacheCfgPath = getCacheConfigPath();
+    let cfg = {};
+    try { cfg = JSON.parse(fs.readFileSync(cacheCfgPath, 'utf8')) || {}; } catch { /* none yet */ }
+    cfg.direct_save_helper = saveHelper;
+    fs.mkdirSync(path.dirname(cacheCfgPath), { recursive: true });
+    fs.writeFileSync(cacheCfgPath, JSON.stringify(cfg, null, 2) + '\n');
+  }
 }
 
 console.log(`${c.cyan} ✦  INSTALLING RUNTIMES${c.reset}`);

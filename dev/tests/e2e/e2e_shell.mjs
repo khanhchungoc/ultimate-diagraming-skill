@@ -1052,8 +1052,9 @@ try {
     const helperFile = join(dlDir, 'helper-direct.html');
     const saveId = '0123456789abcdef0123456789abcdef';
     const rawHtml = readFileSync(laid, 'utf8');
-    const stampedHtml = rawHtml.includes('name="diagram-save-id"')
-      ? rawHtml.replace(/<meta\s+name="diagram-save-id"\s+content="[0-9a-f]{32}"\s*\/?>/, `<meta name="diagram-save-id" content="${saveId}">`)
+    const saveMetaRe = /<meta\s+name="diagram-save-id"\s+content="[0-9a-f]{32}"\s*\/?>/;
+    const stampedHtml = saveMetaRe.test(rawHtml)
+      ? rawHtml.replace(saveMetaRe, `<meta name="diagram-save-id" content="${saveId}">`)
       : rawHtml.replace(/(<meta\s+charset="UTF-8"\s*\/?>)/i, `$1\n  <meta name="diagram-save-id" content="${saveId}">`);
     writeFileSync(helperFile, stampedHtml, 'utf8');
     writeFileSync(join(helperCache, 'allowed-ids.json'), JSON.stringify({

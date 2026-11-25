@@ -298,30 +298,31 @@ def main() -> int:
         claude_config.parent.mkdir(parents=True, exist_ok=True)
         claude_config.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
 
-    save_helper = args.save_helper
-    if save_helper is None and sys.stdin.isatty() and sys.stdout.isatty():
-        print("One-click saving for diagrams:")
-        print("  Normally, web browsers block HTML files from saving changes back to themselves.")
-        print("  A tiny helper on your computer (stops automatically when idle) lets Save just work:")
-        print("  Yes (default): Click Save (or Ctrl+S) in any browser and your diagram file updates")
-        print("                 right away. No extra popups or duplicate copies.")
-        print("  No:            Nothing runs in the background. You will have to pick and overwrite")
-        print("                 the file on your first save before it can save without opening the")
-        print("                 file browser.")
-        try:
-            answer = input("Turn on one-click saving? [Y/n]: ").strip().lower()
-        except EOFError:
-            answer = ""
-        save_helper = answer not in ("n", "no")
-        print()
     script_dir = str(Path(__file__).resolve().parent)
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
-    if save_helper is not None:
-        from save_helper import set_direct_save_enabled
-        set_direct_save_enabled(save_helper)
+    from save_helper import is_feature_enabled, server_state_path, set_direct_save_enabled, stop_running
+
+    if is_feature_enabled():
+        save_helper = args.save_helper
+        if save_helper is None and sys.stdin.isatty() and sys.stdout.isatty():
+            print("One-click saving for diagrams:")
+            print("  Normally, web browsers block HTML files from saving changes back to themselves.")
+            print("  A tiny helper on your computer (stops automatically when idle) lets Save just work:")
+            print("  Yes (default): Click Save (or Ctrl+S) in any browser and your diagram file updates")
+            print("                 right away. No extra popups or duplicate copies.")
+            print("  No:            Nothing runs in the background. You will have to pick and overwrite")
+            print("                 the file on your first save before it can save without opening the")
+            print("                 file browser.")
+            try:
+                answer = input("Turn on one-click saving? [Y/n]: ").strip().lower()
+            except EOFError:
+                answer = ""
+            save_helper = answer not in ("n", "no")
+            print()
+        if save_helper is not None:
+            set_direct_save_enabled(save_helper)
     try:
-        from save_helper import server_state_path, stop_running
         if server_state_path().exists():
             stop_running()
     except Exception:
