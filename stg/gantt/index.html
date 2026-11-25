@@ -117,6 +117,11 @@
       </div>
 
       <span class="dock-sep" aria-hidden="true"></span>
+      <!-- View mode switcher: Timeline chart vs editable Table (Excel-like sheet) -->
+      <div id="gantt-mode-switch" class="gantt-mode-switch" role="group" aria-label="View mode">
+        <button id="btn-mode-timeline" type="button" class="gantt-mode-pill is-active" data-gantt-mode="timeline" aria-pressed="true" title="Timeline chart view">Timeline</button>
+        <button id="btn-mode-table" type="button" class="gantt-mode-pill" data-gantt-mode="table" aria-pressed="false" title="Editable table view (Excel-like sheet)">Table</button>
+      </div>
       <!-- Segmented zoom preset bar: moved into .toolbar-zoom on init -->
       <div id="gantt-zoom-pills" class="gantt-zoom-pills" role="group" aria-label="Timeline zoom">
         <button type="button" class="gantt-zoom-pill" data-zoom-set="day" aria-pressed="false">Day</button>
@@ -283,6 +288,7 @@
             <button id="btn-inview-hint-dismiss" type="button" class="gantt-inview-hint-close" title="Dismiss hint" aria-label="Dismiss hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
           </div>
         </section>
+        <section id="gantt-table-view" class="gantt-table-view" aria-label="Task table" hidden></section>
       </div>
     </div>
   </div>
@@ -305,6 +311,8 @@
           <li class="help-row"><span class="help-label">Draw dependency (FS / SS)</span><span class="help-keys"><kbd>Drag port</kbd></span></li>
           <li class="help-row"><span class="help-label">Collapse or expand parent</span><span class="help-keys"><kbd>Click chevron</kbd></span></li>
           <li class="help-row"><span class="help-label">Reorder or reparent row</span><span class="help-keys"><kbd>Drag handle</kbd></span></li>
+          <li class="help-row"><span class="help-label">Table view: indent / outdent</span><span class="help-keys"><kbd>Tab</kbd> &middot; <kbd>Shift</kbd>+<kbd>Tab</kbd></span></li>
+          <li class="help-row"><span class="help-label">Table view: paste from Excel</span><span class="help-keys"><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd></span></li>
         </ul>
       </div>
       <div class="help-group">
