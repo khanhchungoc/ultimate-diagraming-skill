@@ -1806,7 +1806,7 @@
         } else {
           return;
         }
-        bar.style.left = px(at.x);   // before measuring: how far it has to the right edge decides how it wraps
+        bar.style.left = px(Math.round(at.x));   // before measuring: how far it has to the right edge decides how it wraps
         seqHtml.appendChild(bar);
         if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
         // Over the anchor, or under it when there is no room above in the window (by where it is on screen: a pill rides the pinned row)

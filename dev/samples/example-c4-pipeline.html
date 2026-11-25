@@ -1541,6 +1541,7 @@
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { border-radius: var(--radius-lg); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg { shape-rendering: geometricPrecision; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
