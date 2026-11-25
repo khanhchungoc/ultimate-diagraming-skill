@@ -34,6 +34,11 @@
       </div>
 
       <span class="dock-sep" aria-hidden="true"></span>
+      <!-- View mode switcher: Timeline chart vs editable Table (Excel-like sheet) -->
+      <div id="gantt-mode-switch" class="gantt-mode-switch" role="group" aria-label="View mode">
+        <button id="btn-mode-timeline" type="button" class="gantt-mode-pill is-active" data-gantt-mode="timeline" aria-pressed="true" title="Timeline chart view">Timeline</button>
+        <button id="btn-mode-table" type="button" class="gantt-mode-pill" data-gantt-mode="table" aria-pressed="false" title="Editable table view (Excel-like sheet)">Table</button>
+      </div>
       <!-- Segmented zoom preset bar: moved into .toolbar-zoom on init -->
       <div id="gantt-zoom-pills" class="gantt-zoom-pills" role="group" aria-label="Timeline zoom">
         <button type="button" class="gantt-zoom-pill" data-zoom-set="day" aria-pressed="false">Day</button>

@@ -1,0 +1,269 @@
+/* Standalone Gantt Calendar Date Picker.
+   Uses only design tokens from assets/tokens/default.json — no hardcoded colors or font families. */
+
+.gantt-cal-input {
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-cal-pop {
+  position: fixed;
+  z-index: 2500;
+  width: 268px;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+  padding: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-control-size);
+  line-height: var(--t-control-leading, 1.4);
+  user-select: none;
+  transform-origin: top center;
+  animation: gantt-cal-pop-in var(--dur-fast) var(--curve-out) both;
+}
+
+.gantt-cal-pop.is-above {
+  transform-origin: bottom center;
+  animation-name: gantt-cal-pop-in-above;
+}
+
+@keyframes gantt-cal-pop-in {
+  from {
+    clip-path: inset(0 0 100% 0 round var(--radius-xl));
+    transform: scale(0.96);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius-xl));
+    transform: scale(1);
+  }
+}
+
+@keyframes gantt-cal-pop-in-above {
+  from {
+    clip-path: inset(100% 0 0 0 round var(--radius-xl));
+    transform: scale(0.96);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius-xl));
+    transform: scale(1);
+  }
+}
+
+.gantt-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.gantt-cal-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--t-control-size);
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gantt-cal-nav {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-soft);
+  font-family: var(--font-ui);
+  font-size: var(--t-control-size);
+  line-height: var(--leading-none, 1);
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-cal-nav:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.gantt-cal-nav:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.gantt-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.gantt-cal-weekday {
+  text-align: center;
+  padding: 2px 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+
+.gantt-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.gantt-cal-day {
+  position: relative;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-micro) var(--curve-out),
+    color var(--dur-micro) var(--curve-out),
+    border-color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-cal-day:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.gantt-cal-day:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+.gantt-cal-day.is-weekend {
+  color: var(--text-soft);
+}
+
+.gantt-cal-day.is-outside {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.gantt-cal-day.is-today {
+  border-color: var(--accent, var(--primary));
+  color: var(--accent, var(--primary));
+  font-weight: var(--weight-bold);
+}
+
+.gantt-cal-day.is-selected {
+  background: var(--accent, var(--primary));
+  border-color: var(--accent, var(--primary));
+  color: var(--on-primary, var(--bg-panel));
+  font-weight: var(--weight-bold);
+  opacity: 1;
+}
+
+.gantt-cal-day.is-selected:hover:not(:disabled) {
+  background: var(--primary-hover, var(--accent, var(--primary)));
+  border-color: var(--primary-hover, var(--accent, var(--primary)));
+}
+
+.gantt-cal-day.is-disabled,
+.gantt-cal-day:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.gantt-cal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.gantt-cal-today,
+.gantt-cal-clear {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-micro) var(--curve-out),
+    color var(--dur-micro) var(--curve-out),
+    border-color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-cal-today {
+  border: 1px solid var(--border-color);
+  background: var(--bg-subtle, var(--bg-page));
+  color: var(--text-main);
+}
+
+.gantt-cal-today:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-dark);
+}
+
+.gantt-cal-today:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gantt-cal-clear {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.gantt-cal-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.gantt-cal-today:focus-visible,
+.gantt-cal-clear:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+body.presentation .gantt-cal-pop,
+body.present .gantt-cal-pop {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gantt-cal-pop,
+  .gantt-cal-pop * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+html[data-noanim] .gantt-cal-pop,
+html[data-noanim] .gantt-cal-pop * {
+  animation: none !important;
+  transition: none !important;
+}

@@ -1,0 +1,1118 @@
+/* Gantt Excel-like Table View.
+   All colors, fonts, radii, shadows, and motion curves use design tokens from assets/tokens/default.json. */
+
+#gantt-table-view,
+.gt-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-label-size, 13px);
+}
+
+#gantt-table-view[hidden],
+.gt-view[hidden] {
+  display: none;
+}
+
+/* --- Top summary bar --- */
+.gt-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 6px 14px;
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.gt-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.gt-count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-soft);
+  color: var(--text-main);
+  font-size: var(--t-caption-size);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gt-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--t-caption-size);
+}
+
+.gt-topbar-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-caption-size);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              border-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out),
+              transform var(--dur-micro) var(--curve-spring-tactile);
+}
+
+.gt-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-dark);
+}
+
+.gt-btn:active {
+  transform: scale(0.97);
+}
+
+.gt-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.gt-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex: none;
+}
+
+.gt-btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.gt-btn-ghost:hover {
+  background: var(--bg-hover);
+  border-color: transparent;
+  color: var(--text-main);
+}
+
+.gt-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.gt-btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: var(--on-primary);
+}
+
+.gt-btn-danger {
+  color: var(--danger);
+}
+
+.gt-btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border-color));
+  color: var(--danger);
+}
+
+/* --- Main scrollable container --- */
+.gt-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding-bottom: 72px;
+  background: var(--bg-panel);
+}
+
+/* --- Spreadsheet table --- */
+.gantt-sheet {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-family: var(--font-ui);
+  font-size: var(--t-label-size, 13px);
+  color: var(--text-main);
+}
+
+.gantt-sheet thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 34px;
+  padding: 0 8px;
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--border-dark);
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  box-shadow: var(--shadow-band);
+  color: var(--text-muted);
+  font-size: var(--t-overline-size);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.gantt-sheet thead th:last-child {
+  border-right: 0;
+}
+
+/* Column widths */
+.gt-col-check { width: 36px; text-align: center; }
+.gt-col-num   { width: 42px; text-align: center; }
+.gt-col-task  { width: 28%; min-width: 200px; }
+.gt-col-type  { width: 56px; text-align: center; }
+.gt-col-start { width: 112px; }
+.gt-col-end   { width: 112px; }
+.gt-col-dur   { width: 78px; text-align: right; }
+.gt-col-dep   { width: 96px; }
+.gt-col-cat   { width: 164px; }
+.gt-col-note  { width: auto; min-width: 150px; }
+
+.gantt-sheet thead th.gt-col-check,
+.gantt-sheet thead th.gt-col-num {
+  text-align: center;
+  padding: 0 4px;
+}
+
+.gantt-sheet thead th.gt-col-dur {
+  text-align: right;
+}
+
+/* Body rows */
+.gantt-sheet tbody tr {
+  background: var(--bg-panel);
+  transition: background-color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-sheet tbody tr:nth-child(even) {
+  background: var(--lane-alt-bg);
+}
+
+.gantt-sheet tbody tr:hover {
+  background: var(--lane-hover-bg);
+}
+
+.gantt-sheet tbody tr.is-group {
+  font-weight: var(--weight-semibold);
+}
+
+.gantt-sheet tbody tr.is-selected {
+  background: var(--primary-wash);
+}
+
+.gantt-sheet tbody tr.is-selected:hover {
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-panel));
+}
+
+.gantt-sheet tbody tr.is-flash {
+  background: color-mix(in srgb, var(--primary) 18%, var(--bg-panel));
+}
+
+.gantt-sheet tbody td {
+  height: 36px;
+  padding: 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 45%, transparent);
+  vertical-align: middle;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-sheet tbody td:last-child {
+  border-right: 0;
+}
+
+.gantt-sheet tbody td.gt-col-check,
+.gantt-sheet tbody td.gt-col-num {
+  text-align: center;
+  padding: 0 4px;
+}
+
+.gantt-sheet tbody td.gt-col-dur {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-sheet tbody td.gt-col-num {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* Roving-tabindex cell focus */
+.gantt-sheet td[data-gt-cell]:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-panel));
+}
+
+.gantt-sheet td[data-gt-cell]:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+/* Checkboxes */
+.gt-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Task cell with tree indent + chevron */
+.gt-task-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gt-chevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--dur-micro) var(--curve-out),
+              background-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
+}
+
+.gt-chevron:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.gt-chevron.is-collapsed svg {
+  transform: rotate(-90deg);
+}
+
+.gt-chevron svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.gt-chevron-spacer {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.gt-kind-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-round);
+  background: var(--primary);
+  opacity: 0.85;
+}
+
+.gt-kind-dot.is-milestone {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.gt-kind-dot.is-group {
+  border-radius: var(--radius-xs);
+  width: 8px;
+  height: 5px;
+}
+
+.gt-label-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.gt-label-text:hover {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+}
+
+/* Inline text / duration / note editor */
+.gt-inline-input {
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-label-size, 13px);
+  box-sizing: border-box;
+  outline: none;
+  box-shadow: var(--shadow-ring);
+}
+
+.gt-inline-input.is-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+}
+
+/* Type icon toggle (Task bar vs Milestone diamond) */
+.gt-type-btn,
+.gt-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  transition: background-color var(--dur-micro) var(--curve-out),
+              border-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
+}
+
+.gt-type-btn {
+  cursor: pointer;
+}
+
+.gt-type-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.gt-type-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+.gt-type-btn.is-milestone,
+.gt-type-icon.is-milestone {
+  color: var(--primary);
+}
+
+/* Dependency column hover row highlights (predecessors & successors) */
+.gantt-sheet tbody tr.is-dep-self td {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.gantt-sheet tbody tr.is-dep-pred td {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.gantt-sheet tbody tr.is-dep-pred td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.gantt-sheet tbody tr.is-dep-succ td {
+  background: color-mix(in srgb, var(--sw-4-border, var(--primary)) 16%, transparent);
+}
+
+.gantt-sheet tbody tr.is-dep-succ td:first-child {
+  box-shadow: inset 3px 0 0 var(--sw-4-border, var(--primary));
+}
+
+/* Selects (Type, Category) */
+.gt-select {
+  width: 100%;
+  height: 26px;
+  padding: 0 12px 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-detail-size);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              border-color var(--dur-micro) var(--curve-out);
+}
+
+.gt-select:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.gt-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+  background: var(--bg-input);
+}
+
+.gt-select option {
+  background: var(--bg-panel);
+  color: var(--text-main);
+}
+
+.gt-cat-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.gt-cat-wrap::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+}
+
+.gt-cat-select {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 26px 0 6px;
+}
+
+.gt-cat-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-round);
+  border: 1px solid color-mix(in srgb, var(--border-dark) 50%, transparent);
+  box-sizing: border-box;
+}
+
+.gt-cat-dot.is-none {
+  background: transparent;
+  border-style: dashed;
+}
+
+/* Date buttons & rolled-up values */
+.gt-date-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              border-color var(--dur-micro) var(--curve-out);
+}
+
+.gt-date-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.gt-date-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+.gt-date-btn.is-empty {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+
+.gt-rolled {
+  display: inline-block;
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+}
+
+.gt-muted-dash {
+  color: var(--text-muted);
+  padding: 0 6px;
+}
+
+/* Duration cell */
+.gt-dur-val {
+  display: inline-block;
+  width: 100%;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  cursor: text;
+  box-sizing: border-box;
+}
+
+.gt-dur-val:hover {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+}
+
+/* Dependency cell */
+.gt-dep-btn {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              border-color var(--dur-micro) var(--curve-out);
+}
+
+.gt-dep-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.gt-dep-btn.is-empty {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+
+/* Note cell */
+.gt-note-preview {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: var(--t-detail-size);
+  cursor: text;
+  box-sizing: border-box;
+}
+
+.gt-note-preview:hover {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+}
+
+.gt-note-preview.is-empty {
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+
+/* Bottom quick-add row */
+#gantt-sheet-add-row td {
+  height: 38px;
+  padding: 4px 8px;
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#gantt-sheet-quick-add {
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-label-size, 13px);
+  box-sizing: border-box;
+  transition: border-color var(--dur-micro) var(--curve-out),
+              box-shadow var(--dur-micro) var(--curve-out);
+}
+
+#gantt-sheet-quick-add::placeholder {
+  color: var(--text-muted);
+}
+
+#gantt-sheet-quick-add:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-ring);
+}
+
+/* --- Dependency popover (.gt-dep-pop) --- */
+.gt-dep-pop {
+  position: fixed;
+  z-index: 95;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-detail-size);
+  box-sizing: border-box;
+}
+
+.gt-dep-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.gt-dep-pop-title {
+  font-size: var(--t-caption-size);
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-dep-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gt-dep-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  box-sizing: border-box;
+}
+
+.gt-dep-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-ring);
+}
+
+.gt-dep-list {
+  max-height: 210px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+}
+
+.gt-dep-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.gt-dep-item:hover {
+  background: var(--bg-hover);
+}
+
+.gt-dep-item-num {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--t-caption-size);
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.gt-dep-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+}
+
+.gt-dep-type-btn {
+  flex: none;
+  height: 22px;
+  min-width: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  background: var(--bg-page);
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--t-overline-size);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.gt-dep-type-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.gt-dep-type-btn.is-active {
+  background: var(--primary-wash);
+  border-color: var(--primary-ring);
+  color: var(--primary);
+}
+
+.gt-dep-empty {
+  padding: 8px 6px;
+  color: var(--text-muted);
+  font-size: var(--t-caption-size);
+  text-align: center;
+}
+
+/* --- Collapsible Date Lines section (#gantt-markers-section) --- */
+#gantt-markers-section {
+  margin: 16px 14px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.gt-markers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-page);
+  border-bottom: 1px solid transparent;
+}
+
+#gantt-markers-section.is-open .gt-markers-head {
+  border-bottom-color: var(--border-color);
+}
+
+#btn-markers-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-detail-size);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+#btn-markers-toggle:hover {
+  background: var(--bg-hover);
+}
+
+#btn-markers-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+#btn-markers-toggle svg {
+  width: 13px;
+  height: 13px;
+  transition: transform var(--dur-micro) var(--curve-out);
+}
+
+#gantt-markers-section:not(.is-open) #btn-markers-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.gt-markers-body {
+  overflow-x: auto;
+}
+
+.gt-markers-body[hidden] {
+  display: none;
+}
+
+#gantt-markers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: var(--t-detail-size);
+}
+
+#gantt-markers-table th {
+  height: 30px;
+  padding: 0 10px;
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: var(--t-overline-size);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  text-align: left;
+}
+
+#gantt-markers-table td {
+  height: 36px;
+  padding: 0 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  vertical-align: middle;
+}
+
+#gantt-markers-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+#gantt-markers-table .gt-marker-col-date { width: 130px; }
+#gantt-markers-table .gt-marker-col-cat  { width: 160px; }
+#gantt-markers-table .gt-marker-col-del  { width: 48px; text-align: center; }
+
+.gt-marker-empty {
+  padding: 12px 10px;
+  color: var(--text-muted);
+  font-size: var(--t-caption-size);
+  text-align: center;
+}
+
+.gt-icon-del {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.gt-icon-del:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-panel));
+}
+
+.gt-icon-del svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* --- Floating Bulk Action Bar (#gantt-table-bulkbar) --- */
+#gantt-table-bulkbar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-caption-size);
+}
+
+#gantt-table-bulkbar[hidden] {
+  display: none;
+}
+
+.gt-bulk-count {
+  padding: 0 8px;
+  font-weight: var(--weight-semibold);
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gt-bulk-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 2px;
+}
+
+.gt-btn-icon {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+.gt-bulk-cat-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.gt-bulk-cat-wrap::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+}
+
+.gt-bulk-cat-select {
+  width: 142px;
+  height: 28px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-caption-size);
+  cursor: pointer;
+}
+
+/* --- Present / read-only mode --- */
+body.presentation #gantt-table-view .gt-col-check,
+body.present #gantt-table-view .gt-col-check,
+#gantt-table-view.is-presenting .gt-col-check,
+body.presentation #gantt-sheet-add-row,
+body.present #gantt-sheet-add-row,
+#gantt-table-view.is-presenting #gantt-sheet-add-row,
+body.presentation #gantt-table-bulkbar,
+body.present #gantt-table-bulkbar,
+#gantt-table-view.is-presenting #gantt-table-bulkbar,
+body.presentation #btn-add-marker-row,
+body.present #btn-add-marker-row,
+#gantt-table-view.is-presenting #btn-add-marker-row,
+body.presentation #gantt-table-view .gt-marker-col-del,
+body.present #gantt-table-view .gt-marker-col-del,
+#gantt-table-view.is-presenting .gt-marker-col-del {
+  display: none !important;
+}
+
+#gantt-table-view.is-presenting .gt-label-text,
+#gantt-table-view.is-presenting .gt-dur-val,
+#gantt-table-view.is-presenting .gt-note-preview,
+#gantt-table-view.is-presenting .gt-date-btn,
+#gantt-table-view.is-presenting .gt-dep-btn {
+  cursor: default;
+}
+
+#gantt-table-view.is-presenting .gt-label-text:hover,
+#gantt-table-view.is-presenting .gt-dur-val:hover,
+#gantt-table-view.is-presenting .gt-note-preview:hover,
+#gantt-table-view.is-presenting .gt-date-btn:hover,
+#gantt-table-view.is-presenting .gt-dep-btn:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* --- Reduced motion & no-animation overrides --- */
+@media (prefers-reduced-motion: reduce) {
+  #gantt-table-view,
+  #gantt-table-view *,
+  .gt-dep-pop,
+  .gt-dep-pop * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+html[data-noanim] #gantt-table-view,
+html[data-noanim] #gantt-table-view *,
+html[data-noanim] .gt-dep-pop,
+html[data-noanim] .gt-dep-pop * {
+  transition: none !important;
+  animation: none !important;
+}

@@ -914,6 +914,115 @@ try {
     checkNoErrors('big-plan-ux');
   });
 
+  // ---------------------------------------------------------------------------
+  // 13. Table View (Excel-like sheet) & Calendar Date Pickers
+  // ---------------------------------------------------------------------------
+  await cdp.section('table-view-and-calendar-pickers', async () => {
+    await cdp.open(pagePath, baseQuery);
+    await sleep(noAnim ? 40 : 100);
+
+    // Holidays popover date input opens our custom calendar picker on click
+    await cdp.clickOn('#btn-holidays');
+    await sleep(noAnim ? 20 : 60);
+    await cdp.clickOn('#gantt-hol-date');
+    await sleep(noAnim ? 20 : 60);
+    const holCalOpen = await cdp.ev(`!!document.querySelector('.gantt-cal-pop')`);
+    cdp.check('calendar: holidays Start input opens .gantt-cal-pop', holCalOpen);
+    await cdp.press('Escape');
+    await cdp.clickOn('#gantt-hol-close');
+    await cdp.settle();
+
+    // Switch to Table mode
+    await cdp.clickOn('#btn-mode-table');
+    await cdp.settle();
+    const tableInit = await cdp.ev(`({
+      rootMode: document.getElementById('gantt-root')?.getAttribute('data-mode'),
+      tableHidden: document.getElementById('gantt-table-view')?.hidden,
+      rowCount: document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').length,
+      zoomVisible: !!(document.querySelector('.toolbar-zoom')?.offsetParent),
+    })`);
+    cdp.check(
+      'table: switching to Table mode shows sheet and hides zoom dock',
+      tableInit.rootMode === 'table' && tableInit.tableHidden === false && tableInit.rowCount > 0 && tableInit.zoomVisible === false,
+      JSON.stringify(tableInit)
+    );
+
+    // Calendar picker in Table Start cell updates date
+    const startBefore = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]')?.textContent?.trim()`);
+    await cdp.clickOn('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]');
+    await sleep(noAnim ? 20 : 60);
+    const tableCalOpen = await cdp.ev(`!!document.querySelector('.gantt-cal-pop .gantt-cal-day')`);
+    cdp.check('table: clicking Start date cell opens .gantt-cal-pop', tableCalOpen);
+    await cdp.clickOn('.gantt-cal-pop .gantt-cal-day:not(.is-outside):not(.is-selected)');
+    await cdp.settle();
+    const startAfter = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]')?.textContent?.trim()`);
+    cdp.check('table: picking calendar day updates Start date', Boolean(startAfter && startAfter !== startBefore), `${startBefore} -> ${startAfter}`);
+
+    // Editing Duration recalculates End date
+    await cdp.clickOn('#gantt-sheet tr[data-item-id="res"] .gt-col-dur');
+    await sleep(noAnim ? 20 : 50);
+    await cdp.ev(`(() => {
+      const inp = document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-col-dur input');
+      if (inp) { inp.value = '2w'; inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
+    })()`);
+    await cdp.settle();
+    const durAfter = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-col-dur')?.textContent?.trim()`);
+    cdp.check('table: typing 2w in Duration updates duration to 14d', durAfter === '14d', `got=${durAfter}`);
+
+    // Quick-add row adds a new task on Enter
+    await cdp.clickOn('#gantt-sheet-quick-add');
+    await cdp.ev(`(() => {
+      const q = document.getElementById('gantt-sheet-quick-add');
+      q.value = 'Excel Import Task';
+      q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await cdp.settle();
+    const afterQuickAdd = await cdp.ev(`({
+      rowCount: document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').length,
+      hasTask: [...document.querySelectorAll('#gantt-sheet .gt-label-text')].some((el) => el.textContent.trim() === 'Excel Import Task'),
+    })`);
+    cdp.check(
+      'table: quick-add row creates new task on Enter',
+      afterQuickAdd.rowCount === tableInit.rowCount + 1 && afterQuickAdd.hasTask,
+      JSON.stringify(afterQuickAdd)
+    );
+
+    // Excel TSV paste creates multiple tasks
+    const beforePaste = afterQuickAdd.rowCount;
+    await cdp.ev(`(() => {
+      const host = document.getElementById('gantt-table-view');
+      const dt = new DataTransfer();
+      dt.setData('text/plain', 'Task\\tStart\\tEnd\\nPasted Row A\\t2026-06-01\\t2026-06-10\\nPasted Row B\\t2026-06-11\\t2026-06-20');
+      host.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    })()`);
+    await cdp.settle();
+    const afterPaste = await cdp.ev(`document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').length`);
+    cdp.check('table: pasting TSV from Excel creates 2 tasks', afterPaste === beforePaste + 2, `${beforePaste} -> ${afterPaste}`);
+
+    // Bulk selection shows bulk action bar
+    await cdp.ev(`document.querySelector('#gantt-sheet tbody tr[data-item-id="res"]')?.scrollIntoView({ block: 'center' })`);
+    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox');
+    await cdp.settle();
+    const bulkVisible = await cdp.ev(`!document.getElementById('gantt-table-bulkbar')?.hidden`);
+    cdp.check('table: checking row shows bulk action bar', bulkVisible);
+
+    // Switch back to Timeline and confirm newly added Table tasks render as bars
+    await cdp.clickOn('#btn-mode-timeline');
+    await cdp.settle();
+    const timelineSync = await cdp.ev(`({
+      rootMode: document.getElementById('gantt-root')?.getAttribute('data-mode'),
+      hasQuickTask: [...document.querySelectorAll('#gantt-tree .gantt-tree-label')].some((el) => el.textContent.trim() === 'Excel Import Task'),
+      hasPastedTask: [...document.querySelectorAll('#gantt-tree .gantt-tree-label')].some((el) => el.textContent.trim() === 'Pasted Row A'),
+    })`);
+    cdp.check(
+      'table->timeline: edits and pasted rows render immediately in Timeline',
+      timelineSync.rootMode === 'timeline' && timelineSync.hasQuickTask && timelineSync.hasPastedTask,
+      JSON.stringify(timelineSync)
+    );
+
+    checkNoErrors('table-view-and-calendar-pickers');
+  });
+
   exitCode = cdp.finish();
 } finally {
   await cdp.close();
