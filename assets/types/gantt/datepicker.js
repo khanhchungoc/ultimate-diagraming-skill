@@ -9,6 +9,7 @@
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   var WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  var WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var VIEWPORT_PAD = 8;
   var ANCHOR_GAP = 6;
 
@@ -290,8 +291,16 @@
 
       var tabAssigned = false;
       var firstEnabledBtn = null;
+      var rowEl = null;
 
       for (var i = 0; i < 42; i++) {
+        if (i % 7 === 0) {
+          rowEl = document.createElement('div');
+          rowEl.className = 'gantt-cal-row';
+          rowEl.setAttribute('role', 'row');
+          grid.appendChild(rowEl);
+        }
+
         var dateStr = ganttAddDays(gridStart, i);
         var dt = ganttParseDate(dateStr);
         var dow = dt.getUTCDay();
@@ -301,11 +310,16 @@
         var isSelected = Boolean(selectedStr && dateStr === selectedStr);
         var isDisabled = !isWithinRange(dateStr, minStr, maxStr);
 
+        var cell = document.createElement('span');
+        cell.className = 'gantt-cal-cell';
+        cell.setAttribute('role', 'gridcell');
+
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'gantt-cal-day';
         btn.setAttribute('data-date', dateStr);
         btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        btn.setAttribute('aria-label', WEEKDAY_NAMES[dow] + ', ' + MONTH_NAMES[dt.getUTCMonth()] + ' ' + dt.getUTCDate() + ', ' + dt.getUTCFullYear());
         btn.textContent = String(dt.getUTCDate());
 
         if (isOutside) btn.classList.add('is-outside');
@@ -328,7 +342,8 @@
           btn.tabIndex = -1;
         }
 
-        grid.appendChild(btn);
+        cell.appendChild(btn);
+        rowEl.appendChild(cell);
       }
 
       if (!tabAssigned && firstEnabledBtn) {

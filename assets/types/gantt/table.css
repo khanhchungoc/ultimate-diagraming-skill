@@ -14,7 +14,7 @@
   background: var(--bg-panel);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-label-size, 13px);
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
 #gantt-table-view[hidden],
@@ -52,7 +52,7 @@
   border-radius: var(--radius-pill, 999px);
   background: var(--bg-soft);
   color: var(--text-main);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-sm);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -64,7 +64,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
 }
 
 .gt-topbar-actions {
@@ -79,14 +79,14 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  height: 28px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 5px 10px;
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-medium);
   line-height: var(--leading-none);
   white-space: nowrap;
@@ -170,7 +170,7 @@
   border-spacing: 0;
   table-layout: fixed;
   font-family: var(--font-ui);
-  font-size: var(--t-label-size, 13px);
+  font-size: var(--t-body-rem-size, 0.875rem);
   color: var(--text-main);
 }
 
@@ -178,14 +178,14 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 34px;
-  padding: 0 8px;
+  min-height: 34px;
+  padding: 6px;
   background: var(--bg-page);
   border-bottom: 1px solid var(--border-dark);
   border-right: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   box-shadow: var(--shadow-band);
   color: var(--text-muted);
-  font-size: var(--t-overline-size);
+  font-size: var(--text-rem-sm);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -202,7 +202,7 @@
 /* Column widths */
 .gt-col-check { width: 36px; text-align: center; }
 .gt-col-num   { width: 42px; text-align: center; }
-.gt-col-task  { width: 28%; min-width: 200px; }
+.gt-col-task  { width: 24%; min-width: 180px; }
 .gt-col-type  { width: 56px; text-align: center; }
 .gt-col-start { width: 112px; }
 .gt-col-end   { width: 112px; }
@@ -252,8 +252,8 @@
 }
 
 .gantt-sheet tbody td {
-  height: 36px;
-  padding: 0 8px;
+  height: 38px;
+  padding: 2px 6px;
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--border-color) 45%, transparent);
   vertical-align: middle;
@@ -273,6 +273,12 @@
   padding: 0 4px;
 }
 
+.gantt-sheet thead th.gt-col-task,
+.gantt-sheet tbody td.gt-col-task {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 .gantt-sheet tbody td.gt-col-dur {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -281,7 +287,7 @@
 .gantt-sheet tbody td.gt-col-num {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-variant-numeric: tabular-nums;
   user-select: none;
 }
@@ -300,12 +306,19 @@
 
 /* Checkboxes */
 .gt-checkbox {
+  position: relative;
   width: 15px;
   height: 15px;
   margin: 0;
   accent-color: var(--primary);
   cursor: pointer;
   vertical-align: middle;
+}
+
+.gt-checkbox::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
 /* Task cell with tree indent + chevron */
@@ -319,6 +332,7 @@
 }
 
 .gt-chevron {
+  position: relative;
   flex: none;
   width: 20px;
   height: 20px;
@@ -334,6 +348,12 @@
   transition: transform var(--dur-micro) var(--curve-out),
               background-color var(--dur-micro) var(--curve-out),
               color var(--dur-micro) var(--curve-out);
+}
+
+.gt-chevron::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
 }
 
 .gt-chevron:hover {
@@ -353,7 +373,7 @@
 
 .gt-chevron-spacer {
   flex: none;
-  width: 20px;
+  width: 12px;
   height: 20px;
 }
 
@@ -384,7 +404,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: text;
-  padding: 3px 4px;
+  padding: 2px;
   border-radius: var(--radius-sm);
 }
 
@@ -395,14 +415,14 @@
 /* Inline text / duration / note editor */
 .gt-inline-input {
   width: 100%;
-  height: 26px;
-  padding: 0 6px;
+  min-height: 28px;
+  padding: 2px 6px;
   border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-label-size, 13px);
+  font-size: var(--t-body-rem-size, 0.875rem);
   box-sizing: border-box;
   outline: none;
   box-shadow: var(--shadow-ring);
@@ -411,7 +431,7 @@
 .gt-inline-input.is-num {
   text-align: right;
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
 }
 
 /* Type icon toggle (Task bar vs Milestone diamond) */
@@ -466,24 +486,24 @@
 }
 
 .gantt-sheet tbody tr.is-dep-succ td {
-  background: color-mix(in srgb, var(--sw-4-border, var(--primary)) 16%, transparent);
+  background: color-mix(in srgb, var(--sw-4-line, var(--primary)) 16%, transparent);
 }
 
 .gantt-sheet tbody tr.is-dep-succ td:first-child {
-  box-shadow: inset 3px 0 0 var(--sw-4-border, var(--primary));
+  box-shadow: inset 3px 0 0 var(--sw-4-line, var(--primary));
 }
 
 /* Selects (Type, Category) */
 .gt-select {
   width: 100%;
-  height: 26px;
-  padding: 0 12px 0 6px;
+  min-height: 28px;
+  padding: 2px 12px 2px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-detail-size);
+  font-size: var(--text-rem-md);
   cursor: pointer;
   box-sizing: border-box;
   transition: background-color var(--dur-micro) var(--curve-out),
@@ -534,7 +554,7 @@
   min-width: 0;
   appearance: none;
   -webkit-appearance: none;
-  padding: 0 26px 0 6px;
+  padding: 2px 26px 2px 6px;
 }
 
 .gt-cat-dot {
@@ -557,14 +577,14 @@
   align-items: center;
   justify-content: flex-start;
   width: 100%;
-  height: 26px;
-  padding: 0 6px;
+  min-height: 28px;
+  padding: 2px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
@@ -593,7 +613,7 @@
   color: var(--text-muted);
   font-style: italic;
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
 }
@@ -610,7 +630,7 @@
   padding: 3px 4px;
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-variant-numeric: tabular-nums;
   color: var(--text-main);
   cursor: text;
@@ -626,14 +646,14 @@
   display: inline-flex;
   align-items: center;
   width: 100%;
-  height: 26px;
-  padding: 0 6px;
+  min-height: 28px;
+  padding: 2px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -664,7 +684,7 @@
   padding: 3px 4px;
   border-radius: var(--radius-sm);
   color: var(--text-soft);
-  font-size: var(--t-detail-size);
+  font-size: var(--text-rem-md);
   cursor: text;
   box-sizing: border-box;
 }
@@ -675,12 +695,11 @@
 
 .gt-note-preview.is-empty {
   color: var(--text-muted);
-  opacity: 0.65;
 }
 
 /* Bottom quick-add row */
 #gantt-sheet-add-row td {
-  height: 38px;
+  height: 40px;
   padding: 4px 8px;
   background: var(--bg-page);
   border-top: 1px solid var(--border-color);
@@ -689,14 +708,14 @@
 
 #gantt-sheet-quick-add {
   width: 100%;
-  height: 28px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 2px 10px;
   border: 1px dashed var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-label-size, 13px);
+  font-size: var(--t-body-rem-size, 0.875rem);
   box-sizing: border-box;
   transition: border-color var(--dur-micro) var(--curve-out),
               box-shadow var(--dur-micro) var(--curve-out);
@@ -729,7 +748,7 @@
   box-shadow: var(--shadow-lg);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-detail-size);
+  font-size: var(--text-rem-md);
   box-sizing: border-box;
 }
 
@@ -741,7 +760,7 @@
 }
 
 .gt-dep-pop-title {
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-semibold);
   color: var(--text-main);
   overflow: hidden;
@@ -758,14 +777,14 @@
 .gt-dep-input {
   flex: 1;
   min-width: 0;
-  height: 28px;
-  padding: 0 8px;
+  min-height: 28px;
+  padding: 2px 8px;
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
   color: var(--text-main);
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   box-sizing: border-box;
 }
 
@@ -801,7 +820,7 @@
 .gt-dep-item-num {
   flex: none;
   font-family: var(--font-mono);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   color: var(--text-muted);
   min-width: 24px;
 }
@@ -817,15 +836,15 @@
 
 .gt-dep-type-btn {
   flex: none;
-  height: 22px;
+  min-height: 24px;
   min-width: 30px;
-  padding: 0 6px;
+  padding: 2px 6px;
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-sm);
   background: var(--bg-page);
   color: var(--text-soft);
   font-family: var(--font-mono);
-  font-size: var(--t-overline-size);
+  font-size: var(--text-rem-sm);
   font-weight: var(--weight-bold);
   cursor: pointer;
 }
@@ -844,7 +863,7 @@
 .gt-dep-empty {
   padding: 8px 6px;
   color: var(--text-muted);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   text-align: center;
 }
 
@@ -881,7 +900,7 @@
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-detail-size);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-semibold);
   cursor: pointer;
 }
@@ -917,16 +936,16 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--font-ui);
-  font-size: var(--t-detail-size);
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
 #gantt-markers-table th {
-  height: 30px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 6px 10px;
   background: var(--bg-page);
   border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
-  font-size: var(--t-overline-size);
+  font-size: var(--text-rem-sm);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -934,8 +953,8 @@
 }
 
 #gantt-markers-table td {
-  height: 36px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 2px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
   vertical-align: middle;
 }
@@ -951,13 +970,13 @@
 .gt-marker-empty {
   padding: 12px 10px;
   color: var(--text-muted);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   text-align: center;
 }
 
 .gt-icon-del {
-  width: 26px;
-  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -1000,7 +1019,7 @@
   box-shadow: var(--shadow-lg);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
 }
 
 #gantt-table-bulkbar[hidden] {
@@ -1049,16 +1068,16 @@
 
 .gt-bulk-cat-select {
   width: 142px;
-  height: 28px;
+  min-height: 28px;
   appearance: none;
   -webkit-appearance: none;
-  padding: 0 28px 0 10px;
+  padding: 2px 28px 2px 10px;
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--t-caption-size);
+  font-size: var(--text-rem-md);
   cursor: pointer;
 }
 

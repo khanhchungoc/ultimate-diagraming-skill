@@ -121,6 +121,8 @@
   let activeDrag = null;           // active bar/resize/marker/marquee/splitter/row drag state
   let actionBarEl = null;          // floating ui.actionBar element
   let floatingPop = null;          // active sub-popover (dates, shift, etc.)
+  let floatingPopPrevFocus = null; // element focused before opening floatingPop
+  let holidaysPrevFocus = null;    // element focused before opening holidaysPop
   let sidebarWidth = GANTT_METRICS.SIDEBAR_W;
   let renderedDepsSvg = null;      // SVG element inside or equal to #gantt-deps
   let isSyncingScroll = false;
@@ -814,7 +816,7 @@
       row.dataset.itemId = it.id;
       row.dataset.kind = it.kind || 'task';
       row.style.height = `${rowH}px`;
-      row.style.paddingLeft = `${8 + (it._depth || 0) * 18}px`;
+      row.style.paddingLeft = `${6 + (it._depth || 0) * 14}px`;
       if (it._hasChildren || it.kind === 'group') row.classList.add('is-parent');
       if (selItems.has(it.id)) row.classList.add('selected');
       if (hoveredRowId === it.id) row.classList.add('is-hovered');
@@ -1874,7 +1876,7 @@
       lbl.textContent = breadcrumb;
     }
     stickyPhaseEl.dataset.targetId = target.id;
-    dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : '';
+    dot.style.background = col ? `var(--sw-${col}-line, var(--primary))` : '';
     stickyPhaseEl.hidden = false;
   }
 
@@ -1911,7 +1913,7 @@
       const dateStr = formatShortDate(it._start);
       pill.title = `Jump to ${it.label || it.id} (${formatDateRange(it._start, it._end)})`;
       pill.setAttribute('aria-label', `Jump to ${it.label || it.id}`);
-      pill.style.top = `${Math.round(rowTop + (rowH - 22) / 2)}px`;
+      pill.style.top = `${Math.round(rowTop + (rowH - 24) / 2)}px`;
       if (isLeft) {
         pill.style.left = `${Math.round(scrollLeft + 8)}px`;
       } else {
@@ -1920,7 +1922,7 @@
       }
       const dot = htmlEl('span', 'gantt-offscreen-dot');
       const col = effectiveColor(it);
-      dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : 'var(--primary)';
+      dot.style.background = col ? `var(--sw-${col}-line, var(--primary))` : 'var(--primary)';
       const txt = htmlEl('span', '', isLeft ? `← ${dateStr}` : `${dateStr} →`);
       if (isLeft) pill.append(txt, dot);
       else pill.append(dot, txt);
@@ -2287,10 +2289,15 @@
     if (typeof updateDeleteButton === 'function') updateDeleteButton();
   }
 
-  function closeFloatingPop() {
+  function closeFloatingPop(restoreFocus = false) {
+    const prev = floatingPopPrevFocus;
+    floatingPopPrevFocus = null;
     if (floatingPop) {
       floatingPop.remove();
       floatingPop = null;
+    }
+    if (restoreFocus && prev && typeof prev.focus === 'function' && prev.isConnected) {
+      try { prev.focus({ preventScroll: true }); } catch (_) { prev.focus(); }
     }
   }
 
@@ -2318,10 +2325,12 @@
     actionBarEl.style.zIndex = '60';
   }
 
-  function openMiniPop(anchor, buildFn) {
+  function openMiniPop(anchor, buildFn, opts) {
     closeFloatingPop();
+    floatingPopPrevFocus = document.activeElement;
     const pop = htmlEl('div', 'gantt-mini-pop');
     pop.setAttribute('role', 'dialog');
+    if (opts && opts.ariaLabel) pop.setAttribute('aria-label', opts.ariaLabel);
     pop.setAttribute('data-export-skip', '');
     pop.addEventListener('pointerdown', (e) => e.stopPropagation());
     buildFn(pop);
@@ -2545,7 +2554,7 @@
       });
       pop.append(apply);
       inStart.focus();
-    });
+    }, { ariaLabel: isMilestone ? 'Edit milestone date' : 'Edit task dates' });
   }
 
   function openShiftDatesPop(anchor, ids) {
@@ -2583,7 +2592,7 @@
       pop.append(row, btns);
       input.focus();
       input.select();
-    });
+    }, { ariaLabel: 'Shift dates' });
   }
 
   function openMarkerRenamePop(anchor, m) {
@@ -2592,6 +2601,7 @@
       input.type = 'text';
       input.maxLength = LABEL_MAX;
       input.value = m.label || '';
+      input.setAttribute('aria-label', 'Date line name');
       const apply = htmlEl('button', 'btn gantt-pop-apply', 'Save');
       apply.type = 'button';
       const save = () => {
@@ -2603,12 +2613,12 @@
       apply.addEventListener('click', save);
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); save(); }
-        else if (e.key === 'Escape') { e.preventDefault(); closeFloatingPop(); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeFloatingPop(true); }
       });
       pop.append(input, apply);
       input.focus();
       input.select();
-    });
+    }, { ariaLabel: 'Rename date line' });
   }
 
   function openMarkerDatePop(anchor, m) {
@@ -2616,6 +2626,7 @@
       const input = htmlEl('input', 'gantt-pop-input');
       input.type = 'date';
       input.value = m.date || getTodayStr();
+      input.setAttribute('aria-label', 'Date line date');
       if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
         window.GanttDatePicker.attachInput(input);
       }
@@ -2631,7 +2642,7 @@
       });
       pop.append(input, apply);
       input.focus();
-    });
+    }, { ariaLabel: 'Edit date line date' });
   }
 
   // --- INLINE RENAME ---
@@ -3716,12 +3727,22 @@
     });
   }
 
-  function toggleHolidaysPop(force) {
+  function toggleHolidaysPop(force, restoreFocus = false) {
     if (!holidaysPop) return;
     const show = typeof force === 'boolean' ? force : holidaysPop.hidden;
+    if (show) holidaysPrevFocus = document.activeElement;
     holidaysPop.hidden = !show;
     if (btnHolidays) btnHolidays.setAttribute('aria-expanded', String(show));
     if (show) renderHolidaysList();
+    else if (restoreFocus) {
+      const prev = holidaysPrevFocus || btnHolidays;
+      holidaysPrevFocus = null;
+      if (prev && typeof prev.focus === 'function' && prev.isConnected) {
+        try { prev.focus({ preventScroll: true }); } catch (_) { prev.focus(); }
+      }
+    } else {
+      holidaysPrevFocus = null;
+    }
   }
 
   if (btnHolidays) {
@@ -3733,7 +3754,7 @@
   if (holCloseBtn) {
     holCloseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleHolidaysPop(false);
+      toggleHolidaysPop(false, true);
     });
   }
   if (holAddBtn) {
@@ -4068,11 +4089,11 @@
       cancelled = true;
     }
     if (floatingPop) {
-      closeFloatingPop();
+      closeFloatingPop(true);
       cancelled = true;
     }
     if (holidaysPop && !holidaysPop.hidden) {
-      toggleHolidaysPop(false);
+      toggleHolidaysPop(false, true);
       cancelled = true;
     }
     if (colorKeyHost && !colorKeyHost.hidden) {
@@ -4207,7 +4228,7 @@
     parts.push(`<rect x="0" y="0" width="${w}" height="${headerH}" fill="${escXml(surface)}"/>`);
     parts.push(`<line x1="0" y1="${headerH}" x2="${w}" y2="${headerH}" stroke="${escXml(border)}" stroke-width="1"/>`);
     parts.push(`<line x1="${sideW}" y1="0" x2="${sideW}" y2="${h}" stroke="${escXml(border)}" stroke-width="1"/>`);
-    parts.push(`<text x="12" y="${Math.round(headerH / 2 + 4)}" font-size="12" font-weight="600" fill="${escXml(textCol)}">Tasks</text>`);
+    parts.push(`<text x="12" y="${Math.round(headerH / 2 + 4)}" font-size="14" font-weight="600" fill="${escXml(textCol)}">Tasks</text>`);
 
     // Header ticks (read from rendered DOM if available)
     if (headerTop) {
@@ -4216,7 +4237,7 @@
         const tw = parseFloat(t.style.width) || 0;
         parts.push(`<line x1="${lx}" y1="0" x2="${lx}" y2="${headerH / 2}" stroke="${escXml(border)}" stroke-width="1"/>`);
         if (tw > 20) {
-          parts.push(`<text x="${lx + 6}" y="17" font-size="11" font-weight="600" fill="${escXml(textCol)}">${escXml(t.textContent)}</text>`);
+          parts.push(`<text x="${lx + 6}" y="17" font-size="13" font-weight="600" fill="${escXml(textCol)}">${escXml(t.textContent)}</text>`);
         }
       });
     }
@@ -4229,7 +4250,7 @@
           const numEl = t.querySelector('.gantt-day-num');
           const dowEl = t.querySelector('.gantt-day-dow');
           const tickText = (numEl && dowEl) ? `${numEl.textContent} ${dowEl.textContent}` : t.textContent;
-          parts.push(`<text x="${lx + 4}" y="${headerH - 8}" font-size="10" fill="${escXml(muted)}">${escXml(tickText)}</text>`);
+          parts.push(`<text x="${lx + 4}" y="${headerH - 8}" font-size="12" fill="${escXml(muted)}">${escXml(tickText)}</text>`);
         }
       });
     }
@@ -4246,9 +4267,9 @@
         parts.push(`<rect x="${sideW}" y="${y}" width="${range.timelineWidth}" height="${rowH}" fill="${escXml(surface)}" fill-opacity="0.5"/>`);
       }
       parts.push(`<line x1="0" y1="${y + rowH}" x2="${w}" y2="${y + rowH}" stroke="${escXml(border)}" stroke-width="0.5"/>`);
-      const padL = 12 + (it._depth || 0) * 16;
+      const padL = 8 + (it._depth || 0) * 14;
       const weight = (it._hasChildren || it.kind === 'group') ? '600' : '400';
-      parts.push(`<text x="${padL}" y="${y + Math.round(rowH / 2 + 4)}" font-size="12" font-weight="${weight}" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
+      parts.push(`<text x="${padL}" y="${y + Math.round(rowH / 2 + 4)}" font-size="14" font-weight="${weight}" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
 
       if (!it._bar) return;
       const b = it._bar;
@@ -4261,7 +4282,7 @@
         const cy = by + b.h / 2;
         const r = b.w / 2;
         parts.push(`<polygon points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}" fill="${escXml(c.solid)}" stroke="${escXml(c.border)}" stroke-width="1.5"/>`);
-        parts.push(`<text x="${bx + b.w + 8}" y="${cy + 4}" font-size="11" font-weight="500" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
+        parts.push(`<text x="${bx + b.w + 8}" y="${cy + 4}" font-size="13" font-weight="500" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
       } else if (it._hasChildren || it.kind === 'group') {
         parts.push(`<rect x="${bx}" y="${by}" width="${Math.max(4, b.w)}" height="${b.h}" rx="4" fill="${escXml(c.border)}" fill-opacity="0.85"/>`);
       } else {
@@ -4284,7 +4305,7 @@
       const mx = sideW + m.x;
       const c = swatchColors(m.color || '4');
       parts.push(`<line x1="${mx}" y1="${headerH}" x2="${mx}" y2="${h}" stroke="${escXml(c.solid)}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
-      parts.push(`<text x="${mx + 4}" y="${headerH - 4}" font-size="10" font-weight="600" fill="${escXml(c.solid)}">${escXml(m.label || m.date)}</text>`);
+      parts.push(`<text x="${mx + 4}" y="${headerH - 4}" font-size="12" font-weight="600" fill="${escXml(c.solid)}">${escXml(m.label || m.date)}</text>`);
     });
 
     // Today line
