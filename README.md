@@ -132,7 +132,7 @@ Example prompts:
 - *"Use the brand from https://example.com and draw a swimlane flowchart of our loan approval process."*
 - *"Here is our brand guide (brand.pdf). Make diagrams in this style, then draw a sequence diagram of the login flow."*
 
-Once accepted, the theme is saved as `.ultimate-diagram/theme.json` in your project and every later diagram there uses it; diagrams you already saved pick it up the next time they are re-laid out. To switch back, delete that file.
+Once accepted, the theme is saved as `theme.json` in your skill folder (so user-level installs apply across all your projects without adding files to your project repo, and updates keep it). Every later diagram uses it; diagrams you already saved pick it up the next time they are re-laid out. You can ask the AI anytime to tweak your theme or reset back to the default theme (or place a `.ultimate-diagram/theme.json` in a specific project to override it there).
 
 For contributors: [references/theme.md](references/theme.md).
 

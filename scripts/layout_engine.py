@@ -1350,6 +1350,7 @@ def keep_positions_from(kind: str, new: Dict[str, Any], old: Dict[str, Any], tim
 # --- Themes: which one a run uses, and the copy a page keeps ----------------------------------------------------------
 THEME_OPEN = '<script id="diagram-theme" type="application/json">'
 PROJECT_THEME = Path(".ultimate-diagram") / "theme.json"
+SKILL_THEME = Path(__file__).resolve().parent.parent / "theme.json"
 
 
 def read_stored_theme(html_content: str) -> Optional[Dict[str, Any]]:
@@ -1366,8 +1367,11 @@ def theme_script(theme: Optional[Dict[str, Any]]) -> str:
 
 
 def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]], str]:
-    """(merged tokens, theme to store in the page or None, note for the report). First match wins: --theme, the theme
-    stored in the page being updated, .ultimate-diagram/theme.json in the current directory, then the default tokens."""
+    """(merged tokens, theme to store in the page or None, note for the report). First match wins: --theme (or
+    '--theme default' to clear a stored/saved theme), the theme stored in the page being updated,
+    .ultimate-diagram/theme.json in the current directory, <skill-dir>/theme.json, then the default tokens."""
+    if theme_arg == "default":
+        return merge_theme(None), None, "[NOTE] Theme reset to default."
     try:
         if theme_arg:
             theme, source = json.loads(Path(theme_arg).read_text(encoding="utf-8")), f"--theme {theme_arg}"
@@ -1375,14 +1379,17 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
             theme, source = stored, "stored in the page"
         elif PROJECT_THEME.is_file():
             theme, source = json.loads(PROJECT_THEME.read_text(encoding="utf-8")), f"project theme {PROJECT_THEME.as_posix()}"
+        elif SKILL_THEME.is_file():
+            theme, source = json.loads(SKILL_THEME.read_text(encoding="utf-8")), f"skill theme {SKILL_THEME.as_posix()}"
         else:
             return merge_theme(None), None, ""
         tokens = merge_theme(theme, source)
     except (OSError, ValueError) as exc:
-        sys.exit(f"[ERROR] theme ({theme_arg or 'stored or project theme'}): {exc}")
+        sys.exit(f"[ERROR] theme ({theme_arg or 'stored, project, or skill theme'}): {exc}")
     note = f"[NOTE] Theme {tokens['name']!r} ({source})."
-    if source.startswith("project") and page_html is not None:
-        note += " This page was saved before themes, so it takes the project theme now; the stored copy is written on this run."
+    if (source.startswith("project") or source.startswith("skill")) and page_html is not None:
+        kind = "project" if source.startswith("project") else "skill"
+        note += f" This page was saved before themes, so it takes the {kind} theme now; the stored copy is written on this run."
     return tokens, theme, note
 
 
@@ -2043,8 +2050,8 @@ def main():
     parser.add_argument("--icons", metavar="DIR", help="Folder of local icon packs (<pack>.json, see references/icon-packs.md); "
                         "default: icons/ next to the input file, then ./icons")
     parser.add_argument("--theme", help="Theme file (tokens in the shape of assets/tokens/default.json; omitted keys keep "
-                                        "the default): page styles, fonts and text widths for --layout and --verify. Without it: "
-                                        "the theme stored in the page, then .ultimate-diagram/theme.json, then the default")
+                                        "the default) or 'default' to reset to the default theme: page styles, fonts and text widths for --layout and --verify. "
+                                        "Without it: the theme stored in the page, then .ultimate-diagram/theme.json, then <skill-dir>/theme.json, then the default")
     parser.add_argument("--extract-theme", help="Write the theme stored in this HTML page to --output (or print it)")
     parser.add_argument("--screenshot", "-s",
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
