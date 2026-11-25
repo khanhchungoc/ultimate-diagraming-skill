@@ -965,12 +965,22 @@ function c4Route(m, again) {
     }
     data._edges.push(e);
   });
-  // the picture starts at the margin: an arrow outside it moves the whole picture in, then the arrows are routed again
+  // the picture starts at the margin: an arrow outside it moves the whole picture in
   if (!again && (left !== C4.margin || top !== C4.margin) && left < Infinity) {
     const dx = C4.margin - left, dy = C4.margin - top;
     m.items.forEach((i) => c4Shift(i, dx, dy));
-    c4Route(m, true);
-    return;
+    if (typeof buildCurvedPathWithHops === 'function') {
+      data._edges.forEach((e) => {
+        e.points = e.points.map((p) => [Math.round((p[0] + dx) * 10) / 10, Math.round((p[1] + dy) * 10) / 10]);
+        e.path = buildCurvedPathWithHops(e.points, [], 8);
+        e.labelBox = { x: Math.round(e.labelBox.x + dx), y: Math.round(e.labelBox.y + dy), w: e.labelBox.w, h: e.labelBox.h };
+        if (e.badge) e.badge = { x: Math.round(e.badge.x + dx), y: Math.round(e.badge.y + dy), w: e.badge.w, h: e.badge.h };
+      });
+      right += dx; bottom += dy;
+    } else {
+      c4Route(m, true);
+      return;
+    }
   }
   data.canvas = { width: Math.ceil(right + C4.margin), height: Math.ceil(bottom + C4.margin) };
 }

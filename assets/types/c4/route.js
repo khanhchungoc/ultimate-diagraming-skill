@@ -58,12 +58,12 @@ function c4rBadgeSize(step) {
 
 // Hash grid of rectangles {x, y, w, h} (top-left): cells hold the rects touching them.
 function c4rGrid() {
-  const cells = new Map(), K = C4R.CELL;
+  const cells = new Map(), K = C4R.CELL, seen = new Set();
   const key = (i, j) => (i + 50000) * 100000 + (j + 50000);
-  const span = (r, pad) => [Math.floor((r.x - pad) / K), Math.floor((r.x + r.w + pad) / K), Math.floor((r.y - pad) / K), Math.floor((r.y + r.h + pad) / K)];
   return {
     add(r) {
-      const [i0, i1, j0, j1] = span(r, 0);
+      const i0 = Math.floor(r.x / K), i1 = Math.floor((r.x + r.w) / K);
+      const j0 = Math.floor(r.y / K), j1 = Math.floor((r.y + r.h) / K);
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         const k = key(i, j); let c = cells.get(k);
         if (!c) cells.set(k, c = []);
@@ -72,12 +72,17 @@ function c4rGrid() {
     },
     // visits each distinct rect near r (grown by pad) that passes pred; cb returns true to stop
     scan(r, pad, pred, cb, dedupe) {
-      const [i0, i1, j0, j1] = span(r, pad), seen = dedupe ? new Set() : null;
+      const rx0 = r.x - pad, rx1 = r.x + r.w + pad, ry0 = r.y - pad, ry1 = r.y + r.h + pad;
+      const i0 = Math.floor(rx0 / K), i1 = Math.floor(rx1 / K), j0 = Math.floor(ry0 / K), j1 = Math.floor(ry1 / K);
+      if (dedupe) seen.clear();
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         const c = cells.get(key(i, j));
-        if (c) for (const o of c) if (r.x - pad < o.x + o.w && o.x < r.x + r.w + pad && r.y - pad < o.y + o.h && o.y < r.y + r.h + pad && (!seen || !seen.has(o)) && (!pred || pred(o))) {
-          if (seen) seen.add(o);
-          if (cb && cb(o)) return;
+        if (c) for (let u = 0; u < c.length; u++) {
+          const o = c[u];
+          if (rx0 < o.x + o.w && o.x < rx1 && ry0 < o.y + o.h && o.y < ry1 && (!dedupe || !seen.has(o)) && (!pred || pred(o))) {
+            if (dedupe) seen.add(o);
+            if (cb && cb(o)) return;
+          }
         }
       }
     },

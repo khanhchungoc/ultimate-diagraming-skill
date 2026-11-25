@@ -8049,12 +8049,12 @@ function c4rBadgeSize(step) {
 
 // Hash grid of rectangles {x, y, w, h} (top-left): cells hold the rects touching them.
 function c4rGrid() {
-  const cells = new Map(), K = C4R.CELL;
+  const cells = new Map(), K = C4R.CELL, seen = new Set();
   const key = (i, j) => (i + 50000) * 100000 + (j + 50000);
-  const span = (r, pad) => [Math.floor((r.x - pad) / K), Math.floor((r.x + r.w + pad) / K), Math.floor((r.y - pad) / K), Math.floor((r.y + r.h + pad) / K)];
   return {
     add(r) {
-      const [i0, i1, j0, j1] = span(r, 0);
+      const i0 = Math.floor(r.x / K), i1 = Math.floor((r.x + r.w) / K);
+      const j0 = Math.floor(r.y / K), j1 = Math.floor((r.y + r.h) / K);
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         const k = key(i, j); let c = cells.get(k);
         if (!c) cells.set(k, c = []);
@@ -8063,12 +8063,17 @@ function c4rGrid() {
     },
     // visits each distinct rect near r (grown by pad) that passes pred; cb returns true to stop
     scan(r, pad, pred, cb, dedupe) {
-      const [i0, i1, j0, j1] = span(r, pad), seen = dedupe ? new Set() : null;
+      const rx0 = r.x - pad, rx1 = r.x + r.w + pad, ry0 = r.y - pad, ry1 = r.y + r.h + pad;
+      const i0 = Math.floor(rx0 / K), i1 = Math.floor(rx1 / K), j0 = Math.floor(ry0 / K), j1 = Math.floor(ry1 / K);
+      if (dedupe) seen.clear();
       for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
         const c = cells.get(key(i, j));
-        if (c) for (const o of c) if (r.x - pad < o.x + o.w && o.x < r.x + r.w + pad && r.y - pad < o.y + o.h && o.y < r.y + r.h + pad && (!seen || !seen.has(o)) && (!pred || pred(o))) {
-          if (seen) seen.add(o);
-          if (cb && cb(o)) return;
+        if (c) for (let u = 0; u < c.length; u++) {
+          const o = c[u];
+          if (rx0 < o.x + o.w && o.x < rx1 && ry0 < o.y + o.h && o.y < ry1 && (!dedupe || !seen.has(o)) && (!pred || pred(o))) {
+            if (dedupe) seen.add(o);
+            if (cb && cb(o)) return;
+          }
         }
       }
     },
@@ -9672,12 +9677,22 @@ function c4Route(m, again) {
     }
     data._edges.push(e);
   });
-  // the picture starts at the margin: an arrow outside it moves the whole picture in, then the arrows are routed again
+  // the picture starts at the margin: an arrow outside it moves the whole picture in
   if (!again && (left !== C4.margin || top !== C4.margin) && left < Infinity) {
     const dx = C4.margin - left, dy = C4.margin - top;
     m.items.forEach((i) => c4Shift(i, dx, dy));
-    c4Route(m, true);
-    return;
+    if (typeof buildCurvedPathWithHops === 'function') {
+      data._edges.forEach((e) => {
+        e.points = e.points.map((p) => [Math.round((p[0] + dx) * 10) / 10, Math.round((p[1] + dy) * 10) / 10]);
+        e.path = buildCurvedPathWithHops(e.points, [], 8);
+        e.labelBox = { x: Math.round(e.labelBox.x + dx), y: Math.round(e.labelBox.y + dy), w: e.labelBox.w, h: e.labelBox.h };
+        if (e.badge) e.badge = { x: Math.round(e.badge.x + dx), y: Math.round(e.badge.y + dy), w: e.badge.w, h: e.badge.h };
+      });
+      right += dx; bottom += dy;
+    } else {
+      c4Route(m, true);
+      return;
+    }
   }
   data.canvas = { width: Math.ceil(right + C4.margin), height: Math.ceil(bottom + C4.margin) };
 }
@@ -10561,6 +10576,8 @@ function toMermaid(data, opts) {
       let notesLayer = null;
       const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
       let byId = new Map();    // group id -> group (rebuilt each render)
+      let elById = new Map();  // element id -> element (rebuilt each render)
+      let edgeById = new Map(); // edge id -> edge (rebuilt each render)
 
       // --- MODEL ACCESS ---
       const groups = () => chartData.groups || [];
@@ -10568,9 +10585,9 @@ function toMermaid(data, opts) {
       const relations = () => chartData.relations || [];
       const edges = () => chartData._edges || [];
       const groupOf = (id) => byId.get(id) || groups().find((g) => g.id === id);
-      const elementOf = (id) => elements().find((e) => e.id === id);
+      const elementOf = (id) => elById.get(id) || elements().find((e) => e.id === id);
       const nodeOrGroup = (id) => elementOf(id) || groupOf(id);
-      const edgeOf = (id) => edges().find((e) => e.id === id);
+      const edgeOf = (id) => edgeById.get(id) || edges().find((e) => e.id === id);
       const isDirectEdge = (e) => !!e && e.count === 1 && !e.agg && Array.isArray(e.members) && e.members.length === 1;
       const presenting = () => document.body.classList.contains('presentation');
       const placed = (o) => typeof o.x === 'number' && typeof o.y === 'number';
@@ -10711,8 +10728,10 @@ function toMermaid(data, opts) {
         const snap = o.snap || (useMotion ? motion.capture(canvas, FLIP_SPECS) : null);
         const prevEdges = useMotion ? (o.prevEdges || captureEdges()) : null;
         byId = new Map(groups().map((g) => [g.id, g]));
+        elById = new Map(elements().map((e) => [e.id, e]));
         const wasManual = chartData._manual === true;
         routeDiagram(chartData, o.pinned ? { pinned: o.pinned } : undefined);   // keeps every position; lays out afresh by itself when nothing is placed
+        edgeById = new Map(edges().map((e) => [e.id, e]));
         if (!wasManual) delete chartData._manual;   // the engine marks every route it runs as manual; the page decides the mode (Auto-Tidy keeps its positions in memory only)
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width);
@@ -10930,12 +10949,13 @@ function toMermaid(data, opts) {
           tip.textContent = edgeTitle(e);
           const line = svgEl('path', { class: 'edge-line', d: e.path });
           setMarkers(line, tint);
-          g.append(tip, svgEl('path', { class: 'edge-hit', d: e.path }), line);
+          const hit = svgEl('path', { class: 'edge-hit', d: e.path });
+          g.append(tip, hit, line);
           g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
           g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
           edgesG.appendChild(g);
-          els.edges.set(e.id, { g, label: null, badge: null });
+          els.edges.set(e.id, { g, line, hit, d: e.path, label: null, badge: null });
         });
       }
       function renderLabels() {
@@ -11057,7 +11077,7 @@ function toMermaid(data, opts) {
           const out = !!focusId && e.from === focusId, inn = !!focusId && !out && e.to === focusId;
           if (out || inn) { near.add(e.from); near.add(e.to); }
           const isSel = inSel('edge', id), hov = hoverEdgeId === id && !isSel;
-          const line = rec.g.querySelector('.edge-line');
+          const line = rec.line || rec.g.querySelector('.edge-line');
           [line, rec.label].forEach((x) => {
             if (!x) return;
             x.classList.toggle('hl-in', inn);
@@ -12208,11 +12228,12 @@ function toMermaid(data, opts) {
           bar.appendChild(ab('async', ui.icon('line-dashed'), 'Asynchronous: draw it dashed', rel.async === true));
           bar.appendChild(ab('reverse', ui.icon('reverse'), 'Reverse the direction'));
         } else bar.appendChild(htmlEl('span', 'c4-ab-tag', `${e.count} relations`));
-        bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
         if (direct && rel) {
-          bar.appendChild(ui.abBreak('ab-break'));
-          bar.appendChild(colourRow(rel.color));
+          bar.appendChild(ui.abSep('ab-sep'));
+          bar.appendChild(colourPicker(rel.color));
+          bar.appendChild(ui.abSep('ab-sep'));
         }
+        bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
         const rec = els.edges.get(e.id), b = e.labelBox;
         if (b) {
           const cx = Math.round(b.x + b.w / 2), cy = Math.round(b.y + b.h / 2);
@@ -12508,6 +12529,7 @@ function toMermaid(data, opts) {
         els.nodes.forEach((el, id) => was.set(id, snapGeo(elementOf(id))));
         els.groups.forEach((el, id) => was.set(id, snapGeo(groupOf(id))));
         routeDiagram(chartData, { pinned: mo.pinned });
+        edgeById = new Map(edges().map((e) => [e.id, e]));
         chartData._manual = true;
         const sameEdges = edges().filter((e) => e.path).length === els.edges.size && edges().every((e) => !e.path || els.edges.has(e.id));
         const shown = new Set(elements().filter((e) => !e._hidden && placed(e) && e.w > 0).map((e) => e.id)
@@ -12522,8 +12544,7 @@ function toMermaid(data, opts) {
         edges().forEach((e) => {   // an arrow whose route did not change stays as it is
           const rec = els.edges.get(e.id);
           if (!rec) return;
-          const line = rec.g.querySelector('.edge-line');
-          if (line.getAttribute('d') !== e.path) rec.g.querySelectorAll('path').forEach((q) => q.setAttribute('d', e.path));
+          if (rec.d !== e.path) { rec.d = e.path; rec.line.setAttribute('d', e.path); rec.hit.setAttribute('d', e.path); }
           const b = e.labelBox;
           if (rec.label && b) {
             const st = rec.label.style, wantL = px(Math.round(b.x + b.w / 2)), wantT = px(Math.round(b.y + b.h / 2));
@@ -12532,7 +12553,7 @@ function toMermaid(data, opts) {
         });
         if (notesLayer) { notesLayer.remove(); renderNotes(); }
         barLater = true;
-        applyState();
+        drawBar();
         if (mo.snap) {
           motion.play(mo.snap, canvas, FLIP_SPECS, { duration: mo.duration });
           playEdges(mo.prevEdges);
@@ -12714,8 +12735,8 @@ function toMermaid(data, opts) {
       }
       const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
       function toDisk(data) {
-        const d = JSON.parse(JSON.stringify(data));
-        Object.keys(d).forEach((k) => { if (k === 'layout' || k === 'canvas' || (k[0] === '_' && k !== '_readme')) delete d[k]; });
+        const d = {};
+        Object.keys(data).forEach((k) => { if (k !== 'layout' && k !== 'canvas' && (k[0] !== '_' || k === '_readme')) d[k] = JSON.parse(JSON.stringify(data[k])); });
         d.schemaVersion = 1;
         slotColors(d, 'elements', 'groups', 'relations');
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));

@@ -522,7 +522,7 @@ try {
   const shown = await t.ev(pills), z1 = await t.ev(zoom);
   t.check('after panning right, every pill sits at the viewport left edge',
     shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12 * z1) <= 2), `shown=${JSON.stringify(shown)} zoom=${z1}`);
-  t.check('pill text scales with the diagram (14px at 100%)', shown.every(p => Math.abs(p.px - 14 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
+  t.check('pill text scales with the diagram (15px at 100%)', shown.every(p => Math.abs(p.px - 15 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
   // An export taken while panned draws every pill once, at its lane's own top-left (no view offset)
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
