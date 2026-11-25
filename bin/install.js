@@ -111,7 +111,7 @@ ${c.bold}Options:${c.reset}
   -m, --mode <symlink|copy> Installation method (auto-detected: copy for npx, symlink for local clones)
   --claude-output <ask|artifact|file>
                             Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each
-                            time (default: ask). Saved to .claude/ultimate-diagram.json (never in the skill folder);
+                            time (default: artifact). Saved to .claude/ultimate-diagram.json (never in the skill folder);
                             prompted when run in a terminal without this flag.${saveHelperHelp}
   --no-hooks                Skip registering async SessionStart version-check hooks in runtime settings.json files
   -h, --help                Show this help message
@@ -193,21 +193,21 @@ const claudeConfigPath = scope === 'user'
 async function promptClaudeOutput() {
   console.log(`${c.cyan} ?  CLAUDE CODE OUTPUT${c.reset}`);
   console.log('    In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?');
-  console.log(`      ${c.white}1${c.reset} ask each time ${c.dim}(default)${c.reset}`);
-  console.log(`      ${c.white}2${c.reset} claude.ai Artifact ${c.dim}(private page, Save updates it in place)${c.reset}`);
+  console.log(`      ${c.white}1${c.reset} claude.ai Artifact ${c.dim}(private page, Save updates it in place) (default)${c.reset}`);
+  console.log(`      ${c.white}2${c.reset} ask each time`);
   console.log(`      ${c.white}3${c.reset} HTML file ${c.dim}(in the project folder, works offline)${c.reset}`);
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = (await rl.question('    Choose [1-3]: ')).trim().toLowerCase();
     console.log('');
-    return { '2': 'artifact', artifact: 'artifact', '3': 'file', file: 'file' }[answer] || 'ask';
+    return { '2': 'ask', ask: 'ask', '3': 'file', file: 'file' }[answer] || 'artifact';
   } finally {
     rl.close();
   }
 }
 
 let claudeOutputWritten = false;
-// Ask only if Claude Code looks installed (~/.claude exists); otherwise the default ("ask each time") applies.
+// Ask only if Claude Code looks installed (~/.claude exists); otherwise the default ("artifact") applies.
 const claudeInstalled = fs.existsSync(path.join(USER_HOME, '.claude'));
 if (claudeSelected && claudeInstalled && claudeOutput === null && process.stdin.isTTY && process.stdout.isTTY) {
   claudeOutput = await promptClaudeOutput();
@@ -502,7 +502,7 @@ console.log(`${c.border}${boxLine(`${c.bold}${c.white}How to use:${c.reset}`)}${
 console.log(`${c.border}${boxLine(`  Ask your AI agent:${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${boxLine(`  ${c.cyan}/ultimate-diagram${c.reset} create a flowchart for ...${c.reset}`)}${c.reset}`);
 if (claudeSelected) {
-  const shown = claudeOutputWritten ? claudeOutput : 'ask';
+  const shown = claudeOutputWritten ? claudeOutput : 'artifact';
   console.log(`${c.border}${boxLine(`  Claude Code output: ${c.cyan}${shown}${c.reset}${claudeOutputWritten ? '' : c.dim + ' (default)' + c.reset}`)}${c.reset}`);
   console.log(`${c.border}${boxLine(`${c.dim}  change: --claude-output, or .claude/ultimate-diagram.json${c.reset}`)}${c.reset}`);
 }
