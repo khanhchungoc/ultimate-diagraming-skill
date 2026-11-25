@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // mermaid-flow.js holds the flowchart-family tokenizer and the text helpers (mmdText, mmdQuote, mmdSafeId) every type uses
-const SHARED = Object.fromEntries(['flowchart', 'usecase', 'sequence', 'erd', 'c4'].map((k) => [k, 'assets/shell/mermaid-flow.js']));
+const SHARED = Object.fromEntries(['flowchart', 'usecase', 'sequence', 'erd', 'c4', 'gantt'].map((k) => [k, 'assets/shell/mermaid-flow.js']));
 
 /** Returns { fromMermaid, toMermaid, mmdParseFlow, mmdSafeId }. Throws a clear Error for a kind without Mermaid support. */
 export function loadMermaidIO(kind) {
@@ -31,7 +31,7 @@ export function defaultPalette() {
 /** The writer's id for each item id, in the order the writers assign them (shared uniqueness set). */
 export function safeIdMap(io, data) {
   const used = new Set(), map = {};
-  for (const k of ['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants', 'groups', 'elements']) {
+  for (const k of ['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants', 'groups', 'elements', 'items', 'markers']) {
     for (const it of data[k] || []) if (it && typeof it.id === 'string' && !(it.id in map)) map[it.id] = io.mmdSafeId(it.id, used);
   }
   return map;
@@ -43,7 +43,7 @@ async function main() {
   if (process.stderr.setDefaultEncoding) process.stderr.setDefaultEncoding('utf8');
   const [mode, kind, ...rest] = process.argv.slice(2);
   if (!['from', 'to', 'ids'].includes(mode) || !kind) {
-    console.error('usage: mermaid_io.mjs from|to|ids <flowchart|usecase|sequence|erd|c4> [--palette hex,hex,...] < input');
+    console.error('usage: mermaid_io.mjs from|to|ids <flowchart|usecase|sequence|erd|c4|gantt> [--palette hex,hex,...] < input');
     process.exit(1);
   }
   let io;

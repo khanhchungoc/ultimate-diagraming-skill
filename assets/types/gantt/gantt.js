@@ -1,0 +1,3202 @@
+// --- GANTT DIAGRAM PLUGIN ---
+// Renders chartData (diagramType "gantt") laid out by assets/types/gantt/engine.js.
+// Split-pane workspace: resizable left task tree + scrollable right calendar timeline with sticky two-tier header.
+// Reuses GANTT_ZOOMS, GANTT_METRICS, ganttParseDate, ganttFormatDate, ganttAddDays, ganttDiffDays from engine.js (SSOT).
+(function () {
+  'use strict';
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const ZOOM_ORDER = ['day', 'week', 'month', 'quarter', 'year'];
+  const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTH_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const LABEL_MAX = 120;
+  const SIDEBAR_MIN = 180;
+  const SIDEBAR_MAX = 480;
+
+  // --- DOM REFERENCES ---
+  const root = document.getElementById('gantt-root');
+  const sidebar = document.getElementById('gantt-sidebar');
+  const treeEl = document.getElementById('gantt-tree');
+  const splitter = document.getElementById('gantt-splitter');
+  const timeline = document.getElementById('gantt-timeline');
+  const headerEl = document.getElementById('gantt-header');
+  const headerTop = document.getElementById('gantt-header-top');
+  const headerBottom = document.getElementById('gantt-header-bottom');
+  const headerMarkers = document.getElementById('gantt-header-markers');
+  const bodyEl = document.getElementById('gantt-body');
+  const gridEl = document.getElementById('gantt-grid');
+  const markersEl = document.getElementById('gantt-markers');
+  const todayEl = document.getElementById('gantt-today');
+  const depsEl = document.getElementById('gantt-deps');
+  const barsEl = document.getElementById('gantt-bars');
+  const marqueeEl = document.getElementById('gantt-marquee');
+  const notesEl = document.getElementById('gantt-notes');
+  const dragTipEl = document.getElementById('gantt-drag-tip');
+  const colorKeyHost = document.getElementById('gantt-color-key');
+  const btnLegend = document.getElementById('btn-legend');
+
+  const btnAdd = document.getElementById('btn-add');
+  const addPop = document.getElementById('gantt-add-pop');
+  const btnAddTask = document.getElementById('btn-add-task');
+  const btnAddSubtask = document.getElementById('btn-add-subtask');
+  const btnAddMilestone = document.getElementById('btn-add-milestone');
+  const btnAddMarker = document.getElementById('btn-add-marker');
+  const btnAddNote = document.getElementById('btn-add-note');
+  const btnAddInline = document.getElementById('btn-add-inline');
+  const btnNotes = document.getElementById('btn-notes');
+  const btnDeps = document.getElementById('btn-deps');
+  const btnToday = document.getElementById('btn-today');
+  const btnHolidays = document.getElementById('btn-holidays');
+  const holidaysPop = document.getElementById('gantt-holidays-pop');
+  const holidaysList = document.getElementById('gantt-holidays-list');
+  const holDateInput = document.getElementById('gantt-hol-date');
+  const holNameInput = document.getElementById('gantt-hol-name');
+  const holAddBtn = document.getElementById('gantt-hol-add');
+  const holCloseBtn = document.getElementById('gantt-hol-close');
+  const zoomPills = document.getElementById('gantt-zoom-pills');
+
+  // --- STATE ---
+  let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
+  let lastSelItemId = null;        // anchor for Shift+click range selection
+  let selMarkerId = null;          // selected chart-wide vertical marker ID
+  let selDepKey = null;            // selected dependency key `${from}|${to}|${type}`
+  let selNoteId = null;            // selected note ID
+  let editingNoteId = null;        // note currently open for typing
+  let noteDraft = null;            // { id, isNew, wasOn, before }
+  let peekNoteItemId = null;       // item ID whose note is being peeked on hover/click
+  let hoveredItemId = null;        // item ID currently hovered for dependency chain spotlight
+  let hoveredRowId = null;         // item ID currently hovered for synchronized row highlight
+  let showDeps = true;             // whether dependency arrows layer is visible
+  let legendOpen = false;          // whether #gantt-color-key popover is open (closed by default)
+  let connectState = null;         // { fromId, type: 'fs' | 'ss', pointerDrag?: boolean }
+  let activeDrag = null;           // active bar/resize/marker/marquee/splitter/row drag state
+  let actionBarEl = null;          // floating ui.actionBar element
+  let floatingPop = null;          // active sub-popover (dates, shift, etc.)
+  let sidebarWidth = GANTT_METRICS.SIDEBAR_W;
+  let renderedDepsSvg = null;      // SVG element inside or equal to #gantt-deps
+  let isSyncingScroll = false;
+
+  const els = {
+    rows: new Map(),               // itemId -> sidebar row element
+    rowBgs: new Map(),             // itemId -> timeline row background element
+    bars: new Map(),               // itemId -> bar/milestone element
+    markers: new Map(),            // markerId -> { line, flag }
+    deps: new Map(),               // depKey -> { g, path, hit }
+    notes: new Map()               // noteId -> note card element
+  };
+
+  // --- MODEL HELPERS ---
+  const presenting = () => document.body.classList.contains('presentation');
+  const itemsList = () => (Array.isArray(chartData.items) ? chartData.items : []);
+  const depsList = () => (Array.isArray(chartData.dependencies) ? chartData.dependencies : []);
+  const markersList = () => (Array.isArray(chartData.markers) ? chartData.markers : []);
+  const holidaysListData = () => (Array.isArray(chartData.holidays) ? chartData.holidays : []);
+  const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
+  const itemById = (id) => itemsList().find((it) => it && it.id === id) || null;
+  const markerById = (id) => markersList().find((m) => m && m.id === id) || null;
+  const noteById = (id) => notesList().find((n) => n && n.id === id) || null;
+  const noteForTarget = (targetId) => notesList().find((n) => n && n.target === targetId) || null;
+  const depKeyOf = (d) => `${d.from}|${d.to}|${d.type === 'ss' ? 'ss' : 'fs'}`;
+  const currentZoom = () => (Object.prototype.hasOwnProperty.call(GANTT_ZOOMS, chartData.zoom) ? chartData.zoom : 'month');
+  const isTyping = () => {
+    const a = document.activeElement;
+    return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+  };
+
+  function htmlEl(tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach((k) => el.setAttribute(k, String(attrs[k])));
+    }
+    return el;
+  }
+
+  function newId(prefix) {
+    const used = new Set([
+      ...itemsList().map((o) => o && o.id),
+      ...markersList().map((o) => o && o.id),
+      ...notesList().map((o) => o && o.id)
+    ]);
+    const base = `${prefix}_${Date.now()}`;
+    let id = base;
+    let k = 2;
+    while (used.has(id)) id = `${base}_${k++}`;
+    return id;
+  }
+
+  function cleanLabel(v, fallback) {
+    const t = String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, LABEL_MAX);
+    return t || fallback;
+  }
+
+  // Client-side Today date: supports ?today=YYYY-MM-DD for deterministic screenshots & E2E tests.
+  function getTodayStr() {
+    const param = new URLSearchParams(window.location.search).get('today');
+    if (param) {
+      const parsed = ganttFormatDate(param);
+      if (parsed) return parsed;
+    }
+    const now = new Date();
+    const y = String(now.getFullYear()).padStart(4, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function getTimeState(item, todayStr) {
+    if (!item || !item._start || !item._end || !todayStr) return 'upcoming';
+    if (item._end < todayStr) return 'past';
+    if (item._start <= todayStr && todayStr <= item._end) return 'active';
+    return 'upcoming';
+  }
+
+  function formatShortDate(iso) {
+    const dt = ganttParseDate(iso);
+    if (!dt) return iso || '';
+    return `${MONTH_SHORT[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
+  }
+
+  function formatDateRange(startIso, endIso) {
+    if (!startIso) return '';
+    if (!endIso || startIso === endIso) return formatShortDate(startIso);
+    return `${formatShortDate(startIso)} – ${formatShortDate(endIso)}`;
+  }
+
+  // ISO week number (UTC)
+  function isoWeekNumber(dt) {
+    const tmp = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()));
+    const dayNum = tmp.getUTCDay() || 7;
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+    return Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function visibleItems() {
+    return itemsList()
+      .filter((it) => it && !it._hidden && typeof it._row === 'number' && it._row >= 0)
+      .sort((a, b) => a._row - b._row);
+  }
+
+  function getDescendants(parentId) {
+    const out = [];
+    const byParent = new Map();
+    itemsList().forEach((it) => {
+      if (!it || !it.parent) return;
+      if (!byParent.has(it.parent)) byParent.set(it.parent, []);
+      byParent.get(it.parent).push(it);
+    });
+    const seen = new Set([parentId]);
+    const walk = (pid) => {
+      (byParent.get(pid) || []).forEach((ch) => {
+        if (seen.has(ch.id)) return;
+        seen.add(ch.id);
+        out.push(ch);
+        walk(ch.id);
+      });
+    };
+    walk(parentId);
+    return out;
+  }
+
+  function isAncestor(ancestorId, nodeId) {
+    if (!ancestorId || !nodeId) return false;
+    if (ancestorId === nodeId) return true;
+    const seen = new Set([nodeId]);
+    let cur = itemById(nodeId);
+    while (cur && cur.parent) {
+      if (cur.parent === ancestorId) return true;
+      if (seen.has(cur.parent)) break;
+      seen.add(cur.parent);
+      cur = itemById(cur.parent);
+    }
+    return false;
+  }
+
+  function wouldCreateDepCycle(fromId, toId, ignoreDep) {
+    if (fromId === toId) return true;
+    const adj = new Map();
+    depsList().forEach((d) => {
+      if (!d || d === ignoreDep || !d.from || !d.to) return;
+      if (!adj.has(d.from)) adj.set(d.from, []);
+      adj.get(d.from).push(d.to);
+    });
+    const stack = [toId];
+    const visited = new Set([toId]);
+    while (stack.length) {
+      const cur = stack.pop();
+      if (cur === fromId) return true;
+      (adj.get(cur) || []).forEach((nxt) => {
+        if (!visited.has(nxt)) {
+          visited.add(nxt);
+          stack.push(nxt);
+        }
+      });
+    }
+    return false;
+  }
+
+  function collectMovableLeaves(ids) {
+    const leafMap = new Map();
+    ids.forEach((id) => {
+      const it = itemById(id);
+      if (!it) return;
+      if (it._hasChildren || it.kind === 'group') {
+        getDescendants(it.id).forEach((ch) => {
+          if (!ch._hasChildren && ch.kind !== 'group' && (ch.start || ch._start)) {
+            leafMap.set(ch.id, ch);
+          }
+        });
+      } else if (it.start || it._start) {
+        leafMap.set(it.id, it);
+      }
+    });
+    return [...leafMap.values()];
+  }
+
+  // --- LAYOUT & RENDERING ---
+  function applyLayout() {
+    layoutDiagram(chartData);
+  }
+
+  function applySidebarWidth(w) {
+    sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)));
+    if (sidebar) sidebar.style.width = `${sidebarWidth}px`;
+    if (root) root.style.setProperty('--gantt-sidebar-w', `${sidebarWidth}px`);
+  }
+
+  function ensureDepsSvg() {
+    if (!depsEl) return null;
+    if (depsEl.tagName && depsEl.tagName.toLowerCase() === 'svg') {
+      renderedDepsSvg = depsEl;
+    } else {
+      let s = depsEl.querySelector('svg');
+      if (!s) {
+        s = svgEl('svg', { class: 'gantt-deps-svg' });
+        depsEl.appendChild(s);
+      }
+      renderedDepsSvg = s;
+    }
+    return renderedDepsSvg;
+  }
+
+  function renderHeader(range, zoomKey, fullW) {
+    if (!headerTop || !headerBottom || !headerEl) return;
+    headerTop.textContent = '';
+    headerBottom.textContent = '';
+
+    const pxPerDay = range.pxPerDay;
+    const totalW = fullW || range.timelineWidth;
+    headerEl.style.width = `${totalW}px`;
+    headerTop.style.width = `${totalW}px`;
+    headerBottom.style.width = `${totalW}px`;
+    if (headerMarkers) headerMarkers.style.width = `${totalW}px`;
+
+    const startDt = ganttParseDate(range.start);
+    const endDt = ganttParseDate(range.end);
+    if (!startDt || !endDt) return;
+
+    const gridLines = [];
+
+    function addTick(container, left, width, text, extraCls) {
+      const cell = htmlEl('div', `gantt-tick${extraCls ? ' ' + extraCls : ''}`, text);
+      cell.style.left = `${left}px`;
+      cell.style.width = `${width}px`;
+      container.appendChild(cell);
+    }
+
+    // Helper: iterate calendar months covering [startDt, endDt]
+    function forEachMonth(cb) {
+      let y = startDt.getUTCFullYear();
+      let m = startDt.getUTCMonth();
+      const endY = endDt.getUTCFullYear();
+      const endM = endDt.getUTCMonth();
+      while (y < endY || (y === endY && m <= endM)) {
+        const mStart = new Date(Date.UTC(y, m, 1));
+        const mEnd = new Date(Date.UTC(y, m + 1, 0));
+        const cStart = mStart < startDt ? startDt : mStart;
+        const cEnd = mEnd > endDt ? endDt : mEnd;
+        const left = ganttDiffDays(range.start, ganttFormatDate(cStart)) * pxPerDay;
+        const days = ganttDiffDays(ganttFormatDate(cStart), ganttFormatDate(cEnd)) + 1;
+        cb({ y, m, left, width: days * pxPerDay });
+        m++;
+        if (m > 11) { m = 0; y++; }
+      }
+    }
+
+    // Helper: iterate calendar years covering [startDt, endDt]
+    function forEachYear(cb) {
+      const startY = startDt.getUTCFullYear();
+      const endY = endDt.getUTCFullYear();
+      for (let y = startY; y <= endY; y++) {
+        const yStart = new Date(Date.UTC(y, 0, 1));
+        const yEnd = new Date(Date.UTC(y, 11, 31));
+        const cStart = yStart < startDt ? startDt : yStart;
+        const cEnd = yEnd > endDt ? endDt : yEnd;
+        const left = ganttDiffDays(range.start, ganttFormatDate(cStart)) * pxPerDay;
+        const days = ganttDiffDays(ganttFormatDate(cStart), ganttFormatDate(cEnd)) + 1;
+        cb({ y, left, width: days * pxPerDay });
+      }
+    }
+
+    if (zoomKey === 'day') {
+      forEachMonth(({ y, m, left, width }) => {
+        addTick(headerTop, left, width, `${MONTH_LONG[m]} ${y}`, 'gantt-tick-top');
+      });
+      for (let i = 0; i < range.totalDays; i++) {
+        const iso = ganttAddDays(range.start, i);
+        const dt = ganttParseDate(iso);
+        const dow = dt.getUTCDay();
+        const isWknd = dow === 0 || dow === 6;
+        const left = i * pxPerDay;
+        addTick(headerBottom, left, pxPerDay, `${dt.getUTCDate()} ${WEEKDAY_SHORT[dow].slice(0, 2)}`, `gantt-tick-bot${isWknd ? ' is-weekend' : ''}`);
+        gridLines.push({ x: left, major: dt.getUTCDate() === 1 });
+      }
+    } else if (zoomKey === 'week') {
+      forEachMonth(({ y, m, left, width }) => {
+        addTick(headerTop, left, width, `${MONTH_LONG[m]} ${y}`, 'gantt-tick-top');
+      });
+      // Align week ticks to Mondays
+      let curIso = range.start;
+      const startDow = startDt.getUTCDay();
+      const backToMon = startDow === 0 ? 6 : startDow - 1;
+      curIso = ganttAddDays(range.start, -backToMon);
+      while (curIso <= range.end) {
+        const wkEnd = ganttAddDays(curIso, 6);
+        const cStart = curIso < range.start ? range.start : curIso;
+        const cEnd = wkEnd > range.end ? range.end : wkEnd;
+        const left = ganttDiffDays(range.start, cStart) * pxPerDay;
+        const days = ganttDiffDays(cStart, cEnd) + 1;
+        const dt = ganttParseDate(curIso);
+        const wkNum = isoWeekNumber(dt);
+        const lbl = `W${wkNum} · ${MONTH_SHORT[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
+        addTick(headerBottom, left, days * pxPerDay, lbl, 'gantt-tick-bot');
+        if (left > 0) gridLines.push({ x: left, major: dt.getUTCDate() <= 7 });
+        curIso = ganttAddDays(curIso, 7);
+      }
+    } else if (zoomKey === 'month') {
+      forEachYear(({ y, left, width }) => {
+        addTick(headerTop, left, width, String(y), 'gantt-tick-top');
+      });
+      forEachMonth(({ m, left, width }) => {
+        addTick(headerBottom, left, width, MONTH_SHORT[m], 'gantt-tick-bot');
+        gridLines.push({ x: left, major: m === 0 });
+      });
+    } else if (zoomKey === 'quarter') {
+      forEachYear(({ y, left, width }) => {
+        addTick(headerTop, left, width, String(y), 'gantt-tick-top');
+      });
+      for (let y = startDt.getUTCFullYear(); y <= endDt.getUTCFullYear(); y++) {
+        for (let q = 0; q < 4; q++) {
+          const qStart = new Date(Date.UTC(y, q * 3, 1));
+          const qEnd = new Date(Date.UTC(y, q * 3 + 3, 0));
+          if (qEnd < startDt || qStart > endDt) continue;
+          const cStart = qStart < startDt ? startDt : qStart;
+          const cEnd = qEnd > endDt ? endDt : qEnd;
+          const left = ganttDiffDays(range.start, ganttFormatDate(cStart)) * pxPerDay;
+          const days = ganttDiffDays(ganttFormatDate(cStart), ganttFormatDate(cEnd)) + 1;
+          addTick(headerBottom, left, days * pxPerDay, `Q${q + 1}`, 'gantt-tick-bot');
+          gridLines.push({ x: left, major: q === 0 });
+        }
+      }
+    } else {
+      // year
+      forEachYear(({ y, left, width }) => {
+        addTick(headerTop, left, width, String(y), 'gantt-tick-top');
+      });
+      for (let y = startDt.getUTCFullYear(); y <= endDt.getUTCFullYear(); y++) {
+        for (let h = 0; h < 2; h++) {
+          const hStart = new Date(Date.UTC(y, h * 6, 1));
+          const hEnd = new Date(Date.UTC(y, h * 6 + 6, 0));
+          if (hEnd < startDt || hStart > endDt) continue;
+          const cStart = hStart < startDt ? startDt : hStart;
+          const cEnd = hEnd > endDt ? endDt : hEnd;
+          const left = ganttDiffDays(range.start, ganttFormatDate(cStart)) * pxPerDay;
+          const days = ganttDiffDays(ganttFormatDate(cStart), ganttFormatDate(cEnd)) + 1;
+          addTick(headerBottom, left, days * pxPerDay, `H${h + 1}`, 'gantt-tick-bot');
+          gridLines.push({ x: left, major: h === 0 });
+        }
+      }
+    }
+
+    return gridLines;
+  }
+
+  function renderGrid(range, zoomKey, visItems, gridLines, fullW) {
+    if (!gridEl) return;
+    gridEl.textContent = '';
+    els.rowBgs.clear();
+    if (headerMarkers) {
+      headerMarkers.querySelectorAll('.gantt-holiday-flag').forEach((n) => n.remove());
+    }
+    const rowH = GANTT_METRICS.ROW_H;
+    const totalH = Math.max(1, visItems.length) * rowH;
+    const totalW = fullW || range.timelineWidth;
+    gridEl.style.width = `${totalW}px`;
+    gridEl.style.height = `${totalH}px`;
+
+    // Horizontal row stripes
+    visItems.forEach((it, idx) => {
+      const rowBg = htmlEl('div', `gantt-row-bg${idx % 2 === 1 ? ' is-alt' : ''}${selItems.has(it.id) ? ' is-selected' : ''}${hoveredRowId === it.id ? ' is-hovered' : ''}`);
+      rowBg.dataset.rowId = it.id;
+      rowBg.style.top = `${idx * rowH}px`;
+      rowBg.style.height = `${rowH}px`;
+      rowBg.style.width = `${totalW}px`;
+      rowBg.addEventListener('pointerenter', () => setHoveredRow(it.id));
+      rowBg.addEventListener('pointerleave', () => {
+        if (hoveredRowId === it.id) setHoveredRow(null);
+      });
+      gridEl.appendChild(rowBg);
+      els.rowBgs.set(it.id, rowBg);
+    });
+
+    // Weekend bands (Day / Week only)
+    if (GANTT_ZOOMS[zoomKey].showWeekends) {
+      const pxPerDay = range.pxPerDay;
+      for (let i = 0; i < range.totalDays; i++) {
+        const iso = ganttAddDays(range.start, i);
+        const dt = ganttParseDate(iso);
+        const dow = dt.getUTCDay();
+        if (dow === 0 || dow === 6) {
+          const band = htmlEl('div', 'gantt-weekend');
+          band.style.left = `${i * pxPerDay}px`;
+          band.style.width = `${pxPerDay}px`;
+          band.style.height = `${totalH}px`;
+          gridEl.appendChild(band);
+        }
+      }
+    }
+
+    // Holiday bands + header chips
+    (chartData._holidays || []).forEach((h) => {
+      const band = htmlEl('div', 'gantt-holiday');
+      band.style.left = `${h.x}px`;
+      band.style.width = `${Math.max(2, h.w)}px`;
+      band.style.height = `${totalH}px`;
+      const tip = h.country ? `${h.name || 'Holiday'} (${h.country}) · ${formatDateRange(h.start, h.end)}` : `${h.name || 'Holiday'} · ${formatDateRange(h.start, h.end)}`;
+      band.dataset.tip = tip;
+      band.title = tip;
+      gridEl.appendChild(band);
+    });
+
+    // Vertical gridlines
+    (gridLines || []).forEach((gl) => {
+      const line = htmlEl('div', `gantt-gridline${gl.major ? ' is-major' : ''}`);
+      line.style.left = `${gl.x}px`;
+      line.style.height = `${totalH}px`;
+      gridEl.appendChild(line);
+    });
+  }
+
+  function renderSidebar(visItems) {
+    if (!treeEl) return;
+    treeEl.textContent = '';
+    els.rows.clear();
+    const rowH = GANTT_METRICS.ROW_H;
+    const edit = !presenting();
+
+    visItems.forEach((it, idx) => {
+      const row = htmlEl('div', `gantt-tree-row${idx % 2 === 1 ? ' is-alt' : ''}`);
+      row.dataset.itemId = it.id;
+      row.dataset.kind = it.kind || 'task';
+      row.style.height = `${rowH}px`;
+      row.style.paddingLeft = `${8 + (it._depth || 0) * 18}px`;
+      if (it._hasChildren || it.kind === 'group') row.classList.add('is-parent');
+      if (selItems.has(it.id)) row.classList.add('selected');
+      if (hoveredRowId === it.id) row.classList.add('is-hovered');
+      if (edit) {
+        row.draggable = false; // pointer-based row drag
+        const grip = htmlEl('span', 'gantt-row-grip', '⋮');
+        grip.setAttribute('aria-hidden', 'true');
+        grip.setAttribute('data-export-skip', '');
+        row.appendChild(grip);
+      }
+
+      // Collapse/expand chevron
+      if (it._hasChildren || it.kind === 'group') {
+        const chev = htmlEl('button', 'gantt-chevron');
+        chev.type = 'button';
+        chev.setAttribute('aria-expanded', String(!it.collapsed));
+        chev.setAttribute('aria-label', it.collapsed ? `Expand ${it.label || it.id}` : `Collapse ${it.label || it.id}`);
+        chev.innerHTML = ui.icon(it.collapsed ? 'chevron-up' : 'chevron-down', { size: 'xs', bold: true });
+        if (it.collapsed) chev.classList.add('is-collapsed');
+        chev.addEventListener('pointerdown', (e) => e.stopPropagation());
+        chev.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleCollapse(it.id);
+        });
+        row.appendChild(chev);
+      } else {
+        row.appendChild(htmlEl('span', 'gantt-chevron-spacer'));
+      }
+
+      // Kind indicator dot / diamond
+      const dot = htmlEl('span', `gantt-tree-dot is-${it.kind || 'task'}`);
+      setSwatch(dot, it.color || (it.kind === 'milestone' ? '4' : '1'));
+      row.appendChild(dot);
+
+      // Label
+      const lbl = htmlEl('span', 'gantt-tree-label', it.label || it.id);
+      lbl.dataset.tip = it.label || it.id;
+      row.appendChild(lbl);
+
+      // Quick + subtask button on hover
+      if (edit && it.kind !== 'milestone') {
+        const addBtn = htmlEl('button', 'gantt-row-add');
+        addBtn.type = 'button';
+        addBtn.title = `Add subtask under ${it.label || it.id}`;
+        addBtn.setAttribute('aria-label', addBtn.title);
+        addBtn.setAttribute('data-export-skip', '');
+        addBtn.innerHTML = ui.icon('plus', { size: 'xs', bold: true });
+        addBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        addBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          addSubtask(it.id);
+        });
+        row.appendChild(addBtn);
+      }
+
+      row.addEventListener('pointerdown', (e) => onSidebarRowPointerDown(e, it));
+      row.addEventListener('pointerenter', () => onItemHover(it.id, true));
+      row.addEventListener('pointerleave', () => onItemHover(it.id, false));
+      row.addEventListener('dblclick', (e) => {
+        if (!edit) return;
+        e.stopPropagation();
+        startInlineRename(it.id, lbl);
+      });
+
+      treeEl.appendChild(row);
+      els.rows.set(it.id, row);
+    });
+  }
+
+  function renderBars(visItems, todayStr) {
+    if (!barsEl) return;
+    barsEl.textContent = '';
+    els.bars.clear();
+    const edit = !presenting();
+    const charW = GANTT_METRICS.CHAR_W;
+    const hasOutFs = new Set();
+    (chartData._deps || []).forEach((d) => {
+      if (d && d.from && d.type !== 'ss') hasOutFs.add(d.from);
+    });
+
+    visItems.forEach((it) => {
+      if (!it._bar) return;
+      const b = it._bar;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      const isMilestone = it.kind === 'milestone' && !it._hasChildren;
+      const note = noteForTarget(it.id);
+      const timeState = getTimeState(it, todayStr);
+
+      if (isMilestone) {
+        const ms = htmlEl('div', 'gantt-milestone');
+        ms.dataset.itemId = it.id;
+        ms.dataset.nodeId = it.id;
+        ms.dataset.kind = 'milestone';
+        ms.dataset.timeState = timeState;
+        ms.style.left = `${b.x}px`;
+        ms.style.top = `${b.y}px`;
+        ms.style.width = `${b.w}px`;
+        ms.style.height = `${b.h}px`;
+        setSwatch(ms, it.color || '4');
+        if (selItems.has(it.id)) ms.classList.add('selected');
+        if (note) ms.classList.add('has-note');
+        ms.dataset.tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
+
+        const diamond = htmlEl('div', 'gantt-ms-diamond');
+        ms.appendChild(diamond);
+
+        const lbl = htmlEl('span', 'gantt-ms-label', it.label || it.id);
+        ms.appendChild(lbl);
+
+        if (note) {
+          const badge = htmlEl('button', 'note-badge');
+          badge.type = 'button';
+          badge.setAttribute('data-export-skip', '');
+          badge.setAttribute('aria-label', `Note: ${note.text || ''}`);
+          badge.title = note.text || 'Note';
+          badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
+          badge.addEventListener('pointerdown', (e) => e.stopPropagation());
+          badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            peekOrEditNote(it.id);
+          });
+          ms.appendChild(badge);
+        }
+
+        if (edit) {
+          ms.setAttribute('data-touch-drag', '1');
+          const portL = htmlEl('span', 'gantt-port gantt-port-l');
+          portL.dataset.port = 'ss';
+          portL.title = 'Drag to connect (Start-to-Start)';
+          portL.setAttribute('data-export-skip', '');
+          portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
+
+          const portR = htmlEl('span', 'gantt-port gantt-port-r');
+          portR.dataset.port = 'fs';
+          portR.title = 'Drag to connect (Finish-to-Start)';
+          portR.setAttribute('data-export-skip', '');
+          portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
+
+          ms.append(portL, portR);
+        }
+
+        ms.addEventListener('pointerdown', (e) => onBarPointerDown(e, it));
+        ms.addEventListener('pointerenter', () => onItemHover(it.id, true));
+        ms.addEventListener('pointerleave', () => onItemHover(it.id, false));
+        ms.addEventListener('dblclick', (e) => {
+          if (!edit) return;
+          e.stopPropagation();
+          const row = els.rows.get(it.id);
+          startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : lbl);
+        });
+
+        barsEl.appendChild(ms);
+        els.bars.set(it.id, ms);
+        return;
+      }
+
+      // Task bar or Parent summary bar
+      const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
+      bar.dataset.itemId = it.id;
+      bar.dataset.nodeId = it.id;
+      bar.dataset.kind = isParent ? 'group' : 'task';
+      bar.dataset.timeState = timeState;
+      const barW = Math.max(4, b.w);
+      bar.style.left = `${b.x}px`;
+      bar.style.top = `${b.y}px`;
+      bar.style.width = `${barW}px`;
+      bar.style.height = `${b.h}px`;
+      setSwatch(bar, it.color || '1');
+      if (selItems.has(it.id)) bar.classList.add('selected');
+      if (note) bar.classList.add('has-note');
+      if (hasOutFs.has(it.id)) bar.classList.add('has-out-dep');
+
+      const tipText = `${it.label || it.id} · ${formatDateRange(it._start, it._end)}`;
+      bar.dataset.tip = tipText;
+      bar.title = tipText;
+
+      // Render label inside the bar only when it fits (hover tooltip carries full details on short bars)
+      const labelText = it.label || it.id;
+      const fitsInside = !isParent && b.w >= labelText.length * charW + 18;
+      let lbl = null;
+      if (fitsInside) {
+        lbl = htmlEl('span', 'gantt-bar-label', labelText);
+        bar.appendChild(lbl);
+      }
+
+      if (note) {
+        const badge = htmlEl('button', 'note-badge');
+        badge.type = 'button';
+        badge.setAttribute('data-export-skip', '');
+        badge.setAttribute('aria-label', `Note: ${note.text || ''}`);
+        badge.title = note.text || 'Note';
+        badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
+        badge.addEventListener('pointerdown', (e) => e.stopPropagation());
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          peekOrEditNote(it.id);
+        });
+        bar.appendChild(badge);
+      }
+
+      if (edit && !isParent) {
+        bar.setAttribute('data-touch-drag', '1');
+        const resL = htmlEl('span', 'gantt-resize gantt-resize-l');
+        resL.title = 'Resize start date';
+        resL.setAttribute('data-export-skip', '');
+        resL.addEventListener('pointerdown', (e) => onResizePointerDown(e, it, 'start'));
+
+        const resR = htmlEl('span', 'gantt-resize gantt-resize-r');
+        resR.title = 'Resize end date';
+        resR.setAttribute('data-export-skip', '');
+        resR.addEventListener('pointerdown', (e) => onResizePointerDown(e, it, 'end'));
+
+        bar.append(resL, resR);
+      }
+
+      if (edit) {
+        const portL = htmlEl('span', 'gantt-port gantt-port-l');
+        portL.dataset.port = 'ss';
+        portL.title = 'Drag to connect (Start-to-Start)';
+        portL.setAttribute('data-export-skip', '');
+        portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
+
+        const portR = htmlEl('span', 'gantt-port gantt-port-r');
+        portR.dataset.port = 'fs';
+        portR.title = 'Drag to connect (Finish-to-Start)';
+        portR.setAttribute('data-export-skip', '');
+        portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
+
+        bar.append(portL, portR);
+      }
+
+      bar.addEventListener('pointerdown', (e) => onBarPointerDown(e, it));
+      bar.addEventListener('pointerenter', () => onItemHover(it.id, true));
+      bar.addEventListener('pointerleave', () => onItemHover(it.id, false));
+      bar.addEventListener('dblclick', (e) => {
+        if (!edit) return;
+        e.stopPropagation();
+        const row = els.rows.get(it.id);
+        startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : lbl);
+      });
+
+      barsEl.appendChild(bar);
+      els.bars.set(it.id, bar);
+    });
+  }
+
+  function renderMarkers(visItems) {
+    if (markersEl) markersEl.textContent = '';
+    if (headerMarkers) {
+      headerMarkers.querySelectorAll('.gantt-marker-flag').forEach((n) => n.remove());
+    }
+    els.markers.clear();
+
+    const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
+    const edit = !presenting();
+
+    (chartData._markers || []).forEach((m) => {
+      const line = htmlEl('div', 'gantt-marker-line');
+      line.dataset.markerId = m.id;
+      line.style.left = `${m.x}px`;
+      line.style.height = `${totalH}px`;
+      setSwatch(line, m.color || '4');
+      if (selMarkerId === m.id) line.classList.add('selected');
+
+      const flagText = m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone');
+      const flag = htmlEl('div', 'gantt-marker-flag', flagText);
+      flag.dataset.markerId = m.id;
+      flag.style.left = `${m.x}px`;
+      setSwatch(flag, m.color || '4');
+      flag.dataset.tip = `${m.label || 'Milestone'} · ${formatShortDate(m.date)}`;
+      if (selMarkerId === m.id) flag.classList.add('selected');
+
+      if (edit) {
+        line.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
+        flag.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
+      }
+
+      if (markersEl) markersEl.appendChild(line);
+      if (headerMarkers) headerMarkers.appendChild(flag);
+      els.markers.set(m.id, { line, flag });
+    });
+  }
+
+  function renderToday(range, visItems, todayStr) {
+    if (todayEl) todayEl.textContent = '';
+    if (headerMarkers) {
+      headerMarkers.querySelectorAll('.gantt-today-pill').forEach((n) => n.remove());
+    }
+    if (chartData.showToday === false || !todayStr || !range) return;
+    if (todayStr < range.start || todayStr > range.end) return;
+
+    const x = Math.round((ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay * 10) / 10;
+    const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
+
+    if (todayEl) {
+      const line = htmlEl('div', 'gantt-today-line');
+      line.style.left = `${x}px`;
+      line.style.height = `${totalH}px`;
+      line.dataset.today = todayStr;
+      todayEl.appendChild(line);
+    }
+    if (headerMarkers) {
+      const pill = htmlEl('div', 'gantt-today-pill', `Today · ${formatShortDate(todayStr)}`);
+      pill.style.left = `${x}px`;
+      pill.title = `Today · ${todayStr}`;
+      headerMarkers.appendChild(pill);
+    }
+  }
+
+  function renderDependencies(range, visItems) {
+    const svg = ensureDepsSvg();
+    if (!svg) return;
+    svg.textContent = '';
+    els.deps.clear();
+
+    const totalW = range.timelineWidth;
+    const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
+    svg.setAttribute('width', String(totalW));
+    svg.setAttribute('height', String(totalH));
+    svg.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+    svg.style.width = `${totalW}px`;
+    svg.style.height = `${totalH}px`;
+
+    // Arrowhead defs
+    const defs = svgEl('defs');
+    [
+      ['gantt-arr', 'gantt-arr-fill'],
+      ['gantt-arr-warn', 'gantt-arr-warn-fill'],
+      ['gantt-arr-sel', 'gantt-arr-sel-fill']
+    ].forEach(([id, cls]) => {
+      const mk = svgEl('marker', {
+        id,
+        viewBox: '0 0 10 10',
+        refX: '8.5',
+        refY: '5',
+        markerWidth: '7',
+        markerHeight: '7',
+        orient: 'auto-start-reverse'
+      });
+      mk.appendChild(svgEl('path', { d: 'M 1 1.5 L 9 5 L 1 8.5 z', class: cls }));
+      defs.appendChild(mk);
+    });
+    svg.appendChild(defs);
+
+    (chartData._deps || []).forEach((dep) => {
+      const key = depKeyOf(dep);
+      const isSel = selDepKey === key;
+      const g = svgEl('g', {
+        class: `gantt-dep-group${dep.violated ? ' violated' : ''}${isSel ? ' selected' : ''}`,
+        'data-from': dep.from,
+        'data-to': dep.to,
+        'data-dep-type': dep.type
+      });
+
+      const tipText = dep.violated
+        ? (dep.type === 'ss' ? 'Starts before prerequisite starts' : 'Starts before prerequisite ends')
+        : `${dep.type.toUpperCase()} dependency`;
+      const titleEl = svgEl('title');
+      titleEl.textContent = tipText;
+      g.appendChild(titleEl);
+
+      const hit = svgEl('path', {
+        d: dep.path,
+        class: 'gantt-dep-hit',
+        fill: 'none',
+        stroke: 'transparent',
+        'stroke-width': '12'
+      });
+      const markerUrl = isSel ? 'url(#gantt-arr-sel)' : dep.violated ? 'url(#gantt-arr-warn)' : 'url(#gantt-arr)';
+      const path = svgEl('path', {
+        d: dep.path,
+        class: `gantt-dep-path${dep.violated ? ' violated' : ''}${isSel ? ' selected' : ''}`,
+        fill: 'none',
+        'marker-end': markerUrl
+      });
+
+      g.append(hit, path);
+      g.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || presenting()) return;
+        e.stopPropagation();
+        selectDependency(key);
+      });
+
+      svg.appendChild(g);
+      els.deps.set(key, { g, path, hit });
+    });
+
+    syncDepsVisibility();
+    syncDepSpotlight();
+  }
+
+  function syncDepsVisibility() {
+    if (depsEl) depsEl.classList.toggle('is-hidden', !showDeps);
+    if (btnDeps) {
+      btnDeps.setAttribute('aria-checked', String(showDeps));
+      btnDeps.title = showDeps ? 'Hide dependency arrows' : 'Show dependency arrows';
+    }
+  }
+
+  function computeConnectedDepKeys(seedIds) {
+    const chain = new Set();
+    if (!seedIds || !seedIds.length) return chain;
+    const deps = chartData._deps || [];
+    if (!deps.length) return chain;
+    const outMap = new Map();
+    const inMap = new Map();
+    deps.forEach((d) => {
+      if (!d || !d.from || !d.to) return;
+      if (!outMap.has(d.from)) outMap.set(d.from, []);
+      outMap.get(d.from).push(d);
+      if (!inMap.has(d.to)) inMap.set(d.to, []);
+      inMap.get(d.to).push(d);
+    });
+
+    const visitedUp = new Set(seedIds);
+    const upQueue = [...seedIds];
+    while (upQueue.length) {
+      const cur = upQueue.pop();
+      (inMap.get(cur) || []).forEach((d) => {
+        chain.add(depKeyOf(d));
+        if (!visitedUp.has(d.from)) {
+          visitedUp.add(d.from);
+          upQueue.push(d.from);
+        }
+      });
+    }
+
+    const visitedDown = new Set(seedIds);
+    const downQueue = [...seedIds];
+    while (downQueue.length) {
+      const cur = downQueue.pop();
+      (outMap.get(cur) || []).forEach((d) => {
+        chain.add(depKeyOf(d));
+        if (!visitedDown.has(d.to)) {
+          visitedDown.add(d.to);
+          downQueue.push(d.to);
+        }
+      });
+    }
+    return chain;
+  }
+
+  function syncDepSpotlight() {
+    if (!depsEl) return;
+    const seeds = hoveredItemId ? [hoveredItemId] : [...selItems];
+    const hasFocus = seeds.length > 0;
+    const chainKeys = hasFocus ? computeConnectedDepKeys(seeds) : new Set();
+    depsEl.classList.toggle('has-focus', hasFocus);
+
+    const depByKey = new Map();
+    (chartData._deps || []).forEach((d) => {
+      if (d) depByKey.set(depKeyOf(d), d);
+    });
+
+    els.deps.forEach((rec, key) => {
+      const isChain = hasFocus && chainKeys.has(key);
+      const isSel = selDepKey === key;
+      rec.path.classList.toggle('is-chain', isChain);
+      const dep = depByKey.get(key);
+      const url = (dep && dep.violated)
+        ? 'url(#gantt-arr-warn)'
+        : (isSel || isChain) ? 'url(#gantt-arr-sel)' : 'url(#gantt-arr)';
+      rec.path.setAttribute('marker-end', url);
+    });
+  }
+
+  function toggleLegendPop(force) {
+    if (!colorKeyHost) return;
+    const show = typeof force === 'boolean' ? force : !legendOpen;
+    legendOpen = show;
+    colorKeyHost.hidden = !show;
+    if (btnLegend) btnLegend.setAttribute('aria-expanded', String(show));
+  }
+
+  function renderColorKey() {
+    if (!colorKeyHost) return;
+    colorKeyHost.textContent = '';
+    const usedSet = new Set();
+    itemsList().forEach((it) => { if (it && it.color) usedSet.add(colorSlot(it.color)); });
+    markersList().forEach((m) => { if (m && m.color) usedSet.add(colorSlot(m.color)); });
+    if (chartData.colorKey) {
+      Object.keys(chartData.colorKey).forEach((k) => { if (chartData.colorKey[k]) usedSet.add(colorSlot(k)); });
+    }
+    const used = [...usedSet].sort((a, b) => Number(a) - Number(b) || String(a).localeCompare(String(b)));
+    const hasOverlap = (chartData._deps || []).some((d) => d && d.violated);
+    if (!used.length && !hasOverlap) {
+      legendOpen = false;
+      colorKeyHost.hidden = true;
+      if (btnLegend) {
+        btnLegend.hidden = true;
+        btnLegend.setAttribute('aria-expanded', 'false');
+      }
+      return;
+    }
+    let box = used.length ? ui.colorKey(used, chartData.colorKey || {}, { prompts: !presenting() }) : null;
+    if (!box && !hasOverlap) {
+      legendOpen = false;
+      colorKeyHost.hidden = true;
+      if (btnLegend) {
+        btnLegend.hidden = true;
+        btnLegend.setAttribute('aria-expanded', 'false');
+      }
+      return;
+    }
+    if (!box) {
+      box = htmlEl('div', 'color-key');
+    }
+    if (hasOverlap) {
+      const ov = htmlEl('span', 'gantt-key-overlap');
+      ov.title = 'A dependent task starts before its prerequisite finishes';
+      const dash = htmlEl('span', 'gantt-key-overlap-line');
+      dash.setAttribute('aria-hidden', 'true');
+      ov.append(dash, htmlEl('span', 'gantt-key-overlap-text', 'Schedule overlap'));
+      box.appendChild(ov);
+    }
+    if (btnLegend) {
+      btnLegend.hidden = false;
+      btnLegend.setAttribute('aria-expanded', String(legendOpen));
+    }
+    colorKeyHost.hidden = !legendOpen;
+    colorKeyHost.appendChild(box);
+    if (!presenting()) {
+      box.querySelectorAll('.color-key-label').forEach((lbl) => {
+        lbl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          editColorKeySlot(lbl.dataset.color, lbl);
+        });
+      });
+    }
+  }
+
+  function editColorKeySlot(slot, lbl) {
+    if (presenting() || !slot || !lbl) return;
+    lbl.contentEditable = 'true';
+    lbl.focus();
+    const finish = () => {
+      lbl.contentEditable = 'false';
+      const val = lbl.textContent.replace(/\s+/g, ' ').trim().slice(0, 40);
+      if (!chartData.colorKey) chartData.colorKey = {};
+      const prev = chartData.colorKey[slot] || '';
+      if (val === prev) { renderColorKey(); return; }
+      if (val) chartData.colorKey[slot] = val;
+      else delete chartData.colorKey[slot];
+      if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey;
+      renderColorKey();
+      updateStatus(true);
+    };
+    lbl.addEventListener('blur', finish, { once: true });
+    lbl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Escape') lbl.textContent = (chartData.colorKey && chartData.colorKey[slot]) || '';
+        lbl.blur();
+      }
+    });
+  }
+
+  // --- NOTES ---
+  function isNoteVisible(n) {
+    if (!n || !n.target) return false;
+    const it = itemById(n.target);
+    if (!it || it._hidden || !it._bar) return false;
+    if (n.id === editingNoteId) return true;
+    if (chartData.showNotes === true && n.text && n.text.trim()) return true;
+    if (peekNoteItemId === n.target && n.text && n.text.trim()) return true;
+    return false;
+  }
+
+  function renderNotes() {
+    if (!notesEl) return;
+    notesEl.textContent = '';
+    els.notes.clear();
+    const edit = !presenting();
+    const live = notesList().filter(isNoteVisible);
+    if (selNoteId && !live.some((n) => n.id === selNoteId)) selNoteId = null;
+
+    live.forEach((n) => {
+      const it = itemById(n.target);
+      if (!it || !it._bar) return;
+      const { card, text } = ui.noteCard(n, edit ? {
+        onDelete: () => removeNote(n.id),
+        onCommit: (el) => commitNote(n, el)
+      } : {});
+      card.classList.add('show');
+      if (selNoteId === n.id) card.classList.add('selected');
+      card.setAttribute('role', 'note');
+      card.setAttribute('aria-label', `Note on ${it.label || it.id}: ${n.text || 'empty'}`);
+
+      // Position beside/below bar in #gantt-body coordinates
+      const b = it._bar;
+      const x = Math.max(8, Math.min((chartData._range ? chartData._range.timelineWidth : 600) - 220, b.x + b.w + 12));
+      const y = Math.max(4, b.y + b.h + 4);
+      card.style.left = `${x}px`;
+      card.style.top = `${y}px`;
+
+      if (edit) {
+        text.addEventListener('blur', () => commitNote(n, text));
+        card.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0 || e.target.isContentEditable) return;
+          e.stopPropagation();
+          selectNote(n.id);
+        });
+        card.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          editNote(n.id);
+        });
+      }
+
+      notesEl.appendChild(card);
+      els.notes.set(n.id, card);
+    });
+  }
+
+  function updateNotesButton() {
+    if (!btnNotes) return;
+    const count = notesList().filter((n) => n && n.text && n.text.trim()).length;
+    const on = chartData.showNotes === true;
+    btnNotes.setAttribute('aria-checked', String(on));
+    btnNotes.disabled = !count && !on;
+    const c = btnNotes.querySelector('.btn-count');
+    if (c) {
+      c.textContent = count ? String(count) : '';
+      c.hidden = !count;
+    }
+    btnNotes.title = !count ? 'No notes yet' : on ? 'Hide all notes' : 'Show all notes';
+  }
+
+  function toggleShowNotes() {
+    chartData.showNotes = chartData.showNotes !== true;
+    if (!chartData.showNotes) peekNoteItemId = null;
+    renderNotes();
+    updateNotesButton();
+    if (!presenting()) updateStatus(true);
+  }
+
+  function selectNote(id) {
+    selItems.clear();
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = id;
+    syncSelectionUi();
+  }
+
+  function peekOrEditNote(itemId) {
+    const n = noteForTarget(itemId);
+    if (!n) return;
+    if (presenting()) {
+      peekNoteItemId = peekNoteItemId === itemId ? null : itemId;
+      renderNotes();
+      return;
+    }
+    peekNoteItemId = itemId;
+    renderNotes();
+    editNote(n.id);
+  }
+
+  function addOrEditNoteForTarget(itemId) {
+    if (presenting()) return;
+    const it = itemById(itemId);
+    if (!it) {
+      ui.toast('Select a task or milestone first to add a note');
+      return;
+    }
+    const existing = noteForTarget(it.id);
+    if (existing) {
+      peekNoteItemId = it.id;
+      renderNotes();
+      editNote(existing.id);
+      return;
+    }
+    if (!Array.isArray(chartData.notes)) chartData.notes = [];
+    const note = { id: newId('n'), text: '', target: it.id };
+    chartData.notes.push(note);
+    noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
+    editingNoteId = note.id;
+    peekNoteItemId = it.id;
+    render();
+    editNote(note.id);
+  }
+
+  function editNote(id) {
+    const n = noteById(id);
+    const card = els.notes.get(id);
+    if (!n || !card || presenting()) return;
+    if (editingNoteId !== id || !noteDraft) {
+      noteDraft = { id, isNew: false, wasOn: chartData.showNotes === true, before: (n.text || '').trim() };
+    }
+    editingNoteId = id;
+    const text = card.querySelector('.note-text');
+    if (!text) return;
+    text.contentEditable = 'true';
+    text.focus();
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    range.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(range);
+  }
+
+  function commitNote(n, textEl) {
+    textEl.contentEditable = 'false';
+    if (editingNoteId !== n.id) return;
+    const draft = noteDraft;
+    editingNoteId = null;
+    noteDraft = null;
+    const val = textEl.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!val) {
+      removeNote(n.id, !(draft && draft.isNew));
+      return;
+    }
+    if (val === (draft ? draft.before : (n.text || '').trim())) {
+      textEl.textContent = n.text;
+      return;
+    }
+    n.text = val;
+    textEl.textContent = val;
+    render();
+    updateStatus(true);
+  }
+
+  function removeNote(id, pushUndo = true) {
+    chartData.notes = notesList().filter((n) => n && n.id !== id);
+    if (!chartData.notes.length) delete chartData.notes;
+    if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
+    if (selNoteId === id) selNoteId = null;
+    render();
+    if (pushUndo) updateStatus(true);
+  }
+
+  function setHoveredRow(id) {
+    const next = id || null;
+    if (hoveredRowId === next) return;
+    if (hoveredRowId) {
+      const prevRow = els.rows.get(hoveredRowId);
+      const prevBg = els.rowBgs.get(hoveredRowId);
+      if (prevRow) prevRow.classList.remove('is-hovered');
+      if (prevBg) prevBg.classList.remove('is-hovered');
+    }
+    hoveredRowId = next;
+    if (hoveredRowId) {
+      const nextRow = els.rows.get(hoveredRowId);
+      const nextBg = els.rowBgs.get(hoveredRowId);
+      if (nextRow) nextRow.classList.add('is-hovered');
+      if (nextBg) nextBg.classList.add('is-hovered');
+    }
+  }
+
+  function onItemHover(itemId, entering) {
+    if (entering) {
+      hoveredItemId = itemId;
+      setHoveredRow(itemId);
+    } else {
+      if (hoveredItemId === itemId) hoveredItemId = null;
+      if (hoveredRowId === itemId) setHoveredRow(null);
+    }
+    syncDepSpotlight();
+
+    if (chartData.showNotes === true || editingNoteId) return;
+    if (entering && noteForTarget(itemId)) {
+      if (peekNoteItemId !== itemId) {
+        peekNoteItemId = itemId;
+        renderNotes();
+      }
+    } else if (!entering && peekNoteItemId === itemId && !selItems.has(itemId)) {
+      peekNoteItemId = null;
+      renderNotes();
+    }
+  }
+
+  function syncZoomPills(zoomKey) {
+    const host = zoomPills || document.getElementById('gantt-zoom-pills');
+    if (!host) return;
+    host.querySelectorAll('[data-zoom-set]').forEach((btn) => {
+      const active = btn.dataset.zoomSet === zoomKey;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('is-active', active);
+    });
+  }
+
+  // --- MAIN RENDER ---
+  function render() {
+    applyLayout();
+    const range = chartData._range;
+    const zoomKey = currentZoom();
+    if (root) root.dataset.zoom = zoomKey;
+    const visItems = visibleItems();
+    const todayStr = getTodayStr();
+    const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
+    const fullW = Math.max(range.timelineWidth, (timeline && timeline.clientWidth) || 0);
+
+    applySidebarWidth(sidebarWidth);
+
+    if (bodyEl) {
+      bodyEl.style.width = `${fullW}px`;
+      bodyEl.style.height = `${totalH}px`;
+    }
+    if (barsEl) {
+      barsEl.style.width = `${fullW}px`;
+      barsEl.style.height = `${totalH}px`;
+    }
+    if (markersEl) {
+      markersEl.style.width = `${fullW}px`;
+      markersEl.style.height = `${totalH}px`;
+    }
+    if (todayEl) {
+      todayEl.style.width = `${fullW}px`;
+      todayEl.style.height = `${totalH}px`;
+    }
+    if (notesEl) {
+      notesEl.style.width = `${fullW}px`;
+      notesEl.style.height = `${totalH}px`;
+    }
+
+    const gridLines = renderHeader(range, zoomKey, fullW);
+    renderGrid(range, zoomKey, visItems, gridLines, fullW);
+    renderSidebar(visItems);
+    renderBars(visItems, todayStr);
+    renderMarkers(visItems);
+    renderToday(range, visItems, todayStr);
+    renderDependencies(range, visItems);
+    renderNotes();
+    renderColorKey();
+    updateNotesButton();
+    renderHolidaysList();
+    syncSelectionUi();
+    syncZoomPills(zoomKey);
+    if (typeof showZoom === 'function') showZoom();
+  }
+
+  // Fast live geometry refresh during drag/resize without rebuilding the entire DOM
+  function updateLiveGeometry() {
+    applyLayout();
+    const range = chartData._range;
+    const visItems = visibleItems();
+    const todayStr = getTodayStr();
+    const hasOutFs = new Set();
+    (chartData._deps || []).forEach((d) => {
+      if (d && d.from && d.type !== 'ss') hasOutFs.add(d.from);
+    });
+
+    visItems.forEach((it) => {
+      const el = els.bars.get(it.id);
+      if (!el || !it._bar) return;
+      const b = it._bar;
+      el.style.left = `${b.x}px`;
+      el.style.top = `${b.y}px`;
+      el.style.width = `${Math.max(4, b.w)}px`;
+      el.style.height = `${b.h}px`;
+      el.dataset.timeState = getTimeState(it, todayStr);
+      if (!el.classList.contains('gantt-summary') && !el.classList.contains('gantt-milestone')) {
+        const fits = b.w >= (it.label || it.id).length * GANTT_METRICS.CHAR_W + 18;
+        const lbl = el.querySelector('.gantt-bar-label');
+        if (fits && !lbl) {
+          el.appendChild(htmlEl('span', 'gantt-bar-label', it.label || it.id));
+        } else if (!fits && lbl) {
+          lbl.remove();
+        }
+      }
+    });
+
+    (chartData._markers || []).forEach((m) => {
+      const rec = els.markers.get(m.id);
+      if (!rec) return;
+      rec.line.style.left = `${m.x}px`;
+      rec.flag.style.left = `${m.x}px`;
+      rec.flag.textContent = m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone');
+    });
+
+    renderDependencies(range, visItems);
+  }
+
+  // --- DRAG TOOLTIP ---
+  function showDragTip(clientX, clientY, text) {
+    if (!dragTipEl) return;
+    dragTipEl.textContent = text;
+    dragTipEl.hidden = false;
+    dragTipEl.style.left = `${clientX + 14}px`;
+    dragTipEl.style.top = `${clientY - 28}px`;
+  }
+
+  function hideDragTip() {
+    if (!dragTipEl) return;
+    dragTipEl.hidden = true;
+  }
+
+  // --- SELECTION & ACTION BAR ---
+  function clearSelection() {
+    selItems.clear();
+    lastSelItemId = null;
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = null;
+    if (chartData.showNotes !== true) peekNoteItemId = null;
+    closeFloatingPop();
+    syncSelectionUi();
+    renderNotes();
+  }
+
+  function hasSelection() {
+    return !presenting() && (selItems.size > 0 || !!selMarkerId || !!selDepKey || !!selNoteId);
+  }
+
+  function selectSingleItem(id) {
+    selItems.clear();
+    selItems.add(id);
+    lastSelItemId = id;
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = null;
+    if (chartData.showNotes !== true && noteForTarget(id)) peekNoteItemId = id;
+    syncSelectionUi();
+    renderNotes();
+  }
+
+  function toggleItemSelection(id) {
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = null;
+    if (selItems.has(id)) selItems.delete(id);
+    else selItems.add(id);
+    lastSelItemId = id;
+    syncSelectionUi();
+  }
+
+  function selectItemRange(toId) {
+    const vis = visibleItems();
+    const toIdx = vis.findIndex((it) => it.id === toId);
+    if (toIdx < 0) return;
+    const fromIdx = lastSelItemId ? vis.findIndex((it) => it.id === lastSelItemId) : toIdx;
+    const lo = Math.min(fromIdx < 0 ? toIdx : fromIdx, toIdx);
+    const hi = Math.max(fromIdx < 0 ? toIdx : fromIdx, toIdx);
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = null;
+    selItems.clear();
+    for (let i = lo; i <= hi; i++) selItems.add(vis[i].id);
+    syncSelectionUi();
+  }
+
+  function selectMarker(id) {
+    selItems.clear();
+    selDepKey = null;
+    selNoteId = null;
+    selMarkerId = id;
+    syncSelectionUi();
+  }
+
+  function selectDependency(key) {
+    selItems.clear();
+    selMarkerId = null;
+    selNoteId = null;
+    selDepKey = key;
+    syncSelectionUi();
+  }
+
+  function selectAll() {
+    if (presenting()) return;
+    selMarkerId = null;
+    selDepKey = null;
+    selNoteId = null;
+    selItems.clear();
+    visibleItems().forEach((it) => selItems.add(it.id));
+    syncSelectionUi();
+  }
+
+  function syncSelectionUi() {
+    els.rows.forEach((row, id) => row.classList.toggle('selected', selItems.has(id)));
+    els.bars.forEach((bar, id) => {
+      bar.classList.toggle('selected', selItems.has(id));
+      bar.classList.toggle('multi-selected', selItems.size > 1 && selItems.has(id));
+    });
+    if (gridEl) {
+      gridEl.querySelectorAll('.gantt-row-bg').forEach((bg) => {
+        bg.classList.toggle('is-selected', selItems.has(bg.dataset.rowId));
+      });
+    }
+    els.markers.forEach((rec, id) => {
+      const on = selMarkerId === id;
+      rec.line.classList.toggle('selected', on);
+      rec.flag.classList.toggle('selected', on);
+    });
+    els.deps.forEach((rec, key) => {
+      const on = selDepKey === key;
+      rec.g.classList.toggle('selected', on);
+      rec.path.classList.toggle('selected', on);
+      const dep = (chartData._deps || []).find((d) => depKeyOf(d) === key);
+      const url = on ? 'url(#gantt-arr-sel)' : (dep && dep.violated) ? 'url(#gantt-arr-warn)' : 'url(#gantt-arr)';
+      rec.path.setAttribute('marker-end', url);
+    });
+    syncDepSpotlight();
+    els.notes.forEach((card, id) => card.classList.toggle('selected', selNoteId === id));
+    renderActionBar();
+    if (typeof updateDeleteButton === 'function') updateDeleteButton();
+  }
+
+  function closeFloatingPop() {
+    if (floatingPop) {
+      floatingPop.remove();
+      floatingPop = null;
+    }
+  }
+
+  function removeActionBar() {
+    closeFloatingPop();
+    if (actionBarEl) {
+      actionBarEl.remove();
+      actionBarEl = null;
+    }
+  }
+
+  function positionActionBar(anchorEl) {
+    if (!actionBarEl || !anchorEl) return;
+    const ar = anchorEl.getBoundingClientRect();
+    const br = actionBarEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = ar.left + ar.width / 2 - br.width / 2;
+    left = Math.max(12, Math.min(vw - br.width - 12, left));
+    let top = ar.top - br.height - 10;
+    if (top < 56) top = Math.min(vh - br.height - 70, ar.bottom + 10);
+    actionBarEl.style.position = 'fixed';
+    actionBarEl.style.left = `${Math.round(left)}px`;
+    actionBarEl.style.top = `${Math.round(top)}px`;
+    actionBarEl.style.zIndex = '60';
+  }
+
+  function openMiniPop(anchor, buildFn) {
+    closeFloatingPop();
+    const pop = htmlEl('div', 'gantt-mini-pop');
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('data-export-skip', '');
+    pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+    buildFn(pop);
+    document.body.appendChild(pop);
+    floatingPop = pop;
+    const ar = anchor.getBoundingClientRect();
+    const pr = pop.getBoundingClientRect();
+    const left = Math.max(12, Math.min(window.innerWidth - pr.width - 12, ar.left));
+    let top = ar.bottom + 8;
+    if (top + pr.height > window.innerHeight - 12) top = Math.max(12, ar.top - pr.height - 8);
+    pop.style.position = 'fixed';
+    pop.style.left = `${Math.round(left)}px`;
+    pop.style.top = `${Math.round(top)}px`;
+    pop.style.zIndex = '70';
+  }
+
+  function renderActionBar() {
+    removeActionBar();
+    if (presenting() || activeDrag) return;
+
+    let anchor = null;
+    const bar = ui.actionBar('actionbar gantt-actionbar', 'Selection actions');
+    bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+    if (selMarkerId) {
+      const m = markerById(selMarkerId);
+      const rec = els.markers.get(selMarkerId);
+      if (!m || !rec) return;
+      anchor = rec.flag;
+
+      const btnRen = ui.abButton('ab-btn', 'rename', ui.icon('rename', { size: 'sm' }), 'Rename marker');
+      btnRen.addEventListener('click', () => openMarkerRenamePop(btnRen, m));
+
+      const btnDate = ui.abButton('ab-btn', 'date', ui.icon('calendar', { size: 'sm' }), `Date: ${m.date}`);
+      btnDate.addEventListener('click', () => openMarkerDatePop(btnDate, m));
+
+      const swatches = swatchRow(m.color || '', (slot) => {
+        if (slot) m.color = slot; else delete m.color;
+        render();
+        updateStatus(true);
+      });
+
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete marker');
+      btnDel.addEventListener('click', () => deleteSelection());
+
+      bar.append(btnRen, btnDate, ui.abSep(), swatches, ui.abSep(), btnDel);
+    } else if (selDepKey) {
+      const dep = depsList().find((d) => depKeyOf(d) === selDepKey);
+      const rec = els.deps.get(selDepKey);
+      if (!dep || !rec) return;
+      anchor = rec.path;
+
+      const curType = dep.type === 'ss' ? 'ss' : 'fs';
+      const typeLabel = curType === 'fs' ? 'After finish (FS)' : 'Same start (SS)';
+      const nextLabel = curType === 'fs' ? 'Same start (SS)' : 'After finish (FS)';
+      const btnType = ui.abButton('ab-btn', 'toggle-type', typeLabel, `Switch to ${nextLabel}`);
+      btnType.addEventListener('click', () => {
+        dep.type = curType === 'fs' ? 'ss' : 'fs';
+        selDepKey = depKeyOf(dep);
+        render();
+        updateStatus(true);
+      });
+
+      const btnRev = ui.abButton('ab-btn', 'reverse', ui.icon('reverse', { size: 'sm' }), 'Reverse dependency');
+      btnRev.addEventListener('click', () => {
+        if (wouldCreateDepCycle(dep.to, dep.from, dep)) {
+          ui.toast('Cannot reverse: would create a dependency cycle');
+          return;
+        }
+        const tmp = dep.from;
+        dep.from = dep.to;
+        dep.to = tmp;
+        selDepKey = depKeyOf(dep);
+        render();
+        updateStatus(true);
+      });
+
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete dependency');
+      btnDel.addEventListener('click', () => deleteSelection());
+
+      bar.append(btnType, btnRev, ui.abSep(), btnDel);
+    } else if (selItems.size === 1) {
+      const id = [...selItems][0];
+      const it = itemById(id);
+      if (!it) return;
+      anchor = els.bars.get(id) || els.rows.get(id);
+      if (!anchor) return;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      const isMilestone = it.kind === 'milestone' && !it._hasChildren;
+
+      const btnRen = ui.abButton('ab-btn', 'rename', ui.icon('rename', { size: 'sm' }), 'Rename');
+      btnRen.addEventListener('click', () => {
+        const row = els.rows.get(id);
+        startInlineRename(id, row ? row.querySelector('.gantt-tree-label') : null);
+      });
+      bar.append(btnRen);
+
+      if (!isParent) {
+        const btnDates = ui.abButton('ab-btn', 'dates', ui.icon('calendar', { size: 'sm' }), isMilestone ? 'Set date' : 'Set dates');
+        btnDates.addEventListener('click', () => openItemDatesPop(btnDates, it, isMilestone));
+        bar.append(btnDates);
+      }
+
+      bar.append(ui.abSep());
+      const swatches = swatchRow(it.color || '', (slot) => {
+        if (slot) it.color = slot; else delete it.color;
+        render();
+        updateStatus(true);
+      });
+      bar.append(swatches, ui.abSep());
+
+      if (!isMilestone) {
+        const btnSub = ui.abButton('ab-btn', 'subtask', ui.icon('plus', { size: 'sm' }), 'Add subtask');
+        btnSub.addEventListener('click', () => addSubtask(id));
+        bar.append(btnSub);
+      }
+
+      const btnConn = ui.abButton('ab-btn', 'connect', ui.icon('link', { size: 'sm' }), 'Connect dependency');
+      btnConn.addEventListener('click', () => startClickConnect(id));
+      bar.append(btnConn);
+
+      const btnNote = ui.abButton('ab-btn', 'note', ui.icon('note', { size: 'sm' }), noteForTarget(id) ? 'Edit note' : 'Add note');
+      btnNote.addEventListener('click', () => addOrEditNoteForTarget(id));
+      bar.append(btnNote, ui.abSep());
+
+      const { indices, pos } = siblingIndices(id);
+      const btnUp = ui.abButton('ab-btn', 'move-up', ui.icon('chevron-up', { size: 'sm' }), 'Move up');
+      btnUp.disabled = pos <= 0;
+      btnUp.addEventListener('click', () => moveItemSibling(id, -1));
+
+      const btnDown = ui.abButton('ab-btn', 'move-down', ui.icon('chevron-down', { size: 'sm' }), 'Move down');
+      btnDown.disabled = pos < 0 || pos >= indices.length - 1;
+      btnDown.addEventListener('click', () => moveItemSibling(id, 1));
+      bar.append(btnUp, btnDown, ui.abSep());
+
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete');
+      btnDel.addEventListener('click', () => deleteSelection(btnDel));
+      bar.append(btnDel);
+    } else if (selItems.size > 1) {
+      const ids = [...selItems];
+      anchor = els.bars.get(ids[0]) || els.rows.get(ids[0]);
+      if (!anchor) return;
+
+      const countLbl = htmlEl('span', 'gantt-ab-count', `${ids.length} selected`);
+      bar.append(countLbl, ui.abSep());
+
+      const firstColor = (itemById(ids[0]) || {}).color || '';
+      const sameColor = ids.every((id) => ((itemById(id) || {}).color || '') === firstColor) ? firstColor : '';
+      const swatches = swatchRow(sameColor, (slot) => {
+        ids.forEach((id) => {
+          const it = itemById(id);
+          if (!it) return;
+          if (slot) it.color = slot; else delete it.color;
+        });
+        render();
+        updateStatus(true);
+      });
+      bar.append(swatches, ui.abSep());
+
+      const btnShift = ui.abButton('ab-btn', 'shift', ui.icon('calendar', { size: 'sm' }), 'Shift dates (± days)');
+      btnShift.addEventListener('click', () => openShiftDatesPop(btnShift, ids));
+      bar.append(btnShift, ui.abSep());
+
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete selected');
+      btnDel.addEventListener('click', () => deleteSelection(btnDel));
+      bar.append(btnDel);
+    } else {
+      return;
+    }
+
+    document.body.appendChild(bar);
+    actionBarEl = bar;
+    positionActionBar(anchor);
+  }
+
+  // --- POPOVERS FOR ACTION BAR ---
+  function openItemDatesPop(anchor, it, isMilestone) {
+    openMiniPop(anchor, (pop) => {
+      const row1 = htmlEl('label', 'gantt-pop-field');
+      row1.append(htmlEl('span', 'gantt-pop-lbl', isMilestone ? 'Date' : 'Start'));
+      const inStart = htmlEl('input', 'gantt-pop-input');
+      inStart.type = 'date';
+      inStart.value = it.start || it._start || getTodayStr();
+      row1.append(inStart);
+      pop.append(row1);
+
+      let inEnd = null;
+      if (!isMilestone) {
+        const row2 = htmlEl('label', 'gantt-pop-field');
+        row2.append(htmlEl('span', 'gantt-pop-lbl', 'End'));
+        inEnd = htmlEl('input', 'gantt-pop-input');
+        inEnd.type = 'date';
+        inEnd.value = it.end || it._end || inStart.value;
+        row2.append(inEnd);
+        pop.append(row2);
+      }
+
+      const apply = htmlEl('button', 'btn gantt-pop-apply', 'Apply');
+      apply.type = 'button';
+      apply.addEventListener('click', () => {
+        const s = ganttFormatDate(inStart.value);
+        if (!s) { ui.toast('Invalid start date'); return; }
+        if (isMilestone) {
+          it.start = s;
+          it.end = s;
+        } else {
+          const e = ganttFormatDate(inEnd.value);
+          if (!e) { ui.toast('Invalid end date'); return; }
+          it.start = s;
+          it.end = e < s ? s : e;
+        }
+        closeFloatingPop();
+        render();
+        updateStatus(true);
+      });
+      pop.append(apply);
+      inStart.focus();
+    });
+  }
+
+  function openShiftDatesPop(anchor, ids) {
+    openMiniPop(anchor, (pop) => {
+      const row = htmlEl('label', 'gantt-pop-field');
+      row.append(htmlEl('span', 'gantt-pop-lbl', 'Shift days'));
+      const input = htmlEl('input', 'gantt-pop-input');
+      input.type = 'number';
+      input.value = '7';
+      input.step = '1';
+      row.append(input);
+
+      const btns = htmlEl('div', 'gantt-pop-actions');
+      const back = htmlEl('button', 'btn', '← Earlier');
+      back.type = 'button';
+      const fwd = htmlEl('button', 'btn', 'Later →');
+      fwd.type = 'button';
+      const doShift = (sign) => {
+        const n = Math.abs(Math.trunc(Number(input.value) || 0)) * sign;
+        if (!n) return;
+        const leaves = collectMovableLeaves(ids);
+        leaves.forEach((it) => {
+          const s = it.start || it._start;
+          const e = it.end || it._end || s;
+          it.start = ganttAddDays(s, n);
+          it.end = it.kind === 'milestone' ? it.start : ganttAddDays(e, n);
+        });
+        closeFloatingPop();
+        render();
+        updateStatus(true);
+      };
+      back.addEventListener('click', () => doShift(-1));
+      fwd.addEventListener('click', () => doShift(1));
+      btns.append(back, fwd);
+      pop.append(row, btns);
+      input.focus();
+      input.select();
+    });
+  }
+
+  function openMarkerRenamePop(anchor, m) {
+    openMiniPop(anchor, (pop) => {
+      const input = htmlEl('input', 'gantt-pop-input');
+      input.type = 'text';
+      input.maxLength = LABEL_MAX;
+      input.value = m.label || '';
+      const apply = htmlEl('button', 'btn gantt-pop-apply', 'Save');
+      apply.type = 'button';
+      const save = () => {
+        m.label = cleanLabel(input.value, 'Milestone');
+        closeFloatingPop();
+        render();
+        updateStatus(true);
+      };
+      apply.addEventListener('click', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeFloatingPop(); }
+      });
+      pop.append(input, apply);
+      input.focus();
+      input.select();
+    });
+  }
+
+  function openMarkerDatePop(anchor, m) {
+    openMiniPop(anchor, (pop) => {
+      const input = htmlEl('input', 'gantt-pop-input');
+      input.type = 'date';
+      input.value = m.date || getTodayStr();
+      const apply = htmlEl('button', 'btn gantt-pop-apply', 'Save');
+      apply.type = 'button';
+      apply.addEventListener('click', () => {
+        const d = ganttFormatDate(input.value);
+        if (!d) { ui.toast('Invalid date'); return; }
+        m.date = d;
+        closeFloatingPop();
+        render();
+        updateStatus(true);
+      });
+      pop.append(input, apply);
+      input.focus();
+    });
+  }
+
+  // --- INLINE RENAME ---
+  function startInlineRename(itemId, labelEl) {
+    const it = itemById(itemId);
+    if (!it || presenting()) return;
+    const target = labelEl || (els.rows.get(itemId) && els.rows.get(itemId).querySelector('.gantt-tree-label'));
+    if (!target) return;
+    const orig = it.label || it.id;
+    target.contentEditable = 'true';
+    target.classList.add('is-editing');
+    target.focus();
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    let done = false;
+    const finish = (cancel) => {
+      if (done) return;
+      done = true;
+      target.contentEditable = 'false';
+      target.classList.remove('is-editing');
+      const next = cancel ? orig : cleanLabel(target.textContent, orig);
+      target.textContent = next;
+      if (next !== orig) {
+        it.label = next;
+        render();
+        updateStatus(true);
+      }
+    };
+    target.addEventListener('blur', () => finish(false), { once: true });
+    target.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); target.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(true); }
+    });
+  }
+
+  // --- COLLAPSE / EXPAND ---
+  function toggleCollapse(itemId) {
+    const it = itemById(itemId);
+    if (!it) return;
+    if (it.collapsed) delete it.collapsed;
+    else it.collapsed = true;
+    render();
+    if (!presenting()) updateStatus(true);
+  }
+
+  // --- ADD / DELETE ---
+  function defaultNewDates(parentId) {
+    const p = parentId ? itemById(parentId) : null;
+    if (p && p._start) {
+      return { start: p._start, end: ganttAddDays(p._start, 13) };
+    }
+    const selId = selItems.size ? [...selItems][0] : null;
+    const selIt = selId ? itemById(selId) : null;
+    if (selIt && selIt._end) {
+      const s = ganttAddDays(selIt._end, 1);
+      return { start: s, end: ganttAddDays(s, 13) };
+    }
+    const base = (chartData._range && chartData._range.start) ? ganttAddDays(chartData._range.start, 7) : getTodayStr();
+    return { start: base, end: ganttAddDays(base, 13) };
+  }
+
+  function addTask(parentId) {
+    if (presenting()) return;
+    if (!Array.isArray(chartData.items)) chartData.items = [];
+    const { start, end } = defaultNewDates(parentId);
+    const it = { id: newId('t'), kind: 'task', label: 'New task', start, end };
+    if (parentId) {
+      const p = itemById(parentId);
+      if (p) {
+        it.parent = p.id;
+        if (p.collapsed) delete p.collapsed;
+      }
+    }
+    chartData.items.push(it);
+    selectSingleItem(it.id);
+    render();
+    updateStatus(true);
+    const row = els.rows.get(it.id);
+    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+  }
+
+  function addSubtask(parentId) {
+    const pid = parentId || (selItems.size === 1 ? [...selItems][0] : null);
+    const p = pid ? itemById(pid) : null;
+    if (p && p.kind === 'milestone') {
+      ui.toast('Milestones cannot have subtasks');
+      return;
+    }
+    addTask(p ? p.id : null);
+  }
+
+  function addMilestone() {
+    if (presenting()) return;
+    if (!Array.isArray(chartData.items)) chartData.items = [];
+    const pid = selItems.size === 1 ? [...selItems][0] : null;
+    const p = pid ? itemById(pid) : null;
+    const d = (p && p._end) ? p._end : defaultNewDates(null).start;
+    const it = { id: newId('t'), kind: 'milestone', label: 'Milestone', start: d, end: d };
+    if (p && p.kind !== 'milestone') {
+      it.parent = p.id;
+      if (p.collapsed) delete p.collapsed;
+    }
+    chartData.items.push(it);
+    selectSingleItem(it.id);
+    render();
+    updateStatus(true);
+    const row = els.rows.get(it.id);
+    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+  }
+
+  function addVerticalMarker() {
+    if (presenting()) return;
+    if (!Array.isArray(chartData.markers)) chartData.markers = [];
+    const range = chartData._range;
+    const midDate = range
+      ? ganttAddDays(range.start, Math.floor(range.totalDays / 2))
+      : getTodayStr();
+    const m = { id: newId('m'), label: 'Milestone', date: midDate, color: '4' };
+    chartData.markers.push(m);
+    selectMarker(m.id);
+    render();
+    updateStatus(true);
+  }
+
+  function deleteSelection() {
+    if (presenting()) return;
+    if (selNoteId) {
+      removeNote(selNoteId, true);
+      return;
+    }
+    if (selMarkerId) {
+      chartData.markers = markersList().filter((m) => m && m.id !== selMarkerId);
+      if (!chartData.markers.length) delete chartData.markers;
+      selMarkerId = null;
+      render();
+      updateStatus(true);
+      return;
+    }
+    if (selDepKey) {
+      chartData.dependencies = depsList().filter((d) => depKeyOf(d) !== selDepKey);
+      selDepKey = null;
+      render();
+      updateStatus(true);
+      return;
+    }
+    if (!selItems.size) return;
+
+    const toRemove = new Set(selItems);
+    selItems.forEach((id) => {
+      getDescendants(id).forEach((ch) => toRemove.add(ch.id));
+    });
+    chartData.items = itemsList().filter((it) => it && !toRemove.has(it.id));
+    chartData.dependencies = depsList().filter((d) => d && !toRemove.has(d.from) && !toRemove.has(d.to));
+    if (Array.isArray(chartData.notes)) {
+      chartData.notes = chartData.notes.filter((n) => n && !toRemove.has(n.target));
+      if (!chartData.notes.length) delete chartData.notes;
+    }
+    selItems.clear();
+    lastSelItemId = null;
+    render();
+    updateStatus(true);
+  }
+
+  // --- POINTER INTERACTIONS: BAR DRAG, RESIZE, MULTI-SELECT MOVE ---
+  function onBarPointerDown(e, it) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+
+    // If we are in click-to-connect mode, finish connection
+    if (connectState && !connectState.pointerDrag) {
+      finishConnection(connectState.fromId, it.id, connectState.type);
+      connectState = null;
+      if (root) root.classList.remove('is-connecting');
+      return;
+    }
+
+    if (e.shiftKey) {
+      selectItemRange(it.id);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+      toggleItemSelection(it.id);
+      return;
+    }
+    if (!selItems.has(it.id)) {
+      selectSingleItem(it.id);
+    }
+
+    if (presenting()) return;
+
+    const leaves = collectMovableLeaves(selItems.has(it.id) ? [...selItems] : [it.id]);
+    if (!leaves.length) return;
+
+    const range = chartData._range;
+    const snapDays = GANTT_ZOOMS[currentZoom()].snapDays;
+    const origDates = leaves.map((leaf) => ({
+      item: leaf,
+      start: leaf.start || leaf._start,
+      end: leaf.end || leaf._end || leaf.start || leaf._start
+    }));
+
+    activeDrag = {
+      kind: 'move',
+      startX: e.clientX,
+      pxPerDay: range.pxPerDay,
+      snapDays,
+      origDates,
+      primary: it,
+      lastDelta: 0,
+      moved: false
+    };
+
+    const onMove = (ev) => {
+      if (!activeDrag || activeDrag.kind !== 'move') return;
+      const dx = ev.clientX - activeDrag.startX;
+      if (!activeDrag.moved && Math.abs(dx) < 4) return;
+      if (!activeDrag.moved) {
+        activeDrag.moved = true;
+        removeActionBar();
+        if (root) root.classList.add('is-dragging');
+      }
+      const rawDays = dx / activeDrag.pxPerDay;
+      const snapped = Math.round(rawDays / activeDrag.snapDays) * activeDrag.snapDays;
+      if (snapped === activeDrag.lastDelta) {
+        if (activeDrag.tipText) showDragTip(ev.clientX, ev.clientY, activeDrag.tipText);
+        return;
+      }
+      activeDrag.lastDelta = snapped;
+      activeDrag.origDates.forEach(({ item, start, end }) => {
+        item.start = ganttAddDays(start, snapped);
+        item.end = item.kind === 'milestone' ? item.start : ganttAddDays(end, snapped);
+      });
+      updateLiveGeometry();
+      const tip = activeDrag.origDates.length > 1
+        ? `${activeDrag.origDates.length} tasks · ${snapped >= 0 ? '+' : ''}${snapped}d`
+        : formatDateRange(activeDrag.primary._start, activeDrag.primary._end);
+      activeDrag.tipText = tip;
+      showDragTip(ev.clientX, ev.clientY, tip);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      const d = activeDrag;
+      activeDrag = null;
+      hideDragTip();
+      if (root) root.classList.remove('is-dragging');
+      if (d && d.moved && d.lastDelta !== 0) {
+        render();
+        updateStatus(true);
+      } else {
+        renderActionBar();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  function onResizePointerDown(e, it, edge) {
+    if (e.button !== 0 || presenting()) return;
+    e.stopPropagation();
+    selectSingleItem(it.id);
+
+    const range = chartData._range;
+    const snapDays = GANTT_ZOOMS[currentZoom()].snapDays;
+    const origStart = it.start || it._start;
+    const origEnd = it.end || it._end || origStart;
+
+    activeDrag = {
+      kind: 'resize',
+      edge,
+      item: it,
+      startX: e.clientX,
+      pxPerDay: range.pxPerDay,
+      snapDays,
+      origStart,
+      origEnd,
+      lastDelta: 0,
+      moved: false
+    };
+
+    const onMove = (ev) => {
+      if (!activeDrag || activeDrag.kind !== 'resize') return;
+      const dx = ev.clientX - activeDrag.startX;
+      if (!activeDrag.moved && Math.abs(dx) < 3) return;
+      if (!activeDrag.moved) {
+        activeDrag.moved = true;
+        removeActionBar();
+        if (root) root.classList.add('is-dragging');
+      }
+      const rawDays = dx / activeDrag.pxPerDay;
+      const snapped = Math.round(rawDays / activeDrag.snapDays) * activeDrag.snapDays;
+      if (snapped === activeDrag.lastDelta) {
+        if (activeDrag.tipText) showDragTip(ev.clientX, ev.clientY, activeDrag.tipText);
+        return;
+      }
+      activeDrag.lastDelta = snapped;
+      if (edge === 'start') {
+        const nextStart = ganttAddDays(origStart, snapped);
+        it.start = nextStart > origEnd ? origEnd : nextStart;
+      } else {
+        const nextEnd = ganttAddDays(origEnd, snapped);
+        it.end = nextEnd < origStart ? origStart : nextEnd;
+      }
+      updateLiveGeometry();
+      const tip = formatDateRange(it._start, it._end);
+      activeDrag.tipText = tip;
+      showDragTip(ev.clientX, ev.clientY, tip);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      const d = activeDrag;
+      activeDrag = null;
+      hideDragTip();
+      if (root) root.classList.remove('is-dragging');
+      if (d && d.moved && d.lastDelta !== 0) {
+        render();
+        updateStatus(true);
+      } else {
+        renderActionBar();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  // --- VERTICAL MARKER DRAG ---
+  function onMarkerPointerDown(e, markerId) {
+    if (e.button !== 0 || presenting()) return;
+    e.stopPropagation();
+    selectMarker(markerId);
+    const m = markerById(markerId);
+    if (!m) return;
+
+    const range = chartData._range;
+    const snapDays = GANTT_ZOOMS[currentZoom()].snapDays;
+    const origDate = m.date;
+
+    activeDrag = {
+      kind: 'marker',
+      marker: m,
+      startX: e.clientX,
+      pxPerDay: range.pxPerDay,
+      snapDays,
+      origDate,
+      lastDelta: 0,
+      moved: false
+    };
+
+    const onMove = (ev) => {
+      if (!activeDrag || activeDrag.kind !== 'marker') return;
+      const dx = ev.clientX - activeDrag.startX;
+      if (!activeDrag.moved && Math.abs(dx) < 3) return;
+      if (!activeDrag.moved) {
+        activeDrag.moved = true;
+        removeActionBar();
+      }
+      const snapped = Math.round((dx / activeDrag.pxPerDay) / activeDrag.snapDays) * activeDrag.snapDays;
+      if (snapped === activeDrag.lastDelta) {
+        showDragTip(ev.clientX, ev.clientY, `${m.label || 'Marker'} · ${formatShortDate(m.date)}`);
+        return;
+      }
+      activeDrag.lastDelta = snapped;
+      m.date = ganttAddDays(origDate, snapped);
+      updateLiveGeometry();
+      showDragTip(ev.clientX, ev.clientY, `${m.label || 'Marker'} · ${formatShortDate(m.date)}`);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      const d = activeDrag;
+      activeDrag = null;
+      hideDragTip();
+      if (d && d.moved && d.lastDelta !== 0) {
+        render();
+        updateStatus(true);
+      } else {
+        renderActionBar();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  // --- DEPENDENCY CONNECTION (DRAG FROM PORT OR CLICK CONNECT) ---
+  function startClickConnect(fromId) {
+    connectState = { fromId, type: 'fs', pointerDrag: false };
+    removeActionBar();
+    if (root) root.classList.add('is-connecting');
+    ui.toast('Click a target task or milestone to connect (Esc to cancel)');
+  }
+
+  function finishConnection(fromId, toId, type) {
+    if (!fromId || !toId) return;
+    if (fromId === toId) {
+      ui.toast('Cannot connect an item to itself');
+      return;
+    }
+    const depType = type === 'ss' ? 'ss' : 'fs';
+    if (depsList().some((d) => d && d.from === fromId && d.to === toId && (d.type === 'ss' ? 'ss' : 'fs') === depType)) {
+      ui.toast('That dependency already exists');
+      return;
+    }
+    if (wouldCreateDepCycle(fromId, toId)) {
+      ui.toast('Cannot connect: would create a dependency cycle');
+      return;
+    }
+    if (!Array.isArray(chartData.dependencies)) chartData.dependencies = [];
+    chartData.dependencies.push({ from: fromId, to: toId, type: depType });
+    render();
+    updateStatus(true);
+  }
+
+  function onPortPointerDown(e, fromId, depType) {
+    if (e.button !== 0 || presenting()) return;
+    e.stopPropagation();
+    const svg = ensureDepsSvg();
+    const fromIt = itemById(fromId);
+    if (!svg || !fromIt || !fromIt._bar) return;
+
+    removeActionBar();
+    connectState = { fromId, type: depType, pointerDrag: true };
+    const fb = fromIt._bar;
+    const sx = depType === 'ss' ? fb.x : fb.x + fb.w;
+    const sy = fb.y + fb.h / 2;
+    const bodyRect = bodyEl.getBoundingClientRect();
+
+    const preview = svgEl('path', {
+      class: 'gantt-dep-preview',
+      fill: 'none',
+      d: `M ${sx} ${sy} L ${sx} ${sy}`
+    });
+    svg.appendChild(preview);
+
+    const onMove = (ev) => {
+      const tx = ev.clientX - bodyRect.left;
+      const ty = ev.clientY - bodyRect.top;
+      const mx = Math.round((sx + tx) / 2);
+      preview.setAttribute('d', `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`);
+    };
+
+    const onUp = (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      preview.remove();
+      const st = connectState;
+      connectState = null;
+      const hitEl = document.elementFromPoint(ev.clientX, ev.clientY);
+      const targetBar = hitEl && hitEl.closest('[data-item-id]');
+      if (st && targetBar && targetBar.dataset.itemId) {
+        finishConnection(st.fromId, targetBar.dataset.itemId, st.type);
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  // --- MARQUEE SELECTION & EMPTY GRID PAN ---
+  if (bodyEl) {
+    bodyEl.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.gantt-bar, .gantt-milestone, .gantt-marker-line, .gantt-dep-group, .note')) return;
+
+      if (connectState) {
+        cancelInteraction();
+        return;
+      }
+
+      // Shift+drag draws selection marquee
+      if (e.shiftKey && !presenting() && marqueeEl) {
+        e.preventDefault();
+        const bodyRect = bodyEl.getBoundingClientRect();
+        const startX = e.clientX - bodyRect.left;
+        const startY = e.clientY - bodyRect.top;
+        marqueeEl.hidden = false;
+        marqueeEl.style.left = `${startX}px`;
+        marqueeEl.style.top = `${startY}px`;
+        marqueeEl.style.width = '0px';
+        marqueeEl.style.height = '0px';
+
+        // Cache bar rects once on pointerdown
+        const barBoxes = [];
+        els.bars.forEach((el, id) => {
+          const it = itemById(id);
+          if (it && it._bar) barBoxes.push({ id, b: it._bar });
+        });
+
+        activeDrag = { kind: 'marquee' };
+
+        const onMove = (ev) => {
+          const curX = ev.clientX - bodyRect.left;
+          const curY = ev.clientY - bodyRect.top;
+          const x = Math.min(startX, curX);
+          const y = Math.min(startY, curY);
+          const w = Math.abs(curX - startX);
+          const h = Math.abs(curY - startY);
+          marqueeEl.style.left = `${x}px`;
+          marqueeEl.style.top = `${y}px`;
+          marqueeEl.style.width = `${w}px`;
+          marqueeEl.style.height = `${h}px`;
+
+          selItems.clear();
+          selMarkerId = null;
+          selDepKey = null;
+          selNoteId = null;
+          barBoxes.forEach(({ id, b }) => {
+            if (b.x < x + w && b.x + b.w > x && b.y < y + h && b.y + b.h > y) {
+              selItems.add(id);
+            }
+          });
+          syncSelectionUi();
+        };
+
+        const onUp = () => {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+          marqueeEl.hidden = true;
+          activeDrag = null;
+          syncSelectionUi();
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        return;
+      }
+
+      // Click/drag on empty grid: clear selection, drag pans timeline horizontally
+      clearSelection();
+      if (!timeline) return;
+      const startX = e.clientX;
+      const startScroll = timeline.scrollLeft;
+      const onMove = (ev) => {
+        timeline.scrollLeft = startScroll - (ev.clientX - startX);
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  // --- SIDEBAR ROW DRAG (REORDER / REPARENT) ---
+  function onSidebarRowPointerDown(e, it) {
+    if (e.button !== 0) return;
+    if (e.target.closest('button') || e.target.isContentEditable) return;
+    e.stopPropagation();
+
+    if (e.shiftKey) { selectItemRange(it.id); return; }
+    if (e.ctrlKey || e.metaKey) { toggleItemSelection(it.id); return; }
+    selectSingleItem(it.id);
+    if (presenting()) return;
+
+    const startY = e.clientY;
+    let dragging = false;
+    let dropTarget = null;
+    let dropMode = null; // 'before' | 'after' | 'inside'
+
+    const clearDropIndicators = () => {
+      els.rows.forEach((r) => r.classList.remove('drop-before', 'drop-after', 'drop-inside', 'is-row-dragging'));
+    };
+
+    const onMove = (ev) => {
+      if (!dragging && Math.abs(ev.clientY - startY) < 6) return;
+      if (!dragging) {
+        dragging = true;
+        removeActionBar();
+        const srcRow = els.rows.get(it.id);
+        if (srcRow) srcRow.classList.add('is-row-dragging');
+      }
+      clearDropIndicators();
+      const srcRow = els.rows.get(it.id);
+      if (srcRow) srcRow.classList.add('is-row-dragging');
+
+      dropTarget = null;
+      dropMode = null;
+      const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+      const targetRow = hit && hit.closest('.gantt-tree-row');
+      if (!targetRow) return;
+      const tid = targetRow.dataset.itemId;
+      if (!tid || tid === it.id || isAncestor(it.id, tid)) return;
+
+      const r = targetRow.getBoundingClientRect();
+      const rel = (ev.clientY - r.top) / Math.max(1, r.height);
+      const targetItem = itemById(tid);
+      if (rel < 0.28) {
+        dropMode = 'before';
+        targetRow.classList.add('drop-before');
+      } else if (rel > 0.72) {
+        dropMode = 'after';
+        targetRow.classList.add('drop-after');
+      } else if (targetItem && targetItem.kind !== 'milestone') {
+        dropMode = 'inside';
+        targetRow.classList.add('drop-inside');
+      } else {
+        dropMode = 'after';
+        targetRow.classList.add('drop-after');
+      }
+      dropTarget = tid;
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      clearDropIndicators();
+      if (dragging && dropTarget && dropMode) {
+        reorderOrReparent(it.id, dropTarget, dropMode);
+      } else {
+        renderActionBar();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  function reorderOrReparent(sourceId, targetId, mode) {
+    if (sourceId === targetId || isAncestor(sourceId, targetId)) return;
+    const src = itemById(sourceId);
+    const tgt = itemById(targetId);
+    if (!src || !tgt) return;
+
+    const list = itemsList();
+    const srcIdx = list.indexOf(src);
+    if (srcIdx < 0) return;
+
+    if (mode === 'inside') {
+      if (tgt.kind === 'milestone') return;
+      src.parent = tgt.id;
+      if (tgt.collapsed) delete tgt.collapsed;
+    } else {
+      if (tgt.parent) src.parent = tgt.parent;
+      else delete src.parent;
+    }
+
+    list.splice(srcIdx, 1);
+    const newTgtIdx = list.indexOf(tgt);
+    if (mode === 'before') list.splice(newTgtIdx, 0, src);
+    else list.splice(newTgtIdx + 1, 0, src);
+
+    render();
+    updateStatus(true);
+  }
+
+  function siblingIndices(itemId) {
+    const list = itemsList();
+    const it = itemById(itemId);
+    if (!it) return { indices: [], pos: -1 };
+    const pid = it.parent || '';
+    const indices = [];
+    list.forEach((x, idx) => {
+      if (x && (x.parent || '') === pid) indices.push(idx);
+    });
+    const pos = indices.findIndex((idx) => list[idx] === it);
+    return { indices, pos };
+  }
+
+  function moveItemSibling(itemId, delta) {
+    if (presenting()) return;
+    const list = itemsList();
+    const { indices, pos } = siblingIndices(itemId);
+    const nextPos = pos + delta;
+    if (pos < 0 || nextPos < 0 || nextPos >= indices.length) return;
+    const a = indices[pos];
+    const b = indices[nextPos];
+    const tmp = list[a];
+    list[a] = list[b];
+    list[b] = tmp;
+    render();
+    updateStatus(true);
+  }
+
+  // --- SIDEBAR SPLITTER DRAG ---
+  if (splitter) {
+    splitter.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = sidebarWidth;
+      splitter.classList.add('is-dragging');
+
+      const onMove = (ev) => {
+        applySidebarWidth(startW + (ev.clientX - startX));
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        splitter.classList.remove('is-dragging');
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  // --- SCROLL SYNCHRONIZATION ---
+  if (timeline && treeEl) {
+    timeline.addEventListener('scroll', () => {
+      if (isSyncingScroll) return;
+      isSyncingScroll = true;
+      treeEl.scrollTop = timeline.scrollTop;
+      if (actionBarEl) removeActionBar();
+      isSyncingScroll = false;
+    }, { passive: true });
+
+    treeEl.addEventListener('scroll', () => {
+      if (isSyncingScroll) return;
+      isSyncingScroll = true;
+      timeline.scrollTop = treeEl.scrollTop;
+      if (actionBarEl) removeActionBar();
+      isSyncingScroll = false;
+    }, { passive: true });
+  }
+
+  // --- ZOOM CONTROLLER & MORPH TRANSITION ("morph, not fade") ---
+  function captureBarRects() {
+    const map = new Map();
+    els.bars.forEach((el, id) => {
+      map.set(id, el.getBoundingClientRect());
+    });
+    return map;
+  }
+
+  function playZoomMorph(oldRects) {
+    if (!motion.enabled() || !oldRects || !oldRects.size) return;
+    const dur = motion.dur('dur-base', 200);
+    const easing = motion.curve('curve-out');
+    els.bars.forEach((el, id) => {
+      const prev = oldRects.get(id);
+      if (!prev) return;
+      const next = el.getBoundingClientRect();
+      if (!next.width || !next.height) return;
+      const dx = prev.left - next.left;
+      const dy = prev.top - next.top;
+      const sx = prev.width / next.width;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.01) return;
+      motion.anim(el, [
+        { transformOrigin: 'left center', transform: `translate(${dx}px, ${dy}px) scaleX(${sx})` },
+        { transformOrigin: 'left center', transform: 'none' }
+      ], { duration: dur, easing });
+    });
+  }
+
+  function setZoomPreset(nextZoom) {
+    if (!Object.prototype.hasOwnProperty.call(GANTT_ZOOMS, nextZoom)) return;
+    const prevZoom = currentZoom();
+    if (prevZoom === nextZoom) return;
+
+    // 1. Anchor viewport center date before changing zoom
+    const prevRange = chartData._range;
+    let centerDate = null;
+    if (timeline && prevRange) {
+      const centerPx = timeline.scrollLeft + timeline.clientWidth / 2;
+      const dayOffset = Math.round(centerPx / prevRange.pxPerDay);
+      centerDate = ganttAddDays(prevRange.start, dayOffset);
+    }
+
+    // 2. Capture old bar rects for FLIP morph
+    const oldRects = motion.enabled() ? captureBarRects() : null;
+
+    // 3. Apply new zoom & re-render
+    chartData.zoom = nextZoom;
+    render();
+
+    // 4. Restore scroll position to keep centerDate anchored
+    if (timeline && centerDate && chartData._range) {
+      const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
+      timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
+    }
+
+    // 5. Morph bars from old rects to new rects
+    if (oldRects) playZoomMorph(oldRects);
+    if (!presenting()) updateStatus(true);
+  }
+
+  const zoomController = {
+    zoomIn() {
+      const idx = ZOOM_ORDER.indexOf(currentZoom());
+      if (idx > 0) setZoomPreset(ZOOM_ORDER[idx - 1]);
+    },
+    zoomOut() {
+      const idx = ZOOM_ORDER.indexOf(currentZoom());
+      if (idx >= 0 && idx < ZOOM_ORDER.length - 1) setZoomPreset(ZOOM_ORDER[idx + 1]);
+    },
+    reset(animate) {
+      // Pick the finest zoom preset where the roadmap fits inside the visible timeline width
+      const availW = (timeline && timeline.clientWidth) ? timeline.clientWidth - 24 : 900;
+      const range = chartData._range;
+      let chosen = 'month';
+      if (range && range.totalDays > 0) {
+        chosen = 'year';
+        for (let i = 0; i < ZOOM_ORDER.length; i++) {
+          const z = ZOOM_ORDER[i];
+          if (range.totalDays * GANTT_ZOOMS[z].pxPerDay <= availW) {
+            chosen = z;
+            break;
+          }
+        }
+      }
+      if (chosen !== currentZoom()) {
+        const oldRects = (animate && motion.enabled()) ? captureBarRects() : null;
+        chartData.zoom = chosen;
+        render();
+        if (timeline) timeline.scrollTo({ left: 0, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+        if (oldRects) playZoomMorph(oldRects);
+      } else if (timeline) {
+        timeline.scrollTo({ left: 0, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+      }
+    },
+    getLabel() {
+      return (GANTT_ZOOMS[currentZoom()] || GANTT_ZOOMS.month).label;
+    }
+  };
+
+  // --- JUMP TO TODAY ---
+  function jumpToToday() {
+    if (!timeline || !chartData._range) return;
+    const todayStr = getTodayStr();
+    const range = chartData._range;
+    const x = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
+    const targetScroll = Math.max(0, Math.round(x - timeline.clientWidth / 2));
+    timeline.scrollTo({
+      left: targetScroll,
+      behavior: motion.enabled() ? 'smooth' : 'auto'
+    });
+    if (todayStr < range.start || todayStr > range.end) {
+      ui.toast(`Today (${todayStr}) is outside the current roadmap range`);
+    }
+  }
+
+  // --- HOLIDAYS POPOVER ---
+  function renderHolidaysList() {
+    if (!holidaysList) return;
+    holidaysList.textContent = '';
+    const list = holidaysListData();
+    if (!list.length) {
+      holidaysList.appendChild(htmlEl('div', 'gantt-hol-empty', 'No holidays configured.'));
+      return;
+    }
+    const edit = !presenting();
+    list.forEach((h, idx) => {
+      const row = htmlEl('div', 'gantt-hol-row');
+      const info = htmlEl('div', 'gantt-hol-info');
+      const span = h.end && h.end !== h.date ? `${h.date} .. ${h.end}` : h.date;
+      info.append(
+        htmlEl('span', 'gantt-hol-date', span),
+        htmlEl('span', 'gantt-hol-name', h.country ? `${h.name || 'Holiday'} (${h.country})` : (h.name || 'Holiday'))
+      );
+      row.appendChild(info);
+      if (edit) {
+        const del = htmlEl('button', 'gantt-hol-del btn-danger-hover');
+        del.type = 'button';
+        del.title = 'Remove holiday';
+        del.setAttribute('aria-label', `Remove ${h.name || h.date}`);
+        del.innerHTML = ui.icon('close', { size: 'xs', bold: true });
+        del.addEventListener('click', () => {
+          chartData.holidays.splice(idx, 1);
+          if (!chartData.holidays.length) delete chartData.holidays;
+          render();
+          updateStatus(true);
+        });
+        row.appendChild(del);
+      }
+      holidaysList.appendChild(row);
+    });
+  }
+
+  function toggleHolidaysPop(force) {
+    if (!holidaysPop) return;
+    const show = typeof force === 'boolean' ? force : holidaysPop.hidden;
+    holidaysPop.hidden = !show;
+    if (btnHolidays) btnHolidays.setAttribute('aria-expanded', String(show));
+    if (show) renderHolidaysList();
+  }
+
+  if (btnHolidays) {
+    btnHolidays.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleHolidaysPop();
+    });
+  }
+  if (holCloseBtn) {
+    holCloseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleHolidaysPop(false);
+    });
+  }
+  if (holAddBtn) {
+    holAddBtn.addEventListener('click', () => {
+      if (presenting()) return;
+      const d = holDateInput ? ganttFormatDate(holDateInput.value) : '';
+      if (!d) { ui.toast('Pick a valid holiday date'); return; }
+      const name = cleanLabel(holNameInput ? holNameInput.value : '', 'Holiday');
+      if (!Array.isArray(chartData.holidays)) chartData.holidays = [];
+      if (chartData.holidays.some((h) => h && h.date === d && h.name === name)) {
+        ui.toast('Holiday already listed');
+        return;
+      }
+      chartData.holidays.push({ date: d, end: d, name });
+      chartData.holidays.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      if (holDateInput) holDateInput.value = '';
+      if (holNameInput) holNameInput.value = '';
+      render();
+      updateStatus(true);
+    });
+  }
+
+  // --- TOOLBAR BUTTON WIRING ---
+  if (btnAddTask) btnAddTask.addEventListener('click', () => addTask(null));
+  if (btnAddSubtask) btnAddSubtask.addEventListener('click', () => addSubtask(null));
+  if (btnAddMilestone) btnAddMilestone.addEventListener('click', () => addMilestone());
+  if (btnAddMarker) btnAddMarker.addEventListener('click', () => addVerticalMarker());
+  if (btnAddNote) {
+    btnAddNote.addEventListener('click', () => {
+      const targetId = selItems.size ? [...selItems][0] : null;
+      addOrEditNoteForTarget(targetId);
+    });
+  }
+  if (btnAddInline) btnAddInline.addEventListener('click', () => addTask(null));
+  if (btnNotes) btnNotes.addEventListener('click', () => toggleShowNotes());
+  if (btnDeps) {
+    btnDeps.addEventListener('click', () => {
+      showDeps = !showDeps;
+      syncDepsVisibility();
+    });
+  }
+  if (btnLegend) {
+    btnLegend.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLegendPop();
+    });
+  }
+  if (btnToday) btnToday.addEventListener('click', () => jumpToToday());
+  if (zoomPills) {
+    const zoomDock = document.querySelector('.toolbar-zoom');
+    if (zoomDock) {
+      const sep = zoomDock.querySelector('.dock-sep');
+      if (sep) sep.after(zoomPills);
+      else zoomDock.appendChild(zoomPills);
+    }
+    zoomPills.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-zoom-set]');
+      if (!btn || !zoomPills.contains(btn)) return;
+      const preset = btn.dataset.zoomSet;
+      if (preset) setZoomPreset(preset);
+    });
+  }
+  if (treeEl) treeEl.addEventListener('pointerleave', () => setHoveredRow(null));
+  if (bodyEl) bodyEl.addEventListener('pointerleave', () => setHoveredRow(null));
+
+  // Close popovers / commit note on outside click
+  window.addEventListener('pointerdown', (e) => {
+    if (floatingPop && !floatingPop.contains(e.target) && (!actionBarEl || !actionBarEl.contains(e.target))) {
+      closeFloatingPop();
+    }
+    if (holidaysPop && !holidaysPop.hidden && !holidaysPop.contains(e.target) && (!btnHolidays || !btnHolidays.contains(e.target))) {
+      toggleHolidaysPop(false);
+    }
+    if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
+      toggleLegendPop(false);
+    }
+    if (editingNoteId) {
+      const card = els.notes.get(editingNoteId);
+      if (card && !card.contains(e.target)) {
+        const textEl = card.querySelector('.note-text');
+        const n = noteById(editingNoteId);
+        if (textEl && n) { textEl.blur(); commitNote(n, textEl); }
+      }
+    }
+  }, true);
+
+  function cancelInteraction() {
+    let cancelled = false;
+    if (connectState) {
+      connectState = null;
+      if (root) root.classList.remove('is-connecting');
+      cancelled = true;
+    }
+    if (floatingPop) {
+      closeFloatingPop();
+      cancelled = true;
+    }
+    if (holidaysPop && !holidaysPop.hidden) {
+      toggleHolidaysPop(false);
+      cancelled = true;
+    }
+    if (colorKeyHost && !colorKeyHost.hidden) {
+      toggleLegendPop(false);
+      cancelled = true;
+    }
+    return cancelled;
+  }
+
+  // --- SEARCH ---
+  function searchItems() {
+    const out = [];
+    const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+    visibleItems().forEach((it) => {
+      const el = els.bars.get(it.id) || els.rows.get(it.id);
+      const text = clean(it.label || it.id);
+      if (el && text) out.push({ id: `item:${it.id}`, text, el });
+    });
+    (chartData._markers || []).forEach((m) => {
+      const rec = els.markers.get(m.id);
+      const text = clean(m.label || m.date);
+      if (rec && rec.flag && text) out.push({ id: `marker:${m.id}`, text, el: rec.flag });
+    });
+    notesList().forEach((n) => {
+      const card = els.notes.get(n.id);
+      const host = card || els.bars.get(n.target) || els.rows.get(n.target);
+      const text = clean(n.text);
+      if (host && text) out.push({ id: `note:${n.id}`, text, el: host });
+    });
+    return out;
+  }
+
+  function focusSearchItem(item) {
+    const el = item && item.el ? item.el : item;
+    if (!el || !el.getBoundingClientRect) return;
+    const smooth = motion.enabled() ? 'smooth' : 'auto';
+    if (timeline && timeline.contains(el)) {
+      const tr = timeline.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const targetLeft = Math.max(0, Math.round(timeline.scrollLeft + (er.left - tr.left) + er.width / 2 - timeline.clientWidth / 2));
+      const targetTop = Math.max(0, Math.round(timeline.scrollTop + (er.top - tr.top) + er.height / 2 - timeline.clientHeight / 2));
+      timeline.scrollTo({ left: targetLeft, top: targetTop, behavior: smooth });
+      return;
+    }
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: smooth });
+    }
+  }
+
+  // Reveal current search match inside #gantt-timeline after shell.js updates .search-current
+  function scheduleSearchReveal() {
+    requestAnimationFrame(() => {
+      const cur = root && root.querySelector('.search-current');
+      if (cur) focusSearchItem(cur);
+    });
+  }
+  const searchInputEl = document.getElementById('search-input');
+  const searchPrevEl = document.getElementById('search-prev');
+  const searchNextEl = document.getElementById('search-next');
+  if (searchInputEl) {
+    searchInputEl.addEventListener('input', scheduleSearchReveal);
+    searchInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') scheduleSearchReveal(); });
+  }
+  if (searchPrevEl) searchPrevEl.addEventListener('click', scheduleSearchReveal);
+  if (searchNextEl) searchNextEl.addEventListener('click', scheduleSearchReveal);
+
+  // --- STANDALONE SVG EXPORT ---
+  function escXml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function cssVar(name, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || (fallback || '');
+  }
+
+  function swatchColors(slotOrHex) {
+    const slot = colorSlot(slotOrHex || '1');
+    const defPal = paletteOf('1') || { slot: '1', hex: cssVar('--primary') };
+    const w = paletteOf(slot);
+    if (w) {
+      return {
+        fill: cssVar(`--sw-${w.slot}-fill`, w.hex || defPal.hex),
+        border: cssVar(`--sw-${w.slot}-border`, w.hex || defPal.hex),
+        text: cssVar(`--sw-${w.slot}-text`, cssVar('--text')),
+        solid: w.hex || defPal.hex
+      };
+    }
+    const hex = typeof slotOrHex === 'string' && /^#[0-9a-f]{3,8}$/i.test(slotOrHex) ? slotOrHex : defPal.hex;
+    return { fill: hex, border: hex, text: cssVar('--text'), solid: hex };
+  }
+
+  function exportSvg() {
+    applyLayout();
+    const range = chartData._range;
+    const vis = visibleItems();
+    const rowH = GANTT_METRICS.ROW_H;
+    const headerH = GANTT_METRICS.HEADER_H;
+    const sideW = sidebarWidth;
+    const w = sideW + range.timelineWidth;
+    const bodyH = Math.max(1, vis.length) * rowH;
+    const h = headerH + bodyH;
+    const todayStr = getTodayStr();
+
+    const bg = cssVar('--bg') || 'transparent';
+    const surface = cssVar('--surface') || bg;
+    const border = cssVar('--border') || 'currentColor';
+    const textCol = cssVar('--text') || 'currentColor';
+    const muted = cssVar('--muted') || textCol;
+    const primary = cssVar('--primary') || textCol;
+    const danger = cssVar('--danger') || primary;
+    const font = cssVar('--font-sans', 'system-ui, sans-serif');
+
+    const parts = [];
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="font-family:${escXml(font)}">`);
+    parts.push(`<defs>` +
+      `<marker id="exp-arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="${escXml(muted)}"/></marker>` +
+      `<marker id="exp-arr-w" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="${escXml(danger)}"/></marker>` +
+      `</defs>`);
+    parts.push(`<rect x="0" y="0" width="${w}" height="${h}" fill="${escXml(bg)}"/>`);
+
+    // Sidebar & header backgrounds
+    parts.push(`<rect x="0" y="0" width="${sideW}" height="${h}" fill="${escXml(surface)}"/>`);
+    parts.push(`<rect x="0" y="0" width="${w}" height="${headerH}" fill="${escXml(surface)}"/>`);
+    parts.push(`<line x1="0" y1="${headerH}" x2="${w}" y2="${headerH}" stroke="${escXml(border)}" stroke-width="1"/>`);
+    parts.push(`<line x1="${sideW}" y1="0" x2="${sideW}" y2="${h}" stroke="${escXml(border)}" stroke-width="1"/>`);
+    parts.push(`<text x="12" y="${Math.round(headerH / 2 + 4)}" font-size="12" font-weight="600" fill="${escXml(textCol)}">Tasks</text>`);
+
+    // Header ticks (read from rendered DOM if available)
+    if (headerTop) {
+      headerTop.querySelectorAll('.gantt-tick').forEach((t) => {
+        const lx = sideW + (parseFloat(t.style.left) || 0);
+        const tw = parseFloat(t.style.width) || 0;
+        parts.push(`<line x1="${lx}" y1="0" x2="${lx}" y2="${headerH / 2}" stroke="${escXml(border)}" stroke-width="1"/>`);
+        if (tw > 20) {
+          parts.push(`<text x="${lx + 6}" y="17" font-size="11" font-weight="600" fill="${escXml(textCol)}">${escXml(t.textContent)}</text>`);
+        }
+      });
+    }
+    if (headerBottom) {
+      headerBottom.querySelectorAll('.gantt-tick').forEach((t) => {
+        const lx = sideW + (parseFloat(t.style.left) || 0);
+        const tw = parseFloat(t.style.width) || 0;
+        parts.push(`<line x1="${lx}" y1="${headerH / 2}" x2="${lx}" y2="${h}" stroke="${escXml(border)}" stroke-width="1" stroke-opacity="0.55"/>`);
+        if (tw > 14) {
+          parts.push(`<text x="${lx + 4}" y="${headerH - 8}" font-size="10" fill="${escXml(muted)}">${escXml(t.textContent)}</text>`);
+        }
+      });
+    }
+
+    // Holidays
+    (chartData._holidays || []).forEach((hl) => {
+      parts.push(`<rect x="${sideW + hl.x}" y="${headerH}" width="${Math.max(2, hl.w)}" height="${bodyH}" fill="${escXml(danger)}" fill-opacity="0.08"/>`);
+    });
+
+    // Rows + sidebar labels + bars
+    vis.forEach((it, idx) => {
+      const y = headerH + idx * rowH;
+      if (idx % 2 === 1) {
+        parts.push(`<rect x="${sideW}" y="${y}" width="${range.timelineWidth}" height="${rowH}" fill="${escXml(surface)}" fill-opacity="0.5"/>`);
+      }
+      parts.push(`<line x1="0" y1="${y + rowH}" x2="${w}" y2="${y + rowH}" stroke="${escXml(border)}" stroke-width="0.5"/>`);
+      const padL = 12 + (it._depth || 0) * 16;
+      const weight = (it._hasChildren || it.kind === 'group') ? '600' : '400';
+      parts.push(`<text x="${padL}" y="${y + Math.round(rowH / 2 + 4)}" font-size="12" font-weight="${weight}" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
+
+      if (!it._bar) return;
+      const b = it._bar;
+      const bx = sideW + b.x;
+      const by = headerH + b.y;
+      const c = swatchColors(it.color || (it.kind === 'milestone' ? '4' : '1'));
+
+      if (it.kind === 'milestone' && !it._hasChildren) {
+        const cx = bx + b.w / 2;
+        const cy = by + b.h / 2;
+        const r = b.w / 2;
+        parts.push(`<polygon points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}" fill="${escXml(c.solid)}" stroke="${escXml(c.border)}" stroke-width="1.5"/>`);
+        parts.push(`<text x="${bx + b.w + 8}" y="${cy + 4}" font-size="11" font-weight="500" fill="${escXml(textCol)}">${escXml(it.label || it.id)}</text>`);
+      } else if (it._hasChildren || it.kind === 'group') {
+        parts.push(`<rect x="${bx}" y="${by}" width="${Math.max(4, b.w)}" height="${b.h}" rx="4" fill="${escXml(c.border)}" fill-opacity="0.85"/>`);
+      } else {
+        parts.push(`<rect x="${bx}" y="${by}" width="${Math.max(4, b.w)}" height="${b.h}" rx="5" fill="${escXml(c.fill)}" stroke="${escXml(c.border)}" stroke-width="1.2"/>`);
+        const lbl = it.label || it.id;
+        const fits = b.w >= lbl.length * GANTT_METRICS.CHAR_W + 18;
+        if (fits) {
+          parts.push(`<text x="${bx + 8}" y="${by + Math.round(b.h / 2 + 4)}" font-size="11" font-weight="500" fill="${escXml(c.text)}">${escXml(lbl)}</text>`);
+        }
+      }
+    });
+
+    // Dependencies
+    parts.push(`<g transform="translate(${sideW}, ${headerH})">`);
+    (chartData._deps || []).forEach((dep) => {
+      const stroke = dep.violated ? danger : muted;
+      const dash = dep.violated ? ' stroke-dasharray="4 3"' : '';
+      const mk = dep.violated ? 'url(#exp-arr-w)' : 'url(#exp-arr)';
+      parts.push(`<path d="${escXml(dep.path)}" fill="none" stroke="${escXml(stroke)}" stroke-width="1.5"${dash} marker-end="${mk}"/>`);
+    });
+    parts.push(`</g>`);
+
+    // Vertical markers
+    (chartData._markers || []).forEach((m) => {
+      const mx = sideW + m.x;
+      const c = swatchColors(m.color || '4');
+      parts.push(`<line x1="${mx}" y1="${headerH}" x2="${mx}" y2="${h}" stroke="${escXml(c.solid)}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
+      parts.push(`<text x="${mx + 4}" y="${headerH - 4}" font-size="10" font-weight="600" fill="${escXml(c.solid)}">${escXml(m.label || m.date)}</text>`);
+    });
+
+    // Today line
+    if (chartData.showToday !== false && todayStr >= range.start && todayStr <= range.end) {
+      const tx = sideW + (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
+      parts.push(`<line x1="${tx}" y1="${headerH}" x2="${tx}" y2="${h}" stroke="${escXml(primary)}" stroke-width="2"/>`);
+    }
+
+    parts.push(`</svg>`);
+    return { svg: parts.join(''), w, h };
+  }
+
+  // --- DISK FORMAT (mirrors gantt_to_disk / gantt_from_disk in scripts/disk_format.py) ---
+  const GANTT_KEYS = [
+    'diagramType', 'schemaVersion', 'title', 'zoom', 'showNotes', 'showToday',
+    'colorKey', 'holidays', 'markers', 'items', 'dependencies', 'notes'
+  ];
+  const GENERATED_ID = /^(n|c|e|lane|t|m)_\d{12,}(_\d+)?$/;
+  const SLUG_MAX = 30;
+
+  function slug(text) {
+    let s = String(text == null ? '' : text).toLowerCase().replace(/đ/g, 'd')
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    s = s.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (s.length > SLUG_MAX) s = s.slice(0, SLUG_MAX).replace(/_+$/, '');
+    return s;
+  }
+
+  function renameGanttIds(d) {
+    const items = d.items || [];
+    const markers = d.markers || [];
+    const notes = d.notes || [];
+    const used = new Set([...items, ...markers, ...notes]
+      .filter((o) => o && typeof o === 'object' && o.id != null)
+      .map((o) => o.id));
+    const rename = new Map();
+
+    const take = (base) => {
+      let id = base;
+      let k = 2;
+      while (used.has(id)) id = `${base}_${k++}`;
+      used.add(id);
+      return id;
+    };
+    const isGen = (o) => GENERATED_ID.test(String(o.id == null ? '' : o.id));
+
+    [[items, 'task'], [markers, 'marker']].forEach(([group, fallback]) => {
+      group.forEach((o) => {
+        if (o && typeof o === 'object' && isGen(o)) {
+          rename.set(o.id, take(slug(o.label) || fallback));
+        }
+      });
+    });
+
+    let count = 1;
+    notes.forEach((o) => {
+      if (!o || typeof o !== 'object' || !isGen(o)) return;
+      while (used.has(`n${count}`)) count++;
+      rename.set(o.id, take(`n${count}`));
+    });
+
+    if (!rename.size) return;
+    const r = (id) => (rename.has(id) ? rename.get(id) : id);
+    [...items, ...markers, ...notes].forEach((o) => {
+      if (o && typeof o === 'object' && 'id' in o) o.id = r(o.id);
+    });
+    items.forEach((o) => {
+      if (o && typeof o === 'object' && 'parent' in o) o.parent = r(o.parent);
+    });
+    (d.dependencies || []).forEach((dep) => {
+      if (!dep || typeof dep !== 'object') return;
+      if ('from' in dep) dep.from = r(dep.from);
+      if ('to' in dep) dep.to = r(dep.to);
+    });
+    notes.forEach((n) => {
+      if (n && typeof n === 'object' && 'target' in n) n.target = r(n.target);
+    });
+  }
+
+  function toDisk(data) {
+    const d = JSON.parse(JSON.stringify(data));
+    Object.keys(d).forEach((k) => {
+      if (k === 'layout' || k === 'canvas' || (k[0] === '_' && k !== '_readme')) delete d[k];
+    });
+    d.schemaVersion = 1;
+    slotColors(d, 'items', 'markers');
+    ['items', 'dependencies', 'markers', 'holidays', 'notes'].forEach((listKey) => {
+      (d[listKey] || []).forEach((o) => {
+        if (!o || typeof o !== 'object') return;
+        Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; });
+      });
+    });
+    renameGanttIds(d);
+    const out = {};
+    GANTT_KEYS.forEach((k) => { if (k in d) out[k] = d[k]; });
+    Object.keys(d).forEach((k) => { if (!(k in out)) out[k] = d[k]; });
+    return out;
+  }
+
+  function fromDisk(data) {
+    const d = JSON.parse(JSON.stringify(data));
+    delete d.layout;
+    slotColors(d, 'items', 'markers');
+    return d;
+  }
+
+  // --- REGISTER WITH THE SHELL ---
+  registerDiagramPlugin({
+    id: 'gantt',
+    defaultTitle: 'Interactive Gantt Roadmap',
+    customViewport: true,
+    zoomController,
+    contentEl: root || document.getElementById('stage'),
+    report: {
+      node: '.gantt-bar, .gantt-milestone',
+      label: '.gantt-dep-group',
+      labelText: '.gantt-dep-label',
+      nodeText: '.gantt-bar-label, .gantt-ms-label'
+    },
+    render,
+    applyLayout,
+    toDisk,
+    fromDisk,
+    toMermaid,
+    fromMermaid,
+    exportSvg,
+    hasSelection,
+    clearSelection,
+    deleteSelection,
+    cancelInteraction,
+    selectAll,
+    isBackground: (el) => !el || el === root || el === timeline || el === bodyEl || el === gridEl || (el.classList && el.classList.contains('gantt-row-bg')),
+    searchItems,
+    getSearchItems: searchItems,
+    focusSearchItem
+  });
+})();

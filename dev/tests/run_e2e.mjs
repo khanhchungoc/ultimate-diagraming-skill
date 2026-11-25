@@ -121,6 +121,7 @@ const TESTS = [
   { id: 'erd',             file: 'e2e_erd.mjs',             types: ['erd'],                     weight: 100, shards: 4, fixtures: ['erd_example', 'erd_large', 'erd_blank'],
     args: (f) => ['--page', f.erd_example, '--large', f.erd_large, '--blank', f.erd_blank] },
   { id: 'c4',              file: 'e2e_c4.mjs',              types: ['c4'],                      weight: 95,  shards: 3, fixtures: [], args: () => [] },
+  { id: 'gantt',           file: 'e2e_gantt.mjs',           types: ['gantt'],                   weight: 30,  fixtures: [], args: () => [] },
   { id: 'sequence',        file: 'e2e_sequence.mjs',        types: ['sequence'],                weight: 90,  shards: 3, fixtures: ['seq_checkout', 'seq_payment', 'seq_checkout_art'],
     args: (f) => ['--page', f.seq_checkout, '--long', f.seq_payment, '--artifact', f.seq_checkout_art] },
   { id: 'motion',          file: 'e2e_motion.mjs',          types: ['cross', 'shell'],          weight: 90,  shards: 4, motion: true, fixtures: ['fc_loan', 'seq_checkout', 'erd_example', 'uc_example', 'fc_sub'],

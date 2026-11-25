@@ -29,15 +29,17 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from audit_c4 import C4Audit
 from audit_erd import ErdAudit
+from audit_gantt import GanttAudit
 from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, SUPPORTED_TYPES, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
+from holidays import resolve_holidays
 import subprocess_flow as sub
 from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
 from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, run_layout, run_mermaid
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
-                         handle_layout_output, stamp_save_id)
+                         handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 from version_check import check_nonblocking as check_version_nonblocking
 
@@ -1297,8 +1299,10 @@ def mermaid_kind(text: str) -> str:
         return "erd"
     if header in ("C4Context", "C4Container", "C4Component", "C4Dynamic", "C4Deployment"):
         return "c4"
+    if header == "gantt":
+        return "gantt"
     sys.exit(f"[ERROR] Not a Mermaid diagram this tool reads: the first line is {header!r}. "
-             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram, C4Context / C4Container / C4Component.")
+             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram, C4Context / C4Container / C4Component, gantt.")
 
 
 def theme_palette(tokens: Dict[str, Any]) -> List[str]:
@@ -1310,7 +1314,7 @@ def item_ids(kind: str, data: Dict[str, Any]) -> Set[Tuple[str, Any]]:
     """The ids --keep-from compares: lanes and steps, subjects / actors / use cases, tables, participants. A sequence's
     messages have positional ids in Mermaid, so only their count counts."""
     keys = {"flowchart": ("lanes", "nodes"), "usecase": ("subjects", "actors", "useCases"), "erd": ("entities",),
-            "sequence": ("participants",), "c4": ("groups", "elements")}[kind]
+            "sequence": ("participants",), "c4": ("groups", "elements"), "gantt": ("items", "markers")}[kind]
     ids = {(k, it["id"]) for k in keys for it in data.get(k) or []}
     ids |= {("nodes", n["id"]) for c in (data.get("children") or {}).values() for n in c.get("nodes") or []}
     if kind == "sequence":
@@ -1382,7 +1386,7 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
     return tokens, theme, note
 
 
-AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit}
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit, "gantt": GanttAudit}
 
 
 # Where local icon packs (icons/<pack>.json) are looked for: set by main() (--icons, else next to the input, else ./icons), plus bundled logos
@@ -2048,6 +2052,8 @@ def main():
                         help="With --layout: delete the Mermaid input file once layout finishes with [DONE]")
     parser.add_argument("--no-save-helper", action="store_true",
                         help="Skip registering or starting the local direct-save helper for this run")
+    parser.add_argument("--no-holidays", action="store_true",
+                        help="With --layout on a gantt diagram: skip online public-holiday fetching")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
@@ -2243,6 +2249,9 @@ def main():
                     data, erd_notes = apply_erd_defaults(data)
                     for erd_note in erd_notes:
                         print(f"[INFO] {erd_note}")
+                elif data["diagramType"] == "gantt":
+                    for h_note in resolve_holidays(data, no_holidays=args.no_holidays):
+                        print(f"[INFO] {h_note}")
                 if not keep and data["diagramType"] == "flowchart" and "direction" not in data:
                     laid_out_data, audit, report, direction_note = _choose_flowchart_direction(
                         data, args.timeout, args.browser, tokens
@@ -2295,16 +2304,17 @@ def main():
             external_refs = _artifact_external_refs(render_target)
         else:
             out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-            for candidate in (Path(args.keep_from) if args.keep_from else None, in_p, out_path):
-                if candidate and candidate.is_file() and candidate.suffix.lower() in (".html", ".htm"):
-                    try:
-                        save_id = extract_save_id(candidate.read_text(encoding="utf-8"))
-                    except OSError:
-                        save_id = None
-                    if save_id:
-                        break
-            if not save_id:
-                save_id = generate_save_id()
+            if is_feature_enabled():
+                for candidate in (Path(args.keep_from) if args.keep_from else None, in_p, out_path):
+                    if candidate and candidate.is_file() and candidate.suffix.lower() in (".html", ".htm"):
+                        try:
+                            save_id = extract_save_id(candidate.read_text(encoding="utf-8"))
+                        except OSError:
+                            save_id = None
+                        if save_id:
+                            break
+                if not save_id:
+                    save_id = generate_save_id()
             scaffold_html(page_data, out_path, "file", tokens, theme, save_id=save_id)
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path

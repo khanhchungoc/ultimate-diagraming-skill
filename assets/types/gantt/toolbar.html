@@ -1,0 +1,60 @@
+      <!-- Add popover: click a tile to add a task, subtask, milestone, vertical line, or note -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" type="button" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="gantt-add-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="gantt-add-pop" class="dock-pop" role="group" aria-label="Add: click to add">
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Roadmap</div>
+            <div class="dock-pop-grid" role="group" aria-label="Roadmap">
+              <button id="btn-add-task" type="button" class="btn btn-shape" title="Task: add a roadmap task bar" aria-label="Task">
+                {{icon:shape-process:tile:fine}}<span class="tile-caption">Task</span>
+              </button>
+              <button id="btn-add-subtask" type="button" class="btn btn-shape" title="Subtask: add a nested task under the selected item" aria-label="Subtask">
+                {{icon:layers:tile:fine}}<span class="tile-caption">Subtask</span>
+              </button>
+              <button id="btn-add-milestone" type="button" class="btn btn-shape" title="Row Milestone: add a diamond milestone row" aria-label="Row Milestone">
+                {{icon:shape-decision:tile:fine}}<span class="tile-caption">Row Milestone</span>
+              </button>
+              <button id="btn-add-marker" type="button" class="btn btn-shape" title="Date Line: add a chart-wide vertical date marker line" aria-label="Date Line">
+                {{icon:flag:tile:fine}}<span class="tile-caption">Date Line</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <button id="btn-add-note" type="button" class="btn btn-shape btn-note-tool" title="Note: select a task or milestone first, then click to attach a note" aria-label="Note">
+                {{icon:note:tile:fine}}<span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Segmented zoom preset bar: moved into .toolbar-zoom on init -->
+      <div id="gantt-zoom-pills" class="gantt-zoom-pills" role="group" aria-label="Timeline zoom">
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="day" aria-pressed="false">Day</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="week" aria-pressed="false">Week</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="month" aria-pressed="true">Month</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="quarter" aria-pressed="false">Quarter</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="year" aria-pressed="false">Year</button>
+      </div>
+      <!-- Notes: shows or hides every task note card; the count is the notes with text -->
+      <button id="btn-notes" type="button" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Arrows: shows or hides dependency arrows -->
+      <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
+        {{icon:link}}<span class="btn-label">Arrows</span>
+      </button>
+      <!-- Today: scrolls smoothly to center today's date -->
+      <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
+        {{icon:clock}}<span class="btn-label">Today</span>
+      </button>
+      <!-- Holidays: opens the public holidays popover -->
+      <button id="btn-holidays" type="button" class="btn" data-dock-group="layout" title="Manage public holidays" aria-label="Holidays" aria-haspopup="dialog" aria-expanded="false" aria-controls="gantt-holidays-pop">
+        {{icon:calendar}}<span class="btn-label">Holidays</span>
+      </button>

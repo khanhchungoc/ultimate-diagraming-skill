@@ -522,7 +522,7 @@ try {
   const shown = await t.ev(pills), z1 = await t.ev(zoom);
   t.check('after panning right, every pill sits at the viewport left edge',
     shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12 * z1) <= 2), `shown=${JSON.stringify(shown)} zoom=${z1}`);
-  t.check('pill text scales with the diagram (14px at 100%)', shown.every(p => Math.abs(p.px - 14 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
+  t.check('pill text scales with the diagram (15px at 100%)', shown.every(p => Math.abs(p.px - 15 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
   // An export taken while panned draws every pill once, at its lane's own top-left (no view offset)
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
@@ -1052,8 +1052,9 @@ try {
     const helperFile = join(dlDir, 'helper-direct.html');
     const saveId = '0123456789abcdef0123456789abcdef';
     const rawHtml = readFileSync(laid, 'utf8');
-    const stampedHtml = rawHtml.includes('name="diagram-save-id"')
-      ? rawHtml.replace(/<meta\s+name="diagram-save-id"\s+content="[0-9a-f]{32}"\s*\/?>/, `<meta name="diagram-save-id" content="${saveId}">`)
+    const saveMetaRe = /<meta\s+name="diagram-save-id"\s+content="[0-9a-f]{32}"\s*\/?>/;
+    const stampedHtml = saveMetaRe.test(rawHtml)
+      ? rawHtml.replace(saveMetaRe, `<meta name="diagram-save-id" content="${saveId}">`)
       : rawHtml.replace(/(<meta\s+charset="UTF-8"\s*\/?>)/i, `$1\n  <meta name="diagram-save-id" content="${saveId}">`);
     writeFileSync(helperFile, stampedHtml, 'utf8');
     writeFileSync(join(helperCache, 'allowed-ids.json'), JSON.stringify({

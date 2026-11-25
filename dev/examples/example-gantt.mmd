@@ -1,0 +1,64 @@
+gantt
+    title Q2–Q3 Product Roadmap
+    dateFormat YYYY-MM-DD
+    %% @zoom month
+    %% @holidays none
+    %% @holiday 2026-05-25 Memorial Day
+    %% @holiday 2026-07-03 Independence Day (Observed)
+    %% @colorKey 1: Engineering, 2: Design, 3: Security, 4: Go-to-Market
+    %% @marker Launch Day : 2026-07-15 4
+
+    section Discovery
+    User research              :res, 2026-04-01, 2026-04-14
+    %% @color res 2
+    %% @note res Interview 12 enterprise buyers across US and APAC.
+    Wireframes & prototypes    :ux, after res, 14d
+    %% @color ux 2
+    Technical architecture     :spec, 2026-04-10, 2026-04-24
+    %% @color spec 1
+    %% @dep spec ss res
+    Scope sign-off             :milestone, signoff, after ux, 0d
+    %% @color signoff 2
+
+    section Build
+    Core platform              :plat, 2026-04-25, 2026-06-22
+    %% @color plat 1
+    API layer                  :api, 2026-04-25, 2026-05-26
+    %% @parent api plat
+    %% @color api 1
+    %% @dep api fs spec
+    %% @note api GraphQL and REST endpoints with versioned webhooks.
+    Auth & SSO                 :auth, 2026-04-29, 16d
+    %% @parent auth api
+    %% @color auth 3
+    %% @dep auth ss api
+    Security review            :audit, after auth, 10d
+    %% @parent audit api
+    %% @color audit 3
+    %% @note audit External pen-test and SOC 2 access controls check.
+    Web application            :ui, 2026-05-18, 2026-06-15
+    %% @parent ui plat
+    %% @color ui 2
+    %% @dep ui fs api
+    %% @note ui Starts on mocked API contracts; intentional overlap with API freeze.
+    Integration & load testing :qa, after ui, 7d
+    %% @parent qa plat
+    %% @color qa 1
+    Beta ready                 :milestone, beta, after qa, 0d
+    %% @parent beta plat
+    %% @color beta 1
+
+    section Launch
+    Docs & migration guide     :docs, 2026-06-18, 2026-07-08
+    %% @color docs 4
+    %% @dep docs ss qa
+    Customer beta pilot        :pilot, after beta, 16d
+    %% @color pilot 4
+    %% @note pilot Five design-partner teams running production workloads.
+    Launch campaign            :gtm, 2026-07-01, 2026-07-22
+    %% @color gtm 4
+    %% @dep gtm ss pilot
+    General availability       :milestone, ga, 2026-07-15, 0d
+    %% @color ga 4
+    %% @dep ga fs pilot
+    %% @dep ga fs docs
