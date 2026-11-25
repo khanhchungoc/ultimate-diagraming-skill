@@ -2917,6 +2917,7 @@
         grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
+        let pointerInside = false;
         const isOpen = () => wrap.classList.contains('open');
         // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
         function clampToWindow() {
@@ -2936,9 +2937,14 @@
         const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
         wrap.addEventListener('pointerenter', (e) => {
           if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          pointerInside = true;
           setOpen(true);
         });
-        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        wrap.addEventListener('pointerleave', (e) => {
+          if (e.pointerType === 'touch') return;
+          pointerInside = false;
+          closeSoon();
+        });
         // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
         let lastPointerType = '';
         wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
@@ -2956,7 +2962,7 @@
         wrap.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
         });
-        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
         document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
         window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
       });
