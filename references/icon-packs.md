@@ -2,7 +2,7 @@
 
 ## Bundled tech logos (`devicon`)
 
-A curated **Devicon** pack (MIT license, 69 tech/cloud/database/language/framework logos) ships with the skill in `assets/logos/devicon.json` (with `assets/logos/devicon-LICENSE.txt`).
+A curated **Devicon** pack (MIT license, 70 tech/cloud/database/language/framework logos) ships with the skill in `assets/logos/devicon.json` (with `assets/logos/devicon-LICENSE.txt`).
 
 Use entries directly in C4 diagrams as `"icon": "logo:devicon/<name>"` (for example `logo:devicon/postgresql`, `logo:devicon/kubernetes`, `logo:devicon/react`, `logo:devicon/aws`). They are also listed under **Tech logos** in the C4 icon picker.
 

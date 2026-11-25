@@ -65,7 +65,16 @@
           </div>
         </div>
       </div>
+      <span class="dock-sep" aria-hidden="true" data-layer-dir hidden></span>
+      <!-- Layers direction (c4.js): switches arrange: "layers" between horizontal bands and vertical columns -->
+      <button id="btn-layer-dir" class="btn" data-layer-dir hidden title="Switch between horizontal bands and vertical columns" aria-label="Layer direction">
+        <span class="c4-dir-icon" aria-hidden="true">{{icon:direction-lr}}</span><span class="btn-label">Columns</span>
+      </button>
       <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Steps (c4.js, STEPS): shows or hides numbered step badges on arrows -->
+      <button id="btn-steps" class="btn btn-switch" role="switch" data-steps hidden title="Show step numbers on arrows" aria-label="Steps" aria-checked="true">
+        {{icon:numbers}}<span class="btn-label">Steps</span><span class="btn-count" hidden></span>
+      </button>
       <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
         {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>

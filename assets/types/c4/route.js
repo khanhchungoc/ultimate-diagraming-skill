@@ -48,6 +48,14 @@ function c4rLabelSize(label, tech) {
   return { w, h };
 }
 
+function c4rBadgeSize(step) {
+  const s = String(step == null ? '' : step).trim();
+  if (!s) return { w: 0, h: 0 };
+  const h = 22;
+  const w = s.length <= 2 ? 22 : Math.max(22, Math.ceil(s.length * 7.5 + 12));
+  return { w, h };
+}
+
 // Hash grid of rectangles {x, y, w, h} (top-left): cells hold the rects touching them.
 function c4rGrid() {
   const cells = new Map(), K = C4R.CELL;
@@ -202,7 +210,7 @@ function c4rDetours(info, nodes, frames, boxes, frameGrid, simplify) {
   }
   const holds = (f, n) => n.x > f.x && n.x < f.x + f.w && n.y > f.y && n.y < f.y + f.h;
   const crosses = (e) => {
-    const foreign = (f) => !holds(f, e.A) && !holds(f, e.B);
+    const foreign = (f) => f.id !== e.from && f.id !== e.to && !holds(f, e.A) && !holds(f, e.B);
     for (let k = 0; k < e.pts.length - 1; k++) {
       const p = e.pts[k], q = e.pts[k + 1], r = { x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(q[0] - p[0]), h: Math.abs(q[1] - p[1]) };
       if (boxes.hit(r, 0, (b) => b.id !== e.from && b.id !== e.to) || frameGrid.hit(r, 0, foreign)) return true;
@@ -237,7 +245,8 @@ function c4rDetours(info, nodes, frames, boxes, frameGrid, simplify) {
       const q = { x: reg[0], y: reg[1], w: reg[2] - reg[0], h: reg[3] - reg[1] };
       boxes.scan(q, 0, null, (b) => { add(b, P); }, true);
       frameGrid.scan(q, 0, null, (f) => {
-        if (holds(f, e.A) || holds(f, e.B)) add({ x: f.x, y: f.y, w: f.w, h: Math.min(C4R.TAG, f.h) }, 0);   // a frame an end is in: its tag band only
+        if (f.id === e.from || f.id === e.to) add(f, P);                                                          // endpoint frame: keep detours outside its border
+        else if (holds(f, e.A) || holds(f, e.B)) add({ x: f.x, y: f.y, w: f.w, h: Math.min(C4R.TAG, f.h) }, 0);   // a frame an end is in: its tag band only
         else add(f, P);
       }, true);
       const near = used.filter((u) => (u.h ? u.c >= reg[1] - 24 && u.c <= reg[3] + 24 : u.c >= reg[0] - 24 && u.c <= reg[2] + 24));
@@ -261,16 +270,19 @@ function c4rDetours(info, nodes, frames, boxes, frameGrid, simplify) {
 }
 
 function routeC4Edges(nodes, edges, opts) {
-  const manual = !!(opts && opts.manual), H = C4R.PILL_H;
+  const manual = !!(opts && opts.manual), detours = manual || !!(opts && opts.detours), H = C4R.PILL_H;
   const boxOf = (id) => { const n = nodes[id]; return { id, x: n.x, y: n.y, w: n.w, h: n.h }; };
   const rectOf = (n) => ({ x: n.x - n.w / 2, y: n.y - n.h / 2, w: n.w, h: n.h });
+  const frameIds = new Set();
+  for (const id in nodes) if (nodes[id].frame) frameIds.add(id);
+  if (opts && opts.frames) for (const f of opts.frames) if (nodes[f.id]) frameIds.add(f.id);
   // ---- per edge: items, axis, direction, side keys ----
-  const frames = new Map();                                     // frames seen as items (an item that is not an element)
+  const frames = new Map();                                     // frames seen as items (an item that is not a leaf element)
   const info = edges.map((e, i) => {
     const A = nodes[e.from], B = nodes[e.to];
     if (!A || !B) throw new Error(`routeC4Edges: edge ${i} joins an unknown node (${e.from} -> ${e.to})`);
     const iA = e.itemA || boxOf(e.from), iB = e.itemB || boxOf(e.to);
-    for (const it of [iA, iB]) if (!nodes[it.id] && !frames.has(it.id)) frames.set(it.id, it);
+    for (const it of [iA, iB]) if ((!nodes[it.id] || frameIds.has(it.id)) && !frames.has(it.id)) frames.set(it.id, it);
     const dx = iB.x - iA.x, dy = iB.y - iA.y;
     const gapV = Math.abs(dy) - (iA.h + iB.h) / 2, gapH = Math.abs(dx) - (iA.w + iB.w) / 2;
     let vert = e.hint === 'v' || e.hint === 'h' ? e.hint === 'v' : gapV >= gapH;
@@ -278,7 +290,7 @@ function routeC4Edges(nodes, edges, opts) {
     if (e.hint !== 'u' && (vert ? gapV : gapH) < 0 && (vert ? gapH : gapV) > (vert ? gapV : gapH)) vert = !vert;   // items overlap on the chosen axis: use the other
     const M = vert ? 'y' : 'x', C = vert ? 'x' : 'y', S = vert ? 'h' : 'w', Z = vert ? 'w' : 'h';
     const s = Math.sign(iB[M] - iA[M]) || 1, sd = e.hint === 'r' ? 1 : e.hint === 'l' ? -1 : 0, u = e.hint === 'u' || sd !== 0;
-    return { i, A, B, iA, iB, M, C, S, Z, s, vert, u, sd, label: e.label, tech: e.tech, t0: vert ? 0.5 : 0.2, from: e.from, to: e.to,
+    return { i, A, B, iA, iB, M, C, S, Z, s, vert, u, sd, label: e.label, tech: e.tech, step: e.step != null ? String(e.step).trim() : '', t0: vert ? 0.5 : 0.2, from: e.from, to: e.to,
       keyA: u ? e.from + (sd ? '|x' + sd : '|y1') : e.from + '|' + M + s, keyB: u ? e.to + (sd ? '|x' + sd : '|y1') : e.to + '|' + M + (-s) };
   });
 
@@ -298,12 +310,20 @@ function routeC4Edges(nodes, edges, opts) {
       p.e['p' + p.end] = n[C] + ((k + 1) / (g.length + 1) - 0.5) * n[Z];
     });
   }
-  // near-aligned ends become one straight line
+  // facing ends with overlapping perpendicular spans become one straight line when clear of sibling ports
   for (const e of info) {
     e.pa0 = e.pa; e.pb0 = e.pb;
-    if (e.u || Math.abs(e.pa - e.pb) >= 24) continue;
-    const lo = Math.max(e.A[e.C] - e.A[e.Z] / 2, e.B[e.C] - e.B[e.Z] / 2) + 10, hi = Math.min(e.A[e.C] + e.A[e.Z] / 2, e.B[e.C] + e.B[e.Z] / 2) - 10;
-    if (lo <= hi) { e.pa = e.pb = Math.min(hi, Math.max(lo, (e.pa + e.pb) / 2)); e.straight = true; }
+    if (e.u) continue;
+    const lo = Math.max(e.A[e.C] - e.A[e.Z] / 2, e.B[e.C] - e.B[e.Z] / 2) + 10;
+    const hi = Math.min(e.A[e.C] + e.A[e.Z] / 2, e.B[e.C] + e.B[e.Z] / 2) - 10;
+    if (lo > hi) continue;
+    const mid = Math.min(hi, Math.max(lo, (e.pa + e.pb) / 2));
+    const near = Math.abs(e.pa - e.pb) < 24;
+    const clearOf = (k, end) => (sides.get(k) || []).every((p) => (p.e === e && p.end === end) || Math.abs(p.e['p' + p.end] - mid) >= 18);
+    if (near || (clearOf(e.keyA, 'a') && clearOf(e.keyB, 'b'))) {
+      e.pa = e.pb = mid;
+      e.straight = true;
+    }
   }
   // bends of arrows leaving one side nest: the widest spread bends nearest the source
   for (const g of sides.values()) {
@@ -311,12 +331,13 @@ function routeC4Edges(nodes, edges, opts) {
     if (a.length > 1) a.forEach((p, r) => { p.e.t0 = p.e.vert ? 0.3 + 0.55 * r / (a.length - 1) : 0.2 + 0.3 * r / (a.length - 1); });
   }
 
-  // manual mode: every expanded frame is known (opts.frames, centre x, y), not only the ones an edge sees as an item
-  if (manual && opts.frames) for (const f of opts.frames) if (!frames.has(f.id)) frames.set(f.id, f);
+  // register frame-endpoint nodes and (when detours/manual) all expanded frames
+  for (const id of frameIds) if (!frames.has(id)) frames.set(id, boxOf(id));
+  if (detours && opts && opts.frames) for (const f of opts.frames) if (!frames.has(f.id)) frames.set(f.id, f);
 
   // ---- obstacles: boxes, frames, tag bands ----
   const boxes = c4rGrid(), frameGrid = c4rGrid(), tags = c4rGrid();
-  for (const id in nodes) { const r = rectOf(nodes[id]); r.id = id; boxes.add(r); }
+  for (const id in nodes) { if (frameIds.has(id)) continue; const r = rectOf(nodes[id]); r.id = id; boxes.add(r); }
   for (const f of frames.values()) {
     const r = rectOf(f); r.id = f.id; frameGrid.add(r);
     tags.add({ x: r.x, y: r.y, w: r.w, h: Math.min(C4R.TAG, r.h) });
@@ -338,7 +359,7 @@ function routeC4Edges(nodes, edges, opts) {
       const c = f === null ? port : N[e.C] + (f - 0.5) * N[e.Z];
       if (!legBlocked(e, mEdge, gEdge, c, own)) return { c };
     }
-    if (nodes[I.id]) return { c: port };                      // the item is the element itself: no frame padding to use
+    if (nodes[I.id] && !frameIds.has(I.id)) return { c: port };   // the item is the element itself: no frame padding to use
     const lowLim = I[e.C] - I[e.Z] / 2 + (e.vert ? 0 : C4R.TAG), highLim = I[e.C] + I[e.Z] / 2;
     const roomLo = N[e.C] - N[e.Z] / 2 - lowLim, roomHi = highLim - (N[e.C] + N[e.Z] / 2);
     const order = roomHi >= roomLo ? [1, -1] : [-1, 1];
@@ -517,9 +538,9 @@ function routeC4Edges(nodes, edges, opts) {
     e.pts = simplify(mc.map(([m, c]) => (e.vert ? [c, m] : [m, c])));
   }
 
-  if (manual) c4rDetours(info, nodes, frames, boxes, frameGrid, simplify);
+  if (detours) c4rDetours(info, nodes, frames, boxes, frameGrid, simplify);
 
-  // ---- labels, in input order: on a run long enough, slid along it off every box, tag band, frame border, other route and pill ----
+  // ---- badges & labels, in input order: off every box, tag band, frame border, other route, badge and pill ----
   const pills = c4rGrid(), routes = c4rGrid(), borders = c4rGrid();
   const allFrames = opts && opts.frames ? opts.frames : Array.from(frames.values());
   for (const f of allFrames) {
@@ -534,6 +555,74 @@ function routeC4Edges(nodes, edges, opts) {
       const p = e.pts[k], q = e.pts[k + 1];
       routes.add({ x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(q[0] - p[0]), h: Math.abs(q[1] - p[1]), o: e.i });
     }
+  }
+  // step badges first: registered in `pills` so labels automatically stay clear of every badge
+  for (const e of info) {
+    if (!e.step) continue;
+    const { w: bw, h: bh } = c4rBadgeSize(e.step), pts = e.pts, mine = (o) => o.o !== e.i;
+    if (!bw) continue;
+    const segs = [];
+    for (let k = 0; k < pts.length - 1; k++) {
+      const p = pts[k], q = pts[k + 1], horiz = p[1] === q[1];
+      const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+      const dim = horiz ? bw : bh;
+      const room = len - dim - (k === pts.length - 2 ? C4R.ARROW + 6 : 8);
+      // prefer near-source (k === 0) when it fits, then main run (middle segments), then remaining segments
+      const pri = k === 0 ? 0 : (k < pts.length - 2 ? 1 : 2);
+      segs.push({ k, p, q, horiz, len, dim, fit: room >= 0 ? 1 : 0, pri });
+    }
+    segs.sort((a, b) => b.fit - a.fit || a.pri - b.pri || b.len - a.len || a.k - b.k);
+    const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, 2) && (e.u || !borders.hit(r, 2)) && !routes.hit(r, 2, mine);
+    let bpos = null;
+    const tried = [];
+    bsearch: for (const s of segs) {
+      if (!s.len) continue;
+      const last = s.k === pts.length - 2, half = s.dim / 2;
+      const loD = half + 4, hiD = s.len - half - (last ? C4R.ARROW + 4 : 4);
+      const pushCand = (f) => {
+        const cx = s.p[0] + (s.q[0] - s.p[0]) * f, cy = s.p[1] + (s.q[1] - s.p[1]) * f;
+        const c = { cx, cy, s, r: { x: cx - bw / 2, y: cy - bh / 2, w: bw, h: bh } };
+        if (free(c.r)) { bpos = c; return true; }
+        if (tried.length < 24) tried.push(c);
+        return false;
+      };
+      if (hiD >= loD) {
+        const span = hiD - loD, steps = Math.min(10, Math.max(1, Math.ceil(span / 12)));
+        for (let n = 0; n <= steps; n++) {
+          const d = loD + (span * n) / steps;
+          if (pushCand(d / s.len)) break bsearch;
+        }
+      } else {
+        for (const f of [0.25, 0.5, 0.75]) if (pushCand(f)) break bsearch;
+      }
+    }
+    if (!bpos) {
+      const score = (r) => 100 * pills.count(r, 2) + 20 * (boxes.count(r, 2) + tags.count(r, 2)) + 8 * borders.count(r, 2) + 4 * routes.count(r, 2, mine);
+      let best = Infinity, bestCand = null;
+      for (const c of tried) {
+        const n = score(c.r);
+        if (n < best) { best = n; bestCand = c; }
+      }
+      bpos = bestCand || { cx: pts[0][0], cy: pts[0][1], r: { x: pts[0][0] - bw / 2, y: pts[0][1] - bh / 2, w: bw, h: bh } };
+      if (best >= 20) {
+        const anchors = [bpos].concat(tried.filter((c) => c.s !== bpos.s).slice(0, 2));
+        bnudge: for (const base of anchors) {
+          const seg = base.s;
+          if (!seg) continue;
+          const offs = seg.horiz ? [0, -(bh + 4), bh + 4] : [0, -(bw + 4), bw + 4];
+          const alongs = [0, 20, -20, 40, -40, 64, -64];
+          for (const d1 of offs) for (const d2 of alongs) {
+            if (!d1 && !d2) continue;
+            const nx = base.cx + (seg.horiz ? d2 : d1), ny = base.cy + (seg.horiz ? d1 : d2);
+            const nr = { x: nx - bw / 2, y: ny - bh / 2, w: bw, h: bh };
+            const n = score(nr) + (d1 ? 5 : 2);
+            if (n < best) { best = n; bpos = { cx: nx, cy: ny, r: nr }; if (n < 20) break bnudge; }
+          }
+        }
+      }
+    }
+    pills.add(bpos.r);
+    e.badge = { x: Math.round(bpos.r.x), y: Math.round(bpos.r.y), w: bw, h: bh };
   }
   const out = new Array(edges.length);
   for (const e of info) {
@@ -565,21 +654,27 @@ function routeC4Edges(nodes, edges, opts) {
           if (segTried < 8 && tried.length < 24) { tried.push(c); segTried++; }
           return false;
         };
+        const tightHoriz = s.horiz && (s.len < w + 64 || (e.step && s.len < w + 96));
+        const yOffs = tightHoriz ? [h / 2 + 8, -(h / 2 + 8), 0] : [0];
         if (s.room > 0) {
           // centre of the part the arrowhead leaves free on the last segment; slide outwards from there
-          const t0 = last ? Math.max(0, s.len - C4R.ARROW) / 2 / s.len : 0.5;
+          const t0 = last ? Math.max(0, s.len - C4R.ARROW - 6) / 2 / s.len : 0.5;
           const steps = Math.min(12, Math.ceil(s.room / 8));
-          for (let n = 0; n <= 2 * steps; n++) {
-            const off = (n === 0 ? 0 : (n & 1 ? 1 : -1) * Math.ceil(n / 2)) * (steps ? s.room / 2 / steps : 0);
-            const f = t0 + off / s.len;
-            if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f)) break search;
-            if (!steps) break;
+          for (const dy of yOffs) {
+            for (let n = 0; n <= 2 * steps; n++) {
+              const off = (n === 0 ? 0 : (n & 1 ? 1 : -1) * Math.ceil(n / 2)) * (steps ? s.room / 2 / steps : 0);
+              const f = t0 + off / s.len;
+              if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f + dy)) break search;
+              if (!steps) break;
+            }
           }
         } else {
-          const t0 = last && s.len > C4R.ARROW ? Math.max(0.1, (s.len - C4R.ARROW) / 2 / s.len) : 0.5;
+          const t0 = last && s.len > C4R.ARROW ? Math.max(0.1, (s.len - C4R.ARROW - 6) / 2 / s.len) : 0.5;
           const fracs = s.len >= 24 ? [t0, 0.25, 0.75] : [t0];
-          for (const f of fracs) {
-            if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f)) break search;
+          for (const dy of yOffs) {
+            for (const f of fracs) {
+              if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f + dy)) break search;
+            }
           }
         }
       }
@@ -613,7 +708,9 @@ function routeC4Edges(nodes, edges, opts) {
       const a = pts[0], b = pts[pts.length - 1];
       pos = { cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 };
     }
-    out[e.i] = { d: buildCurvedPathWithHops(pts, [], 8), points: pts, lx: pos.cx, ly: pos.cy, w, h };
+    const rec = { d: buildCurvedPathWithHops(pts, [], 8), points: pts, lx: pos.cx, ly: pos.cy, w, h };
+    if (e.badge) rec.badge = e.badge;
+    out[e.i] = rec;
   }
   return out;
 }

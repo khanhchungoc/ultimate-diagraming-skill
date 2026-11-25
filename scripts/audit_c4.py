@@ -11,9 +11,11 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 MAX_GROUP_DEPTH = 2        # the ONLY depth limit. Groups nest to this depth; 3 turns Level 3 on (container groups, components)
 GROUP_KINDS = ("boundary", "system", "container")
 ARRANGES = ("surround", "flow", "layers")
+LAYER_DIRECTIONS = ("horizontal", "vertical")
 MAX_GROUP_CHILDREN = 12    # more visible children than this in a group: suggest splitting
 MAX_VISIBLE = 80           # more visible elements than this: the page opens with system groups collapsed
 MAX_LABEL = 40             # characters; a longer relation label overflows its pill
+MAX_STEP = 8               # characters; a longer relation step badge overflows its pill
 ERROR_PENALTY = 12
 
 
@@ -56,7 +58,7 @@ class C4Audit:
         gmap = {g.get("id"): g for g in gs}
         emap = {e.get("id"): e for e in es}
 
-        # Groups: kind, parent, cycle, depth.
+        # Groups: kind, parent, shared, cycle, depth.
         for g in gs:
             gid = g.get("id")
             kind = g.get("kind")
@@ -67,8 +69,16 @@ class C4Audit:
             p = g.get("parent")
             if p is not None and p not in gmap:
                 errors.append(f"Group '{gid}' has parent '{p}', which is not a group.")
+            if "shared" in g and not isinstance(g["shared"], bool):
+                errors.append(f"Group '{gid}' has non-boolean shared '{g['shared']}': use true or false.")
+            if g.get("shared") is True:
+                if p is not None:
+                    errors.append(f"Shared group '{gid}' has parent '{p}': shared layers must be top-level groups.")
+                if kind == "system":
+                    errors.append(f"Shared group '{gid}' has kind 'system': use boundary for shared layers.")
         cyclic: Set[Any] = set()
         depth: Dict[Any, int] = {}
+        under: Dict[Any, List[Any]] = {}  # every group id -> the ids of the groups it sits in, itself first
         for g in gs:
             chain, cur = [], g.get("id")
             while cur in gmap and cur not in chain:
@@ -77,6 +87,7 @@ class C4Audit:
             if cur in chain:
                 cyclic.update(chain[chain.index(cur):])
             depth[g.get("id")] = len(chain)
+            under[g.get("id")] = chain
         for gid in sorted(cyclic, key=str):
             errors.append(f"Group '{gid}' is in a parent cycle: a group cannot contain itself.")
         for g in gs:
@@ -92,41 +103,64 @@ class C4Audit:
             if grp is not None and grp not in gmap:
                 errors.append(f"Element '{e.get('id')}' is in group '{grp}', which does not exist.")
 
-        # Relations.
+        # Relations (may join elements, groups, or mixed; no self-links or ancestor-descendant links).
+        def ancestors(oid: Any) -> List[Any]:
+            if oid in emap:
+                return under.get(_group(emap[oid]), [])
+            return under.get(oid, [])[1:]
+
         degree: Dict[Any, int] = {}
         pairs: Dict[Any, int] = {}
         for r in rs:
             a, b, label = r.get("from"), r.get("to"), _s(r.get("label"))
-            for end in (a, b):
-                if end not in emap:
-                    errors.append(f"Relation {a} -> {b} points at unknown id '{end}': relations join elements.")
-            if not label:
+            a_ok, b_ok = (a in emap or a in gmap), (b in emap or b in gmap)
+            for end, ok in ((a, a_ok), (b, b_ok)):
+                if not ok:
+                    errors.append(f"Relation {a} -> {b} points at unknown id '{end}': relations join elements or groups.")
+            if not label and self.data.get("arrange") != "layers":
                 errors.append(f"Relation {a} -> {b} has no label: every arrow says what it does.")
-            if a == b and a in emap:
-                errors.append(f"Relation {a} -> {b} joins an element to itself: relate two different elements.")
-            elif a in emap and b in emap:
-                degree[a] = degree.get(a, 0) + 1
-                degree[b] = degree.get(b, 0) + 1
-                if emap[a].get("kind") == "container" and emap[b].get("kind") == "container" and not _s(r.get("tech")):
-                    warns.append(f"Relation {a} -> {b} joins two containers with no 'tech': add the protocol (REST, gRPC, AMQP).")
-                key = (a, b, label)
-                pairs[key] = pairs.get(key, 0) + 1
-                if pairs[key] == 2:
-                    warns.append(f"Relation {a} -> {b} appears twice with the label '{label}': merge or relabel.")
+            if a_ok and b_ok:
+                if a == b:
+                    errors.append(f"Relation {a} -> {b} joins an item to itself: relate two different items.")
+                elif a in ancestors(b) or b in ancestors(a):
+                    errors.append(f"Relation {a} -> {b} joins a group with its own descendant: relate separate elements or groups.")
+                else:
+                    degree[a] = degree.get(a, 0) + 1
+                    degree[b] = degree.get(b, 0) + 1
+                    if (
+                        self.data.get("arrange") != "layers"
+                        and a in emap and b in emap
+                        and emap[a].get("kind") == "container" and emap[b].get("kind") == "container"
+                        and not _s(r.get("tech"))
+                    ):
+                        warns.append(f"Relation {a} -> {b} joins two containers with no 'tech': add the protocol (REST, gRPC, AMQP).")
+                    key = (a, b, label)
+                    pairs[key] = pairs.get(key, 0) + 1
+                    if pairs[key] == 2:
+                        warns.append(f"Relation {a} -> {b} appears twice with the label '{label}': merge or relabel.")
             if len(label) > MAX_LABEL:
                 warns.append(f"Relation {a} -> {b} label is over {MAX_LABEL} characters: shorten it.")
+            if "step" in r and r["step"] is not None:
+                step_s = _s(r["step"])
+                if not step_s:
+                    errors.append(f"Relation {a} -> {b} has an empty 'step': omit it or provide a short badge.")
+                elif len(step_s) > MAX_STEP:
+                    warns.append(f"Relation {a} -> {b} step '{step_s}' is over {MAX_STEP} characters: shorten it.")
 
         for e in es:
-            if not degree.get(e.get("id")):
+            eid = e.get("id")
+            ancs = under.get(_group(e), [])
+            connected = bool(degree.get(eid)) or any(degree.get(g) for g in ancs) or any(gmap.get(g, {}).get("shared") is True for g in ancs)
+            if not connected:
                 what = "Person" if e.get("kind") == "person" else "Element"
-                warns.append(f"{what} '{e.get('id')}' has no relation: connect it or remove it.")
+                warns.append(f"{what} '{eid}' has no relation: connect it or remove it.")
             if e.get("kind") == "external" and gmap.get(_group(e), {}).get("kind") == "system":
-                warns.append(f"External element '{e.get('id')}' is inside system group '{e.get('group')}': move it out; externals live outside the system.")
+                warns.append(f"External element '{eid}' is inside system group '{e.get('group')}': move it out; externals live outside the system.")
             icon = _s(e.get("icon"))
             if icon.startswith("logo:") and "/" in icon:
                 pack = icon[5:].split("/", 1)[0]
                 if pack not in self.icon_packs:
-                    warns.append(f"Element '{e.get('id')}' uses icon pack '{pack}', which is not installed: it falls back to its generic icon.")
+                    warns.append(f"Element '{eid}' uses icon pack '{pack}', which is not installed: it falls back to its generic icon.")
 
         # Visible children per group (collapsed groups show none).
         def hidden(gid: Any) -> bool:
@@ -153,6 +187,9 @@ class C4Audit:
         arrange = self.data.get("arrange")
         if arrange is not None and arrange not in ARRANGES:
             errors.append(f"Unknown arrange '{arrange}': use surround, flow or layers.")
+        layer_dir = self.data.get("layerDirection")
+        if layer_dir is not None and layer_dir not in LAYER_DIRECTIONS:
+            errors.append(f"Unknown layerDirection '{layer_dir}': use horizontal or vertical.")
         cores = [o for o in gs + es if o.get("core")]
         layout = arrange if arrange in ARRANGES else "surround" if cores else "flow"
         if layout == "layers":
@@ -163,29 +200,43 @@ class C4Audit:
                     gid = gmap[gid]["parent"]
                 return gid if gid in gmap else None
 
-            band = {g.get("id"): i for i, g in enumerate(g for g in gs if g.get("parent") not in gmap)}
-            where = {e.get("id"): band.get(top(_group(e))) for e in es}
+            top_groups = [g for g in gs if g.get("parent") not in gmap]
+            top_ids = {g.get("id") for g in top_groups}
+            main_layers = [g for g in top_groups if g.get("shared") is not True]
+            main_index = {g.get("id"): i for i, g in enumerate(main_layers)}
             for e in es:
-                if where[e.get("id")] is None:
+                if top(_group(e)) not in top_ids:
                     errors.append(f"Element '{e.get('id')}' is not in a top-level group: in 'layers' every element sits in a layer band.")
-            for r in rs:
-                a, b = where.get(r.get("from")), where.get(r.get("to"))
-                if a is not None and b is not None and abs(a - b) > 1:
-                    warns.append(f"Relation {r.get('from')} -> {r.get('to')} skips a layer: its arrow runs down the outer lane; route it through the layer between.")
-        else:
-            under: Dict[Any, Any] = {}  # every group id -> the ids of the groups it sits in, itself first
             for g in gs:
-                chain, cur = [], g.get("id")
-                while cur in gmap and cur not in chain:
-                    chain.append(cur)
-                    cur = gmap[cur].get("parent")
-                under[g.get("id")] = chain
+                if "span" not in g:
+                    continue
+                gid = g.get("id")
+                span = g["span"]
+                if not isinstance(span, list) or not span:
+                    errors.append(f"Group '{gid}' has invalid span: list one or more top-level non-shared layer ids.")
+                    continue
+                bad_refs = [sid for sid in span if not isinstance(sid, str) or sid not in main_index]
+                if bad_refs:
+                    for sid in bad_refs:
+                        errors.append(f"Group '{gid}' span references '{sid}', which is not a top-level non-shared layer.")
+                else:
+                    idxs = sorted({main_index[sid] for sid in span})
+                    if idxs[-1] - idxs[0] + 1 != len(idxs):
+                        errors.append(f"Group '{gid}' span {span} is not contiguous in main-layer order: select adjacent layers.")
+        else:
             for o in cores:
                 oid = o.get("id")
                 inside = [e.get("id") for e in es if oid == e.get("id") or oid in under.get(_group(e), ())]
-                if not any(degree.get(i) for i in inside):
+                if not degree.get(oid) and not any(degree.get(i) for i in inside):
                     warns.append(f"'{oid}' is marked core but has no relation: connect it or drop 'core'.")
-        info.append(f"Layout: {layout}" + ("" if arrange else " (default: " + ("an item is marked core)" if cores else "no item is marked core)")) + ".")
+            if layer_dir is not None:
+                info.append(f"'layerDirection' ('{layer_dir}') only applies when arrange is 'layers' (ignored in '{layout}').")
+            shared_gs = [g.get("id") for g in gs if g.get("shared") is True]
+            if shared_gs:
+                info.append(f"Shared groups ({', '.join(str(x) for x in shared_gs)}) only apply when arrange is 'layers' (ignored in '{layout}').")
+        dir_note = f" ({layer_dir})" if layout == "layers" and layer_dir == "vertical" else ""
+        default_note = "" if arrange else " (default: " + ("an item is marked core)" if cores else "no item is marked core)")
+        info.append(f"Layout: {layout}{dir_note}{default_note}.")
 
         # Info: the level it opens at.
         systems = [g for g in gs if g.get("kind") == "system"]

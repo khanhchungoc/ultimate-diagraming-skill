@@ -449,7 +449,7 @@ function canvasTight(name, d) {
   let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
   const grow = (x0, y0, x1, y1) => { l = Math.min(l, x0); t = Math.min(t, y0); r = Math.max(r, x1); b = Math.max(b, y1); };
   d.elements.concat(d.groups).filter((o) => !o._hidden && o.w > 0).forEach((o) => grow(o.x, o.y, o.x + o.w, o.y + o.h));
-  d._edges.forEach((e) => { e.points.forEach((p) => grow(p[0], p[1], p[0], p[1])); grow(e.labelBox.x, e.labelBox.y, e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h); });
+  d._edges.forEach((e) => { e.points.forEach((p) => grow(p[0], p[1], p[0], p[1])); grow(e.labelBox.x, e.labelBox.y, e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h); if (e.badge) grow(e.badge.x, e.badge.y, e.badge.x + e.badge.w, e.badge.y + e.badge.h); });
   check(Math.abs(l - M) <= 1 && Math.abs(t - M) <= 1, `${name}: content starts at the margin (${l}, ${t})`);
   check(d.canvas.width - r >= M - 1 && d.canvas.width - r <= M + 1 && d.canvas.height - b >= M - 1 && d.canvas.height - b <= M + 1, `${name}: canvas ends one margin after the content (${d.canvas.width - r}, ${d.canvas.height - b})`);
 }
@@ -696,6 +696,171 @@ for (const [label, groups, per, limit] of [['500', 20, 25, 100], ['2000', 40, 50
   routeDiagram(nw);
   console.log(`manual: place 20 new elements on ${label}: ${(performance.now() - t1).toFixed(0)} ms`);
   noOverlap(nw, `scale ${label} new`); inGroups(nw, `scale ${label} new`);
+}
+
+// ---- Phase 2: vertical layers, nested sub-zones, group endpoints, multi-side shared layers, cross-layer skips, step badges
+{
+  const byId = (d, id) => d.elements.find((e) => e.id === id) || d.groups.find((g) => g.id === id);
+  const badgeChecks = (name, d) => {
+    const badges = d._edges.filter((e) => e.badge).map((e) => ({ id: e.id, ...e.badge }));
+    const labels = d._edges.filter((e) => e.labelBox && e.labelBox.w > 0).map((e) => ({ id: e.id, ...e.labelBox }));
+    const boxes = d.elements.filter((e) => !e._hidden).map((e) => ({ id: e.id, ...boxOf(e) }))
+      .concat(d.groups.filter((g) => !g._hidden && g._collapsed).map((g) => ({ id: g.id, ...boxOf(g) })));
+    const tagBands = d.groups.filter((g) => !g._hidden && !g._collapsed).map((g) => ({ id: g.id, x: g.x, y: g.y, w: g.w, h: Math.min(tokens.c4.tagH, g.h) }));
+    badges.forEach((b, i) => {
+      check(b.w > 0 && b.h > 0 && Number.isFinite(b.x) && Number.isFinite(b.y), `${name}: badge ${b.id} has valid geometry`);
+      boxes.forEach((o) => check(!overlap(b, o), `${name}: badge ${b.id} overlaps box ${o.id}`));
+      tagBands.forEach((t) => check(!overlap(b, t), `${name}: badge ${b.id} overlaps tag band of ${t.id}`));
+      labels.forEach((l) => check(!overlap(b, l), `${name}: badge ${b.id} overlaps label ${l.id}`));
+      badges.slice(i + 1).forEach((o) => check(!overlap(b, o), `${name}: badges ${b.id} and ${o.id} overlap`));
+    });
+  };
+  const arrowsClearGroups = (name, d) => {
+    const gBy = new Map(d.groups.map((g) => [g.id, g]));
+    const boxes = d.elements.filter((e) => !e._hidden).map((e) => ({ id: e.id, ...boxOf(e) }))
+      .concat(d.groups.filter((g) => !g._hidden && g._collapsed).map((g) => ({ id: g.id, ...boxOf(g) })));
+    const frames = d.groups.filter((g) => !g._hidden && !g._collapsed).map((g) => ({ id: g.id, ...boxOf(g) }));
+    const up = (id) => {
+      const s = new Set();
+      const e = elOf(d, id);
+      for (let g = gBy.get(e ? e.group : (gBy.get(id) || {}).parent); g; g = gBy.get(g.parent)) s.add(g.id);
+      return s;
+    };
+    d._edges.forEach((e) => {
+      const enter = new Set([...up(e.from), ...up(e.to)]);
+      const segs = e.points.slice(1).map((p, k) => [e.points[k], p]);
+      boxes.forEach((b) => { if (b.id !== e.from && b.id !== e.to) check(!segs.some(([p, q]) => segHits(p, q, b)), `${name}: arrow ${e.from} -> ${e.to} crosses box ${b.id}`); });
+      frames.forEach((f) => { if (!enter.has(f.id) && f.id !== e.from && f.id !== e.to) check(!segs.some(([p, q]) => segHits(p, q, f)), `${name}: arrow ${e.from} -> ${e.to} crosses frame ${f.id}`); });
+    });
+  };
+
+  // 1. Vertical layers with nested sub-zones, group-to-group + mixed relations, multi-side shared layers (full & partial spans), cross-layer skips, step badges, edge colors
+  const pipe = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Data Pipeline', arrange: 'layers', layerDirection: 'vertical',
+    groups: [
+      { id: 'sources', name: 'Sources', kind: 'boundary' },
+      { id: 'ingest', name: 'Ingest', kind: 'boundary' },
+      { id: 'store', name: 'Store', kind: 'boundary' },
+      { id: 'hot', name: 'Hot Path', kind: 'boundary', parent: 'store' },
+      { id: 'cold', name: 'Cold Path', kind: 'boundary', parent: 'store' },
+      { id: 'serve', name: 'Serve', kind: 'boundary' },
+      { id: 'sh_s1', name: 'Edge Security', kind: 'boundary', shared: true, side: 'S', span: ['sources', 'ingest'] },
+      { id: 'sh_s2', name: 'Data Governance', kind: 'boundary', shared: true, side: 'S', span: ['store', 'serve'] },
+      { id: 'sh_s3', name: 'Observability', kind: 'boundary', shared: true, side: 'S' },
+      { id: 'sh_n1', name: 'CI/CD', kind: 'boundary', shared: true, side: 'N', span: ['ingest', 'store'] },
+      { id: 'sh_w1', name: 'Identity', kind: 'boundary', shared: true, side: 'W' },
+      { id: 'sh_e1', name: 'Consumers', kind: 'boundary', shared: true, side: 'E' },
+    ],
+    elements: [
+      { id: 'iot', kind: 'external', name: 'IoT Devices', group: 'sources' },
+      { id: 'app', kind: 'system', name: 'Mobile App', group: 'sources' },
+      { id: 'hub', kind: 'container', name: 'Event Hub', tech: 'Kafka', group: 'ingest' },
+      { id: 'redis', kind: 'database', name: 'Cache', tech: 'Redis', group: 'hot' },
+      { id: 'stream', kind: 'container', name: 'Stream Proc', tech: 'Flink', group: 'hot' },
+      { id: 'lake', kind: 'database', name: 'Data Lake', tech: 'Parquet', group: 'cold' },
+      { id: 'api', kind: 'container', name: 'Serving API', tech: 'REST', group: 'serve' },
+      { id: 'waf', kind: 'container', name: 'WAF', group: 'sh_s1' },
+      { id: 'cat', kind: 'container', name: 'Catalog', group: 'sh_s2' },
+      { id: 'mon', kind: 'container', name: 'Monitor', group: 'sh_s3' },
+      { id: 'log', kind: 'container', name: 'Logs', group: 'sh_s3' },
+      { id: 'pipe_ci', kind: 'container', name: 'Build', group: 'sh_n1' },
+      { id: 'iam', kind: 'container', name: 'IAM', group: 'sh_w1' },
+      { id: 'bi', kind: 'external', name: 'BI Tool', group: 'sh_e1' },
+    ],
+    relations: [
+      { from: 'sources', to: 'ingest', label: 'Streams', step: ' 1 ', color: '1' },
+      { from: 'ingest', to: 'hot', label: 'Real-time', step: '2a', color: '2' },
+      { from: 'ingest', to: 'cold', label: 'Batch', step: '2b', color: '3' },
+      { from: 'cold', to: 'api', label: 'Queries', step: '3' },
+      { from: 'sources', to: 'store', label: 'Direct backfill', step: '4', color: '4' },
+      { from: 'hub', to: 'api', label: 'Fast alert', step: '5' },
+      // ancestor-descendant relations must be ignored
+      { from: 'store', to: 'hot', label: 'Invalid anc-desc' },
+      { from: 'store', to: 'redis', label: 'Invalid anc-elem' },
+    ]
+  };
+  const d = clone(pipe);
+  layoutDiagram(d);
+  noOverlap(d, 'pipeline'); inGroups(d, 'pipeline'); orthogonal(d, 'pipeline'); canvasTight('pipeline', d);
+  if (hasRoute) { arrowsClearGroups('pipeline', d); badgeChecks('pipeline', d); }
+  // vertical columns ordered left-to-right with equalized heights
+  const cols = ['sources', 'ingest', 'store', 'serve'].map((id) => byId(d, id));
+  for (let i = 1; i < cols.length; i++) {
+    check(cols[i].x >= cols[i - 1].x + cols[i - 1].w, `pipeline: column ${cols[i].id} lies right of ${cols[i - 1].id}`);
+    check(cols[i].y === cols[0].y && cols[i].h === cols[0].h, `pipeline: column ${cols[i].id} height equalized (${cols[i].y},${cols[i].h} vs ${cols[0].y},${cols[0].h})`);
+  }
+  // nested sub-zones stacked cleanly inside store
+  const hot = byId(d, 'hot'), cold = byId(d, 'cold'), store = byId(d, 'store');
+  check(inside(hot, store) && inside(cold, store) && !overlap(hot, cold), 'pipeline: hot and cold sub-zones sit cleanly inside store');
+  check(Math.max(hot.y, cold.y) >= Math.min(hot.y + hot.h, cold.y + cold.h), 'pipeline: sub-zones stack vertically inside vertical layer column');
+  // shared layers placement, partial & full spans, same-track packing
+  const s1 = byId(d, 'sh_s1'), s2 = byId(d, 'sh_s2'), s3 = byId(d, 'sh_s3');
+  const n1 = byId(d, 'sh_n1'), w1 = byId(d, 'sh_w1'), e1 = byId(d, 'sh_e1');
+  check(s1.y === s2.y && s1.y > cols[0].y + cols[0].h, 'pipeline: non-overlapping S shared layers share track below main layers');
+  check(s1.x <= cols[0].x && s1.x + s1.w >= cols[1].x + cols[1].w, 'pipeline: sh_s1 spans sources..ingest');
+  check(s2.x <= cols[2].x && s2.x + s2.w >= cols[3].x + cols[3].w, 'pipeline: sh_s2 spans store..serve');
+  check(s3.y >= Math.max(s1.y + s1.h, s2.y + s2.h) + tokens.c4.ringGap - 1, 'pipeline: overlapping full-span sh_s3 stacks outward below sh_s1/sh_s2');
+  check(s3.x <= cols[0].x && s3.x + s3.w >= cols[3].x + cols[3].w, 'pipeline: sh_s3 spans all main layers');
+  check(n1.y + n1.h < cols[0].y && n1.x <= cols[1].x && n1.x + n1.w >= cols[2].x + cols[2].w, 'pipeline: sh_n1 sits above main layers spanning ingest..store');
+  check(w1.x + w1.w < cols[0].x && w1.y <= cols[0].y && w1.y + w1.h >= cols[0].y + cols[0].h, 'pipeline: sh_w1 sits left spanning main layers height');
+  check(e1.x > cols[3].x + cols[3].w && e1.y <= cols[0].y && e1.y + e1.h >= cols[0].y + cols[0].h, 'pipeline: sh_e1 sits right spanning main layers height');
+  // group endpoints, step trimming, colors, ancestor-descendant ignored
+  check(d._edges.length === 6, `pipeline: 6 valid edges drawn (2 anc-desc ignored), got ${d._edges.length}`);
+  const eSrc = d._edges.find((e) => e.from === 'sources' && e.to === 'ingest');
+  check(eSrc && eSrc.step === '1' && eSrc.color === '1' && eSrc.badge && eSrc.badge.w >= 22, 'pipeline: group-to-group edge carries trimmed step, color, and badge');
+  check(d._edges.some((e) => e.from === 'cold' && e.to === 'api' && e.step === '3'), 'pipeline: mixed sub-zone-to-element edge drawn');
+  // determinism & routeDiagram stability
+  const d2 = clone(pipe); layoutDiagram(d2);
+  check(stable(d) === stable(d2), 'pipeline: layoutDiagram is deterministic');
+  const dRoute = clone(d); delete dRoute._edges; delete dRoute.canvas;
+  routeDiagram(dRoute);
+  check(stable(dRoute) === stable(d), 'pipeline: routeDiagram on laid-out diagram is stable');
+  // collapsed group merges arrows, omits step, keeps shared color only when uniform
+  const colStore = clone(pipe);
+  colStore.groups.find((g) => g.id === 'store').collapsed = true;
+  layoutDiagram(colStore);
+  noOverlap(colStore, 'pipeline collapsed'); inGroups(colStore, 'pipeline collapsed'); orthogonal(colStore, 'pipeline collapsed');
+  const merged = colStore._edges.find((e) => e.from === 'ingest' && e.to === 'store');
+  check(merged && merged.count === 2 && !('step' in merged) && !('color' in merged), 'pipeline collapsed: merged arrow omits step and mixed color');
+  // manual drag of a shared layer keeps pinned position and re-routes cleanly
+  const moved = clone(savedOf(d));
+  const mSh = moved.groups.find((g) => g.id === 'sh_n1');
+  mSh.x += 40; mSh.y -= 20;
+  moved.elements.find((e) => e.id === 'pipe_ci').x += 40; moved.elements.find((e) => e.id === 'pipe_ci').y -= 20;
+  routeDiagram(moved, { pinned: ['sh_n1'] });
+  noOverlap(moved, 'pipeline manual move'); inGroups(moved, 'pipeline manual move'); orthogonal(moved, 'pipeline manual move');
+  if (hasRoute) { arrowsClearGroups('pipeline manual move', moved); badgeChecks('pipeline manual move', moved); }
+
+  // 2. Horizontal layers with default E shared layer + W partial-span shared layer + cross-layer skip
+  const hPipe = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Horizontal Layers + Shared', arrange: 'layers',
+    groups: [
+      { id: 'b0', name: 'Presentation', kind: 'boundary' },
+      { id: 'b1', name: 'Domain', kind: 'boundary' },
+      { id: 'b2', name: 'Data', kind: 'boundary' },
+      { id: 'ops', name: 'Platform Ops', kind: 'boundary', shared: true },
+      { id: 'sec', name: 'Auth', kind: 'boundary', shared: true, side: 'W', span: ['b0', 'b1'] },
+    ],
+    elements: [
+      { id: 'ui', kind: 'container', name: 'Web UI', group: 'b0' },
+      { id: 'svc', kind: 'container', name: 'Core API', group: 'b1' },
+      { id: 'db', kind: 'database', name: 'Postgres', group: 'b2' },
+      { id: 'obs', kind: 'container', name: 'Telemetry', group: 'ops' },
+      { id: 'sso', kind: 'container', name: 'SSO', group: 'sec' },
+    ],
+    relations: [
+      { from: 'ui', to: 'svc', label: 'Calls', step: '1', color: '1' },
+      { from: 'svc', to: 'db', label: 'Reads', step: '2', color: '1' },
+      { from: 'b0', to: 'b2', label: 'Direct export', step: '3', color: '4' },
+    ]
+  };
+  layoutDiagram(hPipe);
+  noOverlap(hPipe, 'horiz shared'); inGroups(hPipe, 'horiz shared'); orthogonal(hPipe, 'horiz shared'); canvasTight('horiz shared', hPipe);
+  if (hasRoute) { arrowsClearGroups('horiz shared', hPipe); badgeChecks('horiz shared', hPipe); }
+  const b0 = byId(hPipe, 'b0'), b1 = byId(hPipe, 'b1'), b2 = byId(hPipe, 'b2'), ops = byId(hPipe, 'ops'), sec = byId(hPipe, 'sec');
+  check(b0.x === b1.x && b0.w === b1.w && b1.w === b2.w, 'horiz shared: main bands equalized width');
+  check(ops.x > b0.x + b0.w && ops.y <= b0.y && ops.y + ops.h >= b2.y + b2.h, 'horiz shared: default shared layer sits on E spanning all bands');
+  check(sec.x + sec.w < b0.x && sec.y <= b0.y && sec.y + sec.h >= b1.y + b1.h, 'horiz shared: W partial shared layer spans b0..b1');
 }
 
 check(worst < LIMIT_MS, `large fixture under ${LIMIT_MS} ms (worst ${worst.toFixed(0)} ms)`);

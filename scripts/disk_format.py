@@ -43,10 +43,11 @@ ERD_DERIVED = (("entities", ("box",)), ("relationships", ("curve", "points", "la
 USECASE_KEYS = ("diagramType", "schemaVersion", "title", "showRefs", "showNotes", "colorKey",
                 "subjects", "actors", "useCases", "links", "notes", "layout")
 USECASE_SCHEMA_VERSION = 1
-C4_KEYS = ("diagramType", "schemaVersion", "title", "arrange", "showTech", "showNotes", "colorKey",
+C4_KEYS = ("diagramType", "schemaVersion", "title", "arrange", "layerDirection", "showTech", "showNotes", "showSteps", "colorKey",
            "groups", "elements", "relations", "notes", "layout")
 C4_SCHEMA_VERSION = 1
 C4_ARRANGE = ("surround", "flow", "layers")  # the layout; absent means surround when any item is `core`, else flow
+C4_LAYER_DIRECTIONS = ("horizontal", "vertical")
 C4_SIDES = ("N", "S", "E", "W")  # author hint for the side of the centre an item sits on
 C4_ELEMENT_KINDS = ("person", "system", "container", "component", "database", "queue", "external")
 C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved for Level 3; the audit rejects it in v1
@@ -549,10 +550,14 @@ C4_OBJECTS = ("groups", "elements", "relations", "notes")
 
 def validate_c4(d: Dict[str, Any]) -> None:
     """Boundary check of a c4 model: fails loudly (ValueError) on duplicate or unknown ids, unknown kinds and group
-    cycles, an unknown `arrange`, a bad `side`, a non-boolean `core` or a bad `color`. The group depth limit is not checked
-    here (audit_c4)."""
+    cycles, an unknown `arrange` or `layerDirection`, a non-boolean `showSteps`/`core`/`shared`, a bad `side`, `span`,
+    `step` or `color`, or self/ancestor-descendant relations. The group depth limit is not checked here (audit_c4)."""
     if d.get("arrange") is not None and d["arrange"] not in C4_ARRANGE:
         raise ValueError(f"c4: unknown arrange {d['arrange']!r}: use surround, flow or layers")
+    if d.get("layerDirection") is not None and d["layerDirection"] not in C4_LAYER_DIRECTIONS:
+        raise ValueError(f"c4: unknown layerDirection {d['layerDirection']!r}: use horizontal or vertical")
+    if "showSteps" in d and not isinstance(d["showSteps"], bool):
+        raise ValueError(f"c4: non-boolean showSteps {d['showSteps']!r}")
     groups, elements = d.get("groups") or [], d.get("elements") or []
     relations, notes = d.get("relations") or [], d.get("notes") or []
     seen: set = set()
@@ -576,20 +581,24 @@ def validate_c4(d: Dict[str, Any]) -> None:
             raise ValueError(f"c4: group {g['id']!r} has unknown kind {g.get('kind')!r}")
         if g.get("parent") is not None and g["parent"] not in gids:
             raise ValueError(f"c4: group {g['id']!r} has unknown parent {g['parent']!r}")
+        if "shared" in g and not isinstance(g["shared"], bool):
+            raise ValueError(f"c4: group {g['id']!r} has non-boolean shared {g['shared']!r}")
+        if g.get("shared") is True:
+            if g.get("parent") is not None:
+                raise ValueError(f"c4: shared group {g['id']!r} cannot have a parent")
+            if g.get("kind", "boundary") == "system":
+                raise ValueError(f"c4: shared group {g['id']!r} cannot have kind 'system'")
+    top_main_gids = {g["id"] for g in groups if g.get("parent") is None and not g.get("shared")}
+    for g in groups:
+        if "span" in g:
+            span = g["span"]
+            if not isinstance(span, list) or not span or not all(isinstance(i, str) and i in top_main_gids for i in span):
+                raise ValueError(f"c4: group {g['id']!r} has invalid span {span!r}: must be a non-empty list of top-level non-shared group ids")
     for e in elements:
         if e.get("kind") not in C4_ELEMENT_KINDS:
             raise ValueError(f"c4: element {e['id']!r} has unknown kind {e.get('kind')!r}")
         if e.get("group") is not None and e["group"] not in gids:
             raise ValueError(f"c4: element {e['id']!r} has unknown group {e['group']!r}")
-    for r in relations:
-        for k in ("from", "to"):
-            if r.get(k) not in eids:
-                raise ValueError(f"c4: relation {k} {r.get(k)!r} is not an element id")
-    for n in notes:
-        for k, ids in (("elements", eids), ("groups", gids)):
-            for i in n.get(k) or []:
-                if i not in ids:
-                    raise ValueError(f"c4: note {n['id']!r} references unknown {k[:-1]} {i!r}")
     parent = {g["id"]: g.get("parent") for g in groups}
     for start in parent:
         cur, hops = start, 0
@@ -597,6 +606,35 @@ def validate_c4(d: Dict[str, Any]) -> None:
             cur, hops = parent[cur], hops + 1
             if hops > len(parent):
                 raise ValueError(f"c4: group cycle through {start!r}")
+    all_ids = eids | gids
+    egroup = {e["id"]: e.get("group") for e in elements}
+
+    def ancestors(oid: str) -> set:
+        out: set = set()
+        cur = egroup[oid] if oid in eids else parent.get(oid)
+        while cur is not None:
+            out.add(cur)
+            cur = parent.get(cur)
+        return out
+
+    for r in relations:
+        for k in ("from", "to"):
+            if r.get(k) not in all_ids:
+                raise ValueError(f"c4: relation {k} {r.get(k)!r} is not an element or group id")
+        a, b = r["from"], r["to"]
+        if a == b:
+            raise ValueError(f"c4: relation {a!r} -> {b!r} cannot join an item to itself")
+        if a in ancestors(b) or b in ancestors(a):
+            raise ValueError(f"c4: relation {a!r} -> {b!r} cannot join an ancestor and its descendant")
+        if "step" in r and (not isinstance(r["step"], str) or not r["step"].strip()):
+            raise ValueError(f"c4: relation {a!r} -> {b!r} has invalid step {r['step']!r}: must be a non-empty string")
+        if r.get("color") is not None and color_kind(r["color"]) == "bad":
+            raise ValueError(f"c4: relation {a!r} -> {b!r} has bad color {r['color']!r}: use a palette slot or a hex")
+    for n in notes:
+        for k, ids in (("elements", eids), ("groups", gids)):
+            for i in n.get(k) or []:
+                if i not in ids:
+                    raise ValueError(f"c4: note {n['id']!r} references unknown {k[:-1]} {i!r}")
 
 
 def _rename_c4_ids(d: Dict[str, Any]) -> Dict[str, str]:
@@ -639,6 +677,8 @@ def _rename_c4_ids(d: Dict[str, Any]) -> Dict[str, str]:
     for g in gs:
         if "parent" in g:
             g["parent"] = r(g["parent"])
+        if isinstance(g.get("span"), list):
+            g["span"] = [r(i) for i in g["span"]]
     for n in ns:
         for k in ("elements", "groups"):
             if isinstance(n.get(k), list):
@@ -652,7 +692,7 @@ def c4_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     for k in [k for k in d if k in ("layout", "canvas") or (k.startswith("_") and k != README_KEY)]:
         del d[k]
     d["schemaVersion"] = C4_SCHEMA_VERSION
-    _slot_colors(d, "elements", "groups")
+    _slot_colors(d, "elements", "groups", "relations")
     for name in C4_OBJECTS:
         for o in d.get(name) or []:
             for k in [k for k in o if k.startswith("_")]:
@@ -680,7 +720,7 @@ def c4_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
         for name in ("elements", "groups"):
             for o in d.get(name) or []:
                 o.update(layout.get(o.get("id")) or {})
-    _slot_colors(d, "elements", "groups")
+    _slot_colors(d, "elements", "groups", "relations")
     return d
 
 
