@@ -84,3 +84,16 @@ jobs:
       - name: Publish to npm
         if: steps.v.outputs.skip != 'true'
         run: npm publish --provenance --access public
+      - name: Sync release commit back to stg
+        if: steps.v.outputs.skip != 'true'
+        run: |
+          if git ls-remote --exit-code --heads origin stg >/dev/null 2>&1; then
+            git fetch origin main stg
+            git checkout -B stg origin/stg
+            if git merge --no-edit origin/main -m "Sync release v${{ steps.v.outputs.version }} into stg [skip ci]"; then
+              git push origin stg
+            else
+              git merge --abort || true
+              echo "::warning::Could not auto-sync v${{ steps.v.outputs.version }} into stg; merge origin/main into stg manually."
+            fi
+          fi
