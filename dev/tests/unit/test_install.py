@@ -137,11 +137,33 @@ def test_save_helper_opt_in_flags() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     with tempfile.TemporaryDirectory() as d:
         root = Path(d)
-        # 1. Non-interactive install without flag leaves config.json unset
+        # 0. Feature flag off (default): --save-helper does not write config.json
+        cache0 = root / "cache0"
+        proj0 = root / "proj0"
+        proj0.mkdir()
+        env0 = {k: v for k, v in os.environ.items() if k != "ULTIMATE_DIAGRAM_ENABLE_SAVE_HELPER"}
+        env0["ULTIMATE_DIAGRAM_CACHE_DIR"] = str(cache0)
+        r0 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj0),
+             "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--save-helper"],
+            capture_output=True, text=True, encoding="utf-8", env=env0,
+        )
+        assert r0.returncode == 0, r0.stdout + r0.stderr
+        assert not (cache0 / "config.json").exists()
+
+        r0_py = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "install.py"), "--scope", "project",
+             "--target-path", str(proj0), "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--save-helper"],
+            capture_output=True, text=True, encoding="utf-8", env=env0,
+        )
+        assert r0_py.returncode == 0, r0_py.stdout + r0_py.stderr
+        assert not (cache0 / "config.json").exists()
+
+        # 1. Feature flag on: non-interactive install without flag leaves config.json unset
         cache1 = root / "cache1"
         proj1 = root / "proj1"
         proj1.mkdir()
-        env1 = {**os.environ, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache1)}
+        env1 = {**env0, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache1), "ULTIMATE_DIAGRAM_ENABLE_SAVE_HELPER": "1"}
         r1 = subprocess.run(
             ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj1),
              "--runtime", "copilot", "--mode", "copy", "--no-hooks"],
@@ -151,7 +173,7 @@ def test_save_helper_opt_in_flags() -> None:
         assert not (cache1 / "config.json").exists()
         assert (proj1 / ".github" / "skills" / "ultimate-diagram" / "scripts" / "save_helper.py").is_file()
 
-        # 2. --save-helper persists true (install.js)
+        # 2. --save-helper persists true when feature flag is on (install.js)
         r2 = subprocess.run(
             ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj1),
              "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--save-helper"],
@@ -164,7 +186,7 @@ def test_save_helper_opt_in_flags() -> None:
         cache2 = root / "cache2"
         proj2 = root / "proj2"
         proj2.mkdir()
-        env2 = {**os.environ, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache2)}
+        env2 = {**env0, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache2), "ULTIMATE_DIAGRAM_ENABLE_SAVE_HELPER": "1"}
         r3 = subprocess.run(
             [sys.executable, str(repo_root / "scripts" / "install.py"), "--scope", "project",
              "--target-path", str(proj2), "--runtime", "copilot", "--mode", "copy", "--no-save-helper"],

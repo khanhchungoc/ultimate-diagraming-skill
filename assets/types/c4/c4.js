@@ -55,6 +55,8 @@
       let notesLayer = null;
       const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
       let byId = new Map();    // group id -> group (rebuilt each render)
+      let elById = new Map();  // element id -> element (rebuilt each render)
+      let edgeById = new Map(); // edge id -> edge (rebuilt each render)
 
       // --- MODEL ACCESS ---
       const groups = () => chartData.groups || [];
@@ -62,9 +64,9 @@
       const relations = () => chartData.relations || [];
       const edges = () => chartData._edges || [];
       const groupOf = (id) => byId.get(id) || groups().find((g) => g.id === id);
-      const elementOf = (id) => elements().find((e) => e.id === id);
+      const elementOf = (id) => elById.get(id) || elements().find((e) => e.id === id);
       const nodeOrGroup = (id) => elementOf(id) || groupOf(id);
-      const edgeOf = (id) => edges().find((e) => e.id === id);
+      const edgeOf = (id) => edgeById.get(id) || edges().find((e) => e.id === id);
       const isDirectEdge = (e) => !!e && e.count === 1 && !e.agg && Array.isArray(e.members) && e.members.length === 1;
       const presenting = () => document.body.classList.contains('presentation');
       const placed = (o) => typeof o.x === 'number' && typeof o.y === 'number';
@@ -205,8 +207,10 @@
         const snap = o.snap || (useMotion ? motion.capture(canvas, FLIP_SPECS) : null);
         const prevEdges = useMotion ? (o.prevEdges || captureEdges()) : null;
         byId = new Map(groups().map((g) => [g.id, g]));
+        elById = new Map(elements().map((e) => [e.id, e]));
         const wasManual = chartData._manual === true;
         routeDiagram(chartData, o.pinned ? { pinned: o.pinned } : undefined);   // keeps every position; lays out afresh by itself when nothing is placed
+        edgeById = new Map(edges().map((e) => [e.id, e]));
         if (!wasManual) delete chartData._manual;   // the engine marks every route it runs as manual; the page decides the mode (Auto-Tidy keeps its positions in memory only)
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width);
@@ -424,12 +428,13 @@
           tip.textContent = edgeTitle(e);
           const line = svgEl('path', { class: 'edge-line', d: e.path });
           setMarkers(line, tint);
-          g.append(tip, svgEl('path', { class: 'edge-hit', d: e.path }), line);
+          const hit = svgEl('path', { class: 'edge-hit', d: e.path });
+          g.append(tip, hit, line);
           g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
           g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
           edgesG.appendChild(g);
-          els.edges.set(e.id, { g, label: null, badge: null });
+          els.edges.set(e.id, { g, line, hit, d: e.path, label: null, badge: null });
         });
       }
       function renderLabels() {
@@ -551,7 +556,7 @@
           const out = !!focusId && e.from === focusId, inn = !!focusId && !out && e.to === focusId;
           if (out || inn) { near.add(e.from); near.add(e.to); }
           const isSel = inSel('edge', id), hov = hoverEdgeId === id && !isSel;
-          const line = rec.g.querySelector('.edge-line');
+          const line = rec.line || rec.g.querySelector('.edge-line');
           [line, rec.label].forEach((x) => {
             if (!x) return;
             x.classList.toggle('hl-in', inn);
@@ -1658,10 +1663,8 @@
       const ab = (act, content, title, pressed, value, extra) => ui.abButton('ab-btn', act, content, title, pressed, value, extra);
       const abMenu = (act, icon, text, title) => { const b = ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, title); b.dataset.menu = ''; return b; };
       const abText = (act, icon, text, title, pressed) => ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>`, title, pressed);
-      function colourRow(current) {
-        const row = swatchRow(current || '', setColor, { btnClass: 'ab-swatch' });
-        row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = 'color'; });
-        return row;
+      function colourPicker(current) {
+        return swatchPicker(current || '', setColor, { triggerClass: 'ab-btn', btnClass: 'ab-swatch', act: 'color' });
       }
       const uniform = (objs) => { const cs = [...new Set(objs.map((o) => o.color || ''))]; return cs.length === 1 ? cs[0] : ''; };
       const boxOf = (o) => ({ x: o.x, y: o.y, w: o.w || 0, h: o.h || 0 });
@@ -1671,9 +1674,10 @@
         bar.setAttribute('aria-label', 'Element');
         bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
         if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(colourPicker(o.color));
+        bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete (and its arrows)', undefined, undefined, 'is-danger'));
-        bar.appendChild(ui.abBreak('ab-break'));
-        bar.appendChild(colourRow(o.color));
         return anchorOfBox(boxOf(o));
       }
       function groupBar(bar, g) {
@@ -1689,9 +1693,10 @@
           bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
         }
         bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(colourPicker(g.color));
+        bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
-        bar.appendChild(ui.abBreak('ab-break'));
-        bar.appendChild(colourRow(g.color));
         return anchorOfBox(boxOf(g));
       }
       function edgeBar(bar, e) {
@@ -1702,11 +1707,12 @@
           bar.appendChild(ab('async', ui.icon('line-dashed'), 'Asynchronous: draw it dashed', rel.async === true));
           bar.appendChild(ab('reverse', ui.icon('reverse'), 'Reverse the direction'));
         } else bar.appendChild(htmlEl('span', 'c4-ab-tag', `${e.count} relations`));
-        bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
         if (direct && rel) {
-          bar.appendChild(ui.abBreak('ab-break'));
-          bar.appendChild(colourRow(rel.color));
+          bar.appendChild(ui.abSep('ab-sep'));
+          bar.appendChild(colourPicker(rel.color));
+          bar.appendChild(ui.abSep('ab-sep'));
         }
+        bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
         const rec = els.edges.get(e.id), b = e.labelBox;
         if (b) {
           const cx = Math.round(b.x + b.w / 2), cy = Math.round(b.y + b.h / 2);
@@ -1722,8 +1728,8 @@
         bar.appendChild(htmlEl('span', 'c4-ab-tag', `${sel.length} selected`));
         bar.appendChild(ui.abSep('ab-sep'));
         if (selIds('element').length) bar.appendChild(abMenu('group', 'frame', 'Group', 'Move the selected elements to a group'));
+        if (nodes.length) { bar.appendChild(colourPicker(uniform(nodes))); bar.appendChild(ui.abSep('ab-sep')); }
         bar.appendChild(ab('delete', `${ui.icon('trash')}<span>Delete ${sel.length}</span>`, `Delete these ${sel.length} items`, undefined, undefined, 'is-danger'));
-        if (nodes.length) { bar.appendChild(ui.abBreak('ab-break')); bar.appendChild(colourRow(uniform(nodes))); }
         const boxes = nodes.map(boxOf).concat(sel.filter((s) => s.kind === 'edge').map((s) => edgeOf(s.id)).filter((e) => e && e.labelBox).map((e) => e.labelBox));
         const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
         const x1 = Math.max(...boxes.map((b) => b.x + (b.w || 0))), y1 = Math.max(...boxes.map((b) => b.y + (b.h || 0)));
@@ -2002,6 +2008,7 @@
         els.nodes.forEach((el, id) => was.set(id, snapGeo(elementOf(id))));
         els.groups.forEach((el, id) => was.set(id, snapGeo(groupOf(id))));
         routeDiagram(chartData, { pinned: mo.pinned });
+        edgeById = new Map(edges().map((e) => [e.id, e]));
         chartData._manual = true;
         const sameEdges = edges().filter((e) => e.path).length === els.edges.size && edges().every((e) => !e.path || els.edges.has(e.id));
         const shown = new Set(elements().filter((e) => !e._hidden && placed(e) && e.w > 0).map((e) => e.id)
@@ -2016,8 +2023,7 @@
         edges().forEach((e) => {   // an arrow whose route did not change stays as it is
           const rec = els.edges.get(e.id);
           if (!rec) return;
-          const line = rec.g.querySelector('.edge-line');
-          if (line.getAttribute('d') !== e.path) rec.g.querySelectorAll('path').forEach((q) => q.setAttribute('d', e.path));
+          if (rec.d !== e.path) { rec.d = e.path; rec.line.setAttribute('d', e.path); rec.hit.setAttribute('d', e.path); }
           const b = e.labelBox;
           if (rec.label && b) {
             const st = rec.label.style, wantL = px(Math.round(b.x + b.w / 2)), wantT = px(Math.round(b.y + b.h / 2));
@@ -2026,7 +2032,7 @@
         });
         if (notesLayer) { notesLayer.remove(); renderNotes(); }
         barLater = true;
-        applyState();
+        drawBar();
         if (mo.snap) {
           motion.play(mo.snap, canvas, FLIP_SPECS, { duration: mo.duration });
           playEdges(mo.prevEdges);
@@ -2208,8 +2214,8 @@
       }
       const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
       function toDisk(data) {
-        const d = JSON.parse(JSON.stringify(data));
-        Object.keys(d).forEach((k) => { if (k === 'layout' || k === 'canvas' || (k[0] === '_' && k !== '_readme')) delete d[k]; });
+        const d = {};
+        Object.keys(data).forEach((k) => { if (k !== 'layout' && k !== 'canvas' && (k[0] !== '_' || k === '_readme')) d[k] = JSON.parse(JSON.stringify(data[k])); });
         d.schemaVersion = 1;
         slotColors(d, 'elements', 'groups', 'relations');
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));

@@ -1489,13 +1489,13 @@
           const e = erdEntity(erdSel.id);
           if (!e || !e.box) return;
           bar.setAttribute('aria-label', 'Table');
-          bar.classList.add('is-wrap');
           bar.appendChild(abButton('addcol', `${ui.icon('plus')}<span>Column</span>`, 'Add a column after the last one'));
           bar.appendChild(abButton('note', ui.icon('note'), 'Add a note to this table (N)'));
+          bar.appendChild(abSep());
+          bar.appendChild(swatchPicker(e.color || '', (slot) => setEntityColor(e.id, slot), { triggerClass: 'erd-ab-btn', btnClass: 'erd-ab-swatch' }));
+          bar.appendChild(abSep());
           const nSel = selectedEntityIds().length;
           bar.appendChild(abButton('delete', ui.icon('trash'), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
-          bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-          bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
           at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
         } else if (erdSel.kind === 'col') {

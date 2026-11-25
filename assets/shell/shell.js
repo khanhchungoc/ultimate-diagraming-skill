@@ -68,7 +68,7 @@
         row.setAttribute('role', 'group');
         row.setAttribute('aria-label', 'Colour');
         const now = current ? colorSlot(current) : '';
-        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(SWATCHES).forEach((sw) => {
+        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(PALETTE).forEach((sw) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
@@ -89,6 +89,141 @@
           row.appendChild(b);
         });
         return row;
+      }
+      // A single colour-dot button that opens a popover with swatchRow() on click.
+      // opts: { btnClass, triggerClass, act, white }
+      function swatchPicker(current, onPick, opts) {
+        const o = opts || {};
+        const picker = document.createElement('span');
+        picker.className = 'swatch-picker';
+        const trig = document.createElement('button');
+        trig.type = 'button';
+        trig.className = `${o.triggerClass || 'ab-btn'} swatch-trigger`;
+        trig.setAttribute('aria-haspopup', 'true');
+        trig.setAttribute('aria-expanded', 'false');
+        const dot = document.createElement('span');
+        const syncTrigger = (val) => {
+          const slot = val ? colorSlot(val) : '';
+          const w = slot ? paletteOf(slot) : null;
+          dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
+          if (slot) setSwatch(dot, slot);
+          else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
+          const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
+          trig.title = label;
+          trig.setAttribute('aria-label', label);
+        };
+        syncTrigger(current);
+        trig.appendChild(dot);
+        const caret = document.createElement('span');
+        caret.className = 'swatch-caret-wrap';
+        caret.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+        const caretSvg = caret.querySelector('svg');
+        if (caretSvg) caretSvg.classList.add('swatch-caret');
+        trig.appendChild(caret);
+
+        const pop = document.createElement('div');
+        pop.className = 'swatch-popover';
+        pop.hidden = true;
+        let offDoc = null;
+        const close = (restoreFocus) => {
+          if (pop.hidden) return;
+          const above = pop.classList.contains('is-above');
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            motion.ghostExit(pop, {
+              duration: 100,
+              transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`,
+              clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 25% 0 round 8px)',
+              origin: above ? 'bottom center' : 'top center'
+            });
+          }
+          pop.hidden = true;
+          pop.classList.remove('is-above');
+          pop.style.removeProperty('--pop-shift');
+          trig.setAttribute('aria-expanded', 'false');
+          if (offDoc) { offDoc(); offDoc = null; }
+          if (restoreFocus && trig.isConnected) trig.focus();
+        };
+        const row = swatchRow(current, (slot) => {
+          syncTrigger(slot);
+          close(true);
+          onPick(slot);
+        }, o);
+        if (o.act) row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = o.act; });
+        pop.appendChild(row);
+        picker.append(trig, pop);
+
+        const open = () => {
+          document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
+            if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
+          });
+          pop.hidden = false;
+          pop.classList.remove('is-above');
+          pop.style.removeProperty('--pop-shift');
+          trig.setAttribute('aria-expanded', 'true');
+          const bar = picker.closest('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar');
+          const preferAbove = !(bar && bar.classList.contains('is-below'));
+          const r = pop.getBoundingClientRect();
+          const tr = trig.getBoundingClientRect();
+          const pad = 8;
+          const hasRoomAbove = tr.top - r.height - 6 > ui.chromeTop() + pad;
+          const hasRoomBelow = r.bottom <= window.innerHeight - pad;
+          if ((preferAbove && hasRoomAbove) || (!preferAbove && !hasRoomBelow && hasRoomAbove)) {
+            pop.classList.add('is-above');
+          }
+          const r2 = pop.getBoundingClientRect();
+          let shift = 0;
+          if (r2.left < pad) shift = pad - r2.left;
+          else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
+          if (shift) {
+            const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+            pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
+          }
+          const above = pop.classList.contains('is-above');
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            motion.anim(pop, [
+              { transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`, clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 100% 0 round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: 130, easing: motion.curve('curve-out') });
+          }
+          const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
+          if (active) active.focus();
+          const onDocPointer = (e) => {
+            if (!picker.isConnected) { close(false); return; }
+            if (!picker.contains(e.target)) close(false);
+          };
+          const onDocKey = (e) => {
+            if (!picker.isConnected) { close(false); return; }
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+          };
+          document.addEventListener('pointerdown', onDocPointer, true);
+          document.addEventListener('keydown', onDocKey, true);
+          offDoc = () => {
+            document.removeEventListener('pointerdown', onDocPointer, true);
+            document.removeEventListener('keydown', onDocKey, true);
+          };
+        };
+        pop._closeSwatchPop = close;
+
+        trig.addEventListener('pointerdown', (e) => e.stopPropagation());
+        trig.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (pop.hidden) open(); else close(false);
+        });
+        pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+        pop.addEventListener('keydown', (e) => {
+          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? 5 : e.key === 'ArrowUp' ? -5 : 0;
+          if (step) {
+            const btns = [...row.querySelectorAll('.swatch-btn')];
+            const idx = btns.indexOf(document.activeElement);
+            if (idx === -1) return;
+            e.preventDefault();
+            e.stopPropagation();
+            btns[(idx + step + btns.length) % btns.length].focus();
+          } else if (e.key === 'Tab') {
+            close(false);
+          }
+        });
+        return picker;
       }
 
       // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
@@ -258,6 +393,7 @@
           t.addEventListener('pointerdown', (e) => e.stopPropagation());
           t.addEventListener('click', (e) => {
             e.stopPropagation();
+            document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => { if (el._closeSwatchPop) el._closeSwatchPop(false); });
             // Every bar on the page morphs from its old box to its new one (motion kernel: ghostMorph)
             const bars = [...document.querySelectorAll('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar')];
             const was = bars.map((b) => b.getBoundingClientRect());

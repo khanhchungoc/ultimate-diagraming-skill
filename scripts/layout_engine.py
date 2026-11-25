@@ -39,7 +39,7 @@ import subprocess_flow as sub
 from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
 from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, run_layout, run_mermaid
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
-                         handle_layout_output, stamp_save_id)
+                         handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 from version_check import check_nonblocking as check_version_nonblocking
 
@@ -2304,16 +2304,17 @@ def main():
             external_refs = _artifact_external_refs(render_target)
         else:
             out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-            for candidate in (Path(args.keep_from) if args.keep_from else None, in_p, out_path):
-                if candidate and candidate.is_file() and candidate.suffix.lower() in (".html", ".htm"):
-                    try:
-                        save_id = extract_save_id(candidate.read_text(encoding="utf-8"))
-                    except OSError:
-                        save_id = None
-                    if save_id:
-                        break
-            if not save_id:
-                save_id = generate_save_id()
+            if is_feature_enabled():
+                for candidate in (Path(args.keep_from) if args.keep_from else None, in_p, out_path):
+                    if candidate and candidate.is_file() and candidate.suffix.lower() in (".html", ".htm"):
+                        try:
+                            save_id = extract_save_id(candidate.read_text(encoding="utf-8"))
+                        except OSError:
+                            save_id = None
+                        if save_id:
+                            break
+                if not save_id:
+                    save_id = generate_save_id()
             scaffold_html(page_data, out_path, "file", tokens, theme, save_id=save_id)
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path

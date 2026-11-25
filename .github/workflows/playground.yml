@@ -1,7 +1,7 @@
 name: playground
 
-# Build the playground (every diagram type) and every example page, and publish them to GitHub Pages on every push to main
-# (a merged PR) that changes what a page runs or what an example is built from.
+# Build the production playground and publish it alongside the signed-off example pages to the root of gh-pages
+# (preserving stg/) on every push to main that changes what a page runs or what an example is built from.
 on:
   push:
     branches: [main]
@@ -13,21 +13,20 @@ on:
       - dev/tests/e2e/cdp.mjs
       - dev/tests/e2e/e2e_playground.mjs
       - dev/examples/**
+      - dev/samples/example-*.html
       - dev/playground/**
       - .github/workflows/playground.yml
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: gh-pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,9 +34,9 @@ jobs:
         with:
           python-version: "3.x"
       - run: python dev/tools/build_playground.py -o _site
-      # One page per example at examples/<name>/, plus examples/index.html linking them.
+      # Verify signed-off examples without regenerating them, then publish examples/<name>/ and examples/index.html.
       - run: |
-          python dev/tools/build_examples.py
+          python dev/tools/build_examples.py --check
           mkdir -p _site/examples
           for f in dev/samples/example-*.html; do
             n=$(basename "$f" .html); n=${n#example-}
@@ -53,17 +52,25 @@ jobs:
       - run: |
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           node dev/tests/e2e/e2e_playground.mjs --browser "$CHROME" --dir _site
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages root
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf _gh_pages
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" _gh_pages
+          else
+            git init _gh_pages
+            git -C _gh_pages checkout --orphan gh-pages
+            git -C _gh_pages remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+          git -C _gh_pages config user.name "github-actions[bot]"
+          git -C _gh_pages config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          find _gh_pages -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'stg' -exec rm -rf {} +
+          cp -a _site/. _gh_pages/
+          touch _gh_pages/.nojekyll
+          git -C _gh_pages add -A
+          if ! git -C _gh_pages diff --cached --quiet; then
+            git -C _gh_pages commit -m "Deploy production playground (${GITHUB_SHA::7})"
+            git -C _gh_pages push origin gh-pages
+          fi

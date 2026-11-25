@@ -232,6 +232,15 @@ try {
   await open('flowchart');
   const openMenu = () => t.clickOn('#btn-type');
   await openMenu();
+  const topHit = await t.ev(`(() => {
+    const item = document.querySelector('#type-menu [data-type="flowchart"]');
+    const tabs = document.getElementById('flow-tabs');
+    if (!item || !tabs || tabs.hidden) return 'missing';
+    const r = item.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return item.contains(hit) ? 'ok' : (hit?.outerHTML?.slice(0, 80) || 'none');
+  })()`);
+  t.check('flowchart: open type menu sits above the flow tabs', topHit === 'ok', topHit);
   await t.clickOn('#type-menu [data-type="erd"]');
   const toErd = await waitNav('/erd/index.html', 5000);
   t.check('flowchart, no edits: switching goes straight to the ER diagram', toErd, await href().catch(() => ''));

@@ -42,9 +42,11 @@ try {
   const auto = await sw(1);
 
   // 2. Colour: swatch 3 sets lane.color, none deletes it and the colour for its position returns
+  await t.clickOn(bar(' .swatch-trigger'));
   await t.clickOn(bar(' .swatch-btn[data-value="3"]'));
   t.check('swatch 3 colours the lane', (await sw(1)) === '3' && (await count(bar())) === 1, await sw(1));
   t.check('the colour is saved as the lane\'s `color`', colorOf(await saved(), b) === '3');
+  await t.clickOn(bar(' .swatch-trigger'));
   await t.clickOn(bar(' .swatch-btn[data-value=""]'));
   t.check('none gives the lane its colour by position again', (await sw(1)) === auto, `${await sw(1)} vs ${auto}`);
   t.check('and drops `color` from the saved file', colorOf(await saved(), b) === undefined);
@@ -53,6 +55,7 @@ try {
   await undo();
   t.check('and Ctrl+Z again undoes the colouring', (await sw(1)) === auto);
   await selectLane(2);   // (undo clears the selection)
+  await t.clickOn(bar(' .swatch-trigger'));
   await t.clickOn(bar(' .swatch-btn[data-value="3"]'));
 
   // 3. Rename from the bar: the name is editable, Enter commits, one undo step
@@ -130,6 +133,7 @@ try {
   };
   await tap('.swimlane:nth-child(2) .lane-title');
   const before = await sw(1);
+  await tap(bar(' .swatch-trigger'));
   await tap(bar(' .swatch-btn[data-value="5"]'));
   t.check('touch: tapping the pill shows the bar and tapping a swatch colours the lane', (await sw(1)) === '5' && before !== '5', `${before} -> ${await sw(1)}`);
   await t.send('Emulation.setDeviceMetricsOverride', { width: 0, height: 0, deviceScaleFactor: 0, mobile: false });

@@ -166,6 +166,7 @@ sys.stdout.write(f.format_json(out))`;
   await tile('#btn-add-system');
   await t.type('Mail service');
   await t.press('Enter');
+  await t.settle();
   t.check('Add > System actor: an avatar with «system»', (await count('.uc-actor[data-kind="system"] .uc-figure')) === 2 && (await t.ev(`[...document.querySelectorAll('.uc-actor-name')].some((e) => e.textContent === 'Mail service')`)));
   await tile('#btn-add-usecase');
   t.check('Add > Use case: a new ellipse with its name open', (await count('.uc-case')) === 8 && (await editing()) === 'New use case', `${await editing()}`);
@@ -350,6 +351,8 @@ sys.stdout.write(f.format_json(out))`;
   t.check('the action bar offers Colour, Subject and Delete 3 (no Connect: no actor selected)',
     (await present('.uc-actionbar .uc-ab-swatch')) && (await present('.uc-actionbar [data-act="subject"]')) && (await text('.uc-actionbar [data-act="delete"]')).includes('Delete 3') && !(await present('.uc-actionbar [data-act="connect"]')));
   const before = await saved();
+  await t.clickOn('.uc-actionbar .swatch-trigger');
+  await sleep(150);
   await t.clickOn('.uc-actionbar .uc-ab-swatch[data-value="3"]');
   await sleep(120);
   d = await saved();
