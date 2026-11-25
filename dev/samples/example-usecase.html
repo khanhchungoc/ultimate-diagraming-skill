@@ -104,41 +104,62 @@
       --line-22: 22px;
       --tracking-normal: 0;
       --tracking-caps: 0.04em;
+      --text-rem-2xs: 0.625rem;
+      --text-rem-xs: 0.6875rem;
+      --text-rem-sm: 0.75rem;
+      --text-rem-md: 0.8125rem;
+      --text-rem-lg: 0.875rem;
+      --text-rem-lg-plus: 0.9375rem;
+      --text-rem-xl: 1rem;
+      --text-rem-2xl: 1.125rem;
       --t-title-family: var(--font-diagram);
       --t-title-size: var(--text-lg);
+      --t-title-rem-size: var(--text-rem-lg);
       --t-title-weight: var(--weight-bold);
       --t-title-leading: var(--leading-tight);
       --t-title-tracking: var(--tracking-normal);
       --t-label-family: var(--font-diagram);
       --t-label-size: var(--text-md);
+      --t-label-rem-size: var(--text-rem-md);
       --t-label-weight: var(--weight-regular);
       --t-label-leading: var(--leading-snug);
       --t-label-tracking: var(--tracking-normal);
       --t-detail-family: var(--font-diagram);
       --t-detail-size: var(--text-sm);
+      --t-detail-rem-size: var(--text-rem-sm);
       --t-detail-weight: var(--weight-regular);
       --t-detail-leading: var(--leading-normal);
       --t-detail-tracking: var(--tracking-normal);
       --t-caption-family: var(--font-ui);
       --t-caption-size: var(--text-xs);
+      --t-caption-rem-size: var(--text-rem-xs);
       --t-caption-weight: var(--weight-medium);
       --t-caption-leading: var(--leading-normal);
       --t-caption-tracking: var(--tracking-normal);
       --t-overline-family: var(--font-ui);
       --t-overline-size: var(--text-2xs);
+      --t-overline-rem-size: var(--text-rem-2xs);
       --t-overline-weight: var(--weight-bold);
       --t-overline-leading: var(--leading-tight);
       --t-overline-tracking: var(--tracking-caps);
       --t-code-family: var(--font-mono);
       --t-code-size: var(--text-xs);
+      --t-code-rem-size: var(--text-rem-xs);
       --t-code-weight: var(--weight-regular);
       --t-code-leading: var(--leading-normal);
       --t-code-tracking: var(--tracking-normal);
       --t-control-family: var(--font-ui);
       --t-control-size: var(--text-md);
+      --t-control-rem-size: var(--text-rem-md);
       --t-control-weight: var(--weight-medium);
       --t-control-leading: var(--leading-normal);
       --t-control-tracking: var(--tracking-normal);
+      --t-body-family: var(--font-ui);
+      --t-body-size: var(--text-lg);
+      --t-body-rem-size: var(--text-rem-lg);
+      --t-body-weight: var(--weight-regular);
+      --t-body-leading: var(--leading-normal);
+      --t-body-tracking: var(--tracking-normal);
       --icon-xs: 10px;
       --icon-sm: 12px;
       --icon-md: 14px;
@@ -198,7 +219,7 @@
       --border-color: #e2e8f0;
       --border-dark: #cbd5e1;
       --text-main: #0f172a;
-      --text-muted: #64748b;
+      --text-muted: #59677b;
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
       --success: #16a34a;
@@ -572,6 +593,7 @@
     .t-overline { font-family: var(--t-overline-family); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); line-height: var(--t-overline-leading); letter-spacing: var(--t-overline-tracking); }
     .t-code { font-family: var(--t-code-family); font-size: var(--t-code-size); font-weight: var(--t-code-weight); line-height: var(--t-code-leading); letter-spacing: var(--t-code-tracking); }
     .t-control { font-family: var(--t-control-family); font-size: var(--t-control-size); font-weight: var(--t-control-weight); line-height: var(--t-control-leading); letter-spacing: var(--t-control-tracking); }
+    .t-body { font-family: var(--t-body-family); font-size: var(--t-body-size); font-weight: var(--t-body-weight); line-height: var(--t-body-leading); letter-spacing: var(--t-body-tracking); }
     /* Floating docks (add controls, zoom): one pill style so they read as the same family */
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
@@ -691,7 +713,7 @@
       position: relative;   /* above the tail */
       z-index: 1;
       display: grid;
-      grid-template-columns: repeat(var(--pop-cols, 4), 60px);
+      grid-template-columns: repeat(var(--pop-cols, 4), minmax(68px, max-content));
       gap: 6px;
     }
     /* Only a grid with more rows than fit scrolls (shell.js adds .scrolls); otherwise the tiles' springy
@@ -702,9 +724,11 @@
       overscroll-behavior: contain;
     }
     .dock-pop-grid > .btn {
-      width: 60px;
-      height: 60px;
-      padding: 0;
+      min-width: 68px;
+      width: auto;
+      min-height: 60px;
+      height: auto;
+      padding: 6px;
       justify-content: center;
       color: var(--text-soft);
       border-color: transparent;
@@ -725,21 +749,21 @@
     .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
     .dock-pop-heading {
       padding: 0 4px 4px;
-      font-size: var(--t-overline-size);
+      font-size: var(--text-rem-sm);
       font-weight: var(--weight-semibold);
       letter-spacing: var(--t-overline-tracking);
       text-transform: uppercase;
       color: var(--text-soft);
     }
     /* Optional caption under a tile's icon */
-    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 1px; }
+    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 2px; }
     .tile-caption {
       max-width: 100%;
       padding: 0 2px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: var(--t-overline-size);
+      font-size: var(--text-rem-sm);
       font-weight: var(--weight-medium);
       line-height: var(--t-overline-leading);
     }
@@ -1303,6 +1327,9 @@
       color: var(--note-accent);
     }
     .note-add:hover { background: var(--note-bg); border-style: solid; }
+    .note-del::after, .note-badge::after { content: ''; position: absolute; inset: -3px; }
+    .note-link::after { content: ''; position: absolute; inset: -2px; }
+    .note-add::after { content: ''; position: absolute; inset: -1px; }
     .note-badge svg, .note-add svg { display: block; }
     /* With every note on show the badges would only repeat them */
     .notes-on .note-badge { display: none; }
@@ -1523,12 +1550,12 @@
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     /* The show / hide chevron (ui.actionBar): the top right corner of every bar; collapsed, a bar is only this */
-    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--text-muted); cursor: pointer; }
     .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
     body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
     /* Top right corner: the bar keeps a gutter for it; collapsed, the chevron is the whole bar */
-    body:not(.bars-collapsed) :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { padding-right: 26px; }
+    body:not(.bars-collapsed) :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { padding-right: 30px; }
     body.bars-collapsed .ab-toggle { position: static; }
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
@@ -1925,6 +1952,56 @@
       padding: 10px 14px 12px;
       flex: 1 1 auto;
     }
+    .help-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 10px 8px 14px;
+      border-top: 1px solid var(--border-color);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      flex: none;
+    }
+    .help-credit {
+      font-weight: var(--weight-medium);
+    }
+    .help-repo {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: var(--weight-semibold);
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+    }
+    .help-repo:hover {
+      background: var(--bg-hover);
+      color: var(--text-main);
+    }
+    .help-repo:focus-visible {
+      background: var(--bg-hover);
+      color: var(--text-main);
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    @media (pointer: coarse) {
+      .help-repo { min-height: 32px; }
+    }
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
     .help-group + .help-group {
       margin-top: 10px;
       padding-top: 10px;
@@ -2243,7 +2320,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-link.hl-out:not(.hover, .selected) .edge-line { stroke: var(--edge-out); stroke-width: var(--ring-md); marker-end: var(--mk-e-out); }
     .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a selection's wider reach: same neutral, bolder */
     .drag-fade { opacity: 0.12 !important; }
-    .uc-link.is-dim { opacity: var(--dim-line); }
+    .uc-link.is-dim:not(.hover, .selected) { opacity: var(--dim-line); }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
     .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
@@ -2261,7 +2338,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-label.is-editing-cond { width: auto !important; height: auto !important; min-width: 96px; padding: 3px 8px; z-index: 60; border-color: var(--primary); box-shadow: var(--shadow-ring); }
     .uc-cond.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 4px; min-width: 64px; min-height: 16px; white-space: nowrap; }
     .uc-cond.is-editing:empty::before { content: "condition"; color: var(--text-muted); pointer-events: none; }
-    .uc-label.is-dim { opacity: var(--dim); }
+    .uc-label.is-dim:not(.hover, .selected) { opacity: var(--dim); }
     .uc-label.hl:not(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
     /* --- Use cases: an ellipse; level shows in its size and outline --- */
@@ -2592,7 +2669,7 @@ html.is-loading #page-loading { display: grid; }
     </div>
   </div>
 
-  <!-- Help & Shortcuts Popover -->
+  <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
     <div class="help-head">
       <span id="help-title">Shortcuts</span>
@@ -2629,6 +2706,12 @@ html.is-loading #page-loading { display: grid; }
           <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
         </ul>
       </div>
+    </div>
+    <div class="help-foot">
+      <span class="help-credit">Ultimate Diagram</span>
+      <a class="help-repo" href="https://github.com/khanhchungoc/ultimate-diagraming-skill" target="_blank" rel="noopener noreferrer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></svg><span>GitHub</span><span class="visually-hidden"> (khanhchungoc/ultimate-diagraming-skill, opens in a new tab)</span>
+      </a>
     </div>
   </aside>
 
@@ -4432,6 +4515,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
       document.addEventListener('pointerover', (e) => {
         for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.dataset.noTip !== undefined) return;
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
@@ -10405,23 +10489,27 @@ function toMermaid(data, opts) {
         line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
         line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
       }
-      function linkTitle(l) {
-        const a = itemOf(l.from), b = itemOf(l.to);
-        const word = l.type === 'association' ? 'association' : `«${l.type}»`;
-        return `${nameOf(a)} ${l.type === 'association' ? '—' : '→'} ${nameOf(b)} (${word}${l.condition ? `, [${l.condition}]` : ''})`;
-      }
       function renderLinks() {
         linksOf().forEach((l) => {
           if (!LINK_TYPES.includes(l.type) || !l.points || l.points.length < 2) return;
           if (isHiddenByLevel(l.from) || isHiddenByLevel(l.to)) return;
           const d = pathOf(l.points);
           const g = svgEl('g', { class: `uc-link${l.type !== 'association' ? ' is-dashed' : ''}`, 'data-edge-id': l.id, 'data-from': l.from, 'data-to': l.to, 'data-type': l.type });
-          const tip = svgEl('title', { 'data-export-skip': '' });
-          tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
-          g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
-                    g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+          g.append(svgEl('path', { class: 'edge-hit', d }), line);
+          g.addEventListener('pointerenter', (ev) => {
+            if (ev.pointerType === 'touch' || drag) return;
+            hoverLinkId = l.id;
+            applyLinkState();
+          });
+          g.addEventListener('pointerleave', (ev) => {
+            if (hoverLinkId !== l.id) return;
+            const rec = els.links.get(l.id);
+            if (rec && rec.label && ev.relatedTarget && rec.label.contains(ev.relatedTarget)) return;
+            hoverLinkId = null;
+            applyLinkState();
+          });
           g.addEventListener('pointerdown', (ev) => {
             if (ev.button === 0 && !presenting()) {
               ev.stopPropagation();
@@ -10436,11 +10524,9 @@ function toMermaid(data, opts) {
         (chartData._parents || []).forEach((p) => {
           if (!p.points || p.points.length < 2 || !drawn(p.from) || !drawn(p.to)) return;
           const g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
-          const tip = svgEl('title', { 'data-export-skip': '' });
-          tip.textContent = `${nameOf(itemOf(p.from))} is a kind of ${nameOf(itemOf(p.to))}`;
           const line = svgEl('path', { class: 'edge-line', d: p.ortho ? roundedPath(p.points, 10) : pathOf(p.points) });
           setMarkers(line, 'tri');
-          g.append(tip, line);
+          g.append(line);
           linksG.appendChild(g);
           els.parents.push(g);
         });
@@ -10452,10 +10538,20 @@ function toMermaid(data, opts) {
           const el = htmlEl('div', 'edge-label uc-label');
           el.dataset.edgeId = l.id;
           Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
-          el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
           if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+          el.addEventListener('pointerenter', (ev) => {
+            if (ev.pointerType === 'touch' || drag) return;
+            hoverLinkId = l.id;
+            applyLinkState();
+          });
+          el.addEventListener('pointerleave', (ev) => {
+            if (hoverLinkId !== l.id) return;
+            const linkRec = els.links.get(l.id);
+            if (linkRec && ev.relatedTarget && linkRec.g.contains(ev.relatedTarget)) return;
+            hoverLinkId = null;
+            applyLinkState();
+          });
           el.addEventListener('pointerdown', (ev) => {
             if (ev.button === 0 && !presenting()) {
               ev.stopPropagation();
@@ -11769,14 +11865,15 @@ function toMermaid(data, opts) {
         bar.setAttribute('aria-label', 'Line');
         const caseCase = isCaseCase(l);
         if (!caseCase) {
-          bar.appendChild(abButton('type', `${lineGlyph('association', false)}<span>Association</span>`, 'Association: an actor takes part in a use case', l.type === 'association', 'association'));
-          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
+          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show direction with an open arrowhead', l.navigable === true, undefined, 'uc-ab-glyph'));
         } else {
           bar.appendChild(abButton('type', `${lineGlyph('include', false)}<span>Include</span>`, '«include»: the base always needs the part', l.type === 'include', 'include'));
           bar.appendChild(abButton('type', `${lineGlyph('extend', false)}<span>Extend</span>`, '«extend»: an optional addition to the base, only sometimes', l.type === 'extend', 'extend'));
         }
-        bar.appendChild(abSep());
-        bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
+        if (bar.children.length) bar.appendChild(abSep());
+        if (l.type !== 'association' || l.navigable === true) {
+          bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
+        }
         if (l.type === 'extend' && caseOf(l.to)) {
           const b = abButton('point-menu', `<span>${l.extensionPoint ? esc(l.extensionPoint) : 'Extension point'}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'The extension point of the base where this extension applies');
           b.dataset.menu = '';

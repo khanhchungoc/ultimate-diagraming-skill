@@ -135,6 +135,12 @@
         "size": "md",
         "weight": "medium",
         "leading": "normal"
+      },
+      "body": {
+        "family": "ui",
+        "size": "lg",
+        "weight": "regular",
+        "leading": "normal"
       }
     }
   },
@@ -395,6 +401,16 @@
       4.5
     ],
     [
+      "text-muted",
+      "bg-page",
+      4.5
+    ],
+    [
+      "text-muted",
+      "lane-alt-bg",
+      4.5
+    ],
+    [
       "text-soft",
       "bg-soft",
       4.5
@@ -612,7 +628,7 @@
       "border-color": "#e2e8f0",
       "border-dark": "#cbd5e1",
       "text-main": "#0f172a",
-      "text-muted": "#64748b",
+      "text-muted": "#59677b",
       "primary": "#2563eb",
       "primary-hover": "#1d4ed8",
       "success": "#16a34a",

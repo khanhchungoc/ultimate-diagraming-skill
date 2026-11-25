@@ -1791,6 +1791,7 @@
       const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
       document.addEventListener('pointerover', (e) => {
         for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.dataset.noTip !== undefined) return;
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }

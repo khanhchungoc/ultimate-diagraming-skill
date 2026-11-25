@@ -337,6 +337,7 @@
     const headRow = el('tr');
 
     const thCheck = el('th', 'gt-col-check');
+    thCheck.setAttribute('scope', 'col');
     const selectAllCb = el('input', 'gt-checkbox');
     selectAllCb.type = 'checkbox';
     selectAllCb.id = 'gt-select-all';
@@ -356,7 +357,9 @@
       { cls: 'gt-col-note',  label: 'Notes' }
     ];
     for (let i = 0; i < colDefs.length; i++) {
-      headRow.appendChild(el('th', colDefs[i].cls, colDefs[i].label));
+      const th = el('th', colDefs[i].cls, colDefs[i].label);
+      th.setAttribute('scope', 'col');
+      headRow.appendChild(th);
     }
     thead.appendChild(headRow);
     table.appendChild(thead);
@@ -410,10 +413,17 @@
     markersTable.id = 'gantt-markers-table';
     const mThead = el('thead');
     const mHeadTr = el('tr');
-    mHeadTr.appendChild(el('th', '', 'Label'));
-    mHeadTr.appendChild(el('th', 'gt-marker-col-date', 'Date'));
-    mHeadTr.appendChild(el('th', 'gt-marker-col-cat', 'Category'));
-    mHeadTr.appendChild(el('th', 'gt-marker-col-del', ''));
+    const mCols = [
+      { cls: '', label: 'Label' },
+      { cls: 'gt-marker-col-date', label: 'Date' },
+      { cls: 'gt-marker-col-cat', label: 'Category' },
+      { cls: 'gt-marker-col-del', label: '' }
+    ];
+    for (let i = 0; i < mCols.length; i++) {
+      const th = el('th', mCols[i].cls, mCols[i].label);
+      th.setAttribute('scope', 'col');
+      mHeadTr.appendChild(th);
+    }
     mThead.appendChild(mHeadTr);
     markersTable.appendChild(mThead);
     const markersTbody = el('tbody');
@@ -645,14 +655,18 @@
       return String(slotVal);
     }
 
-    function closeDepPopover() {
+    function closeDepPopover(restoreFocus = false) {
       if (!depPopState) return;
+      const anchorEl = depPopState.anchorEl;
       document.removeEventListener('pointerdown', depPopState.onDocDown, true);
       document.removeEventListener('keydown', depPopState.onDocKey, true);
       if (depPopState.el && depPopState.el.parentNode) {
         depPopState.el.parentNode.removeChild(depPopState.el);
       }
       depPopState = null;
+      if (restoreFocus && anchorEl && typeof anchorEl.focus === 'function' && anchorEl.isConnected) {
+        anchorEl.focus();
+      }
     }
 
     function openDatePicker(anchorEl, opts) {
@@ -677,7 +691,7 @@
       closeBtn.type = 'button';
       closeBtn.setAttribute('aria-label', 'Close');
       closeBtn.appendChild(makeIcon(api, 'close', { size: 12 }, '×'));
-      closeBtn.addEventListener('click', () => closeDepPopover());
+      closeBtn.addEventListener('click', () => closeDepPopover(true));
       head.appendChild(closeBtn);
       pop.appendChild(head);
 
@@ -685,6 +699,7 @@
       const input = el('input', 'gt-dep-input');
       input.type = 'text';
       input.placeholder = 'e.g. 2, 5';
+      input.setAttribute('aria-label', 'Predecessor row numbers');
       input.value = formatDepShorthand(item.id, tree.rowNumById);
       const applyBtn = el('button', 'gt-btn gt-btn-primary', 'Apply');
       applyBtn.type = 'button';
@@ -724,6 +739,7 @@
           const cb = el('input', 'gt-checkbox');
           cb.type = 'checkbox';
           cb.checked = Boolean(existing);
+          cb.setAttribute('aria-label', `#${cand.rowNum} ${other.label || 'Untitled'}`);
 
           const numSpan = el('span', 'gt-dep-item-num', `#${cand.rowNum}`);
           const lblSpan = el('span', 'gt-dep-item-label', other.label || 'Untitled');
@@ -815,7 +831,7 @@
           applyShorthand();
         } else if (e.key === 'Escape') {
           e.preventDefault();
-          closeDepPopover();
+          closeDepPopover(true);
         }
       });
       applyBtn.addEventListener('click', applyShorthand);
@@ -845,7 +861,7 @@
       const onDocKey = (e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
-          closeDepPopover();
+          closeDepPopover(true);
         }
       };
       document.addEventListener('pointerdown', onDocDown, true);
@@ -1709,10 +1725,10 @@
         const tdNum = el('td', 'gt-col-num', String(meta.rowNum));
         tr.appendChild(tdNum);
 
-        // Col 2: Task (indented by depth * 18px, chevron if hasChildren, inline editable label)
+        // Col 2: Task (indented by depth * 14px, chevron if hasChildren, inline editable label)
         const tdTask = makeCell('task', 1, 'gt-col-task');
         const taskWrap = el('div', 'gt-task-cell');
-        taskWrap.style.paddingLeft = `${meta.depth * 18}px`;
+        taskWrap.style.paddingLeft = `${meta.depth * 14}px`;
 
         if (isParentWithKids) {
           const chevBtn = el('button', 'gt-chevron' + (it.collapsed ? ' is-collapsed' : ''));

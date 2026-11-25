@@ -717,6 +717,18 @@ try {
   await t.press('Escape');
   await t.ev(t.key('=', { ctrlKey: true }));
   await t.settle();
+  // Scroll incrementally across the navbar boundary: participant pills must never dip above safeTop and jump back down
+  const smoothSeqPin = await t.ev(`(() => {
+    const vp = document.getElementById('viewport'), safeTop = Math.max(vp.getBoundingClientRect().top, ...[...document.querySelectorAll('header .toolbar-left, header .toolbar-right')].map((el) => el.getBoundingClientRect().bottom));
+    let minTop = Infinity;
+    for (let i = 0; i < 20; i++) {
+      vp.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 20, deltaMode: 0, clientX: 600, clientY: 400 }));
+      minTop = Math.min(minTop, document.querySelector('.seq-participant').getBoundingClientRect().top);
+    }
+    return { minTop: Math.round(minTop), safeTop: Math.round(safeTop) };
+  })()`);
+  t.check('scrolling participant pills past the navbar never lets them dip above safeTop and jump down',
+    smoothSeqPin.minTop >= smoothSeqPin.safeTop - 1, JSON.stringify(smoothSeqPin));
   // A wheel over the viewport scrolls the canvas (synthetic: the CDP mouseWheel event would also work, but the
   // shell's own test drives the wheel this way)
   await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 1500, deltaMode: 0, clientX: 600, clientY: 400 }))`);

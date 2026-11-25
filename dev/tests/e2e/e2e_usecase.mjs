@@ -239,10 +239,30 @@ sys.stdout.write(f.format_json(out))`;
   d = await saved();
   const newAssoc = d.links[d.links.length - 1];
   t.check('a port drag from an actor onto a use case draws an association from the actor', d.links.length === linksBefore + 1 && newAssoc.type === 'association' && newAssoc.from === 'customer' && newAssoc.to === 'voucher', J(newAssoc));
-  t.check('the new association action bar shows only Association (hiding Include and Extend) and no disabled buttons',
-    (await count('.uc-actionbar [data-act="type"]')) === 1
-    && (await t.ev(`document.querySelector('.uc-actionbar [data-act="type"][data-value="association"]').getAttribute('aria-pressed')`)) === 'true'
+  t.check('the new association action bar hides redundant Association and Reverse buttons when un-arrowed',
+    (await count('.uc-actionbar [data-act="type"]')) === 0
+    && (await present('.uc-actionbar [data-act="arrow"]'))
+    && (await t.ev(`document.querySelector('.uc-actionbar [data-act="arrow"]').getAttribute('aria-pressed')`)) === 'false'
+    && !(await present('.uc-actionbar [data-act="reverse"]'))
+    && (await present('.uc-actionbar [data-act="delete"]'))
     && (await count('.uc-actionbar [aria-disabled="true"]')) === 0);
+  await t.clickOn('.uc-actionbar [data-act="arrow"]');
+  await sleep(100);
+  d = await saved();
+  t.check('toggling Arrow on an association adds an arrowhead and reveals Reverse',
+    byId(d.links, newAssoc.id).navigable === true
+    && (await t.ev(`document.querySelector('.uc-actionbar [data-act="arrow"]').getAttribute('aria-pressed')`)) === 'true'
+    && (await present('.uc-actionbar [data-act="reverse"]')));
+  await t.clickOn('.uc-actionbar [data-act="reverse"]');
+  await sleep(100);
+  d = await saved();
+  t.check('Reverse on an arrowed association swaps its ends',
+    byId(d.links, newAssoc.id).from === 'voucher' && byId(d.links, newAssoc.id).to === 'customer');
+  await t.clickOn('.uc-actionbar [data-act="arrow"]');
+  await sleep(100);
+  d = await saved();
+  t.check('toggling Arrow off removes the arrowhead and hides Reverse again',
+    byId(d.links, newAssoc.id).navigable === undefined && !(await present('.uc-actionbar [data-act="reverse"]')));
   await blank();
   await connect('browse', 'voucher');
   const incDomId = await t.ev(`document.querySelector('.uc-link.selected').dataset.edgeId`);
@@ -254,7 +274,23 @@ sys.stdout.write(f.format_json(out))`;
     && !(await present('.uc-actionbar [data-act="type"][data-value="association"]'))
     && (await count('.uc-actionbar [aria-disabled="true"]')) === 0);
   t.check('the include has its «include» pill', (await count('.uc-label')) === 3);
+  t.check('connections and «include»/«extend» pills carry no hover tooltip',
+    (await count('.uc-link title')) === 0 && (await count('.uc-label[title]')) === 0);
   t.check('the link action bar has no condition input box', !(await present('.uc-actionbar .uc-ab-input')));
+  // hovering the «include» pill or line highlights the whole connection (both line and pill)
+  await blank();
+  const pillPt = await t.at(`.uc-label[data-edge-id="${incDomId}"]`);
+  await t.mouse('mouseMoved', pillPt.x, pillPt.y);
+  await sleep(80);
+  t.check('hovering the «include» pill highlights both the pill and the connector line',
+    (await present(`.uc-label[data-edge-id="${incDomId}"].hover`)) && (await present(`.uc-link[data-edge-id="${incDomId}"].hover`)));
+  const incLinePt = await onLine(incDomId);
+  await t.mouse('mouseMoved', incLinePt.x, incLinePt.y);
+  await sleep(80);
+  t.check('hovering the connector line highlights both the line and its «include» pill',
+    (await present(`.uc-link[data-edge-id="${incDomId}"].hover`)) && (await present(`.uc-label[data-edge-id="${incDomId}"].hover`)));
+  await t.mouse('mouseMoved', 2, 2);
+  await sleep(80);
   // inline condition on «include» pill: Esc cancels cleanly, Enter commits
   await t.clickOn(`.uc-label[data-edge-id="${incDomId}"]`, { count: 2 });
   await sleep(100);

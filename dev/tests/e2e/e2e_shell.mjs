@@ -522,7 +522,7 @@ try {
   const shown = await t.ev(pills), z1 = await t.ev(zoom);
   t.check('after panning right, every pill sits at the viewport left edge',
     shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12 * z1) <= 2), `shown=${JSON.stringify(shown)} zoom=${z1}`);
-  t.check('pill text scales with the diagram (15px at 100%)', shown.every(p => Math.abs(p.px - 15 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
+  t.check('pill text scales with the diagram (18px at 100%)', shown.every(p => Math.abs(p.px - 18 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
   // An export taken while panned draws every pill once, at its lane's own top-left (no view offset)
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
@@ -613,6 +613,27 @@ try {
     JSON.stringify(v) + ' ' + t.errors.join(' | '));
   t.check('vertical: every pill sits centred at the top of its own column, above the first node',
     v.pills.every(p => p.dy >= 3 && p.dy <= 20 && p.inside && Math.abs(p.off) <= 1) && v.clear, JSON.stringify(v.pills));
+  // Pill font size is bumped above node label text; hovering a step/node sets no tooltip
+  const pillAndTip = await t.ev(`(() => {
+    const p = document.querySelector('.lane-pill'), n = document.querySelector('.flow-node:not(.type-connector)');
+    const nl = n.querySelector('.node-label');
+    nl.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+    return { pillFs: parseFloat(getComputedStyle(p).fontSize), nodeFs: parseFloat(getComputedStyle(n).fontSize), nodeTip: n.title || nl.title || '' };
+  })()`);
+  t.check('lane pill font size is larger than node text and hovering a step sets no tooltip',
+    pillAndTip.pillFs > pillAndTip.nodeFs && pillAndTip.pillFs >= 18 && pillAndTip.nodeTip === '', JSON.stringify(pillAndTip));
+  // Scroll incrementally across the navbar boundary: the pill must never dip above safeTop and jump back down
+  const smoothPin = await t.ev(`(() => {
+    const vp = document.getElementById('viewport'), safeTop = Math.max(vp.getBoundingClientRect().top, ...[...document.querySelectorAll('header .toolbar-left, header .toolbar-right')].map((el) => el.getBoundingClientRect().bottom));
+    let minTop = Infinity;
+    for (let i = 0; i < 25; i++) {
+      vp.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY: 20, deltaMode: 0, clientX: 600, clientY: 400 }));
+      minTop = Math.min(minTop, document.querySelector('.lane-pill').getBoundingClientRect().top);
+    }
+    return { minTop: Math.round(minTop), safeTop: Math.round(safeTop) };
+  })()`);
+  t.check('vertical: scrolling header pills past the navbar never lets them dip above safeTop and jump down',
+    smoothPin.minTop >= smoothPin.safeTop - 1, JSON.stringify(smoothPin));
   await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY: 500, deltaMode: 0, clientX: 600, clientY: 400 }))`);
   await sleep(100);
   const pinnedTop = await t.ev(`(() => { const vp = document.getElementById('viewport').getBoundingClientRect(), c = document.getElementById('swimlanes-container').getBoundingClientRect();
@@ -737,6 +758,19 @@ try {
   await t.ev(`document.getElementById('btn-theme').click()`);
   await t.ev(`document.getElementById('btn-help').click()`);
   t.check('Help button opens the help drawer', await t.ev(`document.getElementById('help-drawer').classList.contains('open')`));
+  t.check('Help drawer includes GitHub repo link and HTML comment',
+    await t.ev(`(() => {
+      const a = document.querySelector('#help-drawer .help-repo');
+      if (!a) return false;
+      const r = a.getBoundingClientRect();
+      const rel = (a.getAttribute('rel') || '').split(/\\s+/);
+      const commentOk = [...document.body.childNodes].some(n => n.nodeType === 8 && n.nodeValue.includes('https://github.com/khanhchungoc/ultimate-diagraming-skill'));
+      return a.getAttribute('href') === 'https://github.com/khanhchungoc/ultimate-diagraming-skill'
+        && a.getAttribute('target') === '_blank'
+        && rel.includes('noopener')
+        && r.width >= 24 && r.height >= 24
+        && commentOk;
+    })()`));
   await t.ev(`document.getElementById('help-close').click()`);
   t.check('closing help returns focus to #btn-help', await t.ev(`document.activeElement.id === 'btn-help'`));
   t.check('no page errors in the header checks', t.errors.length === 0, t.errors.join(' | '));
