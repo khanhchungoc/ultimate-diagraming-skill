@@ -807,8 +807,14 @@
       border-radius: var(--radius-xl);
     }
     .flow-tabs {
-      position: fixed; top: 64px; left: 20px; z-index: 120; max-width: calc(100vw - 40px); overflow-x: auto;
+      position: fixed;
+      top: calc(64px + env(safe-area-inset-top, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      z-index: 120;
+      max-width: calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      overflow-x: auto;
       padding: 3px;
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
@@ -844,6 +850,26 @@
       border-left: 1px solid var(--border-color);
     }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .flow-tabs,
+      .flow-tabs:has(> .flow-tab[aria-selected="true"]) {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-md);
+      }
+      .flow-tab:hover { background: var(--glass-hover); color: var(--text-glass); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .flow-tabs,
+      .flow-tabs:has(> .flow-tab[aria-selected="true"]) {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
     .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .flow-tab[aria-selected="true"] {
       z-index: 2;
@@ -859,12 +885,21 @@
       border-radius: 0;
     }
     body.presentation .flow-tabs {
-      top: 16px;
-      left: 20px;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      max-width: calc(100vw - 148px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
     }
     @media (max-width: 720px) {
-      .flow-tabs { top: 60px; left: 12px; max-width: calc(100vw - 24px); }
-      body.presentation .flow-tabs { top: 12px; left: 12px; }
+      .flow-tabs {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        max-width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      }
+      body.presentation .flow-tabs {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        max-width: calc(100vw - 128px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      }
     }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */

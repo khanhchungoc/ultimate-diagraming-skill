@@ -2,7 +2,7 @@
     .menu-wrap { position: relative; }
     .menu {
       position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
-      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
     .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
@@ -22,6 +22,25 @@
       color: var(--text-muted); user-select: none;
     }
     .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .menu {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      .menu button:hover, .menu button:focus-visible { background: var(--glass-hover); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .menu {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
 
     /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
        .confirm-title is optional; with one, the message below it is the quiet explanation. */
@@ -31,11 +50,11 @@
       width: 260px;
       box-sizing: border-box;
       padding: 14px 14px 12px;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-main);
-      box-shadow: var(--shadow-xl);
+      box-shadow: var(--shadow-glass-lg);
       font-size: var(--t-control-size);
       line-height: var(--t-control-leading);
     }
@@ -76,3 +95,13 @@
     }
     .save-folder-tip:last-of-type { margin-bottom: 12px; }
     .save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
+    @media (max-width: 560px) {
+      .confirm,
+      .confirm.has-alt,
+      .confirm.confirm-wide {
+        max-width: calc(100vw - 24px);
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%);
+      }
+    }
