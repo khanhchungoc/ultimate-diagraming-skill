@@ -328,6 +328,7 @@
       --radius-md: 6px;
       --radius-lg: 8px;
       --radius-xl: 10px;
+      --radius-inner: 11px;
       --radius-2xl: 12px;
       --radius-3xl: 15px;
       --radius-pill: 999px;
@@ -437,6 +438,8 @@
       --glass-top: rgba(255, 255, 255, 0.62);
       --glass-bottom: rgba(255, 255, 255, 0.44);
       --glass-bg: rgba(255, 255, 255, 0.53);
+      --confirm-top: rgba(255, 255, 255, 0.78);
+      --confirm-bottom: rgba(255, 255, 255, 0.68);
       --glass-border: rgba(255, 255, 255, 0.85);
       --glass-outer-ring: rgba(15, 23, 42, 0.10);
       --glass-rim: rgba(255, 255, 255, 0.96);
@@ -613,6 +616,8 @@
       --glass-top: rgba(24, 35, 58, 0.62);
       --glass-bottom: rgba(13, 20, 38, 0.46);
       --glass-bg: rgba(18, 28, 48, 0.54);
+      --confirm-top: rgba(24, 35, 58, 0.80);
+      --confirm-bottom: rgba(13, 20, 38, 0.70);
       --glass-border: rgba(148, 163, 184, 0.28);
       --glass-outer-ring: rgba(0, 0, 0, 0.36);
       --glass-rim: rgba(255, 255, 255, 0.20);
@@ -738,6 +743,7 @@
     .dock-area > * { pointer-events: auto; }
     .toolbar-center,
     .toolbar-zoom {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -757,6 +763,10 @@
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
+    .toolbar-center .btn,
+    .toolbar-zoom .btn,
+    .dock-pop-trigger,
+    .dock-pop-grid > .btn { border-radius: var(--radius-inner); }
     /* One fixed button height in both docks, so the bars are always the same height whatever the font */
     .toolbar-center > .btn,
     .dock-pop-trigger,
@@ -917,15 +927,6 @@
     .toolbar-center .dock-delete:not(.show) {
       display: none;
     }
-    #zoom-level {
-      font-size: var(--text-sm);
-      font-weight: var(--weight-semibold);
-      min-width: 38px;   /* grows with a wide theme font; a fixed width cut "100%" */
-      padding: 0 2px;
-      text-align: center;
-      color: var(--text-main);
-      font-variant-numeric: tabular-nums;
-    }
 
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
@@ -965,12 +966,22 @@
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .toolbar-center,
       .toolbar-zoom {
-        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        background: transparent;
         border-color: var(--glass-border);
-        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
-        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
         box-shadow: var(--shadow-glass-md);
         color: var(--text-glass);
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
       }
       .dock-pop {
         background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
@@ -997,6 +1008,12 @@
       .dock-pop {
         background: var(--bg-panel);
         border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        background: none;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
       }
@@ -1174,7 +1191,7 @@
     .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
     .menu[hidden] { display: none; }
     .menu button {
-      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-inner);
       font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
     .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
@@ -1223,6 +1240,23 @@
       box-shadow: var(--shadow-glass-lg);
       font-size: var(--t-control-size);
       line-height: var(--t-control-leading);
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .confirm {
+        background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .confirm {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     .confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
     .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
@@ -1486,7 +1520,7 @@
     .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }
@@ -1637,13 +1671,13 @@
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     /* The show / hide chevron (ui.actionBar): the top right corner of every bar; collapsed, a bar is only this */
-    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--text-muted); cursor: pointer; }
     .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
     body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
@@ -1652,6 +1686,7 @@
     body.bars-collapsed .ab-toggle { position: static; }
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { border-radius: var(--radius-lg); }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
@@ -1667,12 +1702,21 @@
     body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
-        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        background: transparent;
         border-color: var(--glass-border);
         border-radius: var(--radius-2xl);
+        box-shadow: var(--shadow-glass-md);
+      }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
         backdrop-filter: blur(var(--glass-blur)) saturate(190%);
         -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
-        box-shadow: var(--shadow-glass-md);
       }
       :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
       .ab-toggle:hover { background: var(--glass-hover); color: var(--text-glass); }
@@ -1682,6 +1726,11 @@
         background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
         backdrop-filter: none; -webkit-backdrop-filter: none;
       }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
       :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
       .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     }
@@ -1689,6 +1738,12 @@
     body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
       background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
       backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    body.capture :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before,
+    body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
     @media (pointer: coarse) {
       :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { height: 36px; min-width: 36px; }
@@ -1804,6 +1859,7 @@
     header > * { pointer-events: auto; }
 
     .toolbar-left, .toolbar-right {
+      position: relative;
       display: flex;
       align-items: center;
       min-height: 42px;
@@ -1833,6 +1889,7 @@
     #more-menu { min-width: 196px; }
     #more-menu svg { flex: none; color: var(--text-soft); }
     /* Header buttons: universal glyphs (search, theme, help, import, export, more) are 32px squares matching the bottom docks */
+    header .btn { border-radius: var(--radius-inner); }
     header .btn-icon {
       width: 32px; height: 32px; padding: 0;
       justify-content: center;
@@ -1916,7 +1973,7 @@
       overflow: hidden;
       background-color: var(--bg-viewport);
       background-image:
-        radial-gradient(var(--grid-dot) 1px, transparent 1px),
+        radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px),
         radial-gradient(ellipse 78% 72% at 50% 48%, var(--vignette-center) 0%, var(--vignette-mid) 58%, var(--vignette-edge) 100%);
       background-size: 24px 24px, 100% 100%;
       cursor: grab;
@@ -1924,7 +1981,7 @@
     }
     body.capture #viewport,
     body.exporting #viewport {
-      background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+      background-image: radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px);
       background-size: 24px 24px;
     }
     #viewport.panning {
@@ -2209,12 +2266,24 @@ html.is-loading #page-loading { display: grid; }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .toolbar-left,
       body:not(.presentation) .toolbar-right {
-        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
         border-color: var(--glass-border);
-        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
-        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
         box-shadow: var(--shadow-glass-md);
         color: var(--text-glass);
+      }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
       }
       #help-drawer {
         background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
@@ -2252,6 +2321,12 @@ html.is-loading #page-loading { display: grid; }
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
       }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     body.capture .toolbar-left,
     body.capture .toolbar-right,
@@ -2261,6 +2336,14 @@ html.is-loading #page-loading { display: grid; }
     body.exporting #help-drawer {
       background: var(--bg-panel);
       border-color: var(--border-dark);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    body.capture .toolbar-left::before,
+    body.capture .toolbar-right::before,
+    body.exporting .toolbar-left::before,
+    body.exporting .toolbar-right::before {
+      background: none;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
@@ -2528,6 +2611,8 @@ html.is-loading #page-loading { display: grid; }
       --ring: var(--node-accent);
       box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 25%, transparent);
     }
+    .flow-node.selected,
+    .flow-node:has(.actionbar) { z-index: 53; }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
       --ring: var(--primary);
@@ -2762,7 +2847,7 @@ html.is-loading #page-loading { display: grid; }
     }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 33; pointer-events: auto; }
+    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 53; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
@@ -2869,6 +2954,7 @@ html.is-loading #page-loading { display: grid; }
       font-size: var(--text-lg-plus);
       --halo-bg: var(--lane-bg);
     }
+    .lane-pill:has(.actionbar) { z-index: 53; }
     /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
     .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
@@ -3102,7 +3188,7 @@ html.is-loading #page-loading { display: grid; }
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
       background: transparent;
       border: 0;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-inner);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease);
@@ -3357,13 +3443,6 @@ html.is-loading #page-loading { display: grid; }
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg>
     </button>
     <span class="dock-sep" aria-hidden="true"></span>
-    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/></svg>
-    </button>
-    <span id="zoom-level">100%</span>
-    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
-    </button>
     <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg>
     </button>
@@ -5221,11 +5300,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
       function showZoom() {
-        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
-          zoomLevelEl.textContent = plugin.zoomController.getLabel();
-          return;
-        }
-        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+          ? plugin.zoomController.getLabel()
+          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        viewport.dataset.zoom = label;
+        if (zoomLevelEl) zoomLevelEl.textContent = label;
       }   // a glide in flight shows where it lands
       function updateTransform() {
         if (plugin && plugin.customViewport) {
@@ -5676,7 +5755,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         updateTransform();
       }, { passive: false });
 
-      btnZoomIn.addEventListener('click', () => {
+      function zoomIn() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
           plugin.zoomController.zoomIn();
           showZoom();
@@ -5685,8 +5764,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomOut.addEventListener('click', () => {
+      }
+      function zoomOut() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
           plugin.zoomController.zoomOut();
           showZoom();
@@ -5695,8 +5774,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomReset.addEventListener('click', () => fitView(true));
+      }
+      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
@@ -7311,6 +7392,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (document.body.classList.contains('presentation')) return;
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          zoomIn();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomOut();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+          e.preventDefault();
+          fitView(true);
+        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+          e.preventDefault();
+          fitView(true);
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }

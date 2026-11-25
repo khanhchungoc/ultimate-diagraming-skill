@@ -1768,11 +1768,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
       function showZoom() {
-        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
-          zoomLevelEl.textContent = plugin.zoomController.getLabel();
-          return;
-        }
-        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+          ? plugin.zoomController.getLabel()
+          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        viewport.dataset.zoom = label;
+        if (zoomLevelEl) zoomLevelEl.textContent = label;
       }   // a glide in flight shows where it lands
       function updateTransform() {
         if (plugin && plugin.customViewport) {
@@ -2223,7 +2223,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         updateTransform();
       }, { passive: false });
 
-      btnZoomIn.addEventListener('click', () => {
+      function zoomIn() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
           plugin.zoomController.zoomIn();
           showZoom();
@@ -2232,8 +2232,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomOut.addEventListener('click', () => {
+      }
+      function zoomOut() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
           plugin.zoomController.zoomOut();
           showZoom();
@@ -2242,8 +2242,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomReset.addEventListener('click', () => fitView(true));
+      }
+      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
@@ -3858,6 +3860,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (document.body.classList.contains('presentation')) return;
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          zoomIn();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomOut();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+          e.preventDefault();
+          fitView(true);
+        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+          e.preventDefault();
+          fitView(true);
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }
