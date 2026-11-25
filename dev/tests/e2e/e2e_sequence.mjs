@@ -715,7 +715,8 @@ try {
     dim > 20 && dim < 42 && (await count('.seq-participant.linked')) === 2);
   // Pan down: the participant row is pinned at the top of the viewport; an SVG export has it at the top
   await t.press('Escape');
-  await t.clickOn('#btn-zoom-in');
+  await t.ev(t.key('=', { ctrlKey: true }));
+  await t.settle();
   // A wheel over the viewport scrolls the canvas (synthetic: the CDP mouseWheel event would also work, but the
   // shell's own test drives the wheel this way)
   await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 1500, deltaMode: 0, clientX: 600, clientY: 400 }))`);
@@ -826,7 +827,8 @@ try {
   const pinnedNow = () => t.ev(`(() => { const vp = document.getElementById('viewport').getBoundingClientRect();
     return JSON.stringify([...document.querySelectorAll('.seq-participant')].filter((e) => e.getBoundingClientRect().top < vp.top + 90 && e.getBoundingClientRect().bottom > vp.top && !e.classList.contains('is-gone')).map((e) => e.dataset.nodeId).sort()); })()`);
   await t.press('Escape');
-  for (let i = 0; i < 4; i++) await t.clickOn('#btn-zoom-in');   // about 100%: the viewport shows a few rows, as on a screen
+  for (let i = 0; i < 4; i++) await t.ev(t.key('=', { ctrlKey: true }));   // about 100%: the viewport shows a few rows, as on a screen
+  await t.settle();
   await scrollTo('.seq-line[data-edge-id="m14"]', 300);
   const posA = JSON.parse(await pinnedNow());
   await scrollTo('.seq-line[data-edge-id="m33"]', 300);

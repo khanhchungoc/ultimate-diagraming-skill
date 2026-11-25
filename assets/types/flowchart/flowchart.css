@@ -262,6 +262,8 @@
       --ring: var(--node-accent);
       box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 25%, transparent);
     }
+    .flow-node.selected,
+    .flow-node:has(.actionbar) { z-index: 53; }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
       --ring: var(--primary);
@@ -496,7 +498,7 @@
     }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 33; pointer-events: auto; }
+    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 53; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
@@ -603,6 +605,7 @@
       font-size: var(--text-lg-plus);
       --halo-bg: var(--lane-bg);
     }
+    .lane-pill:has(.actionbar) { z-index: 53; }
     /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
     .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
@@ -836,7 +839,7 @@
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
       background: transparent;
       border: 0;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-inner);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease);

@@ -361,7 +361,6 @@
         const wrap = htmlEl('div', 'uc-name-wrap');
         const lines = Array.isArray(u._lines) && u._lines.length ? u._lines : [nameOf(u)];
         const name = htmlEl('span', `uc-name t-label${u.abstract ? ' is-abstract' : ''}`, lines.join('\n'));
-        name.title = nameOf(u);
         wrap.appendChild(name);
         if (u._compH) wrap.style.flex = `0 0 ${u.h - u._compH}px`;
         shape.appendChild(wrap);

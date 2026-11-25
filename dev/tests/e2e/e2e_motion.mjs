@@ -23,7 +23,7 @@ if (!browser || Object.values(pages).some((p) => !p)) {
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
 const J = JSON.stringify;
-const ZOOM_IN = `document.getElementById('btn-zoom-in').click()`;
+const ZOOM_IN = t.key('=', { ctrlKey: true });
 // WAAPI animations only: CSS transitions (hover and the like) are not the kernel's.
 const WAAPI = `document.getAnimations().filter((a) => !(a instanceof CSSTransition) && !(a instanceof CSSAnimation)).length`;
 const GHOSTS = `document.querySelectorAll('[data-motion-ghost]').length`;

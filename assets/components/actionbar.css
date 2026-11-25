@@ -16,13 +16,13 @@
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     /* The show / hide chevron (ui.actionBar): the top right corner of every bar; collapsed, a bar is only this */
-    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--text-muted); cursor: pointer; }
     .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
     body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
@@ -31,6 +31,7 @@
     body.bars-collapsed .ab-toggle { position: static; }
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { border-radius: var(--radius-lg); }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
@@ -46,12 +47,21 @@
     body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
-        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        background: transparent;
         border-color: var(--glass-border);
         border-radius: var(--radius-2xl);
+        box-shadow: var(--shadow-glass-md);
+      }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
         backdrop-filter: blur(var(--glass-blur)) saturate(190%);
         -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
-        box-shadow: var(--shadow-glass-md);
       }
       :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
       .ab-toggle:hover { background: var(--glass-hover); color: var(--text-glass); }
@@ -61,6 +71,11 @@
         background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
         backdrop-filter: none; -webkit-backdrop-filter: none;
       }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
       :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
       .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     }
@@ -68,6 +83,12 @@
     body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
       background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
       backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    body.capture :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before,
+    body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
     @media (pointer: coarse) {
       :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { height: 36px; min-width: 36px; }

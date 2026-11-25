@@ -15,6 +15,7 @@
     .dock-area > * { pointer-events: auto; }
     .toolbar-center,
     .toolbar-zoom {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -34,6 +35,10 @@
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
+    .toolbar-center .btn,
+    .toolbar-zoom .btn,
+    .dock-pop-trigger,
+    .dock-pop-grid > .btn { border-radius: var(--radius-inner); }
     /* One fixed button height in both docks, so the bars are always the same height whatever the font */
     .toolbar-center > .btn,
     .dock-pop-trigger,
@@ -194,15 +199,6 @@
     .toolbar-center .dock-delete:not(.show) {
       display: none;
     }
-    #zoom-level {
-      font-size: var(--text-sm);
-      font-weight: var(--weight-semibold);
-      min-width: 38px;   /* grows with a wide theme font; a fixed width cut "100%" */
-      padding: 0 2px;
-      text-align: center;
-      color: var(--text-main);
-      font-variant-numeric: tabular-nums;
-    }
 
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
@@ -242,12 +238,22 @@
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .toolbar-center,
       .toolbar-zoom {
-        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        background: transparent;
         border-color: var(--glass-border);
-        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
-        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
         box-shadow: var(--shadow-glass-md);
         color: var(--text-glass);
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
       }
       .dock-pop {
         background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
@@ -274,6 +280,12 @@
       .dock-pop {
         background: var(--bg-panel);
         border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        background: none;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
       }

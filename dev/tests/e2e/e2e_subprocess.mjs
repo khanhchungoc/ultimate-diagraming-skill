@@ -82,14 +82,14 @@ try {
   t.check('switching tabs is not an edit', !/unsaved/i.test(await status()), await status());
 
   // 3. Each tab keeps its own pan and zoom
-  await t.ev(`document.getElementById('btn-zoom-in').click()`);
-  await t.ev(`document.getElementById('btn-zoom-in').click()`);
-  const zoomParent = await t.ev(`document.getElementById('zoom-level').textContent`);
+  await t.ev(t.key('=', { ctrlKey: true }));
+  await t.ev(t.key('=', { ctrlKey: true }));
+  const zoomParent = await t.ev(`document.getElementById('viewport').dataset.zoom`);
   await goTab('approve_spec');
-  const zoomChild = await t.ev(`document.getElementById('zoom-level').textContent`);
+  const zoomChild = await t.ev(`document.getElementById('viewport').dataset.zoom`);
   await goTab('');
-  t.check('a tab remembers its zoom: back on the parent it is as left, the child had its own', (await t.ev(`document.getElementById('zoom-level').textContent`)) === zoomParent && zoomChild !== zoomParent,
-    `parent ${zoomParent}, child ${zoomChild}, back ${await t.ev(`document.getElementById('zoom-level').textContent`)}`);
+  t.check('a tab remembers its zoom: back on the parent it is as left, the child had its own', (await t.ev(`document.getElementById('viewport').dataset.zoom`)) === zoomParent && zoomChild !== zoomParent,
+    `parent ${zoomParent}, child ${zoomChild}, back ${await t.ev(`document.getElementById('viewport').dataset.zoom`)}`);
 
   // 4. Tidy works on the tab it is on and moves nothing in the others
   const parentPos = await positions();
