@@ -38,7 +38,7 @@
     .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }
@@ -65,11 +65,29 @@
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
     .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
-    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
-      box-shadow: none;
-      filter: drop-shadow(var(--shadow-md));
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .swatch-popover {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        border-radius: var(--radius-2xl);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+      }
+      .swatch-btn:hover { background: var(--glass-hover); }
     }
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
-      box-shadow: none;
+    @media (prefers-reduced-transparency: reduce) {
+      .swatch-popover {
+        background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      .swatch-btn:hover { background: var(--bg-hover); }
+    }
+    body.capture .swatch-popover, body.exporting .swatch-popover {
+      background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    @media (pointer: coarse) {
+      .swatch-row { gap: 4px; }
+      .swatch-btn { width: 34px; height: 34px; }
     }

@@ -116,7 +116,27 @@ function c4Sibs(m, x, y) {
   return [x, y];
 }
 
-// Relations between members of one container, as [ci, cj, count] by container id (the lowest common container of the two endpoints).
+// Label + badge bounding box and required arrow-axis clearance (label + badge + 16px arrowhead + 2 * minStem).
+function c4EdgeDims(label, tech, step) {
+  const t = label == null ? '' : String(label).trim();
+  const s = step == null ? '' : String(step).trim();
+  const sz = t
+    ? (typeof c4rLabelSize === 'function'
+      ? c4rLabelSize(t, tech)
+      : { w: Math.max(48, Math.min(C4.cardMaxW, t.length * TOKENS.font.metrics.edgeLabel + 24)), h: tech ? 44 : 30 })
+    : { w: 0, h: 0 };
+  const bg = s && typeof c4rBadgeSize === 'function' ? c4rBadgeSize(s) : { w: 0, h: 0 };
+  return { w: sz.w, h: sz.h, bw: bg.w, bh: bg.h };
+}
+
+function c4EdgeClear(d, vert, padTrim = 0) {
+  const lbl = vert ? d.h : d.w;
+  const bg = d.bw ? (vert ? d.bh : d.bw) + 8 : 0;
+  if (!lbl && !bg) return 0;
+  return Math.max(0, lbl + bg + 16 + 2 * (C4.minStem || 20) - padTrim);
+}
+
+// Relations between members of one container, as [ci, cj, count, hasLbl, vNeed, hNeed, lblW, lblH] by container id (the lowest common container of the two endpoints).
 function c4Links(m) {
   const sets = new Map();
   m.rels.forEach((r) => {
@@ -128,7 +148,16 @@ function c4Links(m) {
     if (!sets.has(x.par)) sets.set(x.par, new Map());
     const mp = sets.get(x.par), e = mp.get(k);
     const hasLbl = Boolean(r.label && String(r.label).trim());
-    if (e) { e[2]++; if (hasLbl) e[3] = true; } else mp.set(k, [a.ci, b.ci, 1, hasLbl]);
+    const d = c4EdgeDims(r.label, r.tech, r.step);
+    const expTrim = ((x.kind === 'g' && !x.self ? 1 : 0) + (y.kind === 'g' && !y.self ? 1 : 0)) * C4.pad;
+    const vn = c4EdgeClear(d, true, expTrim), hn = c4EdgeClear(d, false, expTrim);
+    if (e) {
+      e[2]++; if (hasLbl) e[3] = true;
+      if (vn > e[4]) e[4] = vn;
+      if (hn > e[5]) e[5] = hn;
+      if (d.w > e[6]) e[6] = d.w;
+      if (d.h > e[7]) e[7] = d.h;
+    } else mp.set(k, [a.ci, b.ci, 1, hasLbl, vn, hn, d.w, d.h]);
   });
   return sets;
 }
@@ -200,22 +229,33 @@ function c4Flow(its, edges) {
   rows.forEach((row) => { row.t = Math.max.apply(null, row.its.map((i) => its[i].h)); });
   // 4. across: centre each row, then pull items toward their neighbours' centres (isotonic regression keeps order and gaps)
   const xa = new Float64Array(n), G = C4.flowAcross;
-  rows.forEach((row) => {
-    let tot = -G;
-    row.its.forEach((i) => { tot += its[i].w + G; });
-    let x = -tot / 2;
-    row.its.forEach((i) => { xa[i] = x; x += its[i].w + G; });
-  });
   const rowOf = new Int32Array(n);
   rows.forEach((row, ri) => row.its.forEach((i) => { rowOf[i] = ri; }));
+  const shareFan = (a, b) => {
+    for (const p of nbr[a]) {
+      if (Math.abs(rank[p] - rank[a]) === 1 && nbr[b].includes(p) && its[p].w <= C4.labelMaxW + 60) return true;
+    }
+    return false;
+  };
+  const pairGap = (row, k) => {
+    const a = row.its[k - 1], b = row.its[k];
+    return shareFan(a, b) ? Math.max(G, 120) : G;
+  };
+  rows.forEach((row) => {
+    let tot = 0;
+    row.its.forEach((i, k) => { tot += its[i].w + (k ? pairGap(row, k) : 0); });
+    let x = -tot / 2;
+    row.its.forEach((i, k) => { if (k) x += pairGap(row, k); xa[i] = x; x += its[i].w; });
+  });
   const relax = (ri) => {
     const row = rows[ri], len = row.its.length, d = new Array(len), s = new Array(len);
     let off = 0;
     row.its.forEach((i, k) => {
+      if (k) off += pairGap(row, k) + its[row.its[k - 1]].w;
       let sum = 0, c = 0;
       nbr[i].forEach((j) => { if (rowOf[j] !== ri) { sum += xa[j] + its[j].w / 2; c++; } });
       d[k] = c ? sum / c - its[i].w / 2 : xa[i];
-      s[k] = off; off += its[i].w + G;
+      s[k] = off;
     });
     const blocks = [];
     for (let k = 0; k < len; k++) {
@@ -232,15 +272,75 @@ function c4Flow(its, edges) {
     for (let ri = 0; ri < rows.length; ri++) relax(ri);
     for (let ri = rows.length - 1; ri >= 0; ri--) relax(ri);
   }
-  // 5. along: rows in rank order; the gap between ranks grows with the arrows that cross it (room for labels)
+  // 4b. equalize aligned cards/tiles: rows share height; vertically aligned columns share width when row clearance permits
+  const isCard = (it) => it.kind === 'e' || it.self;
+  rows.forEach((row) => {
+    const cardH = Math.max(0, ...row.its.filter((i) => isCard(its[i])).map((i) => its[i].h));
+    if (cardH) row.its.forEach((i) => { if (isCard(its[i])) c4MatchSize(its[i], its[i].w, cardH); });
+  });
+  const colsX = [];
+  for (let i = 0; i < n; i++) {
+    if (!isCard(its[i])) continue;
+    const cx = xa[i] + its[i].w / 2;
+    let col = colsX.find((c) => Math.abs(c.cx - cx) <= 4);
+    if (!col) { col = { cx, list: [] }; colsX.push(col); }
+    col.list.push(i);
+  }
+  for (const col of colsX) {
+    if (col.list.length < 2) continue;
+    const colW = Math.max.apply(null, col.list.map((i) => its[i].w));
+    const canWiden = col.list.every((i) => {
+      if (its[i].w === colW) return true;
+      const rIts = rows[rowOf[i]].its, posInRow = rIts.indexOf(i);
+      const cx = xa[i] + its[i].w / 2, x0 = cx - colW / 2, x1 = cx + colW / 2;
+      if (posInRow > 0) { const L = rIts[posInRow - 1]; if (xa[L] + its[L].w + G > x0) return false; }
+      if (posInRow < rIts.length - 1) { const R = rIts[posInRow + 1]; if (x1 + G > xa[R]) return false; }
+      return true;
+    });
+    if (canWiden) {
+      for (const i of col.list) {
+        const cx = xa[i] + its[i].w / 2;
+        c4MatchSize(its[i], colW, its[i].h);
+        xa[i] = Math.round(cx - colW / 2);
+      }
+    }
+  }
+  // 5. along: rows in rank order; the gap between ranks grows with crossing edges and their label heights
   const span = new Int32Array(R + 1);
+  const needAt = new Float64Array(R);
+  const byGap = Array.from({ length: R }, () => []);
   edges.forEach((e) => {
     const lo = Math.min(rank[e[0]], rank[e[1]]), hi = Math.max(rank[e[0]], rank[e[1]]);
     span[lo]++; span[hi]--;
+    if (hi === lo + 1) {
+      if ((e[4] || 0) > needAt[lo]) needAt[lo] = e[4];
+      if ((e[7] || 0) > 0) byGap[lo].push(e);
+    }
   });
+  const minStem = C4.minStem || 20;
+  for (let r = 0; r < R; r++) {
+    if (byGap[r].length < 2) continue;
+    const straight = [];
+    for (const e of byGap[r]) {
+      const a = e[0], b = e[1];
+      const ov = Math.min(xa[a] + its[a].w, xa[b] + its[b].w) - Math.max(xa[a], xa[b]);
+      if (ov >= 20) {
+        const cx = (Math.max(xa[a], xa[b]) + Math.min(xa[a] + its[a].w, xa[b] + its[b].w)) / 2;
+        straight.push({ cx, w: e[6] || 0, h: e[7] || 0 });
+      }
+    }
+    straight.sort((p, q) => p.cx - q.cx);
+    for (let k = 1; k < straight.length; k++) {
+      const p = straight[k - 1], q = straight[k];
+      if (q.cx - p.cx < (p.w + q.w) / 2 + 16) {
+        const stagger = p.h + q.h + 8 + 16 + 2 * minStem;
+        if (stagger > needAt[r]) needAt[r] = stagger;
+      }
+    }
+  }
   const gapAt = new Array(R);
   let run = 0;
-  for (let r = 0; r < R; r++) { run += span[r]; gapAt[r] = C4.flowAlong + C4.flowPerEdge * Math.min(C4.flowEdgeCap, run); }
+  for (let r = 0; r < R; r++) { run += span[r]; gapAt[r] = Math.max(C4.flowAlong + C4.flowPerEdge * Math.min(C4.flowEdgeCap, run), needAt[r]); }
   let along = 0, minX = Infinity, maxX = -Infinity;
   const ya = new Float64Array(n);
   rows.forEach((row, ri) => {
@@ -256,22 +356,31 @@ function c4Flow(its, edges) {
   return { w: Math.round(maxX - minX), h: Math.round(along) };
 }
 
+function c4MatchSize(it, w, h) {
+  if (it.kind === 'e') { it.w = w; it.h = h; }
+  else if (it.self) { it.tw = it.w = w; it.th = it.h = h; }
+}
+
 // Members in one line (a row, or a column when `vert`); `gapOf(prev, it)` is the space between neighbours. Returns the line's size.
 function c4Line(its, vert, gapOf) {
   const cross = Math.max.apply(null, its.map((i) => (vert ? i.w : i.h)));
+  const cardCross = Math.max(0, ...its.filter((i) => i.kind === 'e' || i.self).map((i) => (vert ? i.w : i.h)));
   let p = 0;
   its.forEach((it, k) => {
     if (k) p += gapOf(its[k - 1], it);
+    if (cardCross && (it.kind === 'e' || it.self)) c4MatchSize(it, vert ? cardCross : it.w, vert ? it.h : cardCross);
     if (vert) { it.rx = Math.round((cross - it.w) / 2); it.ry = p; p += it.h; } else { it.ry = Math.round((cross - it.h) / 2); it.rx = p; p += it.w; }
   });
   return vert ? { w: cross, h: p } : { w: p, h: cross };
 }
 
-const c4LinkGap = (a, b, vert, labeled = true) => {
-  if (vert) return C4.innerLinkY;
+const c4LinkGap = (a, b, vert, link = true) => {
+  const labeled = typeof link === 'boolean' ? link : Boolean(link && link[3]);
+  if (vert) return Math.max(C4.innerLinkY, (Array.isArray(link) && link[4]) || 0);
   if (!labeled) return Math.max(C4.innerGap, 56);
   const exp = (it) => it && it.kind === 'g' && !it.self;
-  return exp(a) || exp(b) ? Math.max(C4.innerGap, Math.round(C4.innerLinkX * 0.55)) : C4.innerLinkX;
+  const baseH = exp(a) || exp(b) ? Math.max(C4.innerGap, Math.round(C4.innerLinkX * 0.55)) : C4.innerLinkX;
+  return Math.max(baseH, (Array.isArray(link) && link[5]) || 0);
 };
 
 // Sizes group `g` (and the groups below it): lays its members out, sets the frame (fw, fh) and w, h as drawn inside its parent.
@@ -292,7 +401,7 @@ function c4Size(m, g, vert) {
   if (!n) c = { w: 0, h: 0 };
   else if (pairs.some((p) => p[1] - p[0] !== 1) || (pairs.length && n > C4.rowMax)) c = c4Flow(its, pairs);
   else {
-    const linked = new Map(pairs.map((p) => [p[0], Boolean(p[3])]));
+    const linked = new Map(pairs.map((p) => [p[0], p]));
     const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert, linked.get(a.ci)) : C4.innerGap);
     const lines = [];
     for (let o = 0; o < n; o += C4.rowMax) lines.push(its.slice(o, o + C4.rowMax));
@@ -382,7 +491,7 @@ function c4Rings(m) {
   m.byRing = Array.from({ length: m.maxRing + 1 }, () => []);
   ringItems.forEach((i) => m.byRing[i.ring].push(i));
   // links to the inner rings (they set the gutter), and the centre nodes each item links to
-  items.forEach((i) => { i.nIn = 0; i.hasLabelIn = false; i.cl = null; });
+  items.forEach((i) => { i.nIn = 0; i.hasLabelIn = false; i.cl = null; i.maxVNeed = 0; i.maxHNeed = 0; i.maxLblH = 0; i.inTargets = null; });
   m.rel2.forEach((r) => {
     const a = r.a.top, b = r.b.top;
     if (a === b || a.ring === b.ring) return;
@@ -390,6 +499,14 @@ function c4Rings(m) {
     o.nIn++;
     const rel = m.rels[r.i];
     if (Math.abs(a.ring - b.ring) === 1 && rel && rel.label && String(rel.label).trim()) o.hasLabelIn = true;
+    if (Math.abs(a.ring - b.ring) === 1 && rel) {
+      const d = c4EdgeDims(rel.label, rel.tech, rel.step);
+      const vn = c4EdgeClear(d, true, 0), hn = c4EdgeClear(d, false, 0);
+      if (vn > o.maxVNeed) o.maxVNeed = vn;
+      if (hn > o.maxHNeed) o.maxHNeed = hn;
+      if (d.h > o.maxLblH) o.maxLblH = d.h;
+      (o.inTargets || (o.inTargets = new Set())).add(inner.id);
+    }
     if (arrange === 'surround' && inner.top.ring === 0) (o.cl || (o.cl = [])).push(inner);
   });
   return m;
@@ -462,13 +579,24 @@ const c4Union = (rs) => {
 };
 
 // Items in lines (rowMax per line) on side `s` of box `B`, centred on the origin along the side; further lines go outward.
-function c4Lane(its, s, B, gap) {
+function c4Lane(its, s, B, gap, flat = false) {
   const horiz = c4Vert(s), dir = s === 'N' || s === 'W' ? -1 : 1;
+  const shareTarget = (a, b) => {
+    if (flat || !horiz || !a.inTargets || !b.inTargets) return false;
+    for (const id of a.inTargets) if (b.inTargets.has(id)) return true;
+    return false;
+  };
   let edge = s === 'N' ? B.ay - gap : s === 'S' ? B.ay + B.h + gap : s === 'E' ? B.ax + B.w + gap : B.ax - gap;
   for (let o = 0; o < its.length; o += C4.rowMax) {
     const line = its.slice(o, o + C4.rowMax);
-    const gaps = line.map((it, k) => (k ? (it.nb.has(line[k - 1]) ? (horiz ? C4.ringLinkX : C4.ringLinkY) : C4.ringGap) : 0));
+    const gaps = line.map((it, k) => {
+      if (!k) return 0;
+      if (it.nb.has(line[k - 1])) return horiz ? C4.ringLinkX : C4.ringLinkY;
+      return shareTarget(line[k - 1], it) ? Math.max(C4.ringGap, 112) : C4.ringGap;
+    });
     const thick = Math.max.apply(null, line.map((i) => (horiz ? i.h : i.w)));
+    const cardThick = Math.max(0, ...line.filter((i) => i.kind === 'e' || i.self).map((i) => (horiz ? i.h : i.w)));
+    if (cardThick) line.forEach((it) => { if (it.kind === 'e' || it.self) c4MatchSize(it, horiz ? it.w : cardThick, horiz ? cardThick : it.h); });
     let p = -(line.reduce((t, i, k) => t + (horiz ? i.w : i.h) + gaps[k], 0)) / 2;
     line.forEach((it, k) => {
       p += gaps[k];
@@ -508,11 +636,20 @@ function c4Place(m) {
   const cs = byRing[0], linked = (its) => its.some((a, i) => its.some((b, j) => j > i && a.nb.has(b)));
   let B;
   if (!cs.length) { B = { ax: 0, ay: 0, w: 0, h: 0 }; }
-  else if (flat) { c4Lane(cs, vertLayers ? 'E' : 'S', { ax: 0, ay: 0, w: 0, h: 0 }, 0); B = c4Union(cs); } else {
+  else if (flat) { c4Lane(cs, vertLayers ? 'E' : 'S', { ax: 0, ay: 0, w: 0, h: 0 }, 0, true); B = c4Union(cs); } else {
     const cols = Math.ceil(Math.sqrt(cs.length)), rows = [], lk = linked(cs);
     for (let i = 0; i < cs.length; i += cols) rows.push(cs.slice(i, i + cols));
-    const gx = lk ? C4.ringLinkX : C4.centreGap, gy = lk ? C4.ringLinkY : C4.centreGap;
+    const rootLinks = m.links.has('') ? Array.from(m.links.get('').values()) : [];
+    const maxHN = rootLinks.reduce((mx, p) => Math.max(mx, p[5] || 0), 0);
+    const maxVN = rootLinks.reduce((mx, p) => Math.max(mx, p[4] || 0), 0);
+    const gx = lk ? Math.max(C4.ringLinkX, maxHN) : C4.centreGap, gy = lk ? Math.max(C4.ringLinkY, maxVN) : C4.centreGap;
     const rh = rows.map((r) => Math.max.apply(null, r.map((c) => c.h))), th = rh.reduce((s, h) => s + h, 0) + (rows.length - 1) * gy;
+    const cw = new Array(cols).fill(0);
+    rows.forEach((r) => r.forEach((c, ci) => { if ((c.kind === 'e' || c.self) && c.w > cw[ci]) cw[ci] = c.w; }));
+    rows.forEach((r, ri) => {
+      const cardH = Math.max(0, ...r.filter((c) => c.kind === 'e' || c.self).map((c) => c.h));
+      r.forEach((c, ci) => { if (c.kind === 'e' || c.self) c4MatchSize(c, cw[ci] || c.w, cardH || c.h); });
+    });
     let cy = -th / 2;
     rows.forEach((r, ri) => {
       let x = -(r.reduce((s, c) => s + c.w, 0) + (r.length - 1) * gx) / 2;
@@ -525,7 +662,8 @@ function c4Place(m) {
   c4Sides(m);
   // the other items, sized for their side (a framed item beside the centre holds its members in a column)
   if (!flat) items.forEach((i) => { if (i.ring > 0 && i.kind === 'g') c4Size(m, i, i.side === 'E' || i.side === 'W'); });
-  const vertColGap = vertLayers ? (m.mainLayers.some((i) => i.hasLabelIn) ? 112 : 84) : 0;
+  const maxLayerH = vertLayers ? m.mainLayers.reduce((mx, i) => Math.max(mx, i.maxHNeed || 0), 0) : 0;
+  const vertColGap = vertLayers ? Math.max(m.mainLayers.some((i) => i.hasLabelIn) ? 112 : 84, maxLayerH) : 0;
   for (let r = 1; r <= maxRing; r++) {
     const ring = byRing[r], placed = [];
     const ctr = (n) => ({ x: n.ax + n.w / 2, y: n.ay + n.h / 2 });
@@ -534,13 +672,29 @@ function c4Place(m) {
       return [it, ns.length ? ns.reduce((s, p) => s + p[v], 0) / ns.length : 0];
     }));
     const side = (s) => ring.filter((i) => i.side === s).sort((a, b) => key.get(a) - key.get(b));
-    const gutter = (its, base) => base + C4.ringStagger * Math.min(C4.ringStaggerCap, Math.max(0, its.reduce((t, i) => t + i.nIn, 0) - 3));
+    const gutter = (its, base, horiz) => {
+      let g = base + C4.ringStagger * Math.min(C4.ringStaggerCap, Math.max(0, its.reduce((t, i) => t + i.nIn, 0) - 3));
+      for (const it of its) {
+        const need = horiz ? it.maxVNeed : it.maxHNeed;
+        if (need > g) g = need;
+      }
+      if (horiz && its.length > 1) {
+        const byT = new Map();
+        for (const it of its) if (it.inTargets && it.maxLblH) for (const tid of it.inTargets) (byT.get(tid) || byT.set(tid, []).get(tid)).push(it);
+        for (const grp of byT.values()) if (grp.length > 1) {
+          const hs = grp.map((it) => it.maxLblH).sort((a, b) => b - a);
+          const stagger = hs[0] + hs[1] + 8 + 16 + 2 * (C4.minStem || 20);
+          if (stagger > g && grp.length > 2) g = stagger;
+        }
+      }
+      return g;
+    };
     const N = side('N'), S = side('S'), E = side('E'), W = side('W');
-    if (N.length) { c4Lane(N, 'N', B, gutter(N, C4.ringV)); placed.push(...N); }
-    if (S.length) { c4Lane(S, 'S', B, gutter(S, C4.ringV)); placed.push(...S); }
+    if (N.length) { c4Lane(N, 'N', B, gutter(N, C4.ringV, true), flat); placed.push(...N); }
+    if (S.length) { c4Lane(S, 'S', B, gutter(S, C4.ringV, true), flat); placed.push(...S); }
     const B2 = placed.length ? c4Union([B, ...placed]) : B;
-    if (E.length) { c4Lane(E, 'E', B2, vertLayers ? vertColGap : gutter(E, C4.ringH)); placed.push(...E); }
-    if (W.length) { c4Lane(W, 'W', B2, gutter(W, C4.ringH)); placed.push(...W); }
+    if (E.length) { c4Lane(E, 'E', B2, vertLayers ? vertColGap : gutter(E, C4.ringH, false), flat); placed.push(...E); }
+    if (W.length) { c4Lane(W, 'W', B2, gutter(W, C4.ringH, false), flat); placed.push(...W); }
     placed.forEach(c4Assign);
     B = c4Union([B, ...placed]);
   }
@@ -647,9 +801,13 @@ function c4Order(m) {
     key = key.map((k, i) => (k === null ? at(its[i]) : k));
     const order = its.map((_, i) => i).sort((p, q) => key[p] - key[q] || tie[p] - tie[q] || p - q);
     if (order.every((i, k) => i === k)) return;
-    const seq = order.map((i) => its[i]), linked = new Set(pairs.map((p) => p[0] * n + p[1]));
+    const seq = order.map((i) => its[i]), linked = new Map(pairs.map((p) => [p[0] * n + p[1], p]));
     const size = (k) => (vert ? k.h : k.w);
-    const base = seq.map((k, i) => (i ? (linked.has(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci)) ? c4LinkGap(seq[i - 1], k, vert) : C4.innerGap) : 0));
+    const base = seq.map((k, i) => {
+      if (!i) return 0;
+      const lk = linked.get(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci));
+      return lk ? c4LinkGap(seq[i - 1], k, vert, lk) : C4.innerGap;
+    });
     const total = seq.reduce((s, k, i) => s + size(k) + base[i], 0);
     const old = Math.max.apply(null, its.map((k) => (vert ? k.ry : k.rx) + size(k)));
     if (total > old) return;
@@ -1172,6 +1330,65 @@ function c4Fill(m) {
   return done;
 }
 
+function c4EqualizeSaved(m) {
+  const isCard = (k) => k.vis && (k.kind === 'e' || k.self) && c4Has(k);
+  const wOf = (k) => (k.kind === 'e' ? k.w : k.tw);
+  const hOf = (k) => (k.kind === 'e' ? k.h : k.th);
+  const boxOf = (o) => {
+    const ow = o.kind === 'e' ? o.w : o.self ? o.tw : o.fw, oh = o.kind === 'e' ? o.h : o.self ? o.th : o.fh;
+    return ow && oh ? { x: o.ref.x, y: o.ref.y, w: ow, h: oh } : null;
+  };
+  const sweep = (list) => {
+    const cards = list.filter(isCard);
+    if (cards.length < 2) return;
+    const grid = list.length > 24 ? c4Cells() : null;
+    if (grid) list.forEach((o) => { if (o.vis && c4Has(o)) { const b = boxOf(o); if (b) grid.add(o, b); } });
+    const clearOf = (group, x0, y0, x1, y1) => {
+      const r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      const cands = grid ? grid.near(r, 0) : list;
+      return cands.every((o) => {
+        if (!o.vis || group.includes(o) || !c4Has(o)) return true;
+        const b = boxOf(o);
+        return !b || !(x0 < b.x + b.w && b.x < x1 && y0 < b.y + b.h && b.y < y1);
+      });
+    };
+    const byX = new Map();
+    for (const c of cards) {
+      const k = Math.round(c.ref.x);
+      let g = byX.get(k) || byX.get(k - 1) || byX.get(k + 1);
+      if (!g) { g = []; byX.set(k, g); }
+      g.push(c);
+    }
+    for (const g of byX.values()) {
+      if (g.length < 2) continue;
+      const maxW = Math.max.apply(null, g.map(wOf));
+      const ys = g.slice().sort((a, b) => a.ref.y - b.ref.y);
+      if (ys.some((c, i) => i && ys[i - 1].ref.y + hOf(ys[i - 1]) > c.ref.y)) continue;
+      if (g.every((c) => wOf(c) === maxW || clearOf(g, c.ref.x, c.ref.y, c.ref.x + maxW, c.ref.y + hOf(c)))) {
+        g.forEach((c) => c4MatchSize(c, maxW, hOf(c)));
+      }
+    }
+    const byY = new Map();
+    for (const c of cards) {
+      const k = Math.round(c.ref.y);
+      let g = byY.get(k) || byY.get(k - 1) || byY.get(k + 1);
+      if (!g) { g = []; byY.set(k, g); }
+      g.push(c);
+    }
+    for (const g of byY.values()) {
+      if (g.length < 2) continue;
+      const maxH = Math.max.apply(null, g.map(hOf));
+      const xs = g.slice().sort((a, b) => a.ref.x - b.ref.x);
+      if (xs.some((c, i) => i && xs[i - 1].ref.x + wOf(xs[i - 1]) > c.ref.x)) continue;
+      if (g.every((c) => hOf(c) === maxH || clearOf(g, c.ref.x, c.ref.y, c.ref.x + wOf(c), c.ref.y + maxH))) {
+        g.forEach((c) => c4MatchSize(c, wOf(c), maxH));
+      }
+    }
+  };
+  sweep(m.items);
+  m.gN.forEach((g) => { if (g.vis && !g.self) sweep(g.kids); });
+}
+
 // Keeps every saved position and recomputes frames, arrows and canvas. opts.pinned: ids (elements, groups) just moved; they stay when
 // boxes or frames overlap and the others shift away as blocks. Items without a position are placed incrementally (c4Fill) and pinned.
 // Nothing positioned at all: the full layout. data._manual: true when the saved positions were kept.
@@ -1179,6 +1396,7 @@ function routeDiagram(data, opts) {
   const m = c4Model(data);
   if (!m.items.some(c4Placed)) return layoutDiagram(data);
   m.links = c4Links(m);
+  c4EqualizeSaved(m);
   c4Stamp(m);
   const pins = new Set((opts && opts.pinned) || []);
   c4Fill(m).forEach((id) => pins.add(id));

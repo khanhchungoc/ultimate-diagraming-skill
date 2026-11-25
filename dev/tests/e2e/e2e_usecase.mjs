@@ -473,8 +473,8 @@ sys.stdout.write(f.format_json(out))`;
   await sleep(100);
   t.check('leaving hover clears hl-in and hl-out', (await count('.hl-in, .hl-out')) === 0);
   // connection ports keep constant screen size when zoomed out
-  await t.clickOn('#btn-zoom-out');
-  await t.clickOn('#btn-zoom-out');
+  await t.ev(t.key('-', { ctrlKey: true }));
+  await t.ev(t.key('-', { ctrlKey: true }));
   await sleep(120);
   await t.clickOn(item('checkout'));
   await sleep(120);
@@ -482,7 +482,7 @@ sys.stdout.write(f.format_json(out))`;
   t.check('connection port stays ~12px on screen when zoomed out', Math.abs(portRect.w - 12) <= 1.5 && Math.abs(portRect.h - 12) <= 1.5 && parseFloat(portRect.uiScale) > 1, J(portRect));
   await t.clickOn('#btn-zoom-reset');
   await sleep(100);
-  // swatch picker opens on hover and shares the action bar's elevation (no overlapping shadows)
+  // swatch picker opens on hover with frosted-glass box-shadow (no ancestor filter: drop-shadow, which would break backdrop-filter)
   const swTrig = await t.at('.uc-actionbar .swatch-trigger');
   await t.mouse('mouseMoved', swTrig.x, swTrig.y);
   await sleep(100);
@@ -492,8 +492,8 @@ sys.stdout.write(f.format_json(out))`;
     const bs = getComputedStyle(bar), ps = getComputedStyle(pop);
     return { open: !pop.hidden, barShadow: bs.boxShadow, popShadow: ps.boxShadow, barFilter: bs.filter, popZ: ps.zIndex };
   })()`);
-  t.check('hovering the colour trigger opens the swatch popover on the same elevation with a shared drop-shadow',
-    swHover && swHover.open && swHover.barShadow === 'none' && swHover.popShadow === 'none' && swHover.barFilter.includes('drop-shadow') && swHover.popZ === 'auto', J(swHover));
+  t.check('hovering the colour trigger opens the swatch popover with glass elevation and no ancestor filter',
+    swHover && swHover.open && swHover.barShadow !== 'none' && swHover.popShadow !== 'none' && swHover.barFilter === 'none' && swHover.popZ === 'auto', J(swHover));
   await t.mouse('mouseMoved', 6, 300);
   await sleep(220);
   t.check('leaving the swatch picker closes it after the hover grace delay', await t.ev(`document.querySelector('.uc-actionbar .swatch-popover')?.hidden === true`));
@@ -564,9 +564,9 @@ sys.stdout.write(f.format_json(out))`;
   await t.mouse('mouseMoved', 6, 300);
   await sleep(80);
   const subLeft = await subStyle('office');
-  t.check('hovering a subject interior or title bar applies the hover border/shadow while keeping pointer-events: none',
+  t.check('hovering a subject interior, use case, or title bar applies the hover border/shadow while keeping pointer-events: none',
     subRest.pe === 'none' && !subRest.hover && subHovInner.hover && subHovInner.border !== subRest.border && subHovInner.shadow !== subRest.shadow
-      && !subOnCase.hover && subOnTitle.hover && !subLeft.hover,
+      && subOnCase.hover && subOnTitle.hover && !subLeft.hover,
     `${J(subRest)} | ${J(subHovInner)} | ${J(subOnCase)} | ${J(subOnTitle)} | ${J(subLeft)}`);
   // collapse a subject; expanding it again puts every use case back where it was, with nothing on top of another
   const boxes = () => t.ev(`JSON.stringify([...document.querySelectorAll('.uc-case')].map((e) => [e.dataset.nodeId, e.style.left, e.style.top, e.style.width, e.style.height]).sort())`);

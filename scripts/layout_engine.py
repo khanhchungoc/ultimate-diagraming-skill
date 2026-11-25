@@ -1576,13 +1576,15 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
     logos = load_logos(logo_refs(data), ICON_DIRS)[0]
     if kind == "c4" and BUNDLED_LOGOS_DIR.is_dir():
         logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
+    extra_css = [type_dir / name for name in meta.get("extraCss", ())]
+    extra_js = [type_dir / name for name in meta.get("extraJs", ())]
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "TOKENS_CSS": tokens_css(tokens),
         "FONT_HREF": html.escape(tokens["font"]["href"]),
         "COMPONENTS_CSS": components_css(),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
-        "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
+        "TYPE_CSS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (type_dir / f"{kind}.css", *extra_css)),
         "TYPE_TOOLBAR": html_part(_read_asset(type_dir / "toolbar.html").rstrip(chr(10))),
         "TYPE_ICON": html_part(f"{{{{icon:type-{kind}:xl}}}}"),  # the type's header icon is the registry entry type-<type>
         "TYPE_CHROME": html_part(_read_asset(type_dir / "chrome.html")),
@@ -1596,7 +1598,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
-        "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
+        "TYPE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (*extra_js, type_dir / f"{kind}.js")),
     }
     return parts, tokens, icons
 

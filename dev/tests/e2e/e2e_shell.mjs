@@ -189,7 +189,7 @@ try {
   await t.open(scrambled);
   const scrambledPositions = await t.ev(positions);
   const stageView = `document.getElementById('stage').style.transform`;
-  await t.ev(`document.getElementById('btn-zoom-in').click()`);
+  await t.ev(t.key('=', { ctrlKey: true }));
   await sleep(260);
   const viewBefore = await t.ev(stageView);
   await t.ev(`document.getElementById('btn-auto-tidy').click()`);
@@ -509,9 +509,9 @@ try {
         const firstNode = Math.min(...[...laneEl.querySelectorAll('.flow-node')].map(n => n.getBoundingClientRect().left));
         return { dx: Math.round(r.left - vp.left), laneDx: Math.round(r.left - lane.left), clear: Math.round(firstNode - r.right), px: Math.round(parseFloat(getComputedStyle(p).fontSize) * k * 10) / 10 }; }); })()`;
   const laneCount = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  const zoom = `parseInt(document.getElementById('zoom-level').textContent) / 100`;
+  const zoom = `parseInt(document.getElementById('viewport').dataset.zoom) / 100`;
   const atRest = await t.ev(pills);
-  for (let i = 0; i < 6; i++) await t.ev(`document.getElementById('btn-zoom-out').click()`);
+  for (let i = 0; i < 6; i++) await t.ev(t.key('-', { ctrlKey: true }));
   const restOut = await t.ev(pills);
   await t.ev(`document.getElementById('btn-zoom-reset').click()`);
   t.check("no header column: every lane shows its pill at its top-left, clear of the lane's nodes at any zoom",
@@ -570,7 +570,7 @@ try {
 
   // 9a. Mouse wheel: scrolls the canvas (Shift: sideways); Ctrl + wheel zooms one gentle step per notch
   await t.open(laid);
-  const view = `(() => { const r = document.getElementById('swimlanes-container').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), z: parseInt(document.getElementById('zoom-level').textContent) }; })()`;
+  const view = `(() => { const r = document.getElementById('swimlanes-container').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), z: parseInt(document.getElementById('viewport').dataset.zoom) }; })()`;
   const wheel = (o) => `document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', Object.assign({ bubbles: true, cancelable: true, deltaX: 0, deltaY: 0, deltaMode: 0, clientX: 600, clientY: 400 }, ${JSON.stringify(o)})))`;
   const w0 = await t.ev(view);
   await t.ev(wheel({ deltaY: 100 }));
@@ -750,8 +750,8 @@ try {
   const gotToast = await t.ev(`/Esc or the Present button/.test((document.querySelector('.toast') || {}).textContent || '')`);
   t.check('Present button turns presentation on in place, aria-pressed follows, a hint toast shows',
     await t.ev(isPres) && await t.ev(prsd) === 'true' && gotToast && chromeBefore > 4, `chromeBefore=${chromeBefore}`);
-  t.check('in presentation only Present and the zoom dock (3 buttons) are visible',
-    await t.ev(`JSON.stringify(${visChrome}.filter(c => c !== 'toolbar-zoom'))`) === JSON.stringify(['btn-present', 'btn-zoom-out', 'btn-zoom-in', 'btn-zoom-reset']) && await t.ev(`getComputedStyle(document.getElementById('btn-present')).display !== 'none' && document.getElementById('btn-present').getBoundingClientRect().top < 56`));
+  t.check('in presentation only Present and the zoom dock (Fit button) are visible',
+    await t.ev(`JSON.stringify(${visChrome}.filter(c => c !== 'toolbar-zoom'))`) === JSON.stringify(['btn-present', 'btn-zoom-reset']) && await t.ev(`getComputedStyle(document.getElementById('btn-present')).display !== 'none' && document.getElementById('btn-present').getBoundingClientRect().top < 56`));
   const nodeX = `Math.round(document.querySelector('.flow-node').getBoundingClientRect().left)`;
   const nodeCount2 = await t.ev(`document.querySelectorAll('.flow-node').length`);
   const posBefore = await t.ev(positions), x0 = await t.ev(nodeX);
@@ -763,9 +763,9 @@ try {
   t.check('presentation: dragging a step pans the view, double-click, Delete, Ctrl+Z and Ctrl+S change nothing',
     x1 !== x0 && await t.ev(positions) === posBefore && await t.ev(`document.querySelectorAll('.flow-node').length`) === nodeCount2
     && await t.ev(`!document.querySelector('[contenteditable="true"]') && document.getElementById('save-status').textContent`) !== 'Unsaved changes' && t.errors.length === 0, `x ${x0}->${x1} errors=${t.errors.join(' | ')}`);
-  const z0 = await t.ev(`document.getElementById('zoom-level').textContent`);
-  await t.clickOn('#btn-zoom-in');
-  t.check('presentation: zoom still works', await t.ev(`document.getElementById('zoom-level').textContent`) !== z0);
+  const z0 = await t.ev(`document.getElementById('viewport').dataset.zoom`);
+  await t.ev(t.key('=', { ctrlKey: true }));
+  t.check('presentation: zoom still works', await t.ev(`document.getElementById('viewport').dataset.zoom`) !== z0);
   await t.ev(t.key('Escape'));
   t.check('Esc leaves presentation and the Present button follows', !(await t.ev(isPres)) && await t.ev(prsd) === 'false');
   await t.ev(t.key('Escape'));

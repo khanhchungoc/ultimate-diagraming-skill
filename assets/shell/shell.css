@@ -24,9 +24,9 @@
     /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css; z-index 200 clears .flow-tabs at 120 and #search-dock at 150 so header menus stay on top) */
     header {
       position: fixed;
-      top: 16px;
-      left: 20px;
-      right: 20px;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       z-index: 200;
       display: flex;
       align-items: flex-start;
@@ -37,13 +37,14 @@
     header > * { pointer-events: auto; }
 
     .toolbar-left, .toolbar-right {
+      position: relative;
       display: flex;
       align-items: center;
       min-height: 42px;
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .toolbar-left {
@@ -66,6 +67,7 @@
     #more-menu { min-width: 196px; }
     #more-menu svg { flex: none; color: var(--text-soft); }
     /* Header buttons: universal glyphs (search, theme, help, import, export, more) are 32px squares matching the bottom docks */
+    header .btn { border-radius: var(--radius-inner); }
     header .btn-icon {
       width: 32px; height: 32px; padding: 0;
       justify-content: center;
@@ -148,10 +150,17 @@
       position: relative;
       overflow: hidden;
       background-color: var(--bg-viewport);
-      background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
-      background-size: 24px 24px;
+      background-image:
+        radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px),
+        radial-gradient(ellipse 78% 72% at 50% 48%, var(--vignette-center) 0%, var(--vignette-mid) 58%, var(--vignette-edge) 100%);
+      background-size: 24px 24px, 100% 100%;
       cursor: grab;
       touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
+    }
+    body.capture #viewport,
+    body.exporting #viewport {
+      background-image: radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px);
+      background-size: 24px 24px;
     }
     #viewport.panning {
       cursor: grabbing;
@@ -198,14 +207,14 @@
     /* Help & Shortcuts Popover */
     #help-drawer {
       position: fixed;
-      top: 66px;
-      right: 20px;
+      top: calc(66px + env(safe-area-inset-top, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       bottom: auto;
       width: min(360px, calc(100vw - 32px));
-      max-height: calc(100vh - 84px);
+      max-height: calc(100vh - 84px - env(safe-area-inset-top, 0px));
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
       font-size: var(--text-sm);
       color: var(--text-soft);
@@ -345,9 +354,9 @@
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
     /* The top pills collapse to nothing; only the Present button stays, pinned to the top-right corner. */
-    body.presentation header { height: 0; top: 16px; right: 20px; left: auto; justify-content: flex-end; }
-    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-    body.presentation #btn-present { position: fixed; top: 16px; right: 20px; z-index: 101; box-shadow: var(--shadow-md); }
+    body.presentation header { height: 0; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); left: auto; justify-content: flex-end; }
+    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.presentation #btn-present { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 101; box-shadow: var(--shadow-md); }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
@@ -362,12 +371,21 @@
     }
     /* Narrow screens (a shared link opened on a phone): tighter corner insets */
     @media (max-width: 720px) {
-      header { top: 12px; left: 12px; right: 12px; gap: 8px; }
+      header {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        gap: 8px;
+      }
       .toolbar-left { padding: 4px 8px 4px 10px; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
       #btn-help, [data-more="help"] { display: none; }   /* a phone has no keyboard shortcuts to list */
-      #help-drawer { top: 60px; right: 12px; bottom: auto; }
+      #help-drawer {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        bottom: auto;
+      }
     }
     @media (max-width: 560px) {
       body:not(.presentation) header .toolbar-right #btn-save .btn-label { display: none; }
@@ -422,3 +440,88 @@ html.is-loading #page-loading { display: grid; }
     #btn-theme span { display: inline-flex; }
     #btn-theme[aria-pressed="true"] { background: transparent; border-color: transparent; color: inherit; }
     #btn-theme[aria-pressed="true"]:hover { background: var(--bg-hover); }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-color: var(--glass-border);
+        box-shadow: var(--shadow-glass-md);
+        color: var(--text-glass);
+      }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+      }
+      #help-drawer {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      header .btn-icon:hover,
+      header .btn-icon:focus-visible,
+      header .btn-icon[aria-expanded="true"],
+      header .type-btn:hover,
+      header .type-btn:focus-visible,
+      #btn-theme[aria-pressed="true"]:hover {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary) {
+        background: transparent;
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):hover,
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):focus-visible {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right,
+      #help-drawer {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    body.capture .toolbar-left,
+    body.capture .toolbar-right,
+    body.capture #help-drawer,
+    body.exporting .toolbar-left,
+    body.exporting .toolbar-right,
+    body.exporting #help-drawer {
+      background: var(--bg-panel);
+      border-color: var(--border-dark);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    body.capture .toolbar-left::before,
+    body.capture .toolbar-right::before,
+    body.exporting .toolbar-left::before,
+    body.exporting .toolbar-right::before {
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }

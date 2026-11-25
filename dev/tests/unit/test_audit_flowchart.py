@@ -358,6 +358,68 @@ def main() -> int:
               by3["c"]["x"] == by3["d"]["x"] and by3["a"]["x"] == by3["b"]["x"] > by3["d"]["x"] and r3["passed"],
               f"d={d11_dir} by3={by3} r3={r3}")
 
+    # 12. Fan-out track cap: <=3 branches stay at <=2 sub-tracks; >3 branches stay at <=3 sub-tracks
+    def track_count(laid_data):
+        tb = laid_data.get("direction") == "TB"
+        return len({round((n["y"] + (144 if tb else (96 if n["type"] == "decision" else 64)) / 2) / 40) for n in laid_data["nodes"]})
+
+    for d12_dir in ("LR", "TB"):
+        d12_three = run_layout("flowchart", {
+            "diagramType": "flowchart", "direction": d12_dir,
+            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "nodes": [
+                {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
+                {"id": "d", "laneId": "l1", "type": "decision", "label": "Check?"},
+                {"id": "c", "laneId": "l1", "type": "end", "label": "Needs Manual Review"},
+                {"id": "a", "laneId": "l1", "type": "task", "label": "Opt A"},
+                {"id": "b", "laneId": "l1", "type": "task", "label": "Opt B"},
+                {"id": "ea", "laneId": "l1", "type": "end", "label": "Done A"},
+                {"id": "eb", "laneId": "l1", "type": "end", "label": "Done B"},
+            ],
+            "edges": [
+                {"id": "e1", "from": "s", "to": "d", "label": ""},
+                {"id": "e2", "from": "d", "to": "c", "label": "Needs Manual Intervention"},
+                {"id": "e3", "from": "d", "to": "a", "label": "Opt A"},
+                {"id": "e4", "from": "d", "to": "b", "label": "Opt B"},
+                {"id": "e5", "from": "a", "to": "ea", "label": ""},
+                {"id": "e6", "from": "b", "to": "eb", "label": ""},
+            ],
+        })
+        t3 = track_count(d12_three)
+        r12_3 = FlowchartAudit(d12_three).verify_collisions()
+        check(f"<=3 stacked branches cap at 2 sub-tracks ({d12_dir})",
+              t3 <= 2 and r12_3["passed"], f"d={d12_dir} tracks={t3} r={r12_3}")
+
+        d12_five = run_layout("flowchart", {
+            "diagramType": "flowchart", "direction": d12_dir,
+            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "nodes": [
+                {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
+                {"id": "d", "laneId": "l1", "type": "decision", "label": "Status?"},
+                {"id": "e500", "laneId": "l1", "type": "end", "label": "HTTP 500"},
+                {"id": "ok", "laneId": "l1", "type": "task", "label": "Save"},
+                {"id": "log", "laneId": "l1", "type": "task", "label": "Log"},
+                {"id": "e404", "laneId": "l1", "type": "end", "label": "HTTP 404"},
+                {"id": "e409", "laneId": "l1", "type": "end", "label": "HTTP 409"},
+                {"id": "e201", "laneId": "l1", "type": "end", "label": "Done"},
+                {"id": "e400", "laneId": "l1", "type": "end", "label": "HTTP 400"},
+            ],
+            "edges": [
+                {"id": "e1", "from": "s", "to": "d", "label": ""},
+                {"id": "e2", "from": "d", "to": "e500", "label": "Other / Error"},
+                {"id": "e3", "from": "d", "to": "ok", "label": "HTTP 201"},
+                {"id": "e4", "from": "d", "to": "log", "label": "HTTP 400"},
+                {"id": "e5", "from": "d", "to": "e404", "label": "HTTP 404"},
+                {"id": "e6", "from": "d", "to": "e409", "label": "HTTP 409"},
+                {"id": "e7", "from": "ok", "to": "e201", "label": ""},
+                {"id": "e8", "from": "log", "to": "e400", "label": ""},
+            ],
+        })
+        t5 = track_count(d12_five)
+        r12_5 = FlowchartAudit(d12_five).verify_collisions()
+        check(f">3 stacked branches cap at 3 sub-tracks ({d12_dir})",
+              t5 <= 3 and r12_5["passed"], f"d={d12_dir} tracks={t5} r={r12_5}")
+
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

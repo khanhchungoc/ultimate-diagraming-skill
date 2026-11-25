@@ -33,13 +33,20 @@
       transform: none;
     }
     .btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-grad-end) 100%);
       color: var(--on-primary);
-      border-color: var(--primary);
+      border-color: transparent;
+      box-shadow: var(--shadow-primary-btn);
     }
     .btn-primary:hover {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-grad-hover-end) 100%);
+      border-color: transparent;
+    }
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    }
+    [data-theme="dark"] .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
     }
     .btn-success {
       background: var(--success);

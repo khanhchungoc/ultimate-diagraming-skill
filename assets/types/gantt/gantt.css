@@ -1733,7 +1733,7 @@
     }
     .gantt-filter-bar-reset:hover {
       background: var(--primary);
-      color: #fff;
+      color: var(--on-primary, var(--bg-panel));
     }
     .gantt-filter-bar-reset:focus-visible {
       outline: 2px solid var(--focus-ring);
@@ -1877,7 +1877,7 @@
       border: 0;
       border-radius: var(--radius-pill, 999px);
       background: var(--primary);
-      color: #fff;
+      color: var(--on-primary, var(--bg-panel));
       font-family: var(--font-ui);
       font-size: var(--t-overline-size);
       font-weight: var(--weight-semibold);
@@ -2011,6 +2011,65 @@
       cursor: default;
     }
 
+    /* --- View mode switcher (Timeline | Table) --- */
+    .gantt-mode-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+    }
+    .gantt-mode-pill {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: var(--t-caption-size);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-none);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
+    }
+    .gantt-mode-pill:hover {
+      background: var(--bg-hover);
+      color: var(--text-main);
+    }
+    .gantt-mode-pill.is-active,
+    .gantt-mode-pill[aria-pressed="true"] {
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+    .gantt-mode-pill:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+
+    /* Table mode: hide timeline split-pane and timeline-only toolbar controls */
+    .gantt-root[data-mode="table"] #gantt-sidebar,
+    .gantt-root[data-mode="table"] #gantt-splitter,
+    .gantt-root[data-mode="table"] #gantt-timeline {
+      display: none !important;
+    }
+    .gantt-root[data-mode="table"] #gantt-table-view {
+      display: flex;
+    }
+    body[data-gantt-mode="table"] .toolbar-zoom,
+    body[data-gantt-mode="table"] #btn-deps,
+    body[data-gantt-mode="table"] #gantt-view-wrap,
+    body[data-gantt-mode="table"] #btn-today,
+    body[data-gantt-mode="table"] #btn-weekends,
+    body[data-gantt-mode="table"] #btn-notes,
+    body[data-gantt-mode="table"] #gantt-legend-wrap {
+      display: none !important;
+    }
+
     /* --- Reduced motion & no-animation overrides --- */
     @media (prefers-reduced-motion: reduce) {
       .gantt-timeline {
@@ -2022,6 +2081,8 @@
       .gantt-root *::after,
       .gantt-zoom-pills,
       .gantt-zoom-pills *,
+      .gantt-mode-switch,
+      .gantt-mode-switch *,
       .gantt-holidays-pop,
       .gantt-holidays-pop * {
         transition: none !important;
@@ -2037,6 +2098,8 @@
     html[data-noanim] .gantt-root *::after,
     html[data-noanim] .gantt-zoom-pills,
     html[data-noanim] .gantt-zoom-pills *,
+    html[data-noanim] .gantt-mode-switch,
+    html[data-noanim] .gantt-mode-switch *,
     html[data-noanim] .gantt-holidays-pop,
     html[data-noanim] .gantt-holidays-pop * {
       transition: none !important;

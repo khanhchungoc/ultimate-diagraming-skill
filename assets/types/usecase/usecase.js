@@ -361,7 +361,6 @@
         const wrap = htmlEl('div', 'uc-name-wrap');
         const lines = Array.isArray(u._lines) && u._lines.length ? u._lines : [nameOf(u)];
         const name = htmlEl('span', `uc-name t-label${u.abstract ? ' is-abstract' : ''}`, lines.join('\n'));
-        name.title = nameOf(u);
         wrap.appendChild(name);
         if (u._compH) wrap.style.flex = `0 0 ${u.h - u._compH}px`;
         shape.appendChild(wrap);
@@ -1180,7 +1179,7 @@
       canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'touch' || e.buttons || drag || document.body.classList.contains('palette-dragging')) { setHoverSubject(null); return; }
         const t = e.target;
-        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-case, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
+        if (!(t instanceof Element) || t.closest('.confirm, .uc-menu')) { setHoverSubject(null); return; }
         const subEl = t.closest('.uc-subject');
         setHoverSubject(subEl ? subEl.dataset.subjectId : subjectIdAtClient(e.clientX, e.clientY));
       });

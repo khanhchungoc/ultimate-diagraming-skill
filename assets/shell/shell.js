@@ -1252,10 +1252,10 @@
           // A bar that closed an instant ago (another element was picked) fades out first; this one then opens in its own place.
           // It never travels from the old bar to the new one.
           const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
-          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          // Transform only (morph, not fade): animating opacity creates a Chromium opacity group that suppresses ::before backdrop-filter until the animation finishes.
           const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
-            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
+            [{ transform: slide ? 'translateX(-8px) scale(0.94)' : 'scale(0.92) translateY(4px)' }, { transform: 'none' }],
             { duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
           ));
         };
@@ -1763,11 +1763,11 @@
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
       function showZoom() {
-        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
-          zoomLevelEl.textContent = plugin.zoomController.getLabel();
-          return;
-        }
-        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+          ? plugin.zoomController.getLabel()
+          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        viewport.dataset.zoom = label;
+        if (zoomLevelEl) zoomLevelEl.textContent = label;
       }   // a glide in flight shows where it lands
       function updateTransform() {
         if (plugin && plugin.customViewport) {
@@ -2218,7 +2218,7 @@
         updateTransform();
       }, { passive: false });
 
-      btnZoomIn.addEventListener('click', () => {
+      function zoomIn() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
           plugin.zoomController.zoomIn();
           showZoom();
@@ -2227,8 +2227,8 @@
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomOut.addEventListener('click', () => {
+      }
+      function zoomOut() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
           plugin.zoomController.zoomOut();
           showZoom();
@@ -2237,8 +2237,10 @@
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomReset.addEventListener('click', () => fitView(true));
+      }
+      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
@@ -2915,6 +2917,7 @@
         grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
+        let pointerInside = false;
         const isOpen = () => wrap.classList.contains('open');
         // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
         function clampToWindow() {
@@ -2934,9 +2937,14 @@
         const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
         wrap.addEventListener('pointerenter', (e) => {
           if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          pointerInside = true;
           setOpen(true);
         });
-        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        wrap.addEventListener('pointerleave', (e) => {
+          if (e.pointerType === 'touch') return;
+          pointerInside = false;
+          closeSoon();
+        });
         // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
         let lastPointerType = '';
         wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
@@ -2954,7 +2962,7 @@
         wrap.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
         });
-        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
         document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
         window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
       });
@@ -3853,6 +3861,18 @@
           if (document.body.classList.contains('presentation')) return;
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          zoomIn();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomOut();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+          e.preventDefault();
+          fitView(true);
+        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+          e.preventDefault();
+          fitView(true);
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }

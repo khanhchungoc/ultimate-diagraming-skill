@@ -97,12 +97,12 @@ try {
   t.check('a connector wears a solid 2px ring (not the terminator look)', look[0] === 'solid' && look[1] === '2px', JSON.stringify(look));
 
   // 3. A click pans to the partner (same zoom) and pulses it
-  const zoom0 = await t.ev(`document.getElementById('zoom-level')?.textContent || ''`);
+  const zoom0 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
   await click(conn('in'));
   await sleep(450);
   const centred = await offCentre(conn('out'));
   const pulsed = await t.ev(`(${conn('out')}).classList.contains('connector-pulse')`);
-  const zoom1 = await t.ev(`document.getElementById('zoom-level')?.textContent || ''`);
+  const zoom1 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
   t.check('clicking the in-connector centres its out-connector at the same zoom, with a pulse',
     Math.abs(centred[0]) <= 3 && Math.abs(centred[1]) <= 3 && pulsed && zoom1 === zoom0, JSON.stringify({ centred, pulsed, zoom0, zoom1 }));
 
