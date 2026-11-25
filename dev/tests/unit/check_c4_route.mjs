@@ -335,5 +335,51 @@ check(JSON.stringify(routeC4Edges(plain(nodes), edges)) === JSON.stringify(res),
   check(ms < 250, `manual mode on 500 elements / 2,000 edges / 30 crossings took ${ms.toFixed(0)} ms (limit 250)`);
 }
 
+// ---------- Phase 2: group-endpoint frames, cross-layer skips, and step badges ----------
+{
+  const ov = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const toR = (b) => ({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h });
+  const gn = {
+    e0: { x: 100, y: 180, w: 156, h: 112 },
+    e1: { x: 450, y: 180, w: 156, h: 112 },
+    e2a: { x: 800, y: 120, w: 156, h: 112 },
+    e2b: { x: 800, y: 260, w: 156, h: 112 },
+    sh: { x: 450, y: 520, w: 156, h: 112 },
+    L0: { x: 100, y: 190, w: 184, h: 300, frame: true },
+    L1: { x: 450, y: 190, w: 184, h: 300, frame: true },
+    L2: { x: 800, y: 190, w: 184, h: 300, frame: true },
+    SH: { x: 450, y: 520, w: 884, h: 184, frame: true },
+  };
+  const gFrames = [gn.L0, gn.L1, gn.L2, gn.SH].map((f, i) => ({ id: ['L0', 'L1', 'L2', 'SH'][i], x: f.x, y: f.y, w: f.w, h: f.h }));
+  const ge = [
+    { from: 'L0', to: 'L1', label: 'Ingest', tech: 'HTTPS', step: '1', hint: 'h', itemA: gFrames[0], itemB: gFrames[1] },
+    { from: 'L1', to: 'e2a', label: 'Stream', tech: 'Kafka', step: '2a', hint: 'h', itemA: gFrames[1], itemB: gFrames[2] },
+    { from: 'L0', to: 'L2', label: 'Skip layer', tech: 'gRPC', step: '3', hint: 'h', itemA: gFrames[0], itemB: gFrames[2] },
+    { from: 'e0', to: 'e2b', label: 'Bypass', tech: 'AMQP', step: '4b', hint: 'h', itemA: gFrames[0], itemB: gFrames[2] },
+    { from: 'e2a', to: 'e2b', label: 'Internal', tech: '', hint: 'v', itemA: { id: 'e2a', ...gn.e2a }, itemB: { id: 'e2b', ...gn.e2b } },
+  ];
+  const gr = routeC4Edges(gn, ge, { detours: true, frames: gFrames });
+  const leafIds = ['e0', 'e1', 'e2a', 'e2b', 'sh'];
+  const holdsC = (f, n) => n.x > f.x - f.w / 2 && n.x < f.x + f.w / 2 && n.y > f.y - f.h / 2 && n.y < f.y + f.h / 2;
+  ge.forEach((e, i) => {
+    const r = gr[i], ss = segs(r.points), tag = `p2 ${e.from}>${e.to}`;
+    check(ss.every(([p, q]) => eq(p[0], q[0]) || eq(p[1], q[1])), `${tag} is orthogonal`);
+    for (const id of leafIds) if (id !== e.from && id !== e.to) check(!ss.some((s) => hits(s, rectOf(gn[id]))), `${tag} crosses leaf box ${id}`);
+    for (const f of gFrames) if (f.id !== e.from && f.id !== e.to && !holdsC(f, gn[e.from]) && !holdsC(f, gn[e.to])) check(!ss.some((s) => hits(s, frameRect(f))), `${tag} crosses foreign frame ${f.id}`);
+    if (e.step) check(r.badge && r.badge.w >= 22 && r.badge.h === 22, `${tag} has step badge`);
+    else check(!('badge' in r), `${tag} without step omits badge`);
+  });
+  // badge collision checks: zero overlaps with boxes, tag bands, label pills, or other badges
+  const bRects = gr.map((r, i) => (r.badge ? { i, ...toR(r.badge) } : null)).filter(Boolean);
+  const lRects = gr.map((r, i) => (r.w > 0 ? { i, x0: r.lx - r.w / 2, x1: r.lx + r.w / 2, y0: r.ly - (r.h || 32) / 2, y1: r.ly + (r.h || 32) / 2 } : null)).filter(Boolean);
+  bRects.forEach((b, k) => {
+    for (const id of leafIds) check(!ov(b, rectOf(gn[id])), `p2 badge ${b.i} overlaps box ${id}`);
+    for (const f of gFrames) { const fr = frameRect(f); check(!ov(b, { x0: fr.x0, x1: fr.x1, y0: fr.y0, y1: fr.y0 + TAG }), `p2 badge ${b.i} overlaps tag band ${f.id}`); }
+    for (const l of lRects) check(!ov(b, l), `p2 badge ${b.i} overlaps label ${l.i}`);
+    for (const o of bRects.slice(k + 1)) check(!ov(b, o), `p2 badges ${b.i} and ${o.i} overlap`);
+  });
+  check(JSON.stringify(routeC4Edges(gn, ge, { detours: true, frames: gFrames })) === JSON.stringify(gr), 'p2 group endpoints + badges: deterministic');
+}
+
 console.log(failures ? `${failures} check(s) failed` : `OK: ${edges.length} edges routed, all checks passed`);
 process.exit(failures ? 1 : 0);

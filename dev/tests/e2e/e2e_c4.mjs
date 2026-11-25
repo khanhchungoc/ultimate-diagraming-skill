@@ -696,8 +696,8 @@ try {
     await t.clickOn(A.tag);
     await sleep(150);
     const gActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level group action bar has only core, ungroup, delete, color',
-      (await present(A.bar)) && J(gActs) === J(['color', 'core', 'delete', 'ungroup']), J(gActs));
+    t.check('top-level group action bar has connect, core, ungroup, delete, color',
+      (await present(A.bar)) && J(gActs) === J(['color', 'connect', 'core', 'delete', 'ungroup']), J(gActs));
     // nested group omits core
     await tile('group');
     await t.press('a', { modifiers: 2 });
@@ -705,7 +705,7 @@ try {
     await t.press('Enter');
     await sleep(250); await t.settle(1500);
     const nActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('nested group action bar omits core (only ungroup, delete, color)', J(nActs) === J(['color', 'delete', 'ungroup']), J(nActs));
+    t.check('nested group action bar omits core (only connect, ungroup, delete, color)', J(nActs) === J(['color', 'connect', 'delete', 'ungroup']), J(nActs));
     await undo();
     await t.clickOn(A.tag);
     await clickAct('core');
@@ -764,8 +764,8 @@ try {
     await freshPage();
     await selectEdge('Reads');
     const eActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('direct arrow action bar has only async, reverse, delete (no label or tech)',
-      (await present(A.bar)) && J(eActs) === J(['async', 'delete', 'reverse']), J(eActs));
+    t.check('direct arrow action bar has async, color, delete, reverse, step (no label or tech)',
+      (await present(A.bar)) && J(eActs) === J(['async', 'color', 'delete', 'reverse', 'step']), J(eActs));
     await clickAct('async');
     await sleep(300); await t.settle(1500);
     t.check('async adds the dashed class and is saved', (await t.ev(`!!document.querySelector('.c4-edge.is-async')`)) && (await saved()).relations.some((r) => r.label === 'Reads' && r.async === true));
@@ -1363,6 +1363,70 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
     // arrow keys move between tiles
     const first = await t.ev(`document.activeElement && document.activeElement.closest && (document.activeElement.closest('.c4-node') || {}).dataset ? document.activeElement.closest('.c4-node').dataset.nodeId : null`);
     t.check('undo keeps the diagram intact', (await count(A.node)) === 4, `${first}`);
+  });
+
+  await section('layered-pipeline', async () => {
+    const pipeSrc = join(root, 'dev', 'examples', 'example-c4-pipeline.json');
+    const pipePage = join(work, 'pipeline.html');
+    const built = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', pipeSrc, '-o', pipePage], { encoding: 'utf8' });
+    t.check('pipeline example builds cleanly with layout_engine.py', built.status === 0, built.stderr || built.stdout);
+    await freshPage(pipePage);
+    await t.settle(1500);
+
+    // 1. Initial render: vertical columns, shared layers, step badges, colored arrows, legend
+    const nShared = await count('.c4-group.is-shared');
+    const nSteps = await count('.c4-step');
+    const nColored = await count('.c4-edge.is-colored');
+    const legendText = await t.ev(`(document.querySelector('.c4-key') || {}).textContent || ''`);
+    t.check('vertical pipeline renders shared layers, step badges, colored arrows, and path legend',
+      nShared === 2 && nSteps >= 8 && nColored >= 5 && /Hot streaming path/.test(legendText),
+      `shared=${nShared} steps=${nSteps} colored=${nColored} legend=${legendText}`);
+
+    // 2. Toolbar Columns <-> Bands switch
+    const dirLabelBefore = await t.ev(`(document.querySelector('#btn-layer-dir .btn-label') || {}).textContent || ''`);
+    t.check('Layers direction button is visible and shows Columns', !(await t.ev(`document.getElementById('btn-layer-dir').hidden`)) && dirLabelBefore === 'Columns', dirLabelBefore);
+    await t.clickOn('#btn-layer-dir');
+    await sleep(400); await t.settle(1500);
+    const dirAfter = (await saved()).layerDirection;
+    const dirLabelAfter = await t.ev(`(document.querySelector('#btn-layer-dir .btn-label') || {}).textContent || ''`);
+    t.check('clicking Layers direction switches to horizontal Bands and omits layerDirection on save',
+      dirAfter === undefined && dirLabelAfter === 'Bands', `dir=${dirAfter} label=${dirLabelAfter}`);
+    await undo();
+    t.check('undo restores vertical Columns', (await saved()).layerDirection === 'vertical');
+
+    // 3. Toolbar Steps switch
+    await t.clickOn('#btn-steps');
+    await sleep(300); await t.settle(1500);
+    t.check('Steps switch hides all step badges and saves showSteps: false',
+      (await count('.c4-step')) === 0 && (await saved()).showSteps === false, `steps=${await count('.c4-step')}`);
+    await t.clickOn('#btn-steps');
+    await sleep(300); await t.settle(1500);
+    t.check('Steps switch shows step badges again', (await count('.c4-step')) === nSteps, `steps=${await count('.c4-step')}`);
+
+    // 4. Direct layer-to-layer arrow editing: step badge popover (clicking step badge directly on a label-free arrow)
+    await t.clickOn('.c4-step[data-edge-id]');
+    await sleep(200);
+    await clickAct('step');
+    await sleep(200);
+    t.check('step button opens step popover on a direct layer-to-layer arrow', await present('#c4-step-input'));
+    await t.press('a', { modifiers: 2 });
+    await t.type('1x');
+    await t.press('Enter');
+    await sleep(300); await t.settle(1500);
+    t.check('updated step badge is rendered and saved',
+      (await saved()).relations.some((r) => r.step === '1x') &&
+      (await t.ev(`[...document.querySelectorAll('.c4-step')].some((el) => el.textContent === '1x')`)));
+    await undo();
+
+    // 5. Shared layer group action bar: shared, side, span, connect
+    await blank();
+    await t.ev(`(() => { const tag = [...document.querySelectorAll('.c4-group.is-shared .frame-tag')].find((el) => el.textContent.includes('Platform')); if (tag) tag.scrollIntoView({ block: 'center', inline: 'center' }); })()`);
+    await sleep(100);
+    const platPos = await t.ev(`(() => { const tag = [...document.querySelectorAll('.c4-group.is-shared .frame-tag')].find((el) => el.textContent.includes('Platform')); if (!tag) return null; const r = tag.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    if (platPos) { await t.click(platPos.x, platPos.y); await sleep(250); }
+    const sActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('shared layer action bar exposes connect, shared, side, span, ungroup, delete, color',
+      ['color', 'connect', 'delete', 'shared', 'side', 'span', 'ungroup'].every((a) => sActs.includes(a)), J(sActs));
   });
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

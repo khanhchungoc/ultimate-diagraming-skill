@@ -90,15 +90,19 @@ function c4Model(data) {
   m.eN.forEach((n) => { n.top = topOf(n); });
   m.gN.forEach((n) => { n.top = topOf(n); });
   m.items = m.root.kids;
-  // a relation end resolves to the nearest visible node: the element, or the outermost collapsed group around it
+  // a relation end resolves to the nearest visible node: the element/group itself, or the outermost collapsed group around it
+  const rawNode = (id) => m.eN.get(id) || m.gN.get(id) || null;
   const endNode = (id) => {
-    const e = m.eN.get(id);
-    return e ? (e.vis ? e : m.gN.get(m.info.get(e.par).top)) : null;
+    const n = rawNode(id);
+    return n ? (n.vis ? n : m.gN.get(m.info.get(n.par).top)) : null;
   };
+  const sameBranch = (x, y) => { const [sx, sy] = c4Sibs(m, x, y); return sx === sy; };
   m.rel2 = [];
   rels.forEach((r, i) => {
+    const a0 = rawNode(r.from), b0 = rawNode(r.to);
+    if (!a0 || !b0 || sameBranch(a0, b0)) return;
     const a = endNode(r.from), b = endNode(r.to);
-    if (a && b && a !== b) m.rel2.push({ i, a, b, agg: a.id !== r.from || b.id !== r.to });
+    if (a && b && a !== b && !sameBranch(a, b)) m.rel2.push({ i, a, b, agg: a.id !== r.from || b.id !== r.to });
   });
   return m;
 }
@@ -112,18 +116,19 @@ function c4Sibs(m, x, y) {
   return [x, y];
 }
 
-// Relations between members of one container, as [ci, cj, count] by container id (the lowest common container of the two elements).
+// Relations between members of one container, as [ci, cj, count] by container id (the lowest common container of the two endpoints).
 function c4Links(m) {
   const sets = new Map();
   m.rels.forEach((r) => {
-    const a0 = m.eN.get(r.from), b0 = m.eN.get(r.to);
+    const a0 = m.eN.get(r.from) || m.gN.get(r.from), b0 = m.eN.get(r.to) || m.gN.get(r.to);
     if (!a0 || !b0 || a0 === b0) return;
     const [x, y] = c4Sibs(m, a0, b0);
     if (x === y) return;
     const a = x.ci < y.ci ? x : y, b = a === x ? y : x, k = a.uid * 1e6 + b.uid;
     if (!sets.has(x.par)) sets.set(x.par, new Map());
     const mp = sets.get(x.par), e = mp.get(k);
-    if (e) e[2]++; else mp.set(k, [a.ci, b.ci, 1]);
+    const hasLbl = Boolean(r.label && String(r.label).trim());
+    if (e) { e[2]++; if (hasLbl) e[3] = true; } else mp.set(k, [a.ci, b.ci, 1, hasLbl]);
   });
   return sets;
 }
@@ -262,8 +267,9 @@ function c4Line(its, vert, gapOf) {
   return vert ? { w: cross, h: p } : { w: p, h: cross };
 }
 
-const c4LinkGap = (a, b, vert) => {
+const c4LinkGap = (a, b, vert, labeled = true) => {
   if (vert) return C4.innerLinkY;
+  if (!labeled) return Math.max(C4.innerGap, 56);
   const exp = (it) => it && it.kind === 'g' && !it.self;
   return exp(a) || exp(b) ? Math.max(C4.innerGap, Math.round(C4.innerLinkX * 0.55)) : C4.innerLinkX;
 };
@@ -273,14 +279,21 @@ const c4LinkGap = (a, b, vert) => {
 // the row with room for the label; a link that skips a member (or too many members), a small flow.
 function c4Size(m, g, vert) {
   g.kids.forEach((k) => { if (k.kind === 'g') c4Size(m, k, false); });
+  if (vert) {
+    const subs = g.kids.filter((k) => k.kind === 'g' && !k.self);
+    if (subs.length > 1) {
+      const mw = Math.max.apply(null, subs.map((k) => k.fw));
+      subs.forEach((k) => { k.cx += Math.round((mw - k.fw) / 2); k.fw = mw; k.w = mw; });
+    }
+  }
   const its = g.kids, n = its.length, pairs = m.links.has(g.id) ? Array.from(m.links.get(g.id).values()) : [];
   let c;
   g.line = null;   // 'row' or 'col' when the members form one plain line (c4Order may reorder it), else null
   if (!n) c = { w: 0, h: 0 };
   else if (pairs.some((p) => p[1] - p[0] !== 1) || (pairs.length && n > C4.rowMax)) c = c4Flow(its, pairs);
   else {
-    const linked = new Set(pairs.map((p) => p[0]));
-    const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert) : C4.innerGap);
+    const linked = new Map(pairs.map((p) => [p[0], Boolean(p[3])]));
+    const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert, linked.get(a.ci)) : C4.innerGap);
     const lines = [];
     for (let o = 0; o < n; o += C4.rowMax) lines.push(its.slice(o, o + C4.rowMax));
     if (lines.length === 1) g.line = vert ? 'col' : 'row';
@@ -309,8 +322,25 @@ function c4Assign(n) {
 
 // ---------- rings, sides ----------
 
+function c4SharedSide(m, s) {
+  const raw = String(s.ref.side == null ? '' : s.ref.side).toUpperCase();
+  if (/^[NSEW]$/.test(raw)) return raw;
+  return m.layerDir === 'vertical' ? 'S' : 'E';
+}
+
+function c4SpanRange(m, s) {
+  const n = m.mainLayers.length;
+  if (!n) return null;
+  if (Array.isArray(s.ref.span) && s.ref.span.length) {
+    const idxBy = new Map(m.mainLayers.map((g, i) => [g.id, i]));
+    const idxs = s.ref.span.map((id) => idxBy.get(id)).filter((i) => i !== undefined);
+    if (idxs.length) return [Math.min.apply(null, idxs), Math.max.apply(null, idxs)];
+  }
+  return [0, n - 1];
+}
+
 // arrange, items, links between items and rings. Ring: surround = links from the nearest centre item; flow = links from the items
-// nobody points at; layers = index of the top-level group (loose elements after the groups).
+// nobody points at; layers = index of the top-level main group (loose elements after the groups; shared groups placed separately).
 function c4Rings(m) {
   const data = m.data, items = m.items;
   items.forEach((it) => { it.ring = -1; it.adj = []; it.nb = new Set(); it.pointed = false; });
@@ -320,6 +350,9 @@ function c4Rings(m) {
   let arrange = data.arrange === 'surround' || data.arrange === 'flow' || data.arrange === 'layers' ? data.arrange : (core.size ? 'surround' : 'flow');
   if (arrange === 'surround' && !core.size) arrange = 'flow';
   m.arrange = arrange;
+  m.layerDir = arrange === 'layers' && data.layerDirection === 'vertical' ? 'vertical' : 'horizontal';
+  m.mainLayers = arrange === 'layers' ? items.filter((i) => i.kind === 'g' && i.ref.shared !== true) : [];
+  m.sharedLayers = arrange === 'layers' ? items.filter((i) => i.kind === 'g' && i.ref.shared === true) : [];
   m.rel2.forEach((r) => {
     const a = r.a.top, b = r.b.top;
     if (a === b) return;
@@ -331,9 +364,12 @@ function c4Rings(m) {
     q.forEach((i) => { i.ring = base; });
     for (let h = 0; h < q.length; h++) q[h].adj.forEach((n) => { if (n.ring < 0) { n.ring = q[h].ring + 1; q.push(n); } });
   };
+  let ringItems = items;
   if (arrange === 'layers') {
-    const ord = items.filter((i) => i.kind === 'g').concat(items.filter((i) => i.kind === 'e'));
+    const ord = m.mainLayers.concat(items.filter((i) => i.kind === 'e'));
     ord.forEach((i, k) => { i.ring = k; });
+    m.sharedLayers.forEach((s) => { s.ring = ord.length; });
+    ringItems = ord;
   } else if (arrange === 'surround') {
     bfs(items.filter((i) => core.has(i)), 0);
     items.forEach((i) => { if (i.ring < 0) bfs([i], 1); });
@@ -342,16 +378,18 @@ function c4Rings(m) {
     bfs(roots.length ? roots : items.slice(0, 1), 0);
     items.forEach((i) => { if (i.ring < 0) bfs([i], 0); });
   }
-  m.maxRing = items.reduce((a, i) => Math.max(a, i.ring), 0);
+  m.maxRing = ringItems.reduce((a, i) => Math.max(a, i.ring), 0);
   m.byRing = Array.from({ length: m.maxRing + 1 }, () => []);
-  items.forEach((i) => m.byRing[i.ring].push(i));
+  ringItems.forEach((i) => m.byRing[i.ring].push(i));
   // links to the inner rings (they set the gutter), and the centre nodes each item links to
-  items.forEach((i) => { i.nIn = 0; i.cl = null; });
+  items.forEach((i) => { i.nIn = 0; i.hasLabelIn = false; i.cl = null; });
   m.rel2.forEach((r) => {
     const a = r.a.top, b = r.b.top;
     if (a === b || a.ring === b.ring) return;
     const o = a.ring > b.ring ? a : b, inner = o === a ? r.b : r.a;
     o.nIn++;
+    const rel = m.rels[r.i];
+    if (Math.abs(a.ring - b.ring) === 1 && rel && rel.label && String(rel.label).trim()) o.hasLabelIn = true;
     if (arrange === 'surround' && inner.top.ring === 0) (o.cl || (o.cl = [])).push(inner);
   });
   return m;
@@ -378,10 +416,16 @@ function c4Exposed(a, all) {
 }
 
 // A side for every ring item (surround): the author's hint, people on top, else the emptiest allowed side; a ring-1 item may only sit
-// on a side that every centre box it links to exposes; later rings follow their inner neighbour. Flow and layers: below (S).
+// on a side that every centre box it links to exposes; later rings follow their inner neighbour. Flow and horizontal layers: below (S).
+// Vertical layers: right (E). Shared layers: explicit side or default (S for vertical, E for horizontal).
 function c4Sides(m) {
   const { byRing, maxRing } = m;
-  if (m.arrange !== 'surround') { for (let r = 1; r <= maxRing; r++) byRing[r].forEach((i) => { i.side = 'S'; }); return; }
+  if (m.arrange !== 'surround') {
+    const dir = m.arrange === 'layers' && m.layerDir === 'vertical' ? 'E' : 'S';
+    for (let r = 1; r <= maxRing; r++) byRing[r].forEach((i) => { i.side = dir; });
+    if (m.arrange === 'layers') m.sharedLayers.forEach((s) => { s.side = c4SharedSide(m, s); });
+    return;
+  }
   const centre = [];
   byRing[0].forEach((i) => c4Leaves(i, centre));
   const expo = new Map(), exposed = (b) => { if (!expo.has(b)) expo.set(b, c4Exposed(b, centre)); return expo.get(b); };
@@ -436,16 +480,35 @@ function c4Lane(its, s, B, gap) {
 
 // Positions every item (ax, ay: the centre set at the middle, then each ring around the box built so far) and every node inside.
 function c4Place(m) {
-  const { byRing, maxRing, items } = m, flat = m.arrange !== 'surround';
-  // surround: the centre is sized first (its boxes decide the sides), the rest once their side is known; flow and layers: all at once
-  (flat ? items : byRing[0]).forEach((i) => { if (i.kind === 'g') c4Size(m, i, false); });
+  const { byRing, maxRing, items } = m, flat = m.arrange !== 'surround', vertLayers = m.arrange === 'layers' && m.layerDir === 'vertical';
+  // surround: the centre is sized first (its boxes decide the sides), the rest once their side is known; flow and layers: all main items at once
   if (m.arrange === 'layers') {
-    const bands = items.filter((i) => i.kind === 'g' && !i.self), mw = Math.max.apply(null, bands.map((i) => i.fw));
-    bands.forEach((i) => { i.cx = Math.round((mw - i.fw) / 2); i.fw = mw; i.w = mw; });
+    m.mainLayers.forEach((i) => c4Size(m, i, vertLayers));
+    if (vertLayers) {
+      const cols = m.mainLayers.filter((i) => !i.self);
+      if (cols.length) {
+        const mh = Math.max.apply(null, cols.map((i) => i.fh));
+        cols.forEach((i) => { i.fh = mh; i.h = mh; });
+        const simple = cols.filter((i) => !i.kids.some((k) => k.kind === 'g'));
+        if (simple.length > 1) {
+          const mw = Math.max.apply(null, simple.map((i) => i.fw));
+          simple.forEach((i) => { i.cx += Math.round((mw - i.fw) / 2); i.fw = mw; i.w = mw; });
+        }
+      }
+    } else {
+      const bands = m.mainLayers.filter((i) => !i.self);
+      if (bands.length) {
+        const mw = Math.max.apply(null, bands.map((i) => i.fw));
+        bands.forEach((i) => { i.cx = Math.round((mw - i.fw) / 2); i.fw = mw; i.w = mw; });
+      }
+    }
+  } else {
+    (flat ? items : byRing[0]).forEach((i) => { if (i.kind === 'g') c4Size(m, i, false); });
   }
   const cs = byRing[0], linked = (its) => its.some((a, i) => its.some((b, j) => j > i && a.nb.has(b)));
   let B;
-  if (flat) { c4Lane(cs, 'S', { ax: 0, ay: 0, w: 0, h: 0 }, 0); B = c4Union(cs); } else {
+  if (!cs.length) { B = { ax: 0, ay: 0, w: 0, h: 0 }; }
+  else if (flat) { c4Lane(cs, vertLayers ? 'E' : 'S', { ax: 0, ay: 0, w: 0, h: 0 }, 0); B = c4Union(cs); } else {
     const cols = Math.ceil(Math.sqrt(cs.length)), rows = [], lk = linked(cs);
     for (let i = 0; i < cs.length; i += cols) rows.push(cs.slice(i, i + cols));
     const gx = lk ? C4.ringLinkX : C4.centreGap, gy = lk ? C4.ringLinkY : C4.centreGap;
@@ -462,6 +525,7 @@ function c4Place(m) {
   c4Sides(m);
   // the other items, sized for their side (a framed item beside the centre holds its members in a column)
   if (!flat) items.forEach((i) => { if (i.ring > 0 && i.kind === 'g') c4Size(m, i, i.side === 'E' || i.side === 'W'); });
+  const vertColGap = vertLayers ? (m.mainLayers.some((i) => i.hasLabelIn) ? 112 : 84) : 0;
   for (let r = 1; r <= maxRing; r++) {
     const ring = byRing[r], placed = [];
     const ctr = (n) => ({ x: n.ax + n.w / 2, y: n.ay + n.h / 2 });
@@ -475,12 +539,70 @@ function c4Place(m) {
     if (N.length) { c4Lane(N, 'N', B, gutter(N, C4.ringV)); placed.push(...N); }
     if (S.length) { c4Lane(S, 'S', B, gutter(S, C4.ringV)); placed.push(...S); }
     const B2 = placed.length ? c4Union([B, ...placed]) : B;
-    if (E.length) { c4Lane(E, 'E', B2, gutter(E, C4.ringH)); placed.push(...E); }
+    if (E.length) { c4Lane(E, 'E', B2, vertLayers ? vertColGap : gutter(E, C4.ringH)); placed.push(...E); }
     if (W.length) { c4Lane(W, 'W', B2, gutter(W, C4.ringH)); placed.push(...W); }
     placed.forEach(c4Assign);
     B = c4Union([B, ...placed]);
   }
+  // shared (cross-cutting) layers on N/S/E/W with full or partial contiguous span
+  if (m.arrange === 'layers' && m.sharedLayers.length) {
+    let skipCount = 0;
+    m.rel2.forEach((r) => {
+      const a = r.a.top, b = r.b.top;
+      if (a !== b && a.ref.shared !== true && b.ref.shared !== true && Math.abs(a.ring - b.ring) > 1) skipCount++;
+    });
+    m.sharedLayers.forEach((s) => {
+      const horiz = c4Vert(s.side);
+      c4Size(m, s, !horiz);
+      const range = c4SpanRange(m, s);
+      s.spanRange = range;
+      if (range) {
+        const sb = c4Union(m.mainLayers.slice(range[0], range[1] + 1));
+        if (horiz) {
+          if (!s.self && sb.w > s.fw) { s.cx += Math.round((sb.w - s.fw) / 2); s.fw = sb.w; s.w = sb.w; }
+          s.ax = Math.round(sb.ax + (sb.w - s.w) / 2);
+        } else {
+          if (!s.self && sb.h > s.fh) { s.fh = sb.h; s.h = sb.h; }
+          s.ay = Math.round(sb.ay + (sb.h - s.h) / 2);
+        }
+      } else { s.ax = 0; s.ay = 0; }
+    });
+    const placeSharedSide = (list, sd, box) => {
+      if (!list.length) return;
+      const horiz = c4Vert(sd), dir = sd === 'N' || sd === 'W' ? -1 : 1;
+      const perpToFlow = vertLayers ? horiz : !horiz;
+      const hasDirectLink = list.some((s) => m.rel2.some((r) => r.a.top === s || r.b.top === s));
+      const baseGap = horiz ? Math.round(C4.ringV * (hasDirectLink ? 0.9 : 0.6)) : Math.round(C4.ringH * (hasDirectLink ? 0.9 : 0.6));
+      const corridor = perpToFlow && skipCount > 0 ? Math.min(44, 16 + skipCount * 10) : 0;
+      const gap = baseGap + corridor;
+      let edge = sd === 'N' ? box.ay - gap : sd === 'S' ? box.ay + box.h + gap : sd === 'E' ? box.ax + box.w + gap : box.ax - gap;
+      const tracks = [];
+      list.forEach((s) => {
+        const lo = horiz ? s.ax : s.ay, hi = lo + (horiz ? s.w : s.h);
+        let tr = tracks.find((t) => t.every((o) => hi + C4.ringGap <= o.lo || lo >= o.hi + C4.ringGap));
+        if (!tr) { tr = []; tracks.push(tr); }
+        tr.push({ s, lo, hi });
+      });
+      tracks.forEach((tr) => {
+        const thick = Math.max.apply(null, tr.map((o) => (horiz ? o.s.h : o.s.w)));
+        tr.forEach(({ s }) => {
+          if (horiz) s.ay = sd === 'N' ? edge - s.h : edge;
+          else s.ax = sd === 'W' ? edge - s.w : edge;
+          c4Assign(s);
+        });
+        edge += dir * (thick + C4.ringGap);
+      });
+    };
+    const byS = (sd) => m.sharedLayers.filter((s) => s.side === sd);
+    const sN = byS('N'), sS = byS('S'), sE = byS('E'), sW = byS('W');
+    placeSharedSide(sN, 'N', B);
+    placeSharedSide(sS, 'S', B);
+    const B2 = sN.length || sS.length ? c4Union([B, ...sN, ...sS]) : B;
+    placeSharedSide(sW, 'W', B2);
+    placeSharedSide(sE, 'E', B2);
+  }
   // top-left origin: the picture starts at the margin
+  if (!items.length) return;
   const b = c4Union(items), dx = C4.margin - b.ax, dy = C4.margin - b.ay;
   items.forEach((i) => { i.ax += dx; i.ay += dy; c4Assign(i); });
 }
@@ -676,10 +798,46 @@ function c4Frames(m) {
     g.h = y1 - y0 + C4.tagH + C4.padB;
   });
   if (m.arrange === 'layers' && !m.pins) {
-    const bands = m.items.filter((i) => i.kind === 'g' && !i.self).map((i) => i.ref);
-    if (bands.length) {
-      const x0 = Math.min.apply(null, bands.map((g) => g.x)), x1 = Math.max.apply(null, bands.map((g) => g.x + g.w));
-      bands.forEach((g) => { g.x = x0; g.w = x1 - x0; });
+    if (m.layerDir === 'vertical') {
+      const cols = m.mainLayers.filter((i) => !i.self);
+      cols.forEach((col) => {
+        const subs = col.kids.filter((k) => k.kind === 'g' && !k.self).map((k) => k.ref);
+        if (subs.length > 1) {
+          const x0 = Math.min.apply(null, subs.map((g) => g.x)), x1 = Math.max.apply(null, subs.map((g) => g.x + g.w));
+          subs.forEach((g) => { g.x = x0; g.w = x1 - x0; });
+        }
+      });
+      if (cols.length) {
+        const refs = cols.map((i) => i.ref);
+        const y0 = Math.min.apply(null, refs.map((g) => g.y)), y1 = Math.max.apply(null, refs.map((g) => g.y + g.h));
+        refs.forEach((g) => { g.y = y0; g.h = y1 - y0; });
+        const simple = cols.filter((i) => !i.kids.some((k) => k.kind === 'g')).map((i) => i.ref);
+        if (simple.length > 1) {
+          const mw = Math.max.apply(null, simple.map((g) => g.w));
+          simple.forEach((g) => { g.x -= Math.round((mw - g.w) / 2); g.w = mw; });
+        }
+      }
+    } else {
+      const bands = m.mainLayers.filter((i) => !i.self).map((i) => i.ref);
+      if (bands.length) {
+        const x0 = Math.min.apply(null, bands.map((g) => g.x)), x1 = Math.max.apply(null, bands.map((g) => g.x + g.w));
+        bands.forEach((g) => { g.x = x0; g.w = x1 - x0; });
+      }
+    }
+    if (m.sharedLayers.length && m.mainLayers.length) {
+      m.sharedLayers.forEach((s) => {
+        if (s.self) return;
+        const range = s.spanRange || c4SpanRange(m, s);
+        if (!range) return;
+        const slice = m.mainLayers.slice(range[0], range[1] + 1).map((g) => g.ref);
+        if (c4Vert(s.side)) {
+          const x0 = Math.min.apply(null, slice.map((g) => g.x)), x1 = Math.max.apply(null, slice.map((g) => g.x + g.w));
+          if (x1 - x0 > s.ref.w) { s.ref.x = x0; s.ref.w = x1 - x0; }
+        } else {
+          const y0 = Math.min.apply(null, slice.map((g) => g.y)), y1 = Math.max.apply(null, slice.map((g) => g.y + g.h));
+          if (y1 - y0 > s.ref.h) { s.ref.y = y0; s.ref.h = y1 - y0; }
+        }
+      });
     }
   }
 }
@@ -691,17 +849,26 @@ function c4Edges(m) {
   const map = new Map(), list = [];
   m.rel2.forEach((r) => {
     const rel = m.rels[r.i], label = String(rel.label == null ? '' : rel.label), tech = rel.tech ? String(rel.tech) : '';
+    const step = rel.step != null ? String(rel.step).trim() : '';
+    const color = rel.color != null ? String(rel.color).trim() : '';
     const key = r.agg ? `${r.a.uid}>${r.b.uid}` : `${r.a.uid}>${r.b.uid}|${label}|${tech}`;
     let e = map.get(key);
     if (!e) {
-      e = { id: `r${r.i}`, from: r.a.id, to: r.b.id, label, tech, async: true, count: 0, members: [], a: r.a, b: r.b };
+      e = { id: `r${r.i}`, from: r.a.id, to: r.b.id, label, tech, async: true, count: 0, members: [], a: r.a, b: r.b, _step: step, _color: color, _colorSame: true };
       map.set(key, e);
       list.push(e);
+    } else if (color !== e._color) {
+      e._colorSame = false;
     }
     e.count++; e.members.push(r.i);
     if (rel.async !== true) e.async = false;
   });
-  list.forEach((e) => { e.text = e.count > 1 ? `${e.label} ×${e.count}` : e.label; });
+  list.forEach((e) => {
+    e.text = e.count > 1 ? `${e.label} ×${e.count}` : e.label;
+    if (e.count === 1 && e._step) e.step = e._step;
+    if (e._colorSame && e._color) e.color = e._color;
+    delete e._step; delete e._color; delete e._colorSame;
+  });
   return list;
 }
 
@@ -724,6 +891,16 @@ function c4Route(m, again) {
   const leaves = c4Leaves(m.root, []);
   // `item` (the top-level item of the end) is only read by a router that predates itemA/itemB
   leaves.forEach((n) => { nodes[n.id] = Object.assign(box(n), { item: Object.assign(box(n.top), { id: n.top.id }) }); });
+  // visible expanded groups that act as relation endpoints get a frame-box entry in `nodes`
+  let hasGroupEnd = false;
+  edges.forEach((e) => {
+    [e.a, e.b].forEach((n) => {
+      if (n.kind === 'g' && n.vis && !n.self) {
+        hasGroupEnd = true;
+        if (!nodes[n.id]) nodes[n.id] = Object.assign(box(n), { frame: true, item: Object.assign(box(n.top), { id: n.top.id }) });
+      }
+    });
+  });
   // the lane of every top-level item: same ring and side, in reading order (a loop under the row unless the two are single boxes side by side)
   const lanes = new Map();
   m.items.forEach((i) => { if (/^[NSEW]$/.test(i.side)) { const k = `${i.ring}${i.side}`; (lanes.get(k) || lanes.set(k, []).get(k)).push(i); } });
@@ -751,12 +928,21 @@ function c4Route(m, again) {
     return c4Vert(A.side) ? 'u' : A.side === 'E' ? 'r' : 'l';   // under a row; out of a column, away from the centre
   };
   const item = (n) => ({ id: n.id, x: n.ref.x + n.ref.w / 2, y: n.ref.y + n.ref.h / 2, w: n.ref.w, h: n.ref.h });
+  let hasLayerSkip = false;
   const rEdges = edges.map((e) => {
     const [A, B] = c4Sibs(m, e.a, e.b);
-    return { from: e.from, to: e.to, label: e.text, tech: e.tech, hint: hint(A, B), itemA: item(A), itemB: item(B) };
+    if (m.arrange === 'layers' && !A.par && Math.abs(A.ring - B.ring) > 1) hasLayerSkip = true;
+    const re = { from: e.from, to: e.to, label: e.text, tech: e.tech, hint: hint(A, B), itemA: item(A), itemB: item(B) };
+    if (e.step) re.step = e.step;
+    return re;
   });
-  // manual mode (saved positions kept): boxes can be anywhere, so the router avoids every box and frame (frames: centre x, y)
-  const ropts = data._manual === true ? { manual: true, frames: Array.from(m.gN.values()).filter((g) => g.vis && !g.self).map((g) => ({ id: g.id, x: g.ref.x + g.ref.w / 2, y: g.ref.y + g.ref.h / 2, w: g.ref.w, h: g.ref.h })) } : undefined;
+  // manual mode, group endpoints, or layered cross-layer/shared-layer scenes: pass all expanded frames and enable obstacle detours
+  const needDetours = data._manual === true || hasGroupEnd || (m.arrange === 'layers' && (m.layerDir === 'vertical' || m.sharedLayers.length > 0 || hasLayerSkip));
+  const ropts = needDetours ? {
+    manual: data._manual === true,
+    detours: true,
+    frames: Array.from(m.gN.values()).filter((g) => g.vis && !g.self).map((g) => ({ id: g.id, x: g.ref.x + g.ref.w / 2, y: g.ref.y + g.ref.h / 2, w: g.ref.w, h: g.ref.h }))
+  } : undefined;
   const res = !edges.length ? [] : typeof routeC4Edges === 'function' ? routeC4Edges(nodes, rEdges, ropts) : c4Fallback(nodes, rEdges);
   let right = 0, bottom = 0, left = Infinity, top = Infinity;
   const grow = (x, y) => { if (x > right) right = x; if (y > bottom) bottom = y; if (x < left) left = x; if (y < top) top = y; };
@@ -773,6 +959,10 @@ function c4Route(m, again) {
     e.labelBox = { x: Math.round(rt.lx - rt.w / 2), y: Math.round(rt.ly - lh / 2), w: Math.round(rt.w), h: lh };
     e.points.forEach((p) => grow(p[0], p[1]));
     grow(e.labelBox.x, e.labelBox.y); grow(e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h);
+    if (rt.badge) {
+      e.badge = { x: Math.round(rt.badge.x), y: Math.round(rt.badge.y), w: Math.round(rt.badge.w), h: Math.round(rt.badge.h) };
+      grow(e.badge.x, e.badge.y); grow(e.badge.x + e.badge.w, e.badge.y + e.badge.h);
+    }
     data._edges.push(e);
   });
   // the picture starts at the margin: an arrow outside it moves the whole picture in, then the arrows are routed again
@@ -878,12 +1068,21 @@ function c4Rect(n) {
   return { x: x0 - C4.pad, y: y0 - C4.tagH, w: Math.max(x1 - x0 + 2 * C4.pad, c4TagW(r)), h: y1 - y0 + C4.tagH + C4.padB };
 }
 
+function c4GroupVert(m, g) {
+  if (!g || g.par || m.data.arrange !== 'layers') return false;
+  const vertDir = m.data.layerDirection === 'vertical';
+  if (g.ref.shared !== true) return vertDir;
+  const raw = String(g.ref.side == null ? '' : g.ref.side).toUpperCase();
+  const side = /^[NSEW]$/.test(raw) ? raw : (vertDir ? 'S' : 'E');
+  return !c4Vert(side);
+}
+
 // The next slot in a group's line of members (its row, or column beside the centre; a flow goes below): after the last member.
 function c4Slot(m, g, u, w, h) {
   const its = g.kids.filter((k) => k !== u).map((k) => ({ k, r: c4Rect(k) })).filter((q) => q.r);
   const U = its.reduce((a, q) => ({ x: Math.min(a.x, q.r.x), y: Math.min(a.y, q.r.y), x1: Math.max(a.x1, q.r.x + q.r.w), y1: Math.max(a.y1, q.r.y + q.r.h) }), { x: Infinity, y: Infinity, x1: -Infinity, y1: -Infinity });
   const f = its[0].r, rowLike = its.every((q) => q.r.y < f.y + f.h && f.y < q.r.y + q.r.h), colLike = its.every((q) => q.r.x < f.x + f.w && f.x < q.r.x + q.r.w);
-  const vert = its.length > 1 ? !rowLike && colLike : g.top.side === 'E' || g.top.side === 'W';
+  const vert = its.length > 1 ? !rowLike && colLike : (g.top.side === 'E' || g.top.side === 'W' || c4GroupVert(m, g));
   if (!rowLike && !colLike) return [U.x, U.y1 + C4.innerGap];
   const last = its.reduce((a, q) => ((vert ? q.r.y + q.r.h > a.r.y + a.r.h : q.r.x + q.r.w > a.r.x + a.r.w) ? q : a)), end = last.r;
   const linked = m.rel2.some((r) => (c4In(m, r.a, u) && c4In(m, r.b, last.k)) || (c4In(m, r.b, u) && c4In(m, r.a, last.k)));
@@ -937,7 +1136,7 @@ function c4Fill(m) {
   });
   walk(m.root);
   const put = (u, x, y) => {
-    if (u.kind === 'g' && u.kids.length) c4Size(m, u, false);
+    if (u.kind === 'g' && u.kids.length) c4Size(m, u, c4GroupVert(m, u));
     u.ax = x; u.ay = y; c4Assign(u);
     done.push(u.id);
   };
@@ -954,7 +1153,7 @@ function c4Fill(m) {
   const set = (it) => { if (ob.rects.has(it)) { ob.grid.del(it); ob.rects.delete(it); } const r = c4Rect(it); if (r) { ob.rects.set(it, r); ob.grid.add(it, r); } };
   m.items.forEach(set);
   free.forEach((u) => {
-    if (u.kind === 'g' && u.kids.length) c4Size(m, u, false);
+    if (u.kind === 'g' && u.kids.length) c4Size(m, u, c4GroupVert(m, u));
     const [w, h] = u.kind === 'e' ? [u.w, u.h] : u.self ? [u.tw, u.th] : u.kids.length ? [u.fw, u.fh] : [C4.emptyW, C4.emptyH];
     const g = m.gN.get(u.par), [x, y] = g ? c4Slot(m, g, u, w, h) : c4Spot(m, ob, u, w, h);
     put(u, x, y);

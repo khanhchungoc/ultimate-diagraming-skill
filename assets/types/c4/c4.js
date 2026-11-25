@@ -26,6 +26,9 @@
       const btnLevel = document.getElementById('btn-level');
       const levelWrap = btnLevel && btnLevel.closest('[data-dock-pop]');
       const levelBtns = [...document.querySelectorAll('#level-pop [data-level]')];
+      const btnLayerDir = document.getElementById('btn-layer-dir');
+      const layerDirEls = [...document.querySelectorAll('[data-layer-dir]')];
+      const btnSteps = document.getElementById('btn-steps');
 
       // The generic glyph per kind (an element's own `icon` wins; a `logo:` name has no renderer yet and falls back to it) and the
       // palette slot per kind (an element's own `color` wins; an external system stays neutral)
@@ -36,7 +39,7 @@
       const KINDS = ['person', 'system', 'container', 'database', 'queue', 'external'];   // what the dock adds (components wait for Level 3)
       const CONTAINER_KINDS = new Set(['container', 'database', 'queue', 'component']);
       const DEFAULT_NAME = { person: 'Person', system: 'Software system', container: 'Container', database: 'Database', queue: 'Queue', external: 'External system' };
-      const NAME_MAX = 80, LABEL_MAX = 80, TECH_MAX = 60, DESC_MAX = 200;
+      const NAME_MAX = 80, LABEL_MAX = 80, TECH_MAX = 60, DESC_MAX = 200, STEP_MAX = 8;
 
       // --- STATE ---
       let sel = [];            // the selection, primary last: [{ kind: 'element' | 'group' | 'edge', id }]
@@ -50,7 +53,7 @@
       let selNoteId = null;    // the selected note card (no element, group or arrow is selected then)
       let editingNoteId = null, noteDraft = null;   // the card being typed in; noteDraft: a note added a moment ago and the Notes state it found
       let notesLayer = null;
-      const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label }
+      const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
       let byId = new Map();    // group id -> group (rebuilt each render)
 
       // --- MODEL ACCESS ---
@@ -60,11 +63,14 @@
       const edges = () => chartData._edges || [];
       const groupOf = (id) => byId.get(id) || groups().find((g) => g.id === id);
       const elementOf = (id) => elements().find((e) => e.id === id);
+      const nodeOrGroup = (id) => elementOf(id) || groupOf(id);
       const edgeOf = (id) => edges().find((e) => e.id === id);
+      const isDirectEdge = (e) => !!e && e.count === 1 && !e.agg && Array.isArray(e.members) && e.members.length === 1;
       const presenting = () => document.body.classList.contains('presentation');
       const placed = (o) => typeof o.x === 'number' && typeof o.y === 'number';
       const nameOf = (o) => (o && o.name != null ? String(o.name) : '');
       const showTech = () => chartData.showTech !== false;
+      const showSteps = () => chartData.showSteps !== false;
       const px = (v) => `${v}px`;
       const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
 
@@ -94,6 +100,21 @@
         copy.style.setProperty('--mk', `var(${MARKERS[k]})`);
         base.parentNode.appendChild(copy);
       });
+      function edgeMarkerUrl(color) {
+        if (!color) return 'url(#c4-mk)';
+        const safe = String(color).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const id = `c4-mk-c-${safe}`;
+        if (!document.getElementById(id)) {
+          const base = document.getElementById('c4-mk');
+          if (!base) return 'url(#c4-mk)';
+          const copy = base.cloneNode(true);
+          copy.id = id;
+          setSwatch(copy, color);
+          copy.style.setProperty('--mk', 'var(--sw-line, var(--connector))');
+          base.parentNode.appendChild(copy);
+        }
+        return `url(#${id})`;
+      }
 
       document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch'); }, true);   // bigger ports for a finger
 
@@ -141,11 +162,26 @@
         return ids;
       }
 
+      function isAncestorOrSelf(aId, bId) {
+        if (aId === bId) return true;
+        const aG = groupOf(aId), bG = groupOf(bId), aE = elementOf(aId), bE = elementOf(bId);
+        if (aG) {
+          if (bE && bE.group && (bE.group === aId || ancestors(groupOf(bE.group)).some((x) => x.id === aId))) return true;
+          if (bG && ancestors(bG).some((x) => x.id === aId)) return true;
+        }
+        if (bG) {
+          if (aE && aE.group && (aE.group === bId || ancestors(groupOf(aE.group)).some((x) => x.id === bId))) return true;
+          if (aG && ancestors(aG).some((x) => x.id === bId)) return true;
+        }
+        return false;
+      }
+
       // --- RENDERING ---
       const FLIP_SPECS = [
         { selector: '.c4-node[data-node-id]', key: 'nodeId' },
         { selector: '.c4-group[data-group-id]', key: 'groupId' },
         { selector: '.edge-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.c4-step[data-edge-id]', key: (el) => `step:${el.dataset.edgeId}` },
         { selector: '.note[data-note-id]', key: 'noteId' },   // a note glides with what it explains
         { selector: '.c4-actionbar', key: () => 'bar' }   // the action bar follows what it belongs to
       ];
@@ -200,6 +236,8 @@
         renderLegend();
         renderNotes();
         updateLevelButtons();
+        updateLayerDirButton();
+        updateStepsButton();
         updateNotesButton();
         applyState();
         updateModeUi();
@@ -330,7 +368,7 @@
       }
       function buildGroup(g) {
         const tile = isTile(g);
-        const el = htmlEl('div', `c4-group ${tile ? 'is-tile' : 'is-frame'}`);
+        const el = htmlEl('div', `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}`);
         el.dataset.groupId = g.id;
         el.dataset.kind = g.kind;
         Object.assign(el.style, { left: px(g.x), top: px(g.y), width: px(g.w), height: px(g.h) });
@@ -369,9 +407,9 @@
       }
 
       // --- ARROWS ---
-      const edgeTitle = (e) => `${nameOf(elementOf(e.from) || groupOf(e.from))} → ${nameOf(elementOf(e.to) || groupOf(e.to))}: ${e.label || ''}${e.tech ? ` [${e.tech}]` : ''}${e.count > 1 ? ` (${e.count} relations)` : ''}`;
-      function setMarkers(line) {
-        line.style.setProperty('--mk-e', 'url(#c4-mk)');
+      const edgeTitle = (e) => `${nameOf(elementOf(e.from) || groupOf(e.from))} → ${nameOf(elementOf(e.to) || groupOf(e.to))}: ${e.step ? `[${e.step}] ` : ''}${e.label || ''}${e.tech ? ` [${e.tech}]` : ''}${e.count > 1 ? ` (${e.count} relations)` : ''}`;
+      function setMarkers(line, color) {
+        line.style.setProperty('--mk-e', edgeMarkerUrl(color));
         line.style.setProperty('--mk-e-in', 'url(#c4-mk-in)');
         line.style.setProperty('--mk-e-out', 'url(#c4-mk-out)');
         line.style.setProperty('--mk-e-sel', 'url(#c4-mk-sel)');
@@ -379,59 +417,78 @@
       function renderEdges() {
         edges().forEach((e) => {
           if (!e.path) return;
-          const g = svgEl('g', { class: `c4-edge${e.async ? ' is-async' : ''}`, 'data-edge-id': e.id, 'data-from': e.from, 'data-to': e.to });
+          const tint = swatchOf(e);
+          const g = svgEl('g', { class: `c4-edge${e.async ? ' is-async' : ''}${tint ? ' is-colored' : ''}`, 'data-edge-id': e.id, 'data-from': e.from, 'data-to': e.to });
+          if (tint) setSwatch(g, tint);
           const tip = svgEl('title', { 'data-export-skip': '' });
           tip.textContent = edgeTitle(e);
           const line = svgEl('path', { class: 'edge-line', d: e.path });
-          setMarkers(line);
+          setMarkers(line, tint);
           g.append(tip, svgEl('path', { class: 'edge-hit', d: e.path }), line);
           g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
           g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
           edgesG.appendChild(g);
-          els.edges.set(e.id, { g, label: null });
+          els.edges.set(e.id, { g, label: null, badge: null });
         });
       }
       function renderLabels() {
         edges().forEach((e) => {
           const b = e.labelBox, rec = els.edges.get(e.id);
-          if (!b || !rec) return;
-          const direct = !!(elementOf(e.from) && elementOf(e.to));
-          const el = htmlEl('div', 'edge-label c4-label');
-          el.dataset.edgeId = e.id;
-          el.tabIndex = direct ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
-          el.setAttribute('role', 'group');
-          el.setAttribute('aria-label', `${e.label || 'Arrow'}, from ${nameOf(elementOf(e.from) || groupOf(e.from))} to ${nameOf(elementOf(e.to) || groupOf(e.to))}`);
-          Object.assign(el.style, { left: px(Math.round(b.x + b.w / 2)), top: px(Math.round(b.y + b.h / 2)) });
-          el.title = edgeTitle(e);
-          el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
-          if (showTech()) {
-            if (e.tech) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
-            else if (direct) {
-              const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
-              ph.dataset.exportSkip = '';
-              ph.dataset.field = 'tech';
-              ph.dataset.ph = '+ tech';
-              ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
-              ph.addEventListener('pointerdown', (ev) => {
-                if (ev.button !== 0 || presenting()) return;
-                ev.preventDefault();
-                ev.stopPropagation();
-                if (isTyping()) document.activeElement.blur();
-                editEdgeField(e.id, 'tech');
-              });
-              el.appendChild(ph);
+          if (!rec) return;
+          const direct = isDirectEdge(e), tint = swatchOf(e);
+          const isNewLink = !!(newLink && e.members && e.members.includes(relations().indexOf(newLink)));
+          if (b && (e.label || (showTech() && e.tech) || e.count > 1 || isNewLink)) {
+            const el = htmlEl('div', `edge-label c4-label${tint ? ' is-colored' : ''}`);
+            if (tint) setSwatch(el, tint);
+            el.dataset.edgeId = e.id;
+            el.tabIndex = direct ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
+            el.setAttribute('role', 'group');
+            el.setAttribute('aria-label', `${e.step ? `Step ${e.step}, ` : ''}${e.label || 'Arrow'}, from ${nameOf(nodeOrGroup(e.from))} to ${nameOf(nodeOrGroup(e.to))}`);
+            Object.assign(el.style, { left: px(Math.round(b.x + b.w / 2)), top: px(Math.round(b.y + b.h / 2)) });
+            el.title = edgeTitle(e);
+            el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
+            if (showTech()) {
+              if (e.tech) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
+              else if (direct) {
+                const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
+                ph.dataset.exportSkip = '';
+                ph.dataset.field = 'tech';
+                ph.dataset.ph = '+ tech';
+                ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
+                ph.addEventListener('pointerdown', (ev) => {
+                  if (ev.button !== 0 || presenting()) return;
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  if (isTyping()) document.activeElement.blur();
+                  editEdgeField(e.id, 'tech');
+                });
+                el.appendChild(ph);
+              }
             }
+            el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
+            el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
+            el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
+            html.appendChild(el);
+            rec.label = el;
           }
-          el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-          el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-          el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-          html.appendChild(el);
-          rec.label = el;
+          if (showSteps() && e.step && e.badge) {
+            const sb = htmlEl('div', `c4-step${tint ? ' is-colored' : ''}`, e.step);
+            if (tint) setSwatch(sb, tint);
+            sb.dataset.edgeId = e.id;
+            sb.setAttribute('aria-label', `Step ${e.step}: ${e.label || ''}`);
+            sb.title = edgeTitle(e);
+            Object.assign(sb.style, { left: px(Math.round(e.badge.x + e.badge.w / 2)), top: px(Math.round(e.badge.y + e.badge.h / 2)) });
+            sb.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
+            sb.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
+            sb.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
+            html.appendChild(sb);
+            rec.badge = sb;
+          }
         });
       }
 
-      // The colour key: the palette slots groups and elements use and what each means (colorKey); a slot with no label is left
+      // The colour key: the palette slots groups, elements and relations use and what each means (colorKey); a slot with no label is left
       // out, except the one being named right now (keyDraft: the prompt "What does Blue mean?" after a colour was picked)
       let legendEl = null;
       function renderLegend() {
@@ -441,6 +498,7 @@
           const c = swatchOf(e) || KIND_SLOT[e.kind] || (e.kind === 'external' ? '9' : null);
           if (c && swatchSlot(c) && !used.includes(c)) used.push(c);
         });
+        relations().forEach((r) => { const c = swatchOf(r); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
         const shown = used.filter((c) => key[c] || c === keyDraft);
         if (legendEl) legendEl.remove();
         legendEl = ui.colorKey(shown, key, { cls: 'c4-key', prompts: keyDraft !== null });
@@ -503,9 +561,11 @@
           rec.g.classList.toggle('selected', isSel);
           rec.g.classList.toggle('hover', hov);
           if (rec.label) { rec.label.classList.toggle('selected', isSel); rec.label.classList.toggle('linked', hov); }
+          if (rec.badge) { rec.badge.classList.toggle('selected', isSel); }
           const dim = !!hoverId && !out && !inn && !isSel;
           rec.g.classList.toggle('is-dim', dim);
           if (rec.label) rec.label.classList.toggle('is-dim', dim);
+          if (rec.badge) rec.badge.classList.toggle('is-dim', dim);
         });
         const tags = [...els.groups].filter(([, el]) => !el.classList.contains('is-tile')).map(([id, el]) => [id, el.querySelector('.frame-tag')]).filter(([, t]) => t);
         const items = [...els.nodes, ...[...els.groups].filter(([id]) => isTile(groupOf(id))), ...tags];
@@ -844,11 +904,12 @@
         const e = edgeOf(edgeId);
         if (!e || presenting()) return;
         const isNew = !!(opts && opts.isNew), newRel = opts && opts.newRel;
-        if (!isNew && !(elementOf(e.from) && elementOf(e.to))) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
+        if (!isNew && !isDirectEdge(e)) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
         const rec = els.edges.get(edgeId), lbl = rec && rec.label;
-        if (!lbl) { if (isNew && newRel) dropNewRelation(newRel, { kind: 'element', id: newRel.from }); return; }
+        const backKind = newRel && elementOf(newRel.from) ? 'element' : 'group';
+        if (!lbl) { if (isNew && newRel) dropNewRelation(newRel, { kind: backKind, id: newRel.from }); return; }
         const members = isNew ? [newRel] : e.members.map((i) => relations()[i]).filter(Boolean);
-        const back = isNew ? { kind: 'element', id: newRel.from } : null;
+        const back = isNew ? { kind: backKind, id: newRel.from } : null;
         const findEdgeId = () => {
           if (isNew && newRel) {
             const idx = relations().indexOf(newRel);
@@ -974,24 +1035,29 @@
         if (b) b.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k); });
       });
 
-      // --- Connect: drag from a port onto another element ---
+      // --- Connect: drag from a port onto another element or group ---
       function nodeIdAt(x, y) {
-        const el = document.elementFromPoint(x, y), it = el && el.closest('.c4-node, .c4-group.is-tile');
-        return it ? { id: it.dataset.nodeId || it.dataset.groupId, tile: !it.dataset.nodeId } : null;
+        const el = document.elementFromPoint(x, y);
+        if (!el) return null;
+        const node = el.closest('.c4-node');
+        if (node) return { id: node.dataset.nodeId, kind: 'element' };
+        const grp = el.closest('.c4-group.is-tile') || (el.closest('.frame-tag') && el.closest('.c4-group'));
+        if (grp) return { id: grp.dataset.groupId, kind: 'group' };
+        return null;
       }
       function startConnectDrag(ev, fromId) {
         ev.preventDefault();
         ev.stopPropagation();
         if (isTyping()) document.activeElement.blur();
         endDrag();
-        setSel([{ kind: 'element', id: fromId }]);
+        setSel([{ kind: elementOf(fromId) ? 'element' : 'group', id: fromId }]);
         drag = { from: fromId, x: ev.clientX, y: ev.clientY, moved: false };
         window.addEventListener('pointermove', onDragMove);
         window.addEventListener('pointerup', onDragUp);
         window.addEventListener('pointercancel', cancelDrag);
       }
       function onDragMove(e) {
-        const d = drag, src = d && elementOf(d.from);
+        const d = drag, src = d && nodeOrGroup(d.from);
         if (!d || !src) return;
         if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
         if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging'); hoverId = null; applyState(); }
@@ -1001,7 +1067,10 @@
         rubber.style.display = 'block';
         canvas.querySelectorAll('.c4-target').forEach((el) => el.classList.remove('c4-target'));
         const hit = nodeIdAt(e.clientX, e.clientY);
-        if (hit && !hit.tile && hit.id !== d.from && els.nodes.get(hit.id)) els.nodes.get(hit.id).classList.add('c4-target');
+        if (hit && !isAncestorOrSelf(d.from, hit.id)) {
+          const targetEl = hit.kind === 'group' ? els.groups.get(hit.id) : els.nodes.get(hit.id);
+          if (targetEl) targetEl.classList.add('c4-target');
+        }
       }
       function endDrag() {
         window.removeEventListener('pointermove', onDragMove);
@@ -1019,15 +1088,15 @@
         const d = endDrag();
         if (!d || !d.moved) return;
         if (!hit) return;
-        if (hit.tile) { ui.toast('Open the group first: a connection joins two elements'); return; }
         connectItems(d.from, hit.id);
       }
       function cancelDrag() { return !!endDrag(); }
       // The new arrow appears at once (laid out, drawn in) and opens inline label editing; the connection is one undo step with the label,
       // and Esc on the label (or blurring while empty) takes the whole connection back.
       function connectItems(fromId, toId) {
-        if (!elementOf(fromId) || !elementOf(toId)) throw new RangeError('connectItems: both ends must be elements');
-        if (fromId === toId) { ui.toast('An element cannot connect to itself'); return false; }
+        if (!nodeOrGroup(fromId) || !nodeOrGroup(toId)) throw new RangeError('connectItems: both ends must be elements or groups');
+        if (fromId === toId) { ui.toast('An item cannot connect to itself'); return false; }
+        if (isAncestorOrSelf(fromId, toId)) { ui.toast('A group cannot connect to an item inside it'); return false; }
         if (isTyping()) document.activeElement.blur();
         motion.cancelAll();
         const useMotion = motion.enabled() && html.childElementCount > 0;
@@ -1066,20 +1135,28 @@
         });
         if (!chartData.notes.length) delete chartData.notes;
       }
+      function pruneSpanRefs(gone) {
+        groups().forEach((g) => {
+          if (!Array.isArray(g.span)) return;
+          g.span = g.span.filter((id) => !gone.has(id));
+          if (!g.span.length) delete g.span;
+        });
+      }
       // What a selection removes: the selected elements and groups (a group takes everything inside it) and the relations
-      // that touch a removed element, or that a selected arrow stands for
+      // that touch a removed element or group, or that a selected arrow stands for
       function removal() {
         const gids = new Set(selIds('group')), eids = new Set(selIds('element'));
         selIds('group').forEach((id) => descendants(groupOf(id)).forEach((d) => { if (groupOf(d)) gids.add(d); else eids.add(d); }));
         const rels = new Set();
         selIds('edge').forEach((id) => { const e = edgeOf(id); if (e) e.members.forEach((i) => rels.add(relations()[i])); });
-        relations().forEach((r) => { if (eids.has(r.from) || eids.has(r.to)) rels.add(r); });
+        relations().forEach((r) => { if (eids.has(r.from) || eids.has(r.to) || gids.has(r.from) || gids.has(r.to)) rels.add(r); });
         return { gids, eids, rels };
       }
       function removeAll({ gids, eids, rels }) {
         chartData.elements = elements().filter((e) => !eids.has(e.id));
         chartData.groups = groups().filter((g) => !gids.has(g.id));
         chartData.relations = relations().filter((r) => !rels.has(r));
+        pruneSpanRefs(gids);
         dropNoteRefs(new Set([...gids, ...eids]));
         sel = [];
         commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
@@ -1100,6 +1177,8 @@
         elements().forEach((e) => { if (e.group === id) setOpt(e, 'group', g.parent || ''); });
         groups().forEach((x) => { if (x.parent === id) setOpt(x, 'parent', g.parent || ''); });
         chartData.groups = groups().filter((x) => x !== g);
+        chartData.relations = relations().filter((r) => r.from !== id && r.to !== id);
+        pruneSpanRefs(new Set([id]));
         dropNoteRefs(new Set([id]));
         sel = [];
         commit(true);
@@ -1237,6 +1316,53 @@
         btnNotes.title = !count ? 'No notes yet: select an element, group or arrow and add a Note from the Add tiles' : on ? 'Hide all notes' : 'Show all notes';
       }
 
+      // --- LAYERS DIRECTION & STEPS TOOLBAR ---
+      function setLayerDirection(dir) {
+        if (presenting() || chartData.arrange !== 'layers') return;
+        const next = dir === 'vertical' ? 'vertical' : 'horizontal';
+        const cur = chartData.layerDirection === 'vertical' ? 'vertical' : 'horizontal';
+        if (cur === next) return;
+        if (next === 'vertical') chartData.layerDirection = 'vertical';
+        else delete chartData.layerDirection;
+        delete chartData._manual;
+        commit(true);
+      }
+      if (btnLayerDir) btnLayerDir.addEventListener('click', () => setLayerDirection(chartData.layerDirection === 'vertical' ? 'horizontal' : 'vertical'));
+      function updateLayerDirButton() {
+        const isLayers = chartData.arrange === 'layers';
+        layerDirEls.forEach((el) => { el.hidden = !isLayers; });
+        if (!btnLayerDir || !isLayers) return;
+        const vert = chartData.layerDirection === 'vertical';
+        const lbl = btnLayerDir.querySelector('.btn-label');
+        const ic = btnLayerDir.querySelector('.c4-dir-icon');
+        if (lbl) lbl.textContent = vert ? 'Columns' : 'Bands';
+        if (ic) ic.innerHTML = ui.icon(vert ? 'direction-lr' : 'direction-tb');
+        btnLayerDir.title = vert ? 'Vertical columns (click to switch to horizontal bands)' : 'Horizontal bands (click to switch to vertical columns)';
+        btnLayerDir.setAttribute('aria-label', btnLayerDir.title);
+      }
+
+      function setShowSteps(on) {
+        if (showSteps() === on) return;
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
+        if (on) delete chartData.showSteps; else chartData.showSteps = false;
+        render({ snap, duration: 170 });
+        if (!presenting()) updateStatus(true);
+      }
+      if (btnSteps) btnSteps.addEventListener('click', () => setShowSteps(!showSteps()));
+      function updateStepsButton() {
+        if (!btnSteps) return;
+        const count = relations().filter((r) => typeof r.step === 'string' && r.step.trim()).length;
+        const on = showSteps();
+        btnSteps.hidden = !count && on;
+        btnSteps.setAttribute('aria-checked', String(on));
+        btnSteps.disabled = !count && on;
+        const c = btnSteps.querySelector('.btn-count');
+        if (c) { c.textContent = count ? String(count) : ''; c.hidden = !count; }
+        btnSteps.title = on ? 'Hide step numbers on arrows' : 'Show step numbers on arrows';
+      }
+
       // Add: the selected element, group or arrow gets a note (an arrow's note is on both its ends); nothing selected asks for a
       // selection. The card grows out of its target and its text opens for typing; add and text are one undo step.
       function addNote() {
@@ -1322,7 +1448,16 @@
 
       // --- Property edits ---
       function setColor(slot) {
-        const objs = sel.filter((s) => s.kind !== 'edge').map((s) => (s.kind === 'group' ? groupOf(s.id) : elementOf(s.id))).filter((o) => o && (o.color || '') !== slot);
+        const objs = [];
+        sel.forEach((s) => {
+          if (s.kind === 'edge') {
+            const e = edgeOf(s.id);
+            if (isDirectEdge(e)) { const rel = relations()[e.members[0]]; if (rel && (rel.color || '') !== slot) objs.push(rel); }
+          } else {
+            const o = s.kind === 'group' ? groupOf(s.id) : elementOf(s.id);
+            if (o && (o.color || '') !== slot) objs.push(o);
+          }
+        });
         if (!objs.length) return;
         objs.forEach((o) => setOpt(o, 'color', slot));
         if (slot && !(chartData.colorKey && chartData.colorKey[slot])) keyDraft = slot;   // invite a name for the colour (optional: leave it empty)
@@ -1360,8 +1495,8 @@
       const ICON_GROUPS = [
         ['People', ['user', 'users', 'actor', 'headset']],
         ['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
-        ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale']],
-        ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers']],
+        ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
+        ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
         ['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
         ['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
         ['Security', ['lock', 'key', 'shield']]
@@ -1431,6 +1566,94 @@
         search.focus();
       }
 
+      // --- Step badge editor popover (#c4-step-pop) ---
+      function openStepPop(anchor, rel) {
+        const box = htmlEl('div', 'c4-pop c4-step-pop');
+        box.id = 'c4-step-pop';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Step number');
+        const row = htmlEl('div', 'c4-step-row');
+        const input = htmlEl('input', 'c4-input');
+        input.id = 'c4-step-input';
+        input.type = 'text';
+        input.maxLength = STEP_MAX;
+        input.placeholder = 'e.g. 1, 2a, 3b';
+        input.value = rel.step || '';
+        input.setAttribute('aria-label', 'Step number');
+        const applyBtn = htmlEl('button', 'btn', 'Set');
+        applyBtn.type = 'button';
+        const hint = htmlEl('div', 'c4-step-hint', `Max ${STEP_MAX} chars; leave blank to clear.`);
+        const save = () => {
+          const val = optText(input.value, STEP_MAX);
+          closeFloating('pick');
+          if ((rel.step || '') === val) return;
+          setOpt(rel, 'step', val);
+          if (val && chartData.showSteps === false) delete chartData.showSteps;
+          commit(true, { duration: 160 });
+        };
+        applyBtn.addEventListener('click', save);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
+        });
+        row.append(input, applyBtn);
+        box.append(row, hint);
+        openFloating(box, anchor);
+        input.focus();
+        input.select();
+      }
+
+      const mainLayerGroups = () => groups().filter((x) => !x.parent && x.shared !== true);
+      const SIDE_LABELS = { N: 'Top', S: 'Bottom', W: 'Left', E: 'Right' };
+      const sharedDefaultSide = () => (chartData.layerDirection === 'vertical' ? 'S' : 'E');
+      const connectTargetItems = (fromId) => {
+        const out = [];
+        groups().filter((x) => !hiddenGroup(x) && !isAncestorOrSelf(fromId, x.id)).forEach((x) => {
+          out.push({ label: `Layer: ${nameOf(x)}`, value: x.id });
+        });
+        elements().filter((x) => !x._hidden && !isAncestorOrSelf(fromId, x.id)).forEach((x) => {
+          out.push({ label: nameOf(x), value: x.id });
+        });
+        return out;
+      };
+      const sharedSideItems = (g) => {
+        const cur = g.side || sharedDefaultSide();
+        return ['N', 'S', 'W', 'E'].map((s) => ({ label: `${SIDE_LABELS[s]} (${s})`, value: s, selected: cur === s }));
+      };
+      const sharedSpanLabel = (g) => {
+        const main = mainLayerGroups();
+        const sp = Array.isArray(g.span) && g.span.length ? g.span.filter((id) => main.some((m) => m.id === id)) : [];
+        if (!sp.length || sp.length === main.length) return 'All layers';
+        if (sp.length === 1) return nameOf(groupOf(sp[0]));
+        return `${nameOf(groupOf(sp[0]))} – ${nameOf(groupOf(sp[sp.length - 1]))}`;
+      };
+      const sharedSpanItems = (g) => {
+        const main = mainLayerGroups();
+        const sp = Array.isArray(g.span) && g.span.length ? g.span : null;
+        const out = [{ label: 'All layers', value: '__all__', selected: !sp }];
+        main.forEach((m) => {
+          const on = !sp ? false : sp.includes(m.id);
+          out.push({ label: `${on ? '✓ ' : ''}${nameOf(m)}`, value: m.id, selected: on });
+        });
+        return out;
+      };
+      function applySharedSpan(g, picked) {
+        const main = mainLayerGroups();
+        if (picked === '__all__' || !main.length) {
+          if (g.span) { delete g.span; commit(true); }
+          return;
+        }
+        const order = main.map((m) => m.id);
+        const cur = new Set(Array.isArray(g.span) ? g.span.filter((id) => order.includes(id)) : []);
+        if (cur.has(picked)) cur.delete(picked); else cur.add(picked);
+        if (!cur.size || cur.size === order.length) { delete g.span; commit(true); return; }
+        const idxs = [...cur].map((id) => order.indexOf(id)).sort((a, b) => a - b);
+        const lo = idxs[0], hi = idxs[idxs.length - 1];
+        // Keep span contiguous between min and max selected layers
+        g.span = order.slice(lo, hi + 1);
+        commit(true);
+      }
+
       // --- ACTION BARS ---
       const ab = (act, content, title, pressed, value, extra) => ui.abButton('ab-btn', act, content, title, pressed, value, extra);
       const abMenu = (act, icon, text, title) => { const b = ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, title); b.dataset.menu = ''; return b; };
@@ -1455,7 +1678,16 @@
       }
       function groupBar(bar, g) {
         bar.setAttribute('aria-label', 'Group');
-        if (!g.parent) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
+        bar.appendChild(abMenu('connect', 'link', 'Connect', 'Connect this group to another layer or element'));
+        if (chartData.arrange === 'layers' && !g.parent && g.kind === 'boundary') {
+          bar.appendChild(abText('shared', 'layers', 'Shared', 'Cross-cutting shared layer (arrows optional)', g.shared === true));
+          if (g.shared === true) {
+            bar.appendChild(abMenu('side', 'direction-lr', SIDE_LABELS[g.side || sharedDefaultSide()], 'Which side of the layers this shared layer sits on'));
+            bar.appendChild(abMenu('span', 'columns', sharedSpanLabel(g), 'Which layers this shared layer spans'));
+          }
+        } else if (!g.parent) {
+          bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
+        }
         bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
         bar.appendChild(ui.abBreak('ab-break'));
@@ -1464,12 +1696,17 @@
       }
       function edgeBar(bar, e) {
         bar.setAttribute('aria-label', 'Arrow');
-        const direct = !!(elementOf(e.from) && elementOf(e.to)), rel = direct ? relations()[e.members[0]] : null;
+        const direct = isDirectEdge(e), rel = direct ? relations()[e.members[0]] : null;
         if (direct && rel) {
+          bar.appendChild(abText('step', 'numbers', rel.step ? `#${rel.step}` : 'Step', 'Step number badge (e.g. 1, 2a)', !!rel.step));
           bar.appendChild(ab('async', ui.icon('line-dashed'), 'Asynchronous: draw it dashed', rel.async === true));
           bar.appendChild(ab('reverse', ui.icon('reverse'), 'Reverse the direction'));
         } else bar.appendChild(htmlEl('span', 'c4-ab-tag', `${e.count} relations`));
         bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
+        if (direct && rel) {
+          bar.appendChild(ui.abBreak('ab-break'));
+          bar.appendChild(colourRow(rel.color));
+        }
         const rec = els.edges.get(e.id), b = e.labelBox;
         if (b) {
           const cx = Math.round(b.x + b.w / 2), cy = Math.round(b.y + b.h / 2);
@@ -1556,6 +1793,7 @@
           if (!e) return;
           const members = e.members.map((i) => relations()[i]).filter(Boolean);
           if (act === 'delete') deleteSelection(btn);
+          else if (act === 'step' && isDirectEdge(e) && members[0]) openStepPop(at, members[0]);
           else if (act === 'async') { const on = !members.every((r) => r.async === true); members.forEach((r) => setOpt(r, 'async', on)); commit(false, { duration: 160 }); }
           else if (act === 'reverse') {
             if (members.some((r) => relations().some((x) => !members.includes(x) && x.from === r.to && x.to === r.from && x.label === r.label))) { ui.toast('The reverse connection already exists with this label'); return; }
@@ -1570,6 +1808,21 @@
         else if (act === 'core') { setOpt(o, 'core', o.core !== true); commit(true); }
         else if (p.kind === 'group') {
           if (act === 'ungroup') ungroup(o.id);
+          else if (act === 'connect') {
+            const targets = connectTargetItems(o.id);
+            if (!targets.length) { ui.toast('No other layer or element to connect to'); return; }
+            openMenu(at, 'Connect to', targets, (v) => connectItems(o.id, v));
+          } else if (act === 'shared') {
+            const next = o.shared !== true;
+            setOpt(o, 'shared', next);
+            if (!next) { delete o.span; delete o.side; } else pruneSpanRefs(new Set([o.id]));
+            delete chartData._manual;
+            commit(true);
+          } else if (act === 'side') {
+            openMenu(at, 'Shared layer side', sharedSideItems(o), (v) => { o.side = v; delete chartData._manual; commit(true); });
+          } else if (act === 'span') {
+            openMenu(at, 'Spanned layers', sharedSpanItems(o), (v) => applySharedSpan(o, v));
+          }
         } else if (act === 'icon') openIcons(at, o);
       }
 
@@ -1669,7 +1922,7 @@
         m.els.forEach((el) => el.classList.add('is-dragging'));
         // the arrows and note cards that touch what moves fade out: they are routed again on release
         edgesG.querySelectorAll('.c4-edge').forEach((g) => { if (m.ids.has(g.dataset.from) || m.ids.has(g.dataset.to)) m.faded.push(g); });
-        html.querySelectorAll('.c4-label').forEach((l) => { const e = edgeOf(l.dataset.edgeId); if (e && (m.ids.has(e.from) || m.ids.has(e.to))) m.faded.push(l); });
+        html.querySelectorAll('.c4-label, .c4-step').forEach((l) => { const e = edgeOf(l.dataset.edgeId); if (e && (m.ids.has(e.from) || m.ids.has(e.to))) m.faded.push(l); });
         notesList().forEach((n) => { if (noteTargets(n).some((t) => m.ids.has(t.id))) { const c = noteCard(n.id); if (c) m.faded.push(c); } });
         m.faded.forEach((x) => x.classList.add('drag-fade'));
       }
@@ -1918,7 +2171,7 @@
       // --- DISK FORMAT ---
       // The same bytes as c4_to_disk / c4_from_disk in scripts/disk_format.py (contract: the codec spec above C4_KEYS there). An
       // editor id (e_<ms>, g_<ms>, n_<ms>) is renamed to its name slug; authored ids are never touched.
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'arrange', 'showTech', 'showNotes', 'colorKey', 'groups', 'elements', 'relations', 'notes', 'layout'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'arrange', 'layerDirection', 'showTech', 'showNotes', 'showSteps', 'colorKey', 'groups', 'elements', 'relations', 'notes', 'layout'];
       const DISK_DERIVED = [['groups', ['w', 'h']], ['elements', ['w', 'h']], ['relations', ['points', 'labelBox']]];
       const DISK_OBJECTS = ['groups', 'elements', 'relations', 'notes'];
       const GENERATED_ID = /^(e|g|n)_\d{12,}(_\d+)?$/;
@@ -1947,7 +2200,10 @@
         [...gs, ...es, ...ns].forEach((o) => { o.id = r(o.id); });
         (d.relations || []).forEach((rel) => ['from', 'to'].forEach((k) => { rel[k] = r(rel[k]); }));
         es.forEach((o) => { if ('group' in o) o.group = r(o.group); });
-        gs.forEach((g) => { if ('parent' in g) g.parent = r(g.parent); });
+        gs.forEach((g) => {
+          if ('parent' in g) g.parent = r(g.parent);
+          if (Array.isArray(g.span)) g.span = g.span.map(r);
+        });
         ns.forEach((n) => ['elements', 'groups'].forEach((k) => { if (Array.isArray(n[k])) n[k] = n[k].map(r); }));
       }
       const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -1955,7 +2211,7 @@
         const d = JSON.parse(JSON.stringify(data));
         Object.keys(d).forEach((k) => { if (k === 'layout' || k === 'canvas' || (k[0] === '_' && k !== '_readme')) delete d[k]; });
         d.schemaVersion = 1;
-        slotColors(d, 'elements', 'groups');
+        slotColors(d, 'elements', 'groups', 'relations');
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));
         DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
@@ -1978,7 +2234,7 @@
         if (d.schemaVersion === undefined || d.schemaVersion === 1) {
           ['elements', 'groups'].forEach((list) => (d[list] || []).forEach((o) => Object.assign(o, layout[o.id] || {})));
         }
-        slotColors(d, 'elements', 'groups');
+        slotColors(d, 'elements', 'groups', 'relations');
         return d;
       }
 

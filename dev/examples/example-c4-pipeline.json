@@ -1,0 +1,68 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Cloud Data & AI Pipeline",
+  "arrange": "layers",
+  "layerDirection": "vertical",
+  "showSteps": true,
+  "colorKey": {
+    "1": "Hot streaming path",
+    "2": "Batch / cold path",
+    "3": "Alerts & feedback",
+    "5": "Ingestion",
+    "6": "Serving & consumption",
+    "7": "Governance & MLOps",
+    "8": "Storage"
+  },
+  "groups": [
+    { "id": "sources", "name": "Sources", "kind": "boundary", "color": "9" },
+    { "id": "ingest", "name": "Ingest", "kind": "boundary", "color": "5" },
+    { "id": "store", "name": "Store", "kind": "boundary", "color": "8" },
+    { "id": "process", "name": "Process & AI", "kind": "boundary", "color": "3" },
+    { "id": "hot", "name": "Hot path", "kind": "boundary", "parent": "process", "color": "1" },
+    { "id": "cold", "name": "Cold path", "kind": "boundary", "parent": "process", "color": "2" },
+    { "id": "serve", "name": "Serve & Consume", "kind": "boundary", "color": "6" },
+    { "id": "governance", "name": "Data Governance & MLOps", "kind": "boundary", "shared": true, "side": "N", "span": ["store", "process", "serve"], "color": "7" },
+    { "id": "platform", "name": "Platform & Security", "kind": "boundary", "shared": true, "side": "S", "color": "9" }
+  ],
+  "elements": [
+    { "id": "iot", "kind": "external", "name": "IoT & Edge Sensors", "description": "Device telemetry streams", "group": "sources", "icon": "sensor" },
+    { "id": "apps", "kind": "system", "name": "Web & Mobile Apps", "description": "Clickstream and orders", "group": "sources", "icon": "mobile" },
+    { "id": "erp", "kind": "external", "name": "ERP & SaaS DBs", "description": "Transactional records", "group": "sources", "icon": "database" },
+    { "id": "evhub", "kind": "queue", "name": "Event Stream Hub", "tech": "Kafka / Event Hubs", "group": "ingest", "icon": "stream" },
+    { "id": "batch_ing", "kind": "container", "name": "Batch Pipelines", "tech": "Orchestrator / CDC", "group": "ingest", "icon": "workflow" },
+    { "id": "lake", "kind": "database", "name": "Data Lakehouse", "tech": "Delta / Parquet", "group": "store", "icon": "storage" },
+    { "id": "fstore", "kind": "database", "name": "Feature Store", "tech": "Redis + Parquet", "group": "store", "icon": "cache" },
+    { "id": "stream_proc", "kind": "container", "name": "Stream Processor", "tech": "Flink / Spark Streaming", "group": "hot", "icon": "stream" },
+    { "id": "rt_infer", "kind": "container", "name": "Real-Time Inference", "tech": "Model Serving / gRPC", "group": "hot", "icon": "brain" },
+    { "id": "etl", "kind": "container", "name": "Batch Transform", "tech": "Spark / dbt", "group": "cold", "icon": "workflow" },
+    { "id": "ml_train", "kind": "container", "name": "ML Training", "tech": "PyTorch / GPU Cluster", "group": "cold", "icon": "brain" },
+    { "id": "api_serve", "kind": "container", "name": "Serving API", "tech": "REST / GraphQL", "group": "serve", "icon": "api" },
+    { "id": "bi", "kind": "system", "name": "BI Dashboards", "tech": "SQL Analytics", "group": "serve", "icon": "chart" },
+    { "id": "alerts", "kind": "container", "name": "Alerting & Actions", "tech": "Webhooks / Pager", "group": "serve", "icon": "bell" },
+    { "id": "catalog", "kind": "system", "name": "Data Catalog", "tech": "Lineage & Schema", "group": "governance", "icon": "clipboard" },
+    { "id": "registry", "kind": "system", "name": "Model Registry", "tech": "MLflow / Versions", "group": "governance", "icon": "layers" },
+    { "id": "iam", "kind": "system", "name": "Identity", "tech": "OIDC / SSO", "group": "platform", "icon": "shield" },
+    { "id": "vault", "kind": "system", "name": "Key Vault", "tech": "HSM / Secrets", "group": "platform", "icon": "key" },
+    { "id": "monitor", "kind": "system", "name": "Monitor", "tech": "OpenTelemetry", "group": "platform", "icon": "monitor" },
+    { "id": "policy", "kind": "system", "name": "Policy", "tech": "RBAC & Compliance", "group": "platform", "icon": "lock" }
+  ],
+  "relations": [
+    { "from": "sources", "to": "ingest", "step": "1" },
+    { "from": "evhub", "to": "stream_proc", "label": "Live events", "async": true, "step": "2a", "color": "1" },
+    { "from": "batch_ing", "to": "lake", "step": "2b", "color": "2" },
+    { "from": "stream_proc", "to": "rt_infer", "step": "3a", "color": "1" },
+    { "from": "lake", "to": "etl", "step": "3b", "color": "2" },
+    { "from": "etl", "to": "fstore", "color": "2" },
+    { "from": "fstore", "to": "rt_infer", "label": "Online features", "color": "1" },
+    { "from": "etl", "to": "ml_train", "color": "2" },
+    { "from": "ml_train", "to": "registry", "label": "Registers models", "color": "2" },
+    { "from": "rt_infer", "to": "api_serve", "step": "4a", "color": "1" },
+    { "from": "etl", "to": "bi", "step": "4b", "color": "2" },
+    { "from": "rt_infer", "to": "alerts", "async": true, "step": "5", "color": "3" },
+    { "from": "alerts", "to": "sources", "label": "Alert feedback", "async": true, "color": "3" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Hot path skips Store for sub-second scoring; cold path curates data for BI and ML training.", "groups": ["process"] }
+  ]
+}
