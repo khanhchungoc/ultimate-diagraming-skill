@@ -1465,13 +1465,13 @@
     /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
     button, input, select, textarea, kbd { font-family: inherit; }
 
-    /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css) */
+    /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css; z-index 200 clears .flow-tabs at 120 and #search-dock at 150 so header menus stay on top) */
     header {
       position: fixed;
       top: 16px;
       left: 20px;
       right: 20px;
-      z-index: 100;
+      z-index: 200;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
