@@ -229,6 +229,7 @@
       z-index: 4;
       touch-action: none;
       padding: 0;
+      scale: var(--ui-scale, 1);
       transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .erd-port:hover { background: var(--primary); }

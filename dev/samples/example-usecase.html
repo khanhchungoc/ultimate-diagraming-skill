@@ -996,7 +996,7 @@
       border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: var(--t-detail-size);
+      font-size: var(--text-md);
       font-weight: var(--t-detail-weight);
       line-height: var(--t-detail-leading);
       text-align: left;
@@ -1215,13 +1215,23 @@
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
     .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
     .swatch-popover {
-      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0; z-index: 60;
+      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0;
       padding: 4px; border-radius: var(--radius-lg);
-      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md);
       white-space: nowrap;
     }
+    .swatch-popover::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
+    .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
+    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
+      box-shadow: none;
+      filter: drop-shadow(var(--shadow-md));
+    }
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
+      box-shadow: none;
+    }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
        with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
@@ -1856,7 +1866,9 @@ html.is-loading #page-loading { display: grid; }
     .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: var(--stroke-thin); stroke-linecap: round; marker-end: var(--mk-e); }   /* every line neutral */
     .uc-link.is-dashed .edge-line { stroke-dasharray: var(--dash); }
     .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
-    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a hover or a focus: same neutral, bolder */
+    .uc-link.hl-in:not(.hover, .selected) .edge-line { stroke: var(--edge-in); stroke-width: var(--ring-md); marker-end: var(--mk-e-in); }
+    .uc-link.hl-out:not(.hover, .selected) .edge-line { stroke: var(--edge-out); stroke-width: var(--ring-md); marker-end: var(--mk-e-out); }
+    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a selection's wider reach: same neutral, bolder */
     .drag-fade { opacity: 0.12 !important; }
     .uc-link.is-dim { opacity: var(--dim-line); }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
@@ -1877,7 +1889,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-cond.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 4px; min-width: 64px; min-height: 16px; white-space: nowrap; }
     .uc-cond.is-editing:empty::before { content: "condition"; color: var(--text-muted); pointer-events: none; }
     .uc-label.is-dim { opacity: var(--dim); }
-    .uc-label.hl { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+    .uc-label.hl:not(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
     /* --- Use cases: an ellipse; level shows in its size and outline --- */
     .uc-case {
@@ -1888,7 +1900,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-shape {
       position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
       border: 1px solid var(--ring); border-radius: var(--radius-pill); background: var(--node-bg);
-      transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), transform var(--dur-micro) var(--curve-out);
+      transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), transform var(--dur-micro) var(--curve-out);
       box-shadow: var(--shadow-sm);
     }
     .uc-case:hover .uc-shape { box-shadow: var(--shadow-md); }
@@ -1899,6 +1911,10 @@ html.is-loading #page-loading { display: grid; }
     .uc-case[data-level="summary"] .uc-name { font-size: var(--t-title-size); font-weight: var(--t-title-weight); }
     .uc-case[data-level="subfunction"] .uc-shape { border-style: dashed; }
     .uc-case:hover { --ring: var(--task-accent); }
+    .uc-case.hl-in:not(.selected) { --ring: var(--edge-in); }
+    .uc-case.hl-out:not(.selected) { --ring: var(--edge-out); }
+    .uc-case.hl-in:not(.selected) .uc-shape { border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .uc-case.hl-out:not(.selected) .uc-shape { border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
     .uc-case.selected, .uc-case.hl { --ring: var(--primary); }
     .uc-case.selected .uc-shape { box-shadow: var(--shadow-ring); }
     .uc-case.is-dim, .uc-actor.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
@@ -1925,7 +1941,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-figure {
       flex: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;   /* size: the engine's avatar (_figW), set inline */
       border-radius: var(--radius-round); border: 1px solid var(--ring); background: var(--bg-soft); color: var(--text-soft);
-      box-shadow: var(--shadow-sm); transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), transform var(--dur-micro) var(--curve-out);
+      box-shadow: var(--shadow-sm); transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), transform var(--dur-micro) var(--curve-out);
     }
     .uc-figure svg { display: block; }
     .uc-actor-name { text-align: center; margin-top: 8px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); font-weight: var(--weight-medium); }
@@ -1936,6 +1952,10 @@ html.is-loading #page-loading { display: grid; }
     .uc-actor[data-sw] .uc-figure { background: var(--sw-tint, var(--sw-pill-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
     .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
     .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
+    .uc-actor.hl-in:not(.selected) { --ring: var(--edge-in); }
+    .uc-actor.hl-out:not(.selected) { --ring: var(--edge-out); }
+    .uc-actor.hl-in:not(.selected) .uc-figure { color: var(--edge-in); border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .uc-actor.hl-out:not(.selected) .uc-figure { color: var(--edge-out); border-width: var(--ring-thin); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
     .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
     @media (max-width: 720px) { .uc-search { left: 12px; right: 12px; } .uc-search input { width: auto; flex: 1 1 auto; min-width: 0; } }
 
@@ -1955,6 +1975,7 @@ html.is-loading #page-loading { display: grid; }
     .uc-port {
       position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; box-sizing: border-box; padding: 0;
       border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); display: none; cursor: crosshair; z-index: 4; touch-action: none;
+      scale: var(--ui-scale, 1);
       animation: uc-port-in var(--dur-micro) var(--curve-spring-tactile);
     }
     @keyframes uc-port-in { from { transform: scale(0.55); } to { transform: none; } }
@@ -1990,7 +2011,6 @@ html.is-loading #page-loading { display: grid; }
     .uc-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .uc-ab-btn:active { transform: scale(0.94); }
     .uc-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
-    .uc-ab-btn[aria-disabled="true"] { opacity: 0.4; cursor: default; }
     .uc-ab-btn.is-danger { color: var(--danger); }
     .uc-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .uc-ab-btn svg { display: block; }
@@ -2385,7 +2405,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         pop.className = 'swatch-popover';
         pop.hidden = true;
         let offDoc = null;
+        let closeTimer = null;
+        const cancelClose = () => { clearTimeout(closeTimer); closeTimer = null; };
+        const closeSoon = () => { cancelClose(); closeTimer = setTimeout(() => close(false), 160); };
         const close = (restoreFocus) => {
+          cancelClose();
           if (pop.hidden) return;
           const above = pop.classList.contains('is-above');
           if (typeof motion !== 'undefined' && motion.enabled()) {
@@ -2412,7 +2436,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         pop.appendChild(row);
         picker.append(trig, pop);
 
-        const open = () => {
+        const open = (focusItem = true) => {
+          cancelClose();
+          if (!pop.hidden) return;
           document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
             if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
           });
@@ -2445,8 +2471,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
             ], { duration: 130, easing: motion.curve('curve-out') });
           }
-          const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
-          if (active) active.focus();
+          if (focusItem) {
+            const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
+            if (active) active.focus();
+          }
           const onDocPointer = (e) => {
             if (!picker.isConnected) { close(false); return; }
             if (!picker.contains(e.target)) close(false);
@@ -2464,10 +2492,22 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         };
         pop._closeSwatchPop = close;
 
-        trig.addEventListener('pointerdown', (e) => e.stopPropagation());
+        let lastPointerType = '';
+        picker.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch') return;
+          cancelClose();
+          if (pop.hidden) open(false);
+        });
+        picker.addEventListener('pointerleave', (e) => {
+          if (e.pointerType !== 'touch') closeSoon();
+        });
+        trig.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; e.stopPropagation(); });
         trig.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (pop.hidden) open(); else close(false);
+          const kind = e.detail === 0 ? '' : (e.pointerType || lastPointerType);
+          const isHover = kind === 'mouse' || kind === 'pen';
+          if (pop.hidden) open(!isHover);
+          else if (!isHover) close(false);
         });
         pop.addEventListener('pointerdown', (e) => e.stopPropagation());
         pop.addEventListener('keydown', (e) => {
@@ -9626,15 +9666,18 @@ function toMermaid(data, opts) {
       const px = (v) => `${v}px`;
       const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-      // The red-hot marker variants (primary colour): the base markers are in stage.html
+      // Marker variants: the base markers are in stage.html; in / out / sel take the directional or primary colour (--mk)
       (function makeMarkerVariants() {
+        const VARIANTS = { in: '--edge-in', out: '--edge-out', sel: '--primary' };
         ['uc-mk-open', 'uc-mk-tri'].forEach((id) => {
           const base = document.getElementById(id);
           if (!base) return;
-          const copy = base.cloneNode(true);
-          copy.id = `${id}-sel`;
-          copy.style.setProperty('--mk', 'var(--primary)');
-          base.parentNode.appendChild(copy);
+          Object.entries(VARIANTS).forEach(([k, tok]) => {
+            const copy = base.cloneNode(true);
+            copy.id = `${id}-${k}`;
+            copy.style.setProperty('--mk', `var(${tok})`);
+            base.parentNode.appendChild(copy);
+          });
         });
       })();
 
@@ -9946,6 +9989,8 @@ function toMermaid(data, opts) {
         if (badge) el.appendChild(badge);
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
+          hoverItemId = o.id;
+          applyFocus();
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
         });
         el.addEventListener('pointerleave', () => {
@@ -9975,9 +10020,10 @@ function toMermaid(data, opts) {
       const linkVisible = (l) => !!l.points && l.points.length >= 2 && drawn(l.from) !== false && (kindOf(l.from) === 'actor' || !isHiddenByLevel(l.from)) && (kindOf(l.to) === 'actor' || !isHiddenByLevel(l.to));
       const isHiddenByLevel = (id) => { const u = caseOf(id); return !!u && !levelsOn && u.level === 'subfunction'; };
       function setMarkers(line, kind) {
-        const m = kind ? `url(#uc-mk-${kind})` : 'none', ms = kind ? `url(#uc-mk-${kind}-sel)` : 'none';
-        line.style.setProperty('--mk-e', m);
-        line.style.setProperty('--mk-e-sel', ms);
+        line.style.setProperty('--mk-e', kind ? `url(#uc-mk-${kind})` : 'none');
+        line.style.setProperty('--mk-e-in', kind ? `url(#uc-mk-${kind}-in)` : 'none');
+        line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
+        line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
       }
       function linkTitle(l) {
         const a = itemOf(l.from), b = itemOf(l.to);
@@ -10149,38 +10195,52 @@ function toMermaid(data, opts) {
         }
         return lit;
       }
-      // What an item connects to directly: the other end of each of its lines, its parent and its children
-      function direct(id) {
-        const lit = new Set([id]);
-        linksOf().forEach((l) => { if (l.from === id) lit.add(l.to); if (l.to === id) lit.add(l.from); });
-        const o = itemOf(id);
-        if (o && o.parent) lit.add(o.parent);
-        actors().concat(cases()).forEach((x) => { if (x.parent === id) lit.add(x.id); });
-        return lit;
-      }
       function applyFocus() {
-        let lit = null, hover = null;
         if (hoverItemId && !itemOf(hoverItemId)) hoverItemId = null;
-        if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
-        else if (selIds.length === 1 && !selOther) lit = reach(selIds[0]);
-        els.items.forEach((el, id) => {
-          el.classList.toggle('is-dim', !!lit && !lit.has(id));
-          el.classList.toggle('hl', !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
-        });
-        // hovering lights only the item's own lines; a selection lights every line inside what it reaches
-        const lineLit = (from, to) => !!lit && (hover ? from === hover || to === hover : lit.has(from) && lit.has(to));
+        const hover = hoverItemId && !drag ? hoverItemId : null;
+        const selId = selIds.length === 1 && !selOther ? selIds[0] : null;
+        const lit = selId ? reach(selId) : null;   // only a click dims the rest; hover highlights without dimming
+        const focusId = hover || selId;
+        const dirOf = (from, to) => !focusId ? null : from === focusId ? 'out' : to === focusId ? 'in' : null;
+        const peerDir = new Map();
+        const notePeer = (from, to, dir) => {
+          if (!dir) return;
+          const peer = dir === 'out' ? to : from;
+          if (peer !== focusId && (!peerDir.has(peer) || dir === 'out')) peerDir.set(peer, dir);
+        };
+        const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
         els.links.forEach((rec, id) => {
           const l = linkOf(id);
           if (!l) return;
           const on = lineLit(l.from, l.to);
-          rec.g.classList.toggle('is-dim', !!lit && !on);
+          const dir = dirOf(l.from, l.to);
+          notePeer(l.from, l.to, dir);
+          rec.g.classList.toggle('is-dim', !!lit && !on && !dir);
           rec.g.classList.toggle('hl', on);
-          if (rec.label) { rec.label.classList.toggle('is-dim', !!lit && !on); rec.label.classList.toggle('hl', on); }
+          rec.g.classList.toggle('hl-in', dir === 'in');
+          rec.g.classList.toggle('hl-out', dir === 'out');
+          if (rec.label) {
+            rec.label.classList.toggle('is-dim', !!lit && !on && !dir);
+            rec.label.classList.toggle('hl', on);
+            rec.label.classList.toggle('hl-in', dir === 'in');
+            rec.label.classList.toggle('hl-out', dir === 'out');
+          }
         });
         els.parents.forEach((g) => {
-          const on = lineLit(g.dataset.from, g.dataset.to);
-          g.classList.toggle('is-dim', !!lit && !on);
+          const from = g.dataset.from, to = g.dataset.to;
+          const on = lineLit(from, to);
+          const dir = dirOf(from, to);
+          notePeer(from, to, dir);
+          g.classList.toggle('is-dim', !!lit && !on && !dir);
           g.classList.toggle('hl', on);
+          g.classList.toggle('hl-in', dir === 'in');
+          g.classList.toggle('hl-out', dir === 'out');
+        });
+        els.items.forEach((el, id) => {
+          const dir = peerDir.get(id) || null;
+          el.classList.toggle('is-dim', !!lit && !lit.has(id) && !dir && id !== hover);
+          el.classList.toggle('hl-in', dir === 'in');
+          el.classList.toggle('hl-out', dir === 'out');
         });
         els.subjects.forEach((el) => el.classList.remove('is-dim'));
         document.body.classList.toggle('uc-has-match', !!lit);
@@ -11328,22 +11388,18 @@ function toMermaid(data, opts) {
         if (!l || !l.points) return null;
         bar.setAttribute('aria-label', 'Line');
         const caseCase = isCaseCase(l);
-        const typeBtn = (type, label, title) => {
-          const b = abButton('type', `${lineGlyph(type, false)}<span>${label}</span>`, title, l.type === type, type);
-          if (type === 'association' ? caseCase : !caseCase) b.setAttribute('aria-disabled', 'true');
-          return b;
-        };
-        bar.appendChild(typeBtn('association', 'Association', 'Association: an actor takes part in a use case'));
-        bar.appendChild(typeBtn('include', 'Include', '«include»: the base always needs the part'));
-        bar.appendChild(typeBtn('extend', 'Extend', '«extend»: an optional addition to the base, only sometimes'));
-        if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
-        bar.appendChild(abBreak());
+        if (!caseCase) {
+          bar.appendChild(abButton('type', `${lineGlyph('association', false)}<span>Association</span>`, 'Association: an actor takes part in a use case', l.type === 'association', 'association'));
+          if (l.type === 'association') bar.appendChild(abButton('arrow', lineGlyph('association', true), 'Arrow: show who starts it (an open arrowhead toward the use case)', l.navigable === true, undefined, 'uc-ab-glyph'));
+        } else {
+          bar.appendChild(abButton('type', `${lineGlyph('include', false)}<span>Include</span>`, '«include»: the base always needs the part', l.type === 'include', 'include'));
+          bar.appendChild(abButton('type', `${lineGlyph('extend', false)}<span>Extend</span>`, '«extend»: an optional addition to the base, only sometimes', l.type === 'extend', 'extend'));
+        }
+        bar.appendChild(abSep());
         bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
-        if (l.type === 'extend') {
-          const base = caseOf(l.to);
+        if (l.type === 'extend' && caseOf(l.to)) {
           const b = abButton('point-menu', `<span>${l.extensionPoint ? esc(l.extensionPoint) : 'Extension point'}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'The extension point of the base where this extension applies');
           b.dataset.menu = '';
-          if (!base) b.setAttribute('aria-disabled', 'true');
           bar.appendChild(b);
         }
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete this line', undefined, undefined, 'is-danger'));
@@ -11355,7 +11411,6 @@ function toMermaid(data, opts) {
         const b = e.target.closest('.uc-ab-btn');
         if (!b) return;
         e.stopPropagation();
-        if (b.getAttribute('aria-disabled') === 'true' && b.dataset.act !== 'type') return;
         runAction(b.dataset.act, b.dataset.value, b);
       });
 

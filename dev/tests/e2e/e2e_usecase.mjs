@@ -239,13 +239,20 @@ sys.stdout.write(f.format_json(out))`;
   d = await saved();
   const newAssoc = d.links[d.links.length - 1];
   t.check('a port drag from an actor onto a use case draws an association from the actor', d.links.length === linksBefore + 1 && newAssoc.type === 'association' && newAssoc.from === 'customer' && newAssoc.to === 'voucher', J(newAssoc));
-  t.check('the new line is selected and its action bar shows Association, Include, Extend', (await count('.uc-actionbar [data-act="type"]')) === 3 && (await t.ev(`document.querySelector('.uc-actionbar [data-act="type"][data-value="association"]').getAttribute('aria-pressed')`)) === 'true');
+  t.check('the new association action bar shows only Association (hiding Include and Extend) and no disabled buttons',
+    (await count('.uc-actionbar [data-act="type"]')) === 1
+    && (await t.ev(`document.querySelector('.uc-actionbar [data-act="type"][data-value="association"]').getAttribute('aria-pressed')`)) === 'true'
+    && (await count('.uc-actionbar [aria-disabled="true"]')) === 0);
   await blank();
   await connect('browse', 'voucher');
   const incDomId = await t.ev(`document.querySelector('.uc-link.selected').dataset.edgeId`);
   d = await saved();
   const newInc = d.links[d.links.length - 1];
   t.check('a port drag from a use case onto another draws an include (base to part)', newInc.type === 'include' && newInc.from === 'browse' && newInc.to === 'voucher', J(newInc));
+  t.check('the include action bar shows only Include and Extend (hiding Association)',
+    (await count('.uc-actionbar [data-act="type"]')) === 2
+    && !(await present('.uc-actionbar [data-act="type"][data-value="association"]'))
+    && (await count('.uc-actionbar [aria-disabled="true"]')) === 0);
   t.check('the include has its «include» pill', (await count('.uc-label')) === 3);
   t.check('the link action bar has no condition input box', !(await present('.uc-actionbar .uc-ab-input')));
   // inline condition on «include» pill: Esc cancels cleanly, Enter commits
@@ -444,9 +451,54 @@ sys.stdout.write(f.format_json(out))`;
   await t.mouse('mouseMoved', 6, 300);   // off every item: a hover dims too
   await sleep(80);
   t.check('Esc clears the dimming', (await dimmed()) === '');
-  // hover highlights nothing: only a click does
+  // hover highlights connected arrows and elements (in = amber, out = blue) without dimming the rest
   const hoverOn = async (id) => { const r = await t.at(item(id), 0.5, 0.3); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); return dimmed(); };
   t.check('hovering an actor or a use case dims nothing', (await hoverOn('clerk')) === '' && (await hoverOn('checkout')) === '');
+  const hovState = await t.ev(`(() => ({
+    inLinks: document.querySelectorAll('.uc-link.hl-in').length,
+    outLinks: document.querySelectorAll('.uc-link.hl-out').length,
+    inItems: [...document.querySelectorAll('.uc-actor.hl-in, .uc-case.hl-in')].map((e) => e.dataset.nodeId).sort(),
+    outItems: [...document.querySelectorAll('.uc-actor.hl-out, .uc-case.hl-out')].map((e) => e.dataset.nodeId).sort(),
+    inLabels: document.querySelectorAll('.uc-label.hl-in').length,
+    outLabels: document.querySelectorAll('.uc-label.hl-out').length,
+    noteFont: getComputedStyle(document.querySelector('.note')).fontSize
+  }))()`);
+  t.check('hovering checkout highlights incoming and outgoing links, labels, and directly connected elements in distinct in/out colours',
+    hovState.inLinks > 0 && hovState.outLinks > 0
+    && hovState.inItems.includes('member') && hovState.inItems.includes('voucher')
+    && hovState.outItems.includes('pay')
+    && hovState.inLabels > 0 && hovState.outLabels > 0, J(hovState));
+  t.check('note font size is increased by 1px to 13px', hovState.noteFont === '13px', hovState.noteFont);
+  await t.mouse('mouseMoved', 6, 300);
+  await sleep(100);
+  t.check('leaving hover clears hl-in and hl-out', (await count('.hl-in, .hl-out')) === 0);
+  // connection ports keep constant screen size when zoomed out
+  await t.clickOn('#btn-zoom-out');
+  await t.clickOn('#btn-zoom-out');
+  await sleep(120);
+  await t.clickOn(item('checkout'));
+  await sleep(120);
+  const portRect = await t.ev(`(() => { const p = document.querySelector('.uc-case[data-node-id="checkout"] > .uc-port'); const r = p.getBoundingClientRect(); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, uiScale: getComputedStyle(document.getElementById('stage')).getPropertyValue('--ui-scale').trim() }; })()`);
+  t.check('connection port stays ~12px on screen when zoomed out', Math.abs(portRect.w - 12) <= 1.5 && Math.abs(portRect.h - 12) <= 1.5 && parseFloat(portRect.uiScale) > 1, J(portRect));
+  await t.clickOn('#btn-zoom-reset');
+  await sleep(100);
+  // swatch picker opens on hover and shares the action bar's elevation (no overlapping shadows)
+  const swTrig = await t.at('.uc-actionbar .swatch-trigger');
+  await t.mouse('mouseMoved', swTrig.x, swTrig.y);
+  await sleep(100);
+  const swHover = await t.ev(`(() => {
+    const bar = document.querySelector('.uc-actionbar'), pop = bar && bar.querySelector('.swatch-popover');
+    if (!bar || !pop) return null;
+    const bs = getComputedStyle(bar), ps = getComputedStyle(pop);
+    return { open: !pop.hidden, barShadow: bs.boxShadow, popShadow: ps.boxShadow, barFilter: bs.filter, popZ: ps.zIndex };
+  })()`);
+  t.check('hovering the colour trigger opens the swatch popover on the same elevation with a shared drop-shadow',
+    swHover && swHover.open && swHover.barShadow === 'none' && swHover.popShadow === 'none' && swHover.barFilter.includes('drop-shadow') && swHover.popZ === 'auto', J(swHover));
+  await t.mouse('mouseMoved', 6, 300);
+  await sleep(220);
+  t.check('leaving the swatch picker closes it after the hover grace delay', await t.ev(`document.querySelector('.uc-actionbar .swatch-popover')?.hidden === true`));
+  await t.press('Escape');
+  await sleep(100);
   await t.mouse('mouseMoved', 6, 300);
   await t.clickOn(item('member'));
   t.check('a specialised actor reaches what its parent can do too', !(await dimmed()).includes('browse') && !(await dimmed()).includes('customer'), await dimmed());

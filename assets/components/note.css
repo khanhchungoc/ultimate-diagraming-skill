@@ -12,7 +12,7 @@
       border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: var(--t-detail-size);
+      font-size: var(--text-md);
       font-weight: var(--t-detail-weight);
       line-height: var(--t-detail-leading);
       text-align: left;

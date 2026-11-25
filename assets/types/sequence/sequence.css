@@ -180,6 +180,7 @@
     }
     .seq-plus {
       left: 0; top: 0;
+      scale: var(--ui-scale, 1);
       transition: translate var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
     }
     .seq-insert { cursor: pointer; transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile); }
