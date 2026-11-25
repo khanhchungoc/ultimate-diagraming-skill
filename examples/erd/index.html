@@ -6,7 +6,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
   <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
   <title>Shop</title>
@@ -222,6 +222,7 @@
       --ring-lg: 3px;
       --ring-fill: 100px;
       --stroke-thin: 1.25px;
+      --glass-blur: 14px;
       --dim: 0.28;
       --dim-line: 0.12;
       --dim-filter: grayscale(0.85);
@@ -243,7 +244,9 @@
       --radius-md: 6px;
       --radius-lg: 8px;
       --radius-xl: 10px;
+      --radius-inner: 11px;
       --radius-2xl: 12px;
+      --radius-3xl: 15px;
       --radius-pill: 999px;
       --radius-round: 50%;
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -257,6 +260,9 @@
       --shadow-ring: 0 0 0 3px var(--primary-ring);
       --shadow-glow: 0 2px 8px;
       --shadow-glow-tight: 0 0 4px;
+      --shadow-glass-md: inset 0 1px 0 var(--glass-rim), 0 1px 3px var(--shadow-tint), 0 6px 18px -4px var(--shadow-tint-md), 0 0 0 1px var(--glass-outer-ring);
+      --shadow-glass-lg: inset 0 1px 0 var(--glass-rim), 0 2px 6px var(--shadow-tint), 0 12px 28px -6px var(--shadow-tint-lg), 0 0 0 1px var(--glass-outer-ring);
+      --shadow-primary-btn: 0 2px 10px -2px var(--primary-btn-glow), inset 0 1px 0 var(--primary-btn-rim);
       --bg-page: #f8fafc;
       --bg-panel: #ffffff;
       --border-color: #e2e8f0;
@@ -345,6 +351,27 @@
       --dot-edge: rgba(0, 0, 0, 0.18);
       --dot-edge-soft: rgba(0, 0, 0, 0.15);
       --menu-border: #cbd5e1;
+      --glass-top: rgba(255, 255, 255, 0.62);
+      --glass-bottom: rgba(255, 255, 255, 0.44);
+      --glass-bg: rgba(255, 255, 255, 0.53);
+      --confirm-top: rgba(255, 255, 255, 0.78);
+      --confirm-bottom: rgba(255, 255, 255, 0.68);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-outer-ring: rgba(15, 23, 42, 0.10);
+      --glass-rim: rgba(255, 255, 255, 0.96);
+      --glass-hover: rgba(15, 23, 42, 0.07);
+      --text-glass: #020617;
+      --vignette-center: #ffffff;
+      --vignette-mid: #f1f5f9;
+      --vignette-edge: #e2e8f0;
+      --shadow-tint: rgba(15, 23, 42, 0.05);
+      --shadow-tint-md: rgba(15, 23, 42, 0.10);
+      --shadow-tint-lg: rgba(15, 23, 42, 0.13);
+      --primary-grad-end: #4f46e5;
+      --primary-grad-hover-end: #4338ca;
+      --primary-btn-glow: rgba(37, 99, 235, 0.36);
+      --primary-btn-rim: rgba(255, 255, 255, 0.32);
+      --scrim-bg: rgba(15, 23, 42, 0.36);
       --sw-1-fill: #b9e5ff;
       --sw-1-line: #2f7da8;
       --sw-1-ink: #00436a;
@@ -502,6 +529,27 @@
       --lane-hover-bg: #1a2742;
       --on-primary: #0b1220;
       --on-danger: #1a1a1a;
+      --glass-top: rgba(24, 35, 58, 0.62);
+      --glass-bottom: rgba(13, 20, 38, 0.46);
+      --glass-bg: rgba(18, 28, 48, 0.54);
+      --confirm-top: rgba(24, 35, 58, 0.80);
+      --confirm-bottom: rgba(13, 20, 38, 0.70);
+      --glass-border: rgba(148, 163, 184, 0.28);
+      --glass-outer-ring: rgba(0, 0, 0, 0.36);
+      --glass-rim: rgba(255, 255, 255, 0.20);
+      --glass-hover: rgba(255, 255, 255, 0.10);
+      --text-glass: #ffffff;
+      --vignette-center: #18233a;
+      --vignette-mid: #0f172a;
+      --vignette-edge: #070b14;
+      --shadow-tint: rgba(0, 0, 0, 0.28);
+      --shadow-tint-md: rgba(0, 0, 0, 0.42);
+      --shadow-tint-lg: rgba(0, 0, 0, 0.50);
+      --primary-grad-end: #6366f1;
+      --primary-grad-hover-end: #4f46e5;
+      --primary-btn-glow: rgba(99, 102, 241, 0.45);
+      --primary-btn-rim: rgba(255, 255, 255, 0.28);
+      --scrim-bg: rgba(2, 6, 23, 0.56);
       --sw-1-fill: #194259;
       --sw-1-line: #69b4e2;
       --sw-1-ink: #c6eaff;
@@ -598,7 +646,9 @@
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
       position: fixed;
-      left: 20px; right: 20px; bottom: 20px;
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
       z-index: 100;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
@@ -609,13 +659,14 @@
     .dock-area > * { pointer-events: auto; }
     .toolbar-center,
     .toolbar-zoom {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 4px;
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .toolbar-center {
@@ -628,6 +679,10 @@
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
+    .toolbar-center .btn,
+    .toolbar-zoom .btn,
+    .dock-pop-trigger,
+    .dock-pop-grid > .btn { border-radius: var(--radius-inner); }
     /* One fixed button height in both docks, so the bars are always the same height whatever the font */
     .toolbar-center > .btn,
     .dock-pop-trigger,
@@ -664,7 +719,7 @@
       padding: 6px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-2xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
       transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
       transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.82);
@@ -788,24 +843,25 @@
     .toolbar-center .dock-delete:not(.show) {
       display: none;
     }
-    #zoom-level {
-      font-size: var(--text-sm);
-      font-weight: var(--weight-semibold);
-      min-width: 38px;   /* grows with a wide theme font; a fixed width cut "100%" */
-      padding: 0 2px;
-      text-align: center;
-      color: var(--text-main);
-      font-variant-numeric: tabular-nums;
-    }
 
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
-      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
+      .dock-area {
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        grid-template-columns: 1fr;
+      }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 1; grid-row: 2; justify-content: space-evenly; position: relative; z-index: 1; }
       .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
+    }
+    @media (max-width: 560px) {
+      .dock-pop { max-width: calc(100vw - 24px); }
+      .dock-pop-grid { grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); }
+      .dock-pop-grid > .btn { width: 100%; min-width: 52px; }
     }
     /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
        Between 721px and 1300px the edit dock sits at the bottom-right corner to align with the top-right pill. */
@@ -817,6 +873,66 @@
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 2; grid-row: 1; justify-self: end; }
+    }
+    @media (pointer: coarse) {
+      .toolbar-zoom > .btn { width: 36px; height: 36px; }
+      .toolbar-center > .btn,
+      .dock-pop-trigger { height: 40px; }
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .toolbar-center,
+      .toolbar-zoom {
+        background: transparent;
+        border-color: var(--glass-border);
+        box-shadow: var(--shadow-glass-md);
+        color: var(--text-glass);
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+      }
+      .dock-pop {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      .dock-pop::after { display: none; }
+      .toolbar-center .btn:not(.dock-delete):not([aria-checked="true"]),
+      .toolbar-zoom .btn { background: transparent; }
+      .toolbar-center .btn:not(.dock-delete):hover,
+      .toolbar-zoom .btn:hover,
+      .dock-pop-wrap.open > .dock-pop-trigger,
+      .dock-pop-grid > .btn:not([aria-checked="true"]):hover {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar-center,
+      .toolbar-zoom,
+      .dock-pop {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .toolbar-center::before,
+      .toolbar-zoom::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     .badge {
       font-size: var(--text-sm);
@@ -890,13 +1006,20 @@
       transform: none;
     }
     .btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-grad-end) 100%);
       color: var(--on-primary);
-      border-color: var(--primary);
+      border-color: transparent;
+      box-shadow: var(--shadow-primary-btn);
     }
     .btn-primary:hover {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-grad-hover-end) 100%);
+      border-color: transparent;
+    }
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    }
+    [data-theme="dark"] .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
     }
     .btn-success {
       background: var(--success);
@@ -939,7 +1062,7 @@
     .btn-switch[aria-checked="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
     /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
     .toast {
-      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50;
       pointer-events: none;   /* a status line, never a target: it must not swallow clicks meant for the action bar beneath */
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
@@ -978,13 +1101,13 @@
     .menu-wrap { position: relative; }
     .menu {
       position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
-      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
     .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
     .menu[hidden] { display: none; }
     .menu button {
-      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-inner);
       font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
     .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
@@ -998,6 +1121,25 @@
       color: var(--text-muted); user-select: none;
     }
     .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .menu {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      .menu button:hover, .menu button:focus-visible { background: var(--glass-hover); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .menu {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
 
     /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
        .confirm-title is optional; with one, the message below it is the quiet explanation. */
@@ -1007,13 +1149,30 @@
       width: 260px;
       box-sizing: border-box;
       padding: 14px 14px 12px;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-main);
-      box-shadow: var(--shadow-xl);
+      box-shadow: var(--shadow-glass-lg);
       font-size: var(--t-control-size);
       line-height: var(--t-control-leading);
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .confirm {
+        background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .confirm {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
     .confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
     .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
@@ -1052,6 +1211,16 @@
     }
     .save-folder-tip:last-of-type { margin-bottom: 12px; }
     .save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
+    @media (max-width: 560px) {
+      .confirm,
+      .confirm.has-alt,
+      .confirm.confirm-wide {
+        max-width: calc(100vw - 24px);
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%);
+      }
+    }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -1267,7 +1436,7 @@
     .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }
@@ -1294,13 +1463,31 @@
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
     .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
-    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
-      box-shadow: none;
-      filter: drop-shadow(var(--shadow-md));
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .swatch-popover {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        border-radius: var(--radius-2xl);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+      }
+      .swatch-btn:hover { background: var(--glass-hover); }
     }
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
-      box-shadow: none;
+    @media (prefers-reduced-transparency: reduce) {
+      .swatch-popover {
+        background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      .swatch-btn:hover { background: var(--bg-hover); }
+    }
+    body.capture .swatch-popover, body.exporting .swatch-popover {
+      background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    @media (pointer: coarse) {
+      .swatch-row { gap: 4px; }
+      .swatch-btn { width: 34px; height: 34px; }
     }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
@@ -1386,24 +1573,27 @@
        lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
     .actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
       -webkit-user-select: none; user-select: none;
     }
-    /* Never zoomed: every type's bar (shared and the three prefixed twins) undoes the stage zoom (--ui-scale, set by the shell) about
-       the edge that touches its anchor: the bottom centre over the element, the top centre under it. Types override the origin
-       only where the bar hangs off a corner. */
-    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { scale: var(--ui-scale, 1); transform-origin: 50% 100%; }
+    /* Never zoomed: every type's bar (shared and the three prefixed twins) shares the surface and undoes the stage zoom
+       (--ui-scale, set by the shell) about the edge that touches its anchor: the bottom centre over the element, the top
+       centre under it. Types override the origin only where the bar hangs off a corner. */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      scale: var(--ui-scale, 1); transform-origin: 50% 100%;
+    }
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     /* The show / hide chevron (ui.actionBar): the top right corner of every bar; collapsed, a bar is only this */
-    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-lg); background: transparent; color: var(--text-muted); cursor: pointer; }
     .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
     body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
@@ -1412,8 +1602,10 @@
     body.bars-collapsed .ab-toggle { position: static; }
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { border-radius: var(--radius-lg); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg { shape-rendering: geometricPrecision; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
-    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .ab-btn.is-danger { color: var(--danger); }
@@ -1421,10 +1613,60 @@
     .ab-btn svg { display: block; }
     .ab-swatch { height: 30px; width: 30px; }
     /* Two rows: a .ab-break item splits them (the bar then has .is-wrap) */
-    .actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 340px; row-gap: 2px; }
+    .actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(340px, calc(100vw - 24px)); row-gap: 2px; }
     .ab-break { flex-basis: 100%; height: 0; }
     .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+        background: transparent;
+        border-color: var(--glass-border);
+        border-radius: var(--radius-2xl);
+        box-shadow: var(--shadow-glass-md);
+      }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+      }
+      :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
+      .ab-toggle:hover { background: var(--glass-hover); color: var(--text-glass); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+        background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+        backdrop-filter: none; -webkit-backdrop-filter: none;
+      }
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover,
+      .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
+    }
+    body.capture :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar),
+    body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+      background: var(--bg-panel); border-color: var(--border-dark); box-shadow: var(--shadow-md);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    body.capture :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before,
+    body.exporting :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar)::before {
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    @media (pointer: coarse) {
+      :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { height: 36px; min-width: 36px; }
+      .ab-toggle { width: 28px; height: 36px; }
+      body:not(.bars-collapsed) :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { padding-right: 34px; }
+    }
     /* Colour key: a legend of the swatches a diagram uses and what each means (`colorKey`), built by ui.colorKey. The type
        positions it (sequence: above the card's top-left corner; ERD: above the tables). An entry with no label is a prompt in
        edit and is left out of ?present and exports. */
@@ -1441,12 +1683,12 @@
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
        Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next. */
     /* Below the top-right pill: opens into the search bar; #btn-search stays visible inside the pill */
-    #search-dock { position: fixed; top: 66px; right: 20px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
+    #search-dock { position: fixed; top: calc(66px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
     #search-dock > * { pointer-events: auto; }
     /* One rounded box like the other panels: icon, text, count, previous, next. Controls are flat (no boxes); the focus ring is the pill's */
     #search-bar {
       display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; height: 40px; box-sizing: border-box;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); transform-origin: top right;
       transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
@@ -1466,7 +1708,35 @@
     #search-dock svg { width: var(--icon-lg); height: var(--icon-lg); }   /* same icon size as the header toolbar */
     .search-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
     .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    @media (max-width: 720px) { #search-dock { top: 60px; left: 12px; right: 12px; } #search-bar { flex: 1 1 auto; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      #search-bar {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      #search-bar:focus-within { border-color: var(--primary); }
+      #search-bar .btn:hover:not(:disabled) { background: var(--glass-hover); }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      #search-bar {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    @media (max-width: 720px) {
+      #search-dock {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+      }
+      #search-bar { flex: 1 1 auto; }
+      #search-input { flex: 1 1 auto; min-width: 0; width: auto; }
+    }
 
 
     * {
@@ -1493,9 +1763,9 @@
     /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css; z-index 200 clears .flow-tabs at 120 and #search-dock at 150 so header menus stay on top) */
     header {
       position: fixed;
-      top: 16px;
-      left: 20px;
-      right: 20px;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: calc(20px + env(safe-area-inset-left, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       z-index: 200;
       display: flex;
       align-items: flex-start;
@@ -1506,13 +1776,14 @@
     header > * { pointer-events: auto; }
 
     .toolbar-left, .toolbar-right {
+      position: relative;
       display: flex;
       align-items: center;
       min-height: 42px;
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .toolbar-left {
@@ -1535,6 +1806,7 @@
     #more-menu { min-width: 196px; }
     #more-menu svg { flex: none; color: var(--text-soft); }
     /* Header buttons: universal glyphs (search, theme, help, import, export, more) are 32px squares matching the bottom docks */
+    header .btn { border-radius: var(--radius-inner); }
     header .btn-icon {
       width: 32px; height: 32px; padding: 0;
       justify-content: center;
@@ -1617,10 +1889,17 @@
       position: relative;
       overflow: hidden;
       background-color: var(--bg-viewport);
-      background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
-      background-size: 24px 24px;
+      background-image:
+        radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px),
+        radial-gradient(ellipse 78% 72% at 50% 48%, var(--vignette-center) 0%, var(--vignette-mid) 58%, var(--vignette-edge) 100%);
+      background-size: 24px 24px, 100% 100%;
       cursor: grab;
       touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
+    }
+    body.capture #viewport,
+    body.exporting #viewport {
+      background-image: radial-gradient(color-mix(in srgb, var(--grid-dot) 48%, transparent) 1px, transparent 1px);
+      background-size: 24px 24px;
     }
     #viewport.panning {
       cursor: grabbing;
@@ -1667,14 +1946,14 @@
     /* Help & Shortcuts Popover */
     #help-drawer {
       position: fixed;
-      top: 66px;
-      right: 20px;
+      top: calc(66px + env(safe-area-inset-top, 0px));
+      right: calc(20px + env(safe-area-inset-right, 0px));
       bottom: auto;
       width: min(360px, calc(100vw - 32px));
-      max-height: calc(100vh - 84px);
+      max-height: calc(100vh - 84px - env(safe-area-inset-top, 0px));
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
       font-size: var(--text-sm);
       color: var(--text-soft);
@@ -1814,9 +2093,9 @@
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
     /* The top pills collapse to nothing; only the Present button stays, pinned to the top-right corner. */
-    body.presentation header { height: 0; top: 16px; right: 20px; left: auto; justify-content: flex-end; }
-    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-    body.presentation #btn-present { position: fixed; top: 16px; right: 20px; z-index: 101; box-shadow: var(--shadow-md); }
+    body.presentation header { height: 0; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); left: auto; justify-content: flex-end; }
+    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.presentation #btn-present { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); z-index: 101; box-shadow: var(--shadow-md); }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
@@ -1831,12 +2110,21 @@
     }
     /* Narrow screens (a shared link opened on a phone): tighter corner insets */
     @media (max-width: 720px) {
-      header { top: 12px; left: 12px; right: 12px; gap: 8px; }
+      header {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        gap: 8px;
+      }
       .toolbar-left { padding: 4px 8px 4px 10px; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
       #btn-help, [data-more="help"] { display: none; }   /* a phone has no keyboard shortcuts to list */
-      #help-drawer { top: 60px; right: 12px; bottom: auto; }
+      #help-drawer {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        bottom: auto;
+      }
     }
     @media (max-width: 560px) {
       body:not(.presentation) header .toolbar-right #btn-save .btn-label { display: none; }
@@ -1891,6 +2179,91 @@ html.is-loading #page-loading { display: grid; }
     #btn-theme span { display: inline-flex; }
     #btn-theme[aria-pressed="true"] { background: transparent; border-color: transparent; color: inherit; }
     #btn-theme[aria-pressed="true"]:hover { background: var(--bg-hover); }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-color: var(--glass-border);
+        box-shadow: var(--shadow-glass-md);
+        color: var(--text-glass);
+      }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+      }
+      #help-drawer {
+        background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        box-shadow: var(--shadow-glass-lg);
+        color: var(--text-glass);
+      }
+      header .btn-icon:hover,
+      header .btn-icon:focus-visible,
+      header .btn-icon[aria-expanded="true"],
+      header .type-btn:hover,
+      header .type-btn:focus-visible,
+      #btn-theme[aria-pressed="true"]:hover {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary) {
+        background: transparent;
+        border-color: transparent;
+      }
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):hover,
+      body:not(.presentation) header .toolbar-right > .btn:not(.btn-icon):not(.btn-primary):focus-visible {
+        background: var(--glass-hover);
+        border-color: transparent;
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar-left,
+      body:not(.presentation) .toolbar-right,
+      #help-drawer {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .toolbar-left::before,
+      body:not(.presentation) .toolbar-right::before {
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    body.capture .toolbar-left,
+    body.capture .toolbar-right,
+    body.capture #help-drawer,
+    body.exporting .toolbar-left,
+    body.exporting .toolbar-right,
+    body.exporting #help-drawer {
+      background: var(--bg-panel);
+      border-color: var(--border-dark);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    body.capture .toolbar-left::before,
+    body.capture .toolbar-right::before,
+    body.exporting .toolbar-left::before,
+    body.exporting .toolbar-right::before {
+      background: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
     /* ER diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; buttons, notes, edge labels, confirm bubbles and
        the rest of the shared parts are in assets/components/. Only what is specific to tables and relationships is here. */
 
@@ -2187,10 +2560,6 @@ html.is-loading #page-loading { display: grid; }
       padding: 3px;
       z-index: 53;
       translate: -50% -100%;
-      background: var(--bg-panel);
-      border: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
       white-space: nowrap;
       pointer-events: auto;
       cursor: default;
@@ -2198,15 +2567,14 @@ html.is-loading #page-loading { display: grid; }
     }
     .erd-actionbar.is-below { translate: -50% 0; }
     .erd-actionbar.is-left { translate: none; }
-    .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 360px; row-gap: 2px; }
+    .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(360px, calc(100vw - 24px)); row-gap: 2px; }
     .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }
     .erd-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
     }
-    .erd-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .erd-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .erd-ab-btn.is-danger { color: var(--danger); }
     .erd-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
@@ -2404,13 +2772,6 @@ html.is-loading #page-loading { display: grid; }
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg>
     </button>
     <span class="dock-sep" aria-hidden="true"></span>
-    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/></svg>
-    </button>
-    <span id="zoom-level">100%</span>
-    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
-    </button>
     <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg>
     </button>
@@ -2491,7 +2852,7 @@ html.is-loading #page-loading { display: grid; }
     (function () {
       'use strict';
 
-const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"},"c4":{"cardW":156,"cardMaxW":240,"cardH":112,"cardLine":18,"pad":14,"tagH":44,"padB":14,"tagPad":72,"emptyW":200,"emptyH":96,"innerGap":20,"innerLinkX":120,"innerLinkY":64,"ringV":72,"ringH":130,"ringGap":34,"ringLinkX":150,"ringLinkY":90,"ringStagger":6,"ringStaggerCap":12,"centreGap":50,"rowMax":8,"margin":48,"sep":24,"flowAcross":56,"flowAlong":72,"flowPerEdge":10,"flowEdgeCap":8,"flowRowGap":40,"labelMaxW":140}};
+const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"},"c4":{"cardW":156,"cardMaxW":240,"cardH":112,"cardLine":18,"pad":14,"tagH":44,"padB":14,"tagPad":72,"emptyW":200,"emptyH":96,"innerGap":20,"innerLinkX":120,"innerLinkY":64,"ringV":72,"ringH":130,"ringGap":34,"ringLinkX":150,"ringLinkY":90,"ringStagger":6,"ringStaggerCap":12,"centreGap":50,"rowMax":8,"margin":48,"sep":24,"flowAcross":56,"flowAlong":72,"flowPerEdge":10,"flowEdgeCap":8,"flowRowGap":40,"labelMaxW":140,"minStem":24}};
 const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/>","users":"<path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/><path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\"/>","briefcase":"<path d=\"M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9\"/><path d=\"M8 7v-2a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2\"/><path d=\"M12 12l0 .01\"/><path d=\"M3 13a20 20 0 0 0 18 0\"/>","building":"<path d=\"M3 21l18 0\"/><path d=\"M9 8l1 0\"/><path d=\"M9 12l1 0\"/><path d=\"M9 16l1 0\"/><path d=\"M14 8l1 0\"/><path d=\"M14 12l1 0\"/><path d=\"M14 16l1 0\"/><path d=\"M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16\"/>","headset":"<path d=\"M4 14v-3a8 8 0 1 1 16 0v3\"/><path d=\"M18 19c0 1.657 -2.686 3 -6 3\"/><path d=\"M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/><path d=\"M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/>","monitor":"<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10\"/><path d=\"M7 20h10\"/><path d=\"M9 16v4\"/><path d=\"M15 16v4\"/>","code":"<path d=\"M7 8l-4 4l4 4\"/><path d=\"M17 8l4 4l-4 4\"/><path d=\"M14 4l-4 16\"/>","server":"<path d=\"M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2\"/><path d=\"M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2\"/><path d=\"M7 8l0 .01\"/><path d=\"M7 16l0 .01\"/>","database":"<path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"/><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"/><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"/>","cloud":"<path d=\"M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878\"/>","cpu":"<path d=\"M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12\"/><path d=\"M9 9h6v6h-6l0 -6\"/><path d=\"M3 10h2\"/><path d=\"M3 14h2\"/><path d=\"M10 3v2\"/><path d=\"M14 3v2\"/><path d=\"M21 10h-2\"/><path d=\"M21 14h-2\"/><path d=\"M14 21v-2\"/><path d=\"M10 21v-2\"/>","cog":"<path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\"/><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/>","shield":"<path d=\"M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3\"/>","scale":"<path d=\"M7 20l10 0\"/><path d=\"M6 6l6 -1l6 1\"/><path d=\"M12 3l0 17\"/><path d=\"M9 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/><path d=\"M21 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/>","banknote":"<path d=\"M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3\"/><path d=\"M7 10a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8\"/><path d=\"M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/>","credit-card":"<path d=\"M3 8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8\"/><path d=\"M3 10l18 0\"/><path d=\"M7 15l.01 0\"/><path d=\"M11 15l2 0\"/>","mail":"<path d=\"M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10\"/><path d=\"M3 7l9 6l9 -6\"/>","package":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/><path d=\"M16 5.25l-8 4.5\"/>","truck":"<path d=\"M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5\"/>","cart":"<path d=\"M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M17 17h-11v-14h-2\"/><path d=\"M6 5l14 1l-1 7h-13\"/>","clipboard":"<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"/><path d=\"M9 12h6\"/><path d=\"M9 16h6\"/>","check":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/><path d=\"M9 12l2 2l4 -4\"/>","layers":"<path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"/><path d=\"M4 12l8 4l8 -4\"/><path d=\"M4 16l8 4l8 -4\"/>","globe":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M3.6 9h16.8\"/><path d=\"M3.6 15h16.8\"/><path d=\"M11.5 3a17 17 0 0 0 0 18\"/><path d=\"M12.5 3a17 17 0 0 1 0 18\"/>","flag":"<path d=\"M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9\"/><path d=\"M5 21v-7\"/>","undo":"<path d=\"M9 14l-4 -4l4 -4\"/><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"/>","redo":"<path d=\"M15 14l4 -4l-4 -4\"/><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"/>","export":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 9l5 -5l5 5\"/><path d=\"M12 4l0 12\"/>","save":"<path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"/><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M14 4l0 4l-6 0l0 -4\"/>","trash":"<path d=\"M4 7l16 0\"/><path d=\"M10 11l0 6\"/><path d=\"M14 11l0 6\"/><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"/><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"/>","tidy":"<path d=\"M6 21l15 -15l-3 -3l-15 15l3 3\"/><path d=\"M15 6l3 3\"/><path d=\"M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/><path d=\"M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/>","minus":"<path d=\"M5 12l14 0\"/>","plus":"<path d=\"M12 5l0 14\"/><path d=\"M5 12l14 0\"/>","close":"<path d=\"M18 6l-12 12\"/><path d=\"M6 6l12 12\"/>","more":"<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","help":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 16v.01\"/><path d=\"M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483\"/>","import":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 11l5 5l5 -5\"/><path d=\"M12 4l0 12\"/>","fit":"<path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"/><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"/><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"/>","sun":"<path d=\"M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7\"/>","moon":"<path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008\"/>","key":"<path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"/><path d=\"M15 9h.01\"/>","link":"<path d=\"M9 15l6 -6\"/><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"/><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"/>","chevron-down":"<path d=\"M6 9l6 6l6 -6\"/>","note-lines":"<path d=\"M4 6l16 0\"/><path d=\"M4 12l10 0\"/><path d=\"M4 18l14 0\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path class=\"note-paper\" d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z\"/><path class=\"note-fold\" d=\"M13 20v-6a1 1 0 0 1 1 -1h6\"/>","columns":"<path d=\"M13 5h8\"/><path d=\"M13 9h5\"/><path d=\"M13 15h8\"/><path d=\"M13 19h5\"/><path d=\"M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/><path d=\"M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","types":"<path d=\"M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2\"/><path d=\"M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2\"/>","notes":"<path d=\"M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14\"/><path d=\"M9 7l6 0\"/><path d=\"M9 11l6 0\"/><path d=\"M9 15l4 0\"/>","grip":"<path d=\"M8 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<path d=\"M12 3l-4 7h8l-4 -7\"/><path d=\"M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","chevron-up":"<path d=\"M6 15l6 -6l6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 5l0 14\"/><path d=\"M18 13l-6 6\"/><path d=\"M6 13l6 6\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0\"/><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"3\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"/>","direction-lr":"<path d=\"M5 12l14 0\"/><path d=\"M13 18l6 -6\"/><path d=\"M13 6l6 6\"/>","reverse":"<path d=\"M7 10h14l-4 -4\"/><path d=\"M17 14h-14l4 4\"/>","rename":"<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/><path d=\"M13.5 6.5l4 4\"/>","label":"<path d=\"M4 20l3 0\"/><path d=\"M14 20l7 0\"/><path d=\"M6.9 15l6.9 0\"/><path d=\"M10.2 6.3l5.8 13.7\"/><path d=\"M5 20l6 -16l2 0l7 16\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M18 18v-6a3 3 0 0 0 -3 -3h-10l4 -4m0 8l-4 -4\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","auto":"<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"/><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<rect x=\"2\" y=\"6.5\" width=\"20\" height=\"11\" rx=\"5.5\"/>","subject":"<rect class=\"uc-sub-frame\" x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"3\"/><rect class=\"uc-sub-case\" x=\"6.5\" y=\"10\" width=\"11\" height=\"6\" rx=\"3\"/>","clock":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 7v5l3 3\"/>","present":"<path d=\"M3 4l18 0\"/><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"/><path d=\"M12 16l0 4\"/><path d=\"M9 20l6 0\"/><path d=\"M8 12l3 -3l2 2l3 -3\"/>","search":"<path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"/><path d=\"M21 21l-6 -6\"/>","hash":"<path d=\"M5 9l14 0\"/><path d=\"M5 15l14 0\"/><path d=\"M11 4l-4 16\"/><path d=\"M17 4l-4 16\"/>","queue":"<rect x=\"2\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><rect x=\"9.5\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><path d=\"M17 12h5M19.5 9.5 22 12l-2.5 2.5\"/>","function":"<path d=\"M3 19a2 2 0 0 0 2 2c2 0 2 -4 3 -9s1 -9 3 -9a2 2 0 0 1 2 2\"/><path d=\"M5 12h6\"/><path d=\"M15 12l6 6\"/><path d=\"M15 18l6 -6\"/>","storage":"<path d=\"M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2\"/><path d=\"M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10\"/><path d=\"M10 12l4 0\"/>","cdn":"<path d=\"M10 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M10 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12h4\"/><path d=\"M14 12h4\"/><path d=\"M15 7l-2 3\"/><path d=\"M9 7l2 3\"/><path d=\"M11 14l-2 3\"/><path d=\"M13 14l2 3\"/>","gateway":"<path d=\"M21 17h-5.397a5 5 0 0 1 -4.096 -2.133l-.514 -.734a5 5 0 0 0 -4.096 -2.133h-3.897\"/><path d=\"M21 7h-5.395a5 5 0 0 0 -4.098 2.135l-.51 .73a5 5 0 0 1 -4.097 2.135h-3.9\"/><path d=\"M18 10l3 -3l-3 -3\"/><path d=\"M18 20l3 -3l-3 -3\"/>","container":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/>","cluster":"<path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"/><path d=\"M12 9l0 3\"/>","cache":"<path d=\"M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11\"/>","lock":"<path d=\"M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6\"/><path d=\"M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0\"/><path d=\"M8 11v-4a4 4 0 1 1 8 0v4\"/>","api":"<path d=\"M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5\"/><path d=\"M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5\"/><path d=\"M3 21l2.5 -2.5\"/><path d=\"M18.5 5.5l2.5 -2.5\"/><path d=\"M10 11l-2 2\"/><path d=\"M13 14l-2 2\"/>","mobile":"<path d=\"M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14\"/><path d=\"M11 4h2\"/><path d=\"M12 17v.01\"/>","browser":"<path d=\"M4 8h16\"/><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"/><path d=\"M8 4v4\"/>","bell":"<path d=\"M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6\"/><path d=\"M9 17v1a3 3 0 0 0 6 0v-1\"/>","type-c4":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" stroke-dasharray=\"3 2\"/><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1.5\"/><path d=\"M12 3v5M12 16v5\"/>","shape-c4-group":"<rect class=\"c4-grp-frame\" x=\"2.5\" y=\"4\" width=\"19\" height=\"16\" rx=\"3\" stroke-dasharray=\"3 2\"/><rect class=\"c4-grp-tag\" x=\"5\" y=\"6.5\" width=\"7\" height=\"3.5\" rx=\"1\"/>","stream":"<path d=\"M3 12h4l3 8l4 -16l3 8h4\"/>","brain":"<path d=\"M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8\"/><path d=\"M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8\"/><path d=\"M17.5 16a3.5 3.5 0 0 0 0 -7h-.5\"/><path d=\"M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0\"/><path d=\"M6.5 16a3.5 3.5 0 0 1 0 -7h.5\"/><path d=\"M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10\"/>","chart":"<path d=\"M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M4 20h14\"/>","sensor":"<path d=\"M18.364 19.364a9 9 0 1 0 -12.728 0\"/><path d=\"M15.536 16.536a5 5 0 1 0 -7.072 0\"/><path d=\"M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","workflow":"<rect x=\"4\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"17\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"14\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M7 7v3\"/><path d=\"M7 14v3\"/><path d=\"M10 12h4\"/>","type-gantt":"<rect x=\"3\" y=\"4\" width=\"10\" height=\"3.5\" rx=\"1.5\"/><rect x=\"8\" y=\"10.25\" width=\"11\" height=\"3.5\" rx=\"1.5\"/><rect x=\"12\" y=\"16.5\" width=\"8\" height=\"3.5\" rx=\"1.5\"/><path d=\"M6 16.5l2 2-2 2-2-2z\"/>","calendar":"<rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M4 11h16\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
@@ -3747,10 +4108,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           // A bar that closed an instant ago (another element was picked) fades out first; this one then opens in its own place.
           // It never travels from the old bar to the new one.
           const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
-          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          // Transform only (morph, not fade): animating opacity creates a Chromium opacity group that suppresses ::before backdrop-filter until the animation finishes.
           const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
-            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
+            [{ transform: slide ? 'translateX(-8px) scale(0.94)' : 'scale(0.92) translateY(4px)' }, { transform: 'none' }],
             { duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
           ));
         };
@@ -4258,11 +4619,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
       function showZoom() {
-        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
-          zoomLevelEl.textContent = plugin.zoomController.getLabel();
-          return;
-        }
-        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+          ? plugin.zoomController.getLabel()
+          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        viewport.dataset.zoom = label;
+        if (zoomLevelEl) zoomLevelEl.textContent = label;
       }   // a glide in flight shows where it lands
       function updateTransform() {
         if (plugin && plugin.customViewport) {
@@ -4713,7 +5074,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         updateTransform();
       }, { passive: false });
 
-      btnZoomIn.addEventListener('click', () => {
+      function zoomIn() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
           plugin.zoomController.zoomIn();
           showZoom();
@@ -4722,8 +5083,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomOut.addEventListener('click', () => {
+      }
+      function zoomOut() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
           plugin.zoomController.zoomOut();
           showZoom();
@@ -4732,8 +5093,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomReset.addEventListener('click', () => fitView(true));
+      }
+      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
@@ -5410,6 +5773,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
+        let pointerInside = false;
         const isOpen = () => wrap.classList.contains('open');
         // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
         function clampToWindow() {
@@ -5429,9 +5793,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
         wrap.addEventListener('pointerenter', (e) => {
           if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          pointerInside = true;
           setOpen(true);
         });
-        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        wrap.addEventListener('pointerleave', (e) => {
+          if (e.pointerType === 'touch') return;
+          pointerInside = false;
+          closeSoon();
+        });
         // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
         let lastPointerType = '';
         wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
@@ -5449,7 +5818,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         wrap.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
         });
-        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
         document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
         window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
       });
@@ -6348,6 +6717,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (document.body.classList.contains('presentation')) return;
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          zoomIn();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomOut();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+          e.preventDefault();
+          fitView(true);
+        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+          e.preventDefault();
+          fitView(true);
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }

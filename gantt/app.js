@@ -1,7 +1,7 @@
     (function () {
       'use strict';
 
-const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"},"c4":{"cardW":156,"cardMaxW":240,"cardH":112,"cardLine":18,"pad":14,"tagH":44,"padB":14,"tagPad":72,"emptyW":200,"emptyH":96,"innerGap":20,"innerLinkX":120,"innerLinkY":64,"ringV":72,"ringH":130,"ringGap":34,"ringLinkX":150,"ringLinkY":90,"ringStagger":6,"ringStaggerCap":12,"centreGap":50,"rowMax":8,"margin":48,"sep":24,"flowAcross":56,"flowAlong":72,"flowPerEdge":10,"flowEdgeCap":8,"flowRowGap":40,"labelMaxW":140}};
+const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"},"c4":{"cardW":156,"cardMaxW":240,"cardH":112,"cardLine":18,"pad":14,"tagH":44,"padB":14,"tagPad":72,"emptyW":200,"emptyH":96,"innerGap":20,"innerLinkX":120,"innerLinkY":64,"ringV":72,"ringH":130,"ringGap":34,"ringLinkX":150,"ringLinkY":90,"ringStagger":6,"ringStaggerCap":12,"centreGap":50,"rowMax":8,"margin":48,"sep":24,"flowAcross":56,"flowAlong":72,"flowPerEdge":10,"flowEdgeCap":8,"flowRowGap":40,"labelMaxW":140,"minStem":24}};
 const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/>","users":"<path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/><path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\"/>","briefcase":"<path d=\"M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9\"/><path d=\"M8 7v-2a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2\"/><path d=\"M12 12l0 .01\"/><path d=\"M3 13a20 20 0 0 0 18 0\"/>","building":"<path d=\"M3 21l18 0\"/><path d=\"M9 8l1 0\"/><path d=\"M9 12l1 0\"/><path d=\"M9 16l1 0\"/><path d=\"M14 8l1 0\"/><path d=\"M14 12l1 0\"/><path d=\"M14 16l1 0\"/><path d=\"M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16\"/>","headset":"<path d=\"M4 14v-3a8 8 0 1 1 16 0v3\"/><path d=\"M18 19c0 1.657 -2.686 3 -6 3\"/><path d=\"M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/><path d=\"M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/>","monitor":"<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10\"/><path d=\"M7 20h10\"/><path d=\"M9 16v4\"/><path d=\"M15 16v4\"/>","code":"<path d=\"M7 8l-4 4l4 4\"/><path d=\"M17 8l4 4l-4 4\"/><path d=\"M14 4l-4 16\"/>","server":"<path d=\"M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2\"/><path d=\"M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2\"/><path d=\"M7 8l0 .01\"/><path d=\"M7 16l0 .01\"/>","database":"<path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"/><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"/><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"/>","cloud":"<path d=\"M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878\"/>","cpu":"<path d=\"M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12\"/><path d=\"M9 9h6v6h-6l0 -6\"/><path d=\"M3 10h2\"/><path d=\"M3 14h2\"/><path d=\"M10 3v2\"/><path d=\"M14 3v2\"/><path d=\"M21 10h-2\"/><path d=\"M21 14h-2\"/><path d=\"M14 21v-2\"/><path d=\"M10 21v-2\"/>","cog":"<path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\"/><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/>","shield":"<path d=\"M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3\"/>","scale":"<path d=\"M7 20l10 0\"/><path d=\"M6 6l6 -1l6 1\"/><path d=\"M12 3l0 17\"/><path d=\"M9 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/><path d=\"M21 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/>","banknote":"<path d=\"M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3\"/><path d=\"M7 10a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8\"/><path d=\"M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/>","credit-card":"<path d=\"M3 8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8\"/><path d=\"M3 10l18 0\"/><path d=\"M7 15l.01 0\"/><path d=\"M11 15l2 0\"/>","mail":"<path d=\"M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10\"/><path d=\"M3 7l9 6l9 -6\"/>","package":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/><path d=\"M16 5.25l-8 4.5\"/>","truck":"<path d=\"M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5\"/>","cart":"<path d=\"M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M17 17h-11v-14h-2\"/><path d=\"M6 5l14 1l-1 7h-13\"/>","clipboard":"<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"/><path d=\"M9 12h6\"/><path d=\"M9 16h6\"/>","check":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/><path d=\"M9 12l2 2l4 -4\"/>","layers":"<path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"/><path d=\"M4 12l8 4l8 -4\"/><path d=\"M4 16l8 4l8 -4\"/>","globe":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M3.6 9h16.8\"/><path d=\"M3.6 15h16.8\"/><path d=\"M11.5 3a17 17 0 0 0 0 18\"/><path d=\"M12.5 3a17 17 0 0 1 0 18\"/>","flag":"<path d=\"M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9\"/><path d=\"M5 21v-7\"/>","undo":"<path d=\"M9 14l-4 -4l4 -4\"/><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"/>","redo":"<path d=\"M15 14l4 -4l-4 -4\"/><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"/>","export":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 9l5 -5l5 5\"/><path d=\"M12 4l0 12\"/>","save":"<path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"/><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M14 4l0 4l-6 0l0 -4\"/>","trash":"<path d=\"M4 7l16 0\"/><path d=\"M10 11l0 6\"/><path d=\"M14 11l0 6\"/><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"/><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"/>","tidy":"<path d=\"M6 21l15 -15l-3 -3l-15 15l3 3\"/><path d=\"M15 6l3 3\"/><path d=\"M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/><path d=\"M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/>","minus":"<path d=\"M5 12l14 0\"/>","plus":"<path d=\"M12 5l0 14\"/><path d=\"M5 12l14 0\"/>","close":"<path d=\"M18 6l-12 12\"/><path d=\"M6 6l12 12\"/>","more":"<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","help":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 16v.01\"/><path d=\"M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483\"/>","import":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 11l5 5l5 -5\"/><path d=\"M12 4l0 12\"/>","fit":"<path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"/><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"/><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"/>","sun":"<path d=\"M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7\"/>","moon":"<path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008\"/>","key":"<path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"/><path d=\"M15 9h.01\"/>","link":"<path d=\"M9 15l6 -6\"/><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"/><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"/>","chevron-down":"<path d=\"M6 9l6 6l6 -6\"/>","note-lines":"<path d=\"M4 6l16 0\"/><path d=\"M4 12l10 0\"/><path d=\"M4 18l14 0\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path class=\"note-paper\" d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z\"/><path class=\"note-fold\" d=\"M13 20v-6a1 1 0 0 1 1 -1h6\"/>","columns":"<path d=\"M13 5h8\"/><path d=\"M13 9h5\"/><path d=\"M13 15h8\"/><path d=\"M13 19h5\"/><path d=\"M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/><path d=\"M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","types":"<path d=\"M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2\"/><path d=\"M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2\"/>","notes":"<path d=\"M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14\"/><path d=\"M9 7l6 0\"/><path d=\"M9 11l6 0\"/><path d=\"M9 15l4 0\"/>","grip":"<path d=\"M8 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<path d=\"M12 3l-4 7h8l-4 -7\"/><path d=\"M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","chevron-up":"<path d=\"M6 15l6 -6l6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 5l0 14\"/><path d=\"M18 13l-6 6\"/><path d=\"M6 13l6 6\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0\"/><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"3\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"/>","direction-lr":"<path d=\"M5 12l14 0\"/><path d=\"M13 18l6 -6\"/><path d=\"M13 6l6 6\"/>","reverse":"<path d=\"M7 10h14l-4 -4\"/><path d=\"M17 14h-14l4 4\"/>","rename":"<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/><path d=\"M13.5 6.5l4 4\"/>","label":"<path d=\"M4 20l3 0\"/><path d=\"M14 20l7 0\"/><path d=\"M6.9 15l6.9 0\"/><path d=\"M10.2 6.3l5.8 13.7\"/><path d=\"M5 20l6 -16l2 0l7 16\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M18 18v-6a3 3 0 0 0 -3 -3h-10l4 -4m0 8l-4 -4\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","auto":"<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"/><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<rect x=\"2\" y=\"6.5\" width=\"20\" height=\"11\" rx=\"5.5\"/>","subject":"<rect class=\"uc-sub-frame\" x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"3\"/><rect class=\"uc-sub-case\" x=\"6.5\" y=\"10\" width=\"11\" height=\"6\" rx=\"3\"/>","clock":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 7v5l3 3\"/>","present":"<path d=\"M3 4l18 0\"/><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"/><path d=\"M12 16l0 4\"/><path d=\"M9 20l6 0\"/><path d=\"M8 12l3 -3l2 2l3 -3\"/>","search":"<path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"/><path d=\"M21 21l-6 -6\"/>","hash":"<path d=\"M5 9l14 0\"/><path d=\"M5 15l14 0\"/><path d=\"M11 4l-4 16\"/><path d=\"M17 4l-4 16\"/>","queue":"<rect x=\"2\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><rect x=\"9.5\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><path d=\"M17 12h5M19.5 9.5 22 12l-2.5 2.5\"/>","function":"<path d=\"M3 19a2 2 0 0 0 2 2c2 0 2 -4 3 -9s1 -9 3 -9a2 2 0 0 1 2 2\"/><path d=\"M5 12h6\"/><path d=\"M15 12l6 6\"/><path d=\"M15 18l6 -6\"/>","storage":"<path d=\"M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2\"/><path d=\"M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10\"/><path d=\"M10 12l4 0\"/>","cdn":"<path d=\"M10 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M10 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12h4\"/><path d=\"M14 12h4\"/><path d=\"M15 7l-2 3\"/><path d=\"M9 7l2 3\"/><path d=\"M11 14l-2 3\"/><path d=\"M13 14l2 3\"/>","gateway":"<path d=\"M21 17h-5.397a5 5 0 0 1 -4.096 -2.133l-.514 -.734a5 5 0 0 0 -4.096 -2.133h-3.897\"/><path d=\"M21 7h-5.395a5 5 0 0 0 -4.098 2.135l-.51 .73a5 5 0 0 1 -4.097 2.135h-3.9\"/><path d=\"M18 10l3 -3l-3 -3\"/><path d=\"M18 20l3 -3l-3 -3\"/>","container":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/>","cluster":"<path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"/><path d=\"M12 9l0 3\"/>","cache":"<path d=\"M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11\"/>","lock":"<path d=\"M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6\"/><path d=\"M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0\"/><path d=\"M8 11v-4a4 4 0 1 1 8 0v4\"/>","api":"<path d=\"M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5\"/><path d=\"M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5\"/><path d=\"M3 21l2.5 -2.5\"/><path d=\"M18.5 5.5l2.5 -2.5\"/><path d=\"M10 11l-2 2\"/><path d=\"M13 14l-2 2\"/>","mobile":"<path d=\"M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14\"/><path d=\"M11 4h2\"/><path d=\"M12 17v.01\"/>","browser":"<path d=\"M4 8h16\"/><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"/><path d=\"M8 4v4\"/>","bell":"<path d=\"M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6\"/><path d=\"M9 17v1a3 3 0 0 0 6 0v-1\"/>","type-c4":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" stroke-dasharray=\"3 2\"/><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1.5\"/><path d=\"M12 3v5M12 16v5\"/>","shape-c4-group":"<rect class=\"c4-grp-frame\" x=\"2.5\" y=\"4\" width=\"19\" height=\"16\" rx=\"3\" stroke-dasharray=\"3 2\"/><rect class=\"c4-grp-tag\" x=\"5\" y=\"6.5\" width=\"7\" height=\"3.5\" rx=\"1\"/>","stream":"<path d=\"M3 12h4l3 8l4 -16l3 8h4\"/>","brain":"<path d=\"M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8\"/><path d=\"M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8\"/><path d=\"M17.5 16a3.5 3.5 0 0 0 0 -7h-.5\"/><path d=\"M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0\"/><path d=\"M6.5 16a3.5 3.5 0 0 1 0 -7h.5\"/><path d=\"M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10\"/>","chart":"<path d=\"M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M4 20h14\"/>","sensor":"<path d=\"M18.364 19.364a9 9 0 1 0 -12.728 0\"/><path d=\"M15.536 16.536a5 5 0 1 0 -7.072 0\"/><path d=\"M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","workflow":"<rect x=\"4\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"17\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"14\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M7 7v3\"/><path d=\"M7 14v3\"/><path d=\"M10 12h4\"/>","type-gantt":"<rect x=\"3\" y=\"4\" width=\"10\" height=\"3.5\" rx=\"1.5\"/><rect x=\"8\" y=\"10.25\" width=\"11\" height=\"3.5\" rx=\"1.5\"/><rect x=\"12\" y=\"16.5\" width=\"8\" height=\"3.5\" rx=\"1.5\"/><path d=\"M6 16.5l2 2-2 2-2-2z\"/>","calendar":"<rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M4 11h16\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
@@ -1257,10 +1257,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           // A bar that closed an instant ago (another element was picked) fades out first; this one then opens in its own place.
           // It never travels from the old bar to the new one.
           const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
-          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          // Transform only (morph, not fade): animating opacity creates a Chromium opacity group that suppresses ::before backdrop-filter until the animation finishes.
           const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
-            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
+            [{ transform: slide ? 'translateX(-8px) scale(0.94)' : 'scale(0.92) translateY(4px)' }, { transform: 'none' }],
             { duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
           ));
         };
@@ -1768,11 +1768,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
       function showZoom() {
-        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
-          zoomLevelEl.textContent = plugin.zoomController.getLabel();
-          return;
-        }
-        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+          ? plugin.zoomController.getLabel()
+          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+        viewport.dataset.zoom = label;
+        if (zoomLevelEl) zoomLevelEl.textContent = label;
       }   // a glide in flight shows where it lands
       function updateTransform() {
         if (plugin && plugin.customViewport) {
@@ -2223,7 +2223,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         updateTransform();
       }, { passive: false });
 
-      btnZoomIn.addEventListener('click', () => {
+      function zoomIn() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
           plugin.zoomController.zoomIn();
           showZoom();
@@ -2232,8 +2232,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomOut.addEventListener('click', () => {
+      }
+      function zoomOut() {
         if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
           plugin.zoomController.zoomOut();
           showZoom();
@@ -2242,8 +2242,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      });
-      btnZoomReset.addEventListener('click', () => fitView(true));
+      }
+      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
@@ -2920,6 +2922,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
+        let pointerInside = false;
         const isOpen = () => wrap.classList.contains('open');
         // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
         function clampToWindow() {
@@ -2939,9 +2942,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
         wrap.addEventListener('pointerenter', (e) => {
           if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          pointerInside = true;
           setOpen(true);
         });
-        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        wrap.addEventListener('pointerleave', (e) => {
+          if (e.pointerType === 'touch') return;
+          pointerInside = false;
+          closeSoon();
+        });
         // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
         let lastPointerType = '';
         wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
@@ -2959,7 +2967,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         wrap.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
         });
-        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
         document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
         window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
       });
@@ -3858,6 +3866,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (document.body.classList.contains('presentation')) return;
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          zoomIn();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomOut();
+        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+          e.preventDefault();
+          fitView(true);
+        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+          e.preventDefault();
+          fitView(true);
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }
@@ -7162,6 +7182,2561 @@ function toMermaid(data, opts) {
 
   return out.join('\n') + '\n';
 }
+// --- GANTT CALENDAR DATE PICKER ---
+// Standalone zero-dependency browser IIFE module exposing window.GanttDatePicker.
+// Reuses global UTC date helpers (ganttParseDate, ganttFormatDate, ganttAddDays) from engine.js.
+(function (global) {
+  'use strict';
+
+  var MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  var WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  var VIEWPORT_PAD = 8;
+  var ANCHOR_GAP = 6;
+
+  var activeState = null;
+  var attachedInputs = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+  function getTodayLocalStr() {
+    var now = new Date();
+    var y = String(now.getFullYear()).padStart(4, '0');
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function normalizeDateStr(val) {
+    if (!val || typeof val !== 'string') return '';
+    var parsed = ganttParseDate(val);
+    return parsed ? ganttFormatDate(parsed) : '';
+  }
+
+  function isWithinRange(dateStr, minStr, maxStr) {
+    if (!dateStr) return false;
+    if (minStr && dateStr < minStr) return false;
+    if (maxStr && dateStr > maxStr) return false;
+    return true;
+  }
+
+  function clampToRange(dateStr, minStr, maxStr) {
+    if (minStr && dateStr < minStr) return minStr;
+    if (maxStr && dateStr > maxStr) return maxStr;
+    return dateStr;
+  }
+
+  function daysInMonthUTC(year, monthIndex) {
+    return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  }
+
+  function shiftMonthClamped(dateStr, deltaMonths) {
+    var dt = ganttParseDate(dateStr);
+    if (!dt) return dateStr;
+    var y = dt.getUTCFullYear();
+    var m = dt.getUTCMonth() + deltaMonths;
+    var d = dt.getUTCDate();
+    var targetFirst = new Date(Date.UTC(y, m, 1));
+    var ty = targetFirst.getUTCFullYear();
+    var tm = targetFirst.getUTCMonth();
+    var maxDay = daysInMonthUTC(ty, tm);
+    var clampedDay = Math.min(d, maxDay);
+    return ganttFormatDate(new Date(Date.UTC(ty, tm, clampedDay)));
+  }
+
+  function restoreFocus(anchorEl) {
+    if (anchorEl && typeof anchorEl.focus === 'function' && anchorEl.isConnected) {
+      try {
+        anchorEl.focus({ preventScroll: true });
+      } catch (_err) {
+        anchorEl.focus();
+      }
+    }
+  }
+
+  function positionPopover(pop, anchorEl) {
+    var vw = global.innerWidth || document.documentElement.clientWidth || 1024;
+    var vh = global.innerHeight || document.documentElement.clientHeight || 768;
+    var rect = anchorEl && typeof anchorEl.getBoundingClientRect === 'function'
+      ? anchorEl.getBoundingClientRect()
+      : { left: VIEWPORT_PAD, right: VIEWPORT_PAD, top: VIEWPORT_PAD, bottom: VIEWPORT_PAD, width: 0, height: 0 };
+
+    var popW = pop.offsetWidth || 268;
+    var popH = pop.offsetHeight || 300;
+
+    var spaceBelow = vh - rect.bottom - ANCHOR_GAP - VIEWPORT_PAD;
+    var spaceAbove = rect.top - ANCHOR_GAP - VIEWPORT_PAD;
+    var placeAbove = spaceBelow < popH && spaceAbove > spaceBelow;
+
+    var top;
+    if (placeAbove) {
+      top = Math.max(VIEWPORT_PAD, rect.top - ANCHOR_GAP - popH);
+      pop.classList.add('is-above');
+    } else {
+      top = Math.max(VIEWPORT_PAD, Math.min(rect.bottom + ANCHOR_GAP, vh - VIEWPORT_PAD - popH));
+      pop.classList.remove('is-above');
+    }
+
+    var left = Math.max(VIEWPORT_PAD, Math.min(rect.left, vw - VIEWPORT_PAD - popW));
+
+    pop.style.top = Math.round(top) + 'px';
+    pop.style.left = Math.round(left) + 'px';
+  }
+
+  function closeInternal(shouldRestoreFocus) {
+    if (!activeState) return;
+    var st = activeState;
+    activeState = null;
+
+    document.removeEventListener('keydown', st.onKeyDown, true);
+    document.removeEventListener('pointerdown', st.onPointerDown, true);
+    global.removeEventListener('resize', st.onReposition);
+    global.removeEventListener('scroll', st.onReposition, true);
+
+    if (st.pop && st.pop.parentNode) {
+      st.pop.parentNode.removeChild(st.pop);
+    }
+
+    if (shouldRestoreFocus) {
+      restoreFocus(st.anchorEl);
+    }
+
+    if (st.opts && typeof st.opts.onClose === 'function') {
+      st.opts.onClose();
+    }
+  }
+
+  function close() {
+    closeInternal(false);
+  }
+
+  function isOpen() {
+    return Boolean(activeState && activeState.pop && activeState.pop.isConnected);
+  }
+
+  function open(anchorEl, opts) {
+    opts = opts || {};
+    closeInternal(false);
+
+    var todayStr = getTodayLocalStr();
+    var minStr = normalizeDateStr(opts.min);
+    var maxStr = normalizeDateStr(opts.max);
+    if (minStr && maxStr && minStr > maxStr) {
+      maxStr = '';
+    }
+    var selectedStr = normalizeDateStr(opts.value);
+
+    var initialFocusStr;
+    if (selectedStr) {
+      initialFocusStr = selectedStr;
+    } else if (isWithinRange(todayStr, minStr, maxStr)) {
+      initialFocusStr = todayStr;
+    } else if (minStr && todayStr < minStr) {
+      initialFocusStr = minStr;
+    } else if (maxStr && todayStr > maxStr) {
+      initialFocusStr = maxStr;
+    } else {
+      initialFocusStr = todayStr;
+    }
+
+    var initDt = ganttParseDate(initialFocusStr) || ganttParseDate(todayStr);
+    var viewYear = initDt.getUTCFullYear();
+    var viewMonth = initDt.getUTCMonth();
+    var focusedDateStr = initialFocusStr;
+
+    var pop = document.createElement('div');
+    pop.className = 'gantt-cal-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', opts.title || 'Choose date');
+
+    // Header
+    var head = document.createElement('div');
+    head.className = 'gantt-cal-head';
+
+    function makeNavBtn(label, ariaLabel, onClick) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gantt-cal-nav';
+      btn.setAttribute('aria-label', ariaLabel);
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      return btn;
+    }
+
+    var titleEl = document.createElement('div');
+    titleEl.className = 'gantt-cal-title';
+    titleEl.setAttribute('aria-live', 'polite');
+
+    var btnPrevYear = makeNavBtn('«', 'Previous year', function () {
+      stepViewMonth(-12, false);
+    });
+    var btnPrevMonth = makeNavBtn('‹', 'Previous month', function () {
+      stepViewMonth(-1, false);
+    });
+    var btnNextMonth = makeNavBtn('›', 'Next month', function () {
+      stepViewMonth(1, false);
+    });
+    var btnNextYear = makeNavBtn('»', 'Next year', function () {
+      stepViewMonth(12, false);
+    });
+
+    head.appendChild(btnPrevYear);
+    head.appendChild(btnPrevMonth);
+    head.appendChild(titleEl);
+    head.appendChild(btnNextMonth);
+    head.appendChild(btnNextYear);
+    pop.appendChild(head);
+
+    // Weekday headers
+    var weekdaysRow = document.createElement('div');
+    weekdaysRow.className = 'gantt-cal-weekdays';
+    weekdaysRow.setAttribute('aria-hidden', 'true');
+    for (var w = 0; w < WEEKDAYS.length; w++) {
+      var wd = document.createElement('div');
+      wd.className = 'gantt-cal-weekday';
+      wd.textContent = WEEKDAYS[w];
+      weekdaysRow.appendChild(wd);
+    }
+    pop.appendChild(weekdaysRow);
+
+    // 6x7 day grid
+    var grid = document.createElement('div');
+    grid.className = 'gantt-cal-grid';
+    grid.setAttribute('role', 'grid');
+    pop.appendChild(grid);
+
+    // Footer
+    var footer = document.createElement('div');
+    footer.className = 'gantt-cal-footer';
+
+    var btnToday = document.createElement('button');
+    btnToday.type = 'button';
+    btnToday.className = 'gantt-cal-today';
+    btnToday.textContent = 'Today';
+    if (!isWithinRange(todayStr, minStr, maxStr)) {
+      btnToday.disabled = true;
+    }
+    btnToday.addEventListener('click', function () {
+      if (!isWithinRange(todayStr, minStr, maxStr)) return;
+      selectAndClose(todayStr);
+    });
+    footer.appendChild(btnToday);
+
+    if (opts.allowClear) {
+      var btnClear = document.createElement('button');
+      btnClear.type = 'button';
+      btnClear.className = 'gantt-cal-clear';
+      btnClear.textContent = 'Clear';
+      btnClear.addEventListener('click', function () {
+        selectAndClose('');
+      });
+      footer.appendChild(btnClear);
+    }
+    pop.appendChild(footer);
+
+    function selectAndClose(dateStr) {
+      var onSelect = opts.onSelect;
+      closeInternal(true);
+      if (typeof onSelect === 'function') {
+        onSelect(dateStr);
+      }
+    }
+
+    function focusDayButton(dateStr) {
+      var targetBtn = grid.querySelector('.gantt-cal-day[data-date="' + dateStr + '"]');
+      if (targetBtn && !targetBtn.disabled) {
+        try {
+          targetBtn.focus({ preventScroll: true });
+        } catch (_err) {
+          targetBtn.focus();
+        }
+      }
+    }
+
+    function renderGrid(shouldFocus) {
+      titleEl.textContent = MONTH_NAMES[viewMonth] + ' ' + viewYear;
+      grid.textContent = '';
+
+      var firstOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1));
+      var firstStr = ganttFormatDate(firstOfMonth);
+      var firstDow = firstOfMonth.getUTCDay();
+      var gridStart = ganttAddDays(firstStr, -firstDow);
+
+      // Ensure focusedDateStr falls inside the rendered 42-day grid when roving tabindex is applied
+      var gridEnd = ganttAddDays(gridStart, 41);
+      var activeTabDate = focusedDateStr;
+      if (activeTabDate < gridStart || activeTabDate > gridEnd) {
+        activeTabDate = clampToRange(firstStr, minStr, maxStr);
+        if (activeTabDate < gridStart || activeTabDate > gridEnd) {
+          activeTabDate = firstStr;
+        }
+      }
+
+      var tabAssigned = false;
+      var firstEnabledBtn = null;
+
+      for (var i = 0; i < 42; i++) {
+        var dateStr = ganttAddDays(gridStart, i);
+        var dt = ganttParseDate(dateStr);
+        var dow = dt.getUTCDay();
+        var isOutside = dt.getUTCMonth() !== viewMonth;
+        var isWeekend = dow === 0 || dow === 6;
+        var isToday = dateStr === todayStr;
+        var isSelected = Boolean(selectedStr && dateStr === selectedStr);
+        var isDisabled = !isWithinRange(dateStr, minStr, maxStr);
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gantt-cal-day';
+        btn.setAttribute('data-date', dateStr);
+        btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        btn.textContent = String(dt.getUTCDate());
+
+        if (isOutside) btn.classList.add('is-outside');
+        if (isWeekend) btn.classList.add('is-weekend');
+        if (isToday) btn.classList.add('is-today');
+        if (isSelected) btn.classList.add('is-selected');
+
+        if (isDisabled) {
+          btn.disabled = true;
+          btn.classList.add('is-disabled');
+          btn.setAttribute('aria-disabled', 'true');
+        } else if (!firstEnabledBtn) {
+          firstEnabledBtn = btn;
+        }
+
+        if (dateStr === activeTabDate && !isDisabled) {
+          btn.tabIndex = 0;
+          tabAssigned = true;
+        } else {
+          btn.tabIndex = -1;
+        }
+
+        grid.appendChild(btn);
+      }
+
+      if (!tabAssigned && firstEnabledBtn) {
+        firstEnabledBtn.tabIndex = 0;
+        focusedDateStr = firstEnabledBtn.getAttribute('data-date');
+      }
+
+      if (shouldFocus) {
+        focusDayButton(focusedDateStr);
+      }
+    }
+
+    function stepViewMonth(deltaMonths, shouldFocus) {
+      var shifted = shiftMonthClamped(focusedDateStr, deltaMonths);
+      var dt = ganttParseDate(shifted);
+      if (!dt) return;
+      viewYear = dt.getUTCFullYear();
+      viewMonth = dt.getUTCMonth();
+      focusedDateStr = shifted;
+      renderGrid(shouldFocus);
+    }
+
+    function moveFocusTo(targetDateStr) {
+      if (!targetDateStr) return;
+      var clamped = clampToRange(targetDateStr, minStr, maxStr);
+      var dt = ganttParseDate(clamped);
+      if (!dt) return;
+      focusedDateStr = clamped;
+      viewYear = dt.getUTCFullYear();
+      viewMonth = dt.getUTCMonth();
+      renderGrid(true);
+    }
+
+    grid.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.gantt-cal-day') : null;
+      if (!btn || btn.disabled) return;
+      var dateStr = btn.getAttribute('data-date');
+      if (!dateStr || !isWithinRange(dateStr, minStr, maxStr)) return;
+      selectAndClose(dateStr);
+    });
+
+    function onKeyDown(e) {
+      if (!activeState || activeState.pop !== pop) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeInternal(true);
+        return;
+      }
+
+      var inGrid = e.target && grid.contains(e.target);
+      if (!inGrid) return;
+
+      var dt = ganttParseDate(focusedDateStr);
+      if (!dt) return;
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, -1));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, 1));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, -7));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, 7));
+          break;
+        case 'PageUp':
+          e.preventDefault();
+          moveFocusTo(shiftMonthClamped(focusedDateStr, e.shiftKey ? -12 : -1));
+          break;
+        case 'PageDown':
+          e.preventDefault();
+          moveFocusTo(shiftMonthClamped(focusedDateStr, e.shiftKey ? 12 : 1));
+          break;
+        case 'Home':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, -dt.getUTCDay()));
+          break;
+        case 'End':
+          e.preventDefault();
+          moveFocusTo(ganttAddDays(focusedDateStr, 6 - dt.getUTCDay()));
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (isWithinRange(focusedDateStr, minStr, maxStr)) {
+            selectAndClose(focusedDateStr);
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    function onPointerDown(e) {
+      if (!activeState || activeState.pop !== pop) return;
+      var target = e.target;
+      if (target && pop.contains(target)) return;
+      if (anchorEl && target && (target === anchorEl || (anchorEl.contains && anchorEl.contains(target)))) return;
+      closeInternal(false);
+    }
+
+    function onReposition() {
+      if (!activeState || activeState.pop !== pop) return;
+      positionPopover(pop, anchorEl);
+    }
+
+    document.body.appendChild(pop);
+    renderGrid(false);
+    positionPopover(pop, anchorEl);
+
+    activeState = {
+      pop: pop,
+      anchorEl: anchorEl,
+      opts: opts,
+      onKeyDown: onKeyDown,
+      onPointerDown: onPointerDown,
+      onReposition: onReposition
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    global.addEventListener('resize', onReposition);
+    global.addEventListener('scroll', onReposition, true);
+
+    focusDayButton(focusedDateStr);
+  }
+
+  function resolveBound(bound) {
+    if (typeof bound === 'function') return bound() || '';
+    if (typeof bound === 'string') return bound;
+    return '';
+  }
+
+  function attachInput(inputEl, opts) {
+    if (!inputEl) return;
+    opts = opts || {};
+
+    if (attachedInputs && attachedInputs.has(inputEl)) {
+      var prev = attachedInputs.get(inputEl);
+      inputEl.removeEventListener('click', prev.onClick);
+      inputEl.removeEventListener('keydown', prev.onKeyDown);
+    }
+
+    inputEl.type = 'text';
+    inputEl.readOnly = true;
+    inputEl.placeholder = 'YYYY-MM-DD';
+    inputEl.classList.add('gantt-cal-input');
+    inputEl.autocomplete = 'off';
+    inputEl.inputMode = 'none';
+
+    function openForInput() {
+      open(inputEl, {
+        value: inputEl.value,
+        min: resolveBound(opts.min),
+        max: resolveBound(opts.max),
+        allowClear: Boolean(opts.allowClear),
+        title: opts.title,
+        onSelect: function (dateStr) {
+          inputEl.value = dateStr;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          if (typeof opts.onChange === 'function') {
+            opts.onChange(dateStr);
+          }
+        }
+      });
+    }
+
+    function onClick(e) {
+      e.preventDefault();
+      openForInput();
+    }
+
+    function onKeyDown(e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        openForInput();
+      }
+    }
+
+    inputEl.addEventListener('click', onClick);
+    inputEl.addEventListener('keydown', onKeyDown);
+
+    if (attachedInputs) {
+      attachedInputs.set(inputEl, { onClick: onClick, onKeyDown: onKeyDown });
+    }
+  }
+
+  global.GanttDatePicker = {
+    open: open,
+    close: close,
+    isOpen: isOpen,
+    attachInput: attachInput
+  };
+})(window);
+// --- GANTT EXCEL-LIKE TABLE VIEW ---
+// Plain browser IIFE (zero external dependencies, no ES module imports).
+// Exposes window.GanttTable.create(hostEl, api) -> { render(), focusItem(id), destroy() }.
+// Reuses ganttParseDate, ganttFormatDate, ganttAddDays, ganttDiffDays from engine.js
+// and window.GanttDatePicker.open(anchorEl, opts).
+(function () {
+  'use strict';
+
+  const MONTH_MAP = {
+    jan: 1, january: 1,
+    feb: 2, february: 2,
+    mar: 3, march: 3,
+    apr: 4, april: 4,
+    may: 5,
+    jun: 6, june: 6,
+    jul: 7, july: 7,
+    aug: 8, august: 8,
+    sep: 9, sept: 9, september: 9,
+    oct: 10, october: 10,
+    nov: 11, november: 11,
+    dec: 12, december: 12
+  };
+
+  const TYPE_LABELS = {
+    group: 'Group',
+    task: 'Task',
+    milestone: 'Milestone'
+  };
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function makeIcon(api, name, opts, fallbackText) {
+    if (api && typeof api.icon === 'function') {
+      try {
+        const svg = api.icon(name, opts);
+        if (svg) return svg;
+      } catch (_) {
+        // fall through to text fallback
+      }
+    }
+    return el('span', '', fallbackText || '');
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function expandTwoDigitYear(yy) {
+    return yy >= 70 ? 1900 + yy : 2000 + yy;
+  }
+
+  function buildIsoIfValid(y, m, d) {
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+    if (y < 100) y = expandTwoDigitYear(y);
+    const iso = `${String(y).padStart(4, '0')}-${pad2(m)}-${pad2(d)}`;
+    return ganttFormatDate(iso) || null;
+  }
+
+  // Flexible date parser for Excel / Google Sheets paste.
+  function parseFlexDate(raw) {
+    if (raw == null) return null;
+    const s = String(raw).trim();
+    if (!s || s === '—' || s === '-') return null;
+
+    // YYYY-MM-DD or YYYY/MM/DD (1- or 2-digit month/day)
+    let m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(s);
+    if (m) return buildIsoIfValid(Number(m[1]), Number(m[2]), Number(m[3]));
+
+    // M/D/YYYY, MM/DD/YYYY, M/D/YY, M-D-YYYY
+    m = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/.exec(s);
+    if (m) return buildIsoIfValid(Number(m[3]), Number(m[1]), Number(m[2]));
+
+    // Mon DD, YYYY or Month DD YYYY
+    m = /^([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+|\s+)(\d{2}|\d{4})$/.exec(s);
+    if (m) {
+      const mo = MONTH_MAP[m[1].toLowerCase()];
+      if (mo) return buildIsoIfValid(Number(m[3]), mo, Number(m[2]));
+    }
+
+    // DD Mon YYYY or DD-Mon-YYYY or DD-Mon-YY
+    m = /^(\d{1,2})[\s-]+([A-Za-z]+)\.?[\s-]+(\d{2}|\d{4})$/.exec(s);
+    if (m) {
+      const mo = MONTH_MAP[m[2].toLowerCase()];
+      if (mo) return buildIsoIfValid(Number(m[3]), mo, Number(m[1]));
+    }
+
+    return null;
+  }
+
+  // Parse duration input like "14", "14d", "2w", "10 days", "2.5 weeks" -> positive integer days or null.
+  function parseDurationDays(raw) {
+    if (raw == null) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    const m = /^(\d+(?:\.\d+)?)\s*(d|day|days|w|wk|wks|week|weeks)?$/i.exec(s);
+    if (!m) return null;
+    const num = Number(m[1]);
+    if (!Number.isFinite(num) || num <= 0) return null;
+    const unit = (m[2] || 'd').toLowerCase();
+    const days = unit.startsWith('w') ? Math.round(num * 7) : Math.round(num);
+    return Math.max(1, days);
+  }
+
+  function sanitizeTsvCell(val) {
+    return String(val == null ? '' : val).replace(/[\t\r\n]+/g, ' ').trim();
+  }
+
+  // Parse TSV/plain clipboard text into rows of strings.
+  function parseTsvRows(text) {
+    const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    const rows = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      const cells = line.split('\t').map((c) => {
+        const t = c.trim();
+        if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
+          return t.slice(1, -1).replace(/""/g, '"').trim();
+        }
+        return t;
+      });
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  // Check if adding edge fromId -> toId would create a cycle in deps.
+  function wouldCreateCycle(deps, fromId, toId) {
+    if (!fromId || !toId || fromId === toId) return true;
+    const adj = new Map();
+    for (let i = 0; i < deps.length; i++) {
+      const d = deps[i];
+      if (!d || !d.from || !d.to) continue;
+      let list = adj.get(d.from);
+      if (!list) { list = []; adj.set(d.from, list); }
+      list.push(d.to);
+    }
+    const visited = new Set([toId]);
+    const queue = [toId];
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      const nexts = adj.get(cur) || [];
+      for (let i = 0; i < nexts.length; i++) {
+        const nxt = nexts[i];
+        if (nxt === fromId) return true;
+        if (!visited.has(nxt)) {
+          visited.add(nxt);
+          queue.push(nxt);
+        }
+      }
+    }
+    return false;
+  }
+
+  // Build ordered tree rows from raw items, respecting ONLY collapsed state (not timeline view filters).
+  function buildTreeModel(allItems) {
+    const items = Array.isArray(allItems) ? allItems : [];
+    const byId = new Map();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it && it.id && !byId.has(it.id)) byId.set(it.id, it);
+    }
+
+    // Resolve valid non-cyclic parents
+    const validParent = new Map();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it || !it.id) continue;
+      const pid = it.parent;
+      if (!pid || pid === it.id || !byId.has(pid)) {
+        validParent.set(it.id, null);
+        continue;
+      }
+      const seen = new Set([it.id]);
+      let cur = pid;
+      let cyclic = false;
+      while (cur && byId.has(cur)) {
+        if (seen.has(cur)) { cyclic = true; break; }
+        seen.add(cur);
+        cur = byId.get(cur).parent;
+      }
+      validParent.set(it.id, cyclic ? null : pid);
+    }
+
+    const roots = [];
+    const childrenByParent = new Map();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it || !it.id) continue;
+      const pid = validParent.get(it.id);
+      if (!pid) {
+        roots.push(it);
+      } else {
+        let arr = childrenByParent.get(pid);
+        if (!arr) { arr = []; childrenByParent.set(pid, arr); }
+        arr.push(it);
+      }
+    }
+
+    const orderedAll = [];
+    const visibleRows = [];
+    const metaById = new Map();
+    const rowNumById = new Map();
+    const itemByRowNum = new Map();
+
+    function visit(it, depth, ancestorCollapsed) {
+      const kids = childrenByParent.get(it.id) || [];
+      const hasChildren = kids.length > 0;
+      const rowNum = orderedAll.length + 1;
+      const meta = {
+        item: it,
+        depth,
+        hasChildren,
+        hidden: Boolean(ancestorCollapsed),
+        rowNum,
+        start: null,
+        end: null,
+        children: kids
+      };
+      orderedAll.push(meta);
+      metaById.set(it.id, meta);
+      rowNumById.set(it.id, rowNum);
+      itemByRowNum.set(rowNum, it);
+      if (!ancestorCollapsed) visibleRows.push(meta);
+
+      const childHidden = ancestorCollapsed || Boolean(it.collapsed);
+      let minStart = null;
+      let maxEnd = null;
+      for (let i = 0; i < kids.length; i++) {
+        const childMeta = visit(kids[i], depth + 1, childHidden);
+        if (childMeta.start && (!minStart || childMeta.start < minStart)) minStart = childMeta.start;
+        if (childMeta.end && (!maxEnd || childMeta.end > maxEnd)) maxEnd = childMeta.end;
+      }
+
+      if (hasChildren && minStart && maxEnd) {
+        meta.start = minStart;
+        meta.end = maxEnd;
+      } else {
+        const s = ganttFormatDate(it.start);
+        const e = ganttFormatDate(it.end);
+        if (it.kind === 'milestone') {
+          const d = s || e || null;
+          meta.start = d;
+          meta.end = d;
+        } else if (s && e) {
+          meta.start = s;
+          meta.end = e < s ? s : e;
+        } else if (s) {
+          meta.start = s;
+          meta.end = s;
+        } else if (e) {
+          meta.start = e;
+          meta.end = e;
+        } else {
+          meta.start = null;
+          meta.end = null;
+        }
+      }
+      return meta;
+    }
+
+    for (let i = 0; i < roots.length; i++) {
+      visit(roots[i], 0, false);
+    }
+
+    return {
+      orderedAll,
+      visibleRows,
+      byId,
+      metaById,
+      rowNumById,
+      itemByRowNum,
+      childrenByParent,
+      validParent
+    };
+  }
+
+  function isDescendant(validParentMap, candidateId, ancestorId) {
+    let cur = candidateId;
+    const seen = new Set();
+    while (cur && !seen.has(cur)) {
+      if (cur === ancestorId) return true;
+      seen.add(cur);
+      cur = validParentMap.get(cur) || null;
+    }
+    return false;
+  }
+
+  function create(hostEl, api) {
+    if (!hostEl) throw new Error('GanttTable.create requires hostEl');
+
+    let destroyed = false;
+    let markersOpen = true;
+    let lastTree = buildTreeModel([]);
+    let activeCellCoord = { itemId: null, colIdx: 1 };
+    let depPopState = null; // { el, itemId, anchorEl, onDocDown, onDocKey }
+
+    // --- Build static shell inside hostEl ---
+    hostEl.textContent = '';
+    hostEl.classList.add('gt-view');
+
+    // 1. Top summary bar
+    const topbar = el('div', 'gt-topbar');
+    const topbarLeft = el('div', 'gt-topbar-left');
+    const countBadge = el('span', 'gt-count', '0 items');
+    const hintEl = el('span', 'gt-hint', 'Paste from Excel (Ctrl+V) · Tab/Shift+Tab to indent · Click dates for calendar');
+    topbarLeft.appendChild(countBadge);
+    topbarLeft.appendChild(hintEl);
+
+    const topbarActions = el('div', 'gt-topbar-actions');
+    const btnCopyAll = el('button', 'gt-btn');
+    btnCopyAll.type = 'button';
+    btnCopyAll.id = 'btn-table-copy-all';
+    btnCopyAll.appendChild(makeIcon(api, 'clipboard', { size: 14 }, ''));
+    btnCopyAll.appendChild(el('span', '', 'Copy CSV/TSV'));
+    topbarActions.appendChild(btnCopyAll);
+
+    topbar.appendChild(topbarLeft);
+    topbar.appendChild(topbarActions);
+    hostEl.appendChild(topbar);
+
+    // 2. Scrollable wrapper with main table + collapsible markers section
+    const scrollEl = el('div', 'gt-scroll');
+
+    const table = el('table', 'gantt-sheet');
+    table.id = 'gantt-sheet';
+    table.setAttribute('role', 'treegrid');
+    table.setAttribute('aria-label', 'Roadmap data table');
+
+    const thead = el('thead');
+    const headRow = el('tr');
+
+    const thCheck = el('th', 'gt-col-check');
+    const selectAllCb = el('input', 'gt-checkbox');
+    selectAllCb.type = 'checkbox';
+    selectAllCb.id = 'gt-select-all';
+    selectAllCb.setAttribute('aria-label', 'Select all rows');
+    thCheck.appendChild(selectAllCb);
+    headRow.appendChild(thCheck);
+
+    const colDefs = [
+      { cls: 'gt-col-num',   label: '#' },
+      { cls: 'gt-col-task',  label: 'Task' },
+      { cls: 'gt-col-type',  label: 'Type' },
+      { cls: 'gt-col-start', label: 'Start' },
+      { cls: 'gt-col-end',   label: 'End' },
+      { cls: 'gt-col-dur',   label: 'Duration' },
+      { cls: 'gt-col-dep',   label: 'Depends on' },
+      { cls: 'gt-col-cat',   label: 'Category' },
+      { cls: 'gt-col-note',  label: 'Notes' }
+    ];
+    for (let i = 0; i < colDefs.length; i++) {
+      headRow.appendChild(el('th', colDefs[i].cls, colDefs[i].label));
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = el('tbody');
+    table.appendChild(tbody);
+
+    const tfoot = el('tfoot');
+    const addRow = el('tr');
+    addRow.id = 'gantt-sheet-add-row';
+    const addTd = el('td');
+    addTd.colSpan = 10;
+    const quickAddInput = el('input');
+    quickAddInput.id = 'gantt-sheet-quick-add';
+    quickAddInput.type = 'text';
+    quickAddInput.placeholder = 'Type a new task and press Enter...';
+    quickAddInput.setAttribute('aria-label', 'Add new task');
+    addTd.appendChild(quickAddInput);
+    addRow.appendChild(addTd);
+    tfoot.appendChild(addRow);
+    table.appendChild(tfoot);
+
+    scrollEl.appendChild(table);
+
+    // 3. Collapsible Date Lines section (#gantt-markers-section)
+    const markersSection = el('section', 'is-open');
+    markersSection.id = 'gantt-markers-section';
+    markersSection.setAttribute('aria-label', 'Date Lines');
+
+    const markersHead = el('div', 'gt-markers-head');
+    const btnMarkersToggle = el('button');
+    btnMarkersToggle.type = 'button';
+    btnMarkersToggle.id = 'btn-markers-toggle';
+    btnMarkersToggle.setAttribute('aria-expanded', 'true');
+    btnMarkersToggle.appendChild(makeIcon(api, 'chevron-down', { size: 13 }, '▾'));
+    const markersToggleText = el('span', '', 'Date Lines (0)');
+    btnMarkersToggle.appendChild(markersToggleText);
+
+    const btnAddMarkerRow = el('button', 'gt-btn');
+    btnAddMarkerRow.type = 'button';
+    btnAddMarkerRow.id = 'btn-add-marker-row';
+    btnAddMarkerRow.appendChild(makeIcon(api, 'plus', { size: 13 }, '+'));
+    btnAddMarkerRow.appendChild(el('span', '', 'Add date line'));
+
+    markersHead.appendChild(btnMarkersToggle);
+    markersHead.appendChild(btnAddMarkerRow);
+    markersSection.appendChild(markersHead);
+
+    const markersBody = el('div', 'gt-markers-body');
+    const markersTable = el('table', 'gantt-markers-table');
+    markersTable.id = 'gantt-markers-table';
+    const mThead = el('thead');
+    const mHeadTr = el('tr');
+    mHeadTr.appendChild(el('th', '', 'Label'));
+    mHeadTr.appendChild(el('th', 'gt-marker-col-date', 'Date'));
+    mHeadTr.appendChild(el('th', 'gt-marker-col-cat', 'Category'));
+    mHeadTr.appendChild(el('th', 'gt-marker-col-del', ''));
+    mThead.appendChild(mHeadTr);
+    markersTable.appendChild(mThead);
+    const markersTbody = el('tbody');
+    markersTable.appendChild(markersTbody);
+    markersBody.appendChild(markersTable);
+    markersSection.appendChild(markersBody);
+
+    scrollEl.appendChild(markersSection);
+    hostEl.appendChild(scrollEl);
+
+    // 4. Floating Bulk Action Bar (#gantt-table-bulkbar)
+    const bulkBar = el('div');
+    bulkBar.id = 'gantt-table-bulkbar';
+    bulkBar.setAttribute('role', 'toolbar');
+    bulkBar.setAttribute('aria-label', 'Bulk actions');
+    bulkBar.hidden = true;
+
+    function makeIndentSvg(isOutdent) {
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('width', '14');
+      svg.setAttribute('height', '14');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      const lines = isOutdent
+        ? [
+            ['line', { x1: '21', y1: '6', x2: '11', y2: '6' }],
+            ['line', { x1: '21', y1: '12', x2: '11', y2: '12' }],
+            ['line', { x1: '21', y1: '18', x2: '11', y2: '18' }],
+            ['polyline', { points: '7 8 3 12 7 16' }]
+          ]
+        : [
+            ['line', { x1: '21', y1: '6', x2: '11', y2: '6' }],
+            ['line', { x1: '21', y1: '12', x2: '11', y2: '12' }],
+            ['line', { x1: '21', y1: '18', x2: '11', y2: '18' }],
+            ['polyline', { points: '3 8 7 12 3 16' }]
+          ];
+      for (let i = 0; i < lines.length; i++) {
+        const node = document.createElementNS(NS, lines[i][0]);
+        const attrs = lines[i][1];
+        Object.keys(attrs).forEach((k) => node.setAttribute(k, attrs[k]));
+        svg.appendChild(node);
+      }
+      return svg;
+    }
+
+    const bulkCountEl = el('span', 'gt-bulk-count', '0 selected');
+
+    const bulkCatWrap = el('span', 'gt-bulk-cat-wrap');
+    const bulkCatSelect = el('select', 'gt-bulk-cat-select');
+    bulkCatSelect.setAttribute('aria-label', 'Set category for selected rows');
+    bulkCatWrap.appendChild(bulkCatSelect);
+
+    const btnBulkIndent = el('button', 'gt-btn gt-btn-icon');
+    btnBulkIndent.type = 'button';
+    btnBulkIndent.title = 'Indent (Tab)';
+    btnBulkIndent.setAttribute('aria-label', 'Indent');
+    btnBulkIndent.appendChild(makeIndentSvg(false));
+
+    const btnBulkOutdent = el('button', 'gt-btn gt-btn-icon');
+    btnBulkOutdent.type = 'button';
+    btnBulkOutdent.title = 'Outdent (Shift+Tab)';
+    btnBulkOutdent.setAttribute('aria-label', 'Outdent');
+    btnBulkOutdent.appendChild(makeIndentSvg(true));
+
+    const btnBulkCopy = el('button', 'gt-btn', 'Copy');
+    btnBulkCopy.type = 'button';
+    const btnBulkDelete = el('button', 'gt-btn gt-btn-danger', 'Delete');
+    btnBulkDelete.type = 'button';
+    const btnBulkClear = el('button', 'gt-btn gt-btn-ghost', 'Clear');
+    btnBulkClear.type = 'button';
+
+    bulkBar.appendChild(bulkCountEl);
+    bulkBar.appendChild(el('span', 'gt-bulk-sep'));
+    bulkBar.appendChild(bulkCatWrap);
+    bulkBar.appendChild(el('span', 'gt-bulk-sep'));
+    bulkBar.appendChild(btnBulkIndent);
+    bulkBar.appendChild(btnBulkOutdent);
+    bulkBar.appendChild(btnBulkCopy);
+    bulkBar.appendChild(btnBulkDelete);
+    bulkBar.appendChild(btnBulkClear);
+
+    hostEl.appendChild(bulkBar);
+
+    function makeTypeSvg(kind) {
+      if (kind === 'milestone') {
+        return makeIcon(api, 'flag', { size: 15 }, '⚑');
+      }
+      return makeIcon(api, 'clipboard', { size: 15 }, 'T');
+    }
+
+    function effectiveCat(itemId, tree) {
+      let curId = itemId;
+      const seen = new Set();
+      while (curId && !seen.has(curId)) {
+        seen.add(curId);
+        const it = tree.byId.get(curId);
+        if (it && it.color) return String(it.color);
+        curId = tree.validParent.get(curId) || null;
+      }
+      return '';
+    }
+
+    function collectDescendants(itemId, tree) {
+      const out = [];
+      function walk(pid) {
+        const m = tree.metaById.get(pid);
+        if (!m || !m.children.length) return;
+        for (let i = 0; i < m.children.length; i++) {
+          const ch = m.children[i];
+          out.push(ch);
+          walk(ch.id);
+        }
+      }
+      walk(itemId);
+      return out;
+    }
+
+    function applyCategoryWithSync(item, nextVal, tree) {
+      const val = nextVal ? String(nextVal) : '';
+      const descendants = collectDescendants(item.id, tree);
+
+      // Downward: if all subtasks currently share the same effective category, update them together
+      if (descendants.length > 0) {
+        const distinct = new Set();
+        for (let i = 0; i < descendants.length; i++) {
+          distinct.add(effectiveCat(descendants[i].id, tree));
+        }
+        if (distinct.size <= 1) {
+          for (let i = 0; i < descendants.length; i++) {
+            if (val) descendants[i].color = val;
+            else delete descendants[i].color;
+          }
+        }
+      }
+
+      if (val) item.color = val;
+      else delete item.color;
+
+      // Upward: if all siblings under parent now share the same category, update parent too
+      let pid = tree.validParent.get(item.id) || null;
+      while (pid) {
+        const pMeta = tree.metaById.get(pid);
+        if (!pMeta || !pMeta.children.length) break;
+        let allSame = true;
+        for (let i = 0; i < pMeta.children.length; i++) {
+          const ch = pMeta.children[i];
+          const chCat = ch.color ? String(ch.color) : effectiveCat(ch.id, tree);
+          if (chCat !== val) {
+            allSame = false;
+            break;
+          }
+        }
+        if (!allSame) break;
+        if (val) pMeta.item.color = val;
+        else delete pMeta.item.color;
+        pid = tree.validParent.get(pid) || null;
+      }
+    }
+
+    function clearDepRowHighlights() {
+      const rows = tbody.querySelectorAll('tr.is-dep-self, tr.is-dep-pred, tr.is-dep-succ');
+      for (let i = 0; i < rows.length; i++) {
+        rows[i].classList.remove('is-dep-self', 'is-dep-pred', 'is-dep-succ');
+      }
+    }
+
+    function highlightDepRows(itemId) {
+      clearDepRowHighlights();
+      if (!itemId) return;
+      const deps = api.getDeps() || [];
+      const preds = new Set();
+      const succs = new Set();
+      for (let i = 0; i < deps.length; i++) {
+        const d = deps[i];
+        if (!d) continue;
+        if (d.to === itemId && d.from) preds.add(d.from);
+        if (d.from === itemId && d.to) succs.add(d.to);
+      }
+      if (preds.size === 0 && succs.size === 0) return;
+      const rows = tbody.querySelectorAll('tr[data-item-id]');
+      for (let i = 0; i < rows.length; i++) {
+        const id = rows[i].getAttribute('data-item-id');
+        if (id === itemId) rows[i].classList.add('is-dep-self');
+        if (preds.has(id)) rows[i].classList.add('is-dep-pred');
+        if (succs.has(id)) rows[i].classList.add('is-dep-succ');
+      }
+    }
+
+    // --- Helper functions ---
+    function getDepsForItem(itemId) {
+      const deps = api.getDeps() || [];
+      const out = [];
+      for (let i = 0; i < deps.length; i++) {
+        const d = deps[i];
+        if (d && d.to === itemId) out.push(d);
+      }
+      return out;
+    }
+
+    function formatDepShorthand(itemId, rowNumById) {
+      const incoming = getDepsForItem(itemId);
+      const parts = [];
+      const seen = new Set();
+      for (let i = 0; i < incoming.length; i++) {
+        const d = incoming[i];
+        const num = rowNumById.get(d.from);
+        if (num && !seen.has(num)) {
+          seen.add(num);
+          parts.push(String(num));
+        }
+      }
+      return parts.join(', ');
+    }
+
+    function formatCategoryLabel(slotVal) {
+      if (!slotVal) return '';
+      const slots = api.getPaletteSlots() || [];
+      for (let i = 0; i < slots.length; i++) {
+        if (String(slots[i].slot) === String(slotVal)) {
+          return slots[i].label || `Color ${slots[i].slot}`;
+        }
+      }
+      return String(slotVal);
+    }
+
+    function closeDepPopover() {
+      if (!depPopState) return;
+      document.removeEventListener('pointerdown', depPopState.onDocDown, true);
+      document.removeEventListener('keydown', depPopState.onDocKey, true);
+      if (depPopState.el && depPopState.el.parentNode) {
+        depPopState.el.parentNode.removeChild(depPopState.el);
+      }
+      depPopState = null;
+    }
+
+    function openDatePicker(anchorEl, opts) {
+      if (api.isPresenting()) return;
+      if (window.GanttDatePicker && typeof window.GanttDatePicker.open === 'function') {
+        window.GanttDatePicker.open(anchorEl, opts);
+      }
+    }
+
+    function openDepPopover(anchorEl, item) {
+      if (api.isPresenting()) return;
+      closeDepPopover();
+
+      const tree = lastTree;
+      const pop = el('div', 'gt-dep-pop');
+      pop.setAttribute('role', 'dialog');
+      pop.setAttribute('aria-label', `Dependencies for ${item.label || 'task'}`);
+
+      const head = el('div', 'gt-dep-pop-head');
+      head.appendChild(el('span', 'gt-dep-pop-title', `Depends on · ${item.label || 'Task'}`));
+      const closeBtn = el('button', 'gt-btn gt-btn-ghost');
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Close');
+      closeBtn.appendChild(makeIcon(api, 'close', { size: 12 }, '×'));
+      closeBtn.addEventListener('click', () => closeDepPopover());
+      head.appendChild(closeBtn);
+      pop.appendChild(head);
+
+      const inputRow = el('div', 'gt-dep-input-row');
+      const input = el('input', 'gt-dep-input');
+      input.type = 'text';
+      input.placeholder = 'e.g. 2, 5';
+      input.value = formatDepShorthand(item.id, tree.rowNumById);
+      const applyBtn = el('button', 'gt-btn gt-btn-primary', 'Apply');
+      applyBtn.type = 'button';
+      inputRow.appendChild(input);
+      inputRow.appendChild(applyBtn);
+      pop.appendChild(inputRow);
+
+      const listEl = el('div', 'gt-dep-list');
+      pop.appendChild(listEl);
+
+      function syncInputFromModel() {
+        input.value = formatDepShorthand(item.id, lastTree.rowNumById);
+      }
+
+      function renderChecklist() {
+        listEl.textContent = '';
+        const data = api.getData();
+        const deps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+        const incomingByFrom = new Map();
+        for (let i = 0; i < deps.length; i++) {
+          const d = deps[i];
+          if (d && d.to === item.id) incomingByFrom.set(d.from, d);
+        }
+
+        const candidates = lastTree.orderedAll.filter((m) => m.item.id !== item.id && m.item.kind !== 'group');
+        if (candidates.length === 0) {
+          listEl.appendChild(el('div', 'gt-dep-empty', 'No other tasks or milestones'));
+          return;
+        }
+
+        for (let i = 0; i < candidates.length; i++) {
+          const cand = candidates[i];
+          const other = cand.item;
+          const existing = incomingByFrom.get(other.id) || null;
+
+          const row = el('div', 'gt-dep-item');
+          const cb = el('input', 'gt-checkbox');
+          cb.type = 'checkbox';
+          cb.checked = Boolean(existing);
+
+          const numSpan = el('span', 'gt-dep-item-num', `#${cand.rowNum}`);
+          const lblSpan = el('span', 'gt-dep-item-label', other.label || 'Untitled');
+          lblSpan.title = other.label || 'Untitled';
+
+          cb.addEventListener('change', () => {
+            const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+            if (cb.checked) {
+              if (wouldCreateCycle(curDeps, other.id, item.id)) {
+                cb.checked = false;
+                api.toast('Circular dependency prevented');
+                return;
+              }
+              data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
+              data.dependencies.push({ from: other.id, to: item.id, type: 'fs' });
+              api.commit('dep');
+            } else {
+              data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
+              api.commit('dep');
+            }
+            syncInputFromModel();
+            renderChecklist();
+          });
+
+          row.addEventListener('click', (e) => {
+            if (e.target === cb) return;
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change'));
+          });
+
+          row.appendChild(cb);
+          row.appendChild(numSpan);
+          row.appendChild(lblSpan);
+          listEl.appendChild(row);
+        }
+      }
+
+      function applyShorthand() {
+        const raw = input.value.trim();
+        const data = api.getData();
+        const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+        const baseDeps = curDeps.filter((d) => !(d && d.to === item.id));
+
+        if (!raw) {
+          data.dependencies = baseDeps;
+          api.commit('dep');
+          closeDepPopover();
+          return;
+        }
+
+        const tokens = raw.split(/[\s,;]+/).filter(Boolean);
+        const parsed = [];
+        const seenFrom = new Set();
+
+        for (let i = 0; i < tokens.length; i++) {
+          const m = /^#?(\d+)\s*(FS|SS)?$/i.exec(tokens[i]);
+          if (!m) {
+            api.toast(`Invalid dependency "${tokens[i]}" (use row numbers, e.g. 2, 5)`);
+            return;
+          }
+          const num = Number(m[1]);
+          const target = lastTree.itemByRowNum.get(num);
+          if (!target) {
+            api.toast(`Row #${num} not found`);
+            return;
+          }
+          if (target.id === item.id) {
+            api.toast('Task cannot depend on itself');
+            return;
+          }
+          if (seenFrom.has(target.id)) continue;
+          const testDeps = baseDeps.concat(parsed);
+          if (wouldCreateCycle(testDeps, target.id, item.id)) {
+            api.toast('Circular dependency prevented');
+            return;
+          }
+          seenFrom.add(target.id);
+          parsed.push({ from: target.id, to: item.id, type: 'fs' });
+        }
+
+        data.dependencies = baseDeps.concat(parsed);
+        api.commit('dep');
+        closeDepPopover();
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyShorthand();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closeDepPopover();
+        }
+      });
+      applyBtn.addEventListener('click', applyShorthand);
+
+      renderChecklist();
+      document.body.appendChild(pop);
+
+      // Position near anchorEl, clamped to viewport
+      const rect = anchorEl.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      if (left + popRect.width > window.innerWidth - 12) {
+        left = Math.max(12, window.innerWidth - popRect.width - 12);
+      }
+      if (top + popRect.height > window.innerHeight - 12) {
+        top = Math.max(12, rect.top - popRect.height - 4);
+      }
+      pop.style.left = `${Math.round(left)}px`;
+      pop.style.top = `${Math.round(top)}px`;
+
+      const onDocDown = (e) => {
+        if (!pop.contains(e.target) && !anchorEl.contains(e.target)) {
+          closeDepPopover();
+        }
+      };
+      const onDocKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeDepPopover();
+        }
+      };
+      document.addEventListener('pointerdown', onDocDown, true);
+      document.addEventListener('keydown', onDocKey, true);
+
+      depPopState = { el: pop, itemId: item.id, anchorEl, onDocDown, onDocKey };
+      input.focus();
+      input.select();
+    }
+
+    // --- Indent / Outdent helpers ---
+    function indentItem(itemId, commitAfter) {
+      if (api.isPresenting()) return false;
+      const tree = buildTreeModel(api.getAllItems());
+      const idx = tree.visibleRows.findIndex((m) => m.item.id === itemId);
+      if (idx <= 0) return false;
+      const cur = tree.visibleRows[idx].item;
+      const prev = tree.visibleRows[idx - 1].item;
+      if (!prev || prev.kind === 'milestone') return false;
+      if (cur.parent === prev.id) return false;
+      if (isDescendant(tree.validParent, prev.id, cur.id)) return false;
+
+      cur.parent = prev.id;
+      if (prev.kind !== 'group') prev.kind = 'group';
+      prev.collapsed = false;
+      if (commitAfter) api.commit('indent');
+      return true;
+    }
+
+    function outdentItem(itemId, commitAfter) {
+      if (api.isPresenting()) return false;
+      const tree = buildTreeModel(api.getAllItems());
+      const cur = tree.byId.get(itemId);
+      if (!cur || !cur.parent) return false;
+      const parentItem = tree.byId.get(cur.parent);
+      const grandParentId = parentItem && parentItem.parent ? parentItem.parent : null;
+      if (grandParentId) {
+        cur.parent = grandParentId;
+      } else {
+        delete cur.parent;
+      }
+      if (commitAfter) api.commit('outdent');
+      return true;
+    }
+
+    // --- Inline editors ---
+    function startInlineTextEdit(cellEl, initialVal, opts) {
+      if (api.isPresenting()) return;
+      if (cellEl.querySelector('.gt-inline-input')) return;
+
+      const input = el('input', 'gt-inline-input' + (opts && opts.isNum ? ' is-num' : ''));
+      input.type = 'text';
+      input.value = initialVal || '';
+      if (opts && opts.placeholder) input.placeholder = opts.placeholder;
+
+      const targetChild = (opts && opts.replaceTarget) || cellEl;
+      const prevDisplay = targetChild.style.display;
+      targetChild.style.display = 'none';
+      targetChild.parentNode.insertBefore(input, targetChild.nextSibling);
+
+      let done = false;
+      function finish(save) {
+        if (done) return;
+        done = true;
+        const val = input.value;
+        if (input.parentNode) input.parentNode.removeChild(input);
+        targetChild.style.display = prevDisplay;
+        if (save && opts && typeof opts.onSave === 'function') {
+          opts.onSave(val);
+        } else if (cellEl.isConnected) {
+          cellEl.focus({ preventScroll: true });
+        }
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          finish(true);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          finish(false);
+        }
+      });
+      input.addEventListener('blur', () => finish(true));
+
+      input.focus();
+      input.select();
+    }
+
+    // --- Copy / Paste for Excel ---
+    function buildTsvForRows(rowMetas) {
+      const header = ['Task', 'Type', 'Start', 'End', 'Duration', 'Depends on', 'Category', 'Notes'].join('\t');
+      const lines = [header];
+      for (let i = 0; i < rowMetas.length; i++) {
+        const meta = rowMetas[i];
+        const it = meta.item;
+        const indent = meta.depth > 0 ? '  '.repeat(meta.depth) : '';
+        const typeStr = TYPE_LABELS[it.kind] || 'Task';
+        const startStr = meta.hasChildren ? (meta.start || '') : (ganttFormatDate(it.start) || '');
+        const endStr = it.kind === 'milestone'
+          ? ''
+          : (meta.hasChildren ? (meta.end || '') : (ganttFormatDate(it.end) || ''));
+        let durStr = '';
+        if (it.kind === 'milestone') {
+          durStr = '0d';
+        } else if (meta.start && meta.end) {
+          durStr = `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d`;
+        }
+        const depStr = formatDepShorthand(it.id, lastTree.rowNumById);
+        const catStr = formatCategoryLabel(it.color);
+        const noteObj = api.getNoteForItem(it.id);
+        const noteStr = noteObj && noteObj.text ? noteObj.text : '';
+
+        lines.push([
+          sanitizeTsvCell(indent + (it.label || '')),
+          sanitizeTsvCell(typeStr),
+          sanitizeTsvCell(startStr),
+          sanitizeTsvCell(endStr),
+          sanitizeTsvCell(durStr),
+          sanitizeTsvCell(depStr),
+          sanitizeTsvCell(catStr),
+          sanitizeTsvCell(noteStr)
+        ].join('\t'));
+      }
+      return lines.join('\n');
+    }
+
+    function copyTextToClipboard(text) {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      }
+      fallbackCopy(text);
+      return Promise.resolve();
+    }
+
+    function fallbackCopy(text) {
+      const ta = el('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) { /* ignore */ }
+      document.body.removeChild(ta);
+    }
+
+    function copyRows(rowMetas) {
+      if (!rowMetas || rowMetas.length === 0) {
+        api.toast('No rows to copy');
+        return;
+      }
+      const tsv = buildTsvForRows(rowMetas);
+      copyTextToClipboard(tsv);
+      api.toast(`Copied ${rowMetas.length} ${rowMetas.length === 1 ? 'row' : 'rows'} for Excel`);
+    }
+
+    function resolveCategoryFromText(raw) {
+      const s = String(raw || '').trim();
+      if (!s || /^none$/i.test(s)) return undefined;
+      if (/^#[0-9a-f]{3,8}$/i.test(s)) return s;
+      const slots = api.getPaletteSlots() || [];
+      for (let i = 0; i < slots.length; i++) {
+        if (String(slots[i].slot) === s) return String(slots[i].slot);
+      }
+      const lower = s.toLowerCase();
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i].label && slots[i].label.toLowerCase() === lower) {
+          return String(slots[i].slot);
+        }
+      }
+      return undefined;
+    }
+
+    function handleExcelPaste(text) {
+      if (api.isPresenting()) return false;
+      const rows = parseTsvRows(text);
+      if (rows.length === 0) return false;
+
+      let startIdx = 0;
+      let colMap = null;
+      const firstRow = rows[0];
+      const firstCell = (firstRow[0] || '').trim();
+
+      if (/^(#|task|name|item|title)$/i.test(firstCell)) {
+        startIdx = 1;
+        colMap = {};
+        for (let c = 0; c < firstRow.length; c++) {
+          const h = (firstRow[c] || '').trim();
+          if (/^(#|no\.?|row|id)$/i.test(h)) colMap.num = c;
+          else if (/^(task|name|item|title|label|deliverable|workstream)$/i.test(h) && colMap.task === undefined) colMap.task = c;
+          else if (/^(type|kind)$/i.test(h)) colMap.type = c;
+          else if (/^(start|start\s*date|begin|from)$/i.test(h)) colMap.start = c;
+          else if (/^(end|end\s*date|finish|due|to)$/i.test(h)) colMap.end = c;
+          else if (/^(dur|duration|days|length)$/i.test(h)) colMap.duration = c;
+          else if (/^(dep|deps|depends(\s*on)?|predecessor(s)?)$/i.test(h)) colMap.dep = c;
+          else if (/^(cat|category|color|team|track|stream|owner)$/i.test(h)) colMap.category = c;
+          else if (/^(note|notes|comment|comments|description|desc)$/i.test(h)) colMap.notes = c;
+        }
+      } else {
+        // Positional fallback: [Task, Start, End, Duration, Category, Notes], skipping numeric row index col if present
+        const hasIndexCol = firstRow.length >= 2 && /^\d+$/.test(firstCell);
+        const offset = hasIndexCol ? 1 : 0;
+        colMap = {
+          task: offset,
+          start: offset + 1,
+          end: offset + 2,
+          duration: offset + 3,
+          category: offset + 4,
+          notes: offset + 5
+        };
+      }
+
+      const data = api.getData();
+      if (!Array.isArray(data.items)) data.items = [];
+      if (!Array.isArray(data.notes)) data.notes = [];
+
+      let added = 0;
+      for (let r = startIdx; r < rows.length; r++) {
+        const cols = rows[r];
+        const rawTask = colMap.task !== undefined ? (cols[colMap.task] || '') : (cols[0] || '');
+        const label = api.cleanLabel(rawTask, '');
+        if (!label) continue;
+
+        let kind = 'task';
+        if (colMap.type !== undefined && cols[colMap.type]) {
+          const t = cols[colMap.type].trim().toLowerCase();
+          if (t === 'group' || t === 'phase' || t === 'summary') kind = 'group';
+          else if (t === 'milestone' || t === 'ms') kind = 'milestone';
+        }
+
+        let start = colMap.start !== undefined ? parseFlexDate(cols[colMap.start]) : null;
+        let end = colMap.end !== undefined ? parseFlexDate(cols[colMap.end]) : null;
+        const durDays = colMap.duration !== undefined ? parseDurationDays(cols[colMap.duration]) : null;
+
+        if (kind === 'milestone') {
+          const d = start || end;
+          start = d;
+          end = d;
+        } else {
+          if (start && !end && durDays) {
+            end = ganttAddDays(start, Math.max(1, durDays) - 1);
+          } else if (!start && end && durDays) {
+            start = ganttAddDays(end, -(Math.max(1, durDays) - 1));
+          } else if (start && !end) {
+            end = start;
+          } else if (start && end && end < start) {
+            end = start;
+          }
+        }
+
+        const item = {
+          id: api.newId('t'),
+          kind,
+          label
+        };
+        if (start) item.start = start;
+        if (end) item.end = end;
+
+        if (colMap.category !== undefined && cols[colMap.category]) {
+          const color = resolveCategoryFromText(cols[colMap.category]);
+          if (color) item.color = color;
+        }
+
+        data.items.push(item);
+        added++;
+
+        if (colMap.notes !== undefined && cols[colMap.notes]) {
+          const noteText = String(cols[colMap.notes]).trim();
+          if (noteText) {
+            data.notes.push({
+              id: api.newId('n'),
+              text: noteText,
+              target: item.id
+            });
+          }
+        }
+      }
+
+      if (added > 0) {
+        api.commit('paste');
+        api.toast(`Pasted ${added} ${added === 1 ? 'row' : 'rows'}`);
+      }
+      return added > 0;
+    }
+
+    // --- Event wiring ---
+    btnCopyAll.addEventListener('click', () => {
+      copyRows(lastTree.visibleRows);
+    });
+
+    selectAllCb.addEventListener('change', () => {
+      if (api.isPresenting()) return;
+      const next = new Set();
+      if (selectAllCb.checked) {
+        for (let i = 0; i < lastTree.visibleRows.length; i++) {
+          next.add(lastTree.visibleRows[i].item.id);
+        }
+      }
+      api.setSelectedIds(next);
+      render();
+    });
+
+    // Quick-add row
+    quickAddInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (api.isPresenting()) return;
+      const val = quickAddInput.value.trim();
+      if (!val) return;
+      e.preventDefault();
+
+      const data = api.getData();
+      if (!Array.isArray(data.items)) data.items = [];
+
+      const today = api.getTodayStr();
+      let start = today;
+      for (let i = data.items.length - 1; i >= 0; i--) {
+        const it = data.items[i];
+        const s = it && (ganttFormatDate(it.start) || ganttFormatDate(it._start));
+        if (s) { start = s; break; }
+      }
+      const end = ganttAddDays(start, 13);
+
+      const newItem = {
+        id: api.newId('t'),
+        kind: 'task',
+        label: api.cleanLabel(val, 'New task'),
+        start,
+        end
+      };
+      data.items.push(newItem);
+      quickAddInput.value = '';
+      api.commit('add');
+      quickAddInput.focus();
+    });
+
+    // Date Lines toggle & add
+    btnMarkersToggle.addEventListener('click', () => {
+      markersOpen = !markersOpen;
+      markersSection.classList.toggle('is-open', markersOpen);
+      btnMarkersToggle.setAttribute('aria-expanded', markersOpen ? 'true' : 'false');
+      markersBody.hidden = !markersOpen;
+    });
+
+    btnAddMarkerRow.addEventListener('click', () => {
+      if (api.isPresenting()) return;
+      const data = api.getData();
+      if (!Array.isArray(data.markers)) data.markers = [];
+      data.markers.push({
+        id: api.newId('m'),
+        label: 'New date line',
+        date: api.getTodayStr(),
+        color: '4'
+      });
+      markersOpen = true;
+      markersSection.classList.add('is-open');
+      btnMarkersToggle.setAttribute('aria-expanded', 'true');
+      markersBody.hidden = false;
+      api.commit('add-marker');
+    });
+
+    // Bulk actions
+    bulkCatSelect.addEventListener('change', () => {
+      if (api.isPresenting()) return;
+      const val = bulkCatSelect.value;
+      if (val === '__placeholder__') return;
+      const sel = api.getSelectedIds();
+      const all = api.getAllItems();
+      const tree = buildTreeModel(all);
+      let changed = 0;
+      for (let i = 0; i < all.length; i++) {
+        const it = all[i];
+        if (it && sel.has(it.id)) {
+          applyCategoryWithSync(it, val, tree);
+          changed++;
+        }
+      }
+      bulkCatSelect.value = '__placeholder__';
+      if (changed > 0) api.commit('bulk-color');
+    });
+
+    btnBulkIndent.addEventListener('click', () => {
+      if (api.isPresenting()) return;
+      const sel = api.getSelectedIds();
+      let any = false;
+      for (let i = 0; i < lastTree.visibleRows.length; i++) {
+        const id = lastTree.visibleRows[i].item.id;
+        if (sel.has(id)) {
+          if (indentItem(id, false)) any = true;
+        }
+      }
+      if (any) api.commit('bulk-indent');
+    });
+
+    btnBulkOutdent.addEventListener('click', () => {
+      if (api.isPresenting()) return;
+      const sel = api.getSelectedIds();
+      let any = false;
+      for (let i = lastTree.visibleRows.length - 1; i >= 0; i--) {
+        const id = lastTree.visibleRows[i].item.id;
+        if (sel.has(id)) {
+          if (outdentItem(id, false)) any = true;
+        }
+      }
+      if (any) api.commit('bulk-outdent');
+    });
+
+    btnBulkCopy.addEventListener('click', () => {
+      const sel = api.getSelectedIds();
+      const rows = lastTree.visibleRows.filter((m) => sel.has(m.item.id));
+      copyRows(rows);
+    });
+
+    btnBulkDelete.addEventListener('click', () => {
+      if (api.isPresenting()) return;
+      const sel = api.getSelectedIds();
+      if (!sel || sel.size === 0) return;
+
+      const data = api.getData();
+      const byId = new Map();
+      (data.items || []).forEach((it) => { if (it && it.id) byId.set(it.id, it); });
+
+      // Reparent surviving children of deleted items to nearest surviving ancestor
+      (data.items || []).forEach((it) => {
+        if (!it || sel.has(it.id)) return;
+        let p = it.parent;
+        const seen = new Set();
+        while (p && sel.has(p) && !seen.has(p)) {
+          seen.add(p);
+          const pObj = byId.get(p);
+          p = pObj ? pObj.parent : null;
+        }
+        if (p && !sel.has(p) && byId.has(p)) it.parent = p;
+        else delete it.parent;
+      });
+
+      const count = sel.size;
+      data.items = (data.items || []).filter((it) => it && !sel.has(it.id));
+      if (Array.isArray(data.dependencies)) {
+        data.dependencies = data.dependencies.filter((d) => d && !sel.has(d.from) && !sel.has(d.to));
+      }
+      if (Array.isArray(data.notes)) {
+        data.notes = data.notes.filter((n) => n && !sel.has(n.target));
+      }
+      api.setSelectedIds(new Set());
+      api.commit('bulk-delete');
+      api.toast(`Deleted ${count} ${count === 1 ? 'item' : 'items'}`);
+    });
+
+    btnBulkClear.addEventListener('click', () => {
+      api.setSelectedIds(new Set());
+      render();
+    });
+
+    // Clipboard paste & copy on hostEl
+    function onHostPaste(e) {
+      if (api.isPresenting()) return;
+      const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+      if (!text) return;
+      if (text.indexOf('\t') === -1 && text.indexOf('\n') === -1) return;
+      e.preventDefault();
+      handleExcelPaste(text);
+    }
+
+    function onHostCopy(e) {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+        if (active.selectionStart !== active.selectionEnd) return; // let native text copy work
+      }
+      const sel = api.getSelectedIds();
+      let rows = [];
+      if (sel && sel.size > 0) {
+        rows = lastTree.visibleRows.filter((m) => sel.has(m.item.id));
+      } else if (active && active.closest && active.closest('#gantt-sheet')) {
+        const tr = active.closest('tr[data-item-id]');
+        if (tr) {
+          const id = tr.getAttribute('data-item-id');
+          const m = lastTree.metaById.get(id);
+          if (m) rows = [m];
+        }
+      }
+      if (rows.length === 0) return;
+
+      const tsv = buildTsvForRows(rows);
+      if (e.clipboardData) {
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', tsv);
+        api.toast(`Copied ${rows.length} ${rows.length === 1 ? 'row' : 'rows'} for Excel`);
+      }
+    }
+
+    hostEl.addEventListener('paste', onHostPaste);
+    hostEl.addEventListener('copy', onHostCopy);
+
+    // --- Roving-tabindex spatial keyboard navigation on #gantt-sheet ---
+    function getNavigableCellsInRow(tr) {
+      return Array.from(tr.querySelectorAll('td[data-gt-cell]')).filter((td) => td.offsetParent !== null);
+    }
+
+    function setRovingFocus(nextCell) {
+      if (!nextCell) return;
+      const prev = tbody.querySelector('td[data-gt-cell][tabindex="0"]');
+      if (prev && prev !== nextCell) prev.tabIndex = -1;
+      nextCell.tabIndex = 0;
+      const tr = nextCell.closest('tr[data-item-id]');
+      activeCellCoord = {
+        itemId: tr ? tr.getAttribute('data-item-id') : null,
+        colIdx: Number(nextCell.getAttribute('data-col-idx')) || 1
+      };
+      nextCell.focus({ preventScroll: true });
+      nextCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    table.addEventListener('keydown', (e) => {
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target];
+      const orig = path[0];
+      if (!orig) return;
+
+      const isEditableOrig = (orig.matches && orig.matches(':read-write')) || orig.tagName === 'SELECT';
+      const cell = orig.closest ? orig.closest('td[data-gt-cell]') : null;
+
+      // Tab / Shift+Tab on Task cell to indent / outdent (only when not editing text)
+      if (e.key === 'Tab' && cell && cell.getAttribute('data-col') === 'task' && !isEditableOrig && !api.isPresenting()) {
+        const tr = cell.closest('tr[data-item-id]');
+        const itemId = tr ? tr.getAttribute('data-item-id') : null;
+        if (itemId) {
+          e.preventDefault();
+          activeCellCoord = { itemId, colIdx: Number(cell.getAttribute('data-col-idx')) || 1 };
+          if (e.shiftKey) outdentItem(itemId, true);
+          else indentItem(itemId, true);
+        }
+        return;
+      }
+
+      if (isEditableOrig) return;
+      if (!cell) return;
+
+      // Arrow keys: spatial navigation (only preventDefault when adjacent cell exists!)
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const rows = Array.from(tbody.querySelectorAll('tr[data-item-id]'));
+        const curTr = cell.closest('tr[data-item-id]');
+        const rIdx = rows.indexOf(curTr);
+        if (rIdx === -1) return;
+        const rowCells = getNavigableCellsInRow(curTr);
+        const cIdx = rowCells.indexOf(cell);
+        if (cIdx === -1) return;
+
+        let targetCell = null;
+        if (e.key === 'ArrowLeft') {
+          if (cIdx > 0) targetCell = rowCells[cIdx - 1];
+        } else if (e.key === 'ArrowRight') {
+          if (cIdx < rowCells.length - 1) targetCell = rowCells[cIdx + 1];
+        } else if (e.key === 'ArrowUp') {
+          if (rIdx > 0) {
+            const upCells = getNavigableCellsInRow(rows[rIdx - 1]);
+            targetCell = upCells[Math.min(cIdx, upCells.length - 1)] || null;
+          }
+        } else if (e.key === 'ArrowDown') {
+          if (rIdx < rows.length - 1) {
+            const dnCells = getNavigableCellsInRow(rows[rIdx + 1]);
+            targetCell = dnCells[Math.min(cIdx, dnCells.length - 1)] || null;
+          }
+        }
+
+        if (targetCell) {
+          e.preventDefault();
+          setRovingFocus(targetCell);
+        }
+        return;
+      }
+
+      // Enter / F2 activates cell editor or control
+      if (e.key === 'Enter' || e.key === 'F2') {
+        if (orig !== cell) return; // button/checkbox already handles Enter
+        e.preventDefault();
+        const col = cell.getAttribute('data-col');
+        if (col === 'task') {
+          const lbl = cell.querySelector('.gt-label-text');
+          if (lbl) lbl.click();
+        } else if (col === 'dur') {
+          const dur = cell.querySelector('.gt-dur-val');
+          if (dur) dur.click();
+        } else if (col === 'note') {
+          const note = cell.querySelector('.gt-note-preview');
+          if (note) note.click();
+        } else if (col === 'start' || col === 'end') {
+          const btn = cell.querySelector('.gt-date-btn');
+          if (btn) btn.click();
+        } else if (col === 'dep') {
+          const btn = cell.querySelector('.gt-dep-btn');
+          if (btn) btn.click();
+        } else if (col === 'type' || col === 'cat') {
+          const sel = cell.querySelector('select');
+          if (sel) sel.focus();
+        } else if (col === 'check') {
+          const cb = cell.querySelector('input[type="checkbox"]');
+          if (cb) cb.click();
+        }
+      }
+    });
+
+    // Update activeCellCoord when clicking into a cell
+    tbody.addEventListener('focusin', (e) => {
+      const cell = e.target && e.target.closest ? e.target.closest('td[data-gt-cell]') : null;
+      if (!cell) return;
+      const prev = tbody.querySelector('td[data-gt-cell][tabindex="0"]');
+      if (prev && prev !== cell) prev.tabIndex = -1;
+      cell.tabIndex = 0;
+      const tr = cell.closest('tr[data-item-id]');
+      activeCellCoord = {
+        itemId: tr ? tr.getAttribute('data-item-id') : null,
+        colIdx: Number(cell.getAttribute('data-col-idx')) || 1
+      };
+    });
+
+    // --- Render helpers ---
+    function buildCategorySelect(currentVal, slots, onChange, disabled) {
+      const wrap = el('div', 'gt-cat-wrap');
+      const dot = el('span', 'gt-cat-dot' + (currentVal ? '' : ' is-none'));
+      if (currentVal) {
+        dot.style.background = api.resolveColor(currentVal);
+      }
+      wrap.appendChild(dot);
+
+      if (disabled) {
+        wrap.appendChild(el('span', '', currentVal ? formatCategoryLabel(currentVal) : 'None'));
+        return wrap;
+      }
+
+      const select = el('select', 'gt-select gt-cat-select');
+      select.setAttribute('aria-label', 'Category');
+      const noneOpt = el('option', '', 'None');
+      noneOpt.value = '';
+      select.appendChild(noneOpt);
+
+      let matched = !currentVal;
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        const opt = el('option', '', s.label || `Color ${s.slot}`);
+        opt.value = String(s.slot);
+        if (String(s.slot) === String(currentVal)) matched = true;
+        select.appendChild(opt);
+      }
+      if (!matched && currentVal) {
+        const customOpt = el('option', '', String(currentVal));
+        customOpt.value = String(currentVal);
+        select.appendChild(customOpt);
+      }
+      select.value = currentVal ? String(currentVal) : '';
+      select.addEventListener('change', () => onChange(select.value));
+      wrap.appendChild(select);
+      return wrap;
+    }
+
+    function renderBulkBar(selectedIds, slots, presenting) {
+      const count = selectedIds ? selectedIds.size : 0;
+      bulkBar.hidden = presenting || count === 0;
+      if (bulkBar.hidden) return;
+
+      bulkCountEl.textContent = `${count} selected`;
+
+      bulkCatSelect.textContent = '';
+      const ph = el('option', '', 'Category...');
+      ph.value = '__placeholder__';
+      bulkCatSelect.appendChild(ph);
+      const noneOpt = el('option', '', 'None');
+      noneOpt.value = '';
+      bulkCatSelect.appendChild(noneOpt);
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        const opt = el('option', '', s.label || `Color ${s.slot}`);
+        opt.value = String(s.slot);
+        bulkCatSelect.appendChild(opt);
+      }
+      bulkCatSelect.value = '__placeholder__';
+    }
+
+    function renderMarkers(slots, presenting) {
+      const markers = api.getMarkers() || [];
+      markersToggleText.textContent = `Date Lines (${markers.length})`;
+      markersTbody.textContent = '';
+
+      if (markers.length === 0) {
+        const tr = el('tr');
+        const td = el('td', 'gt-marker-empty', 'No date lines yet');
+        td.colSpan = presenting ? 3 : 4;
+        tr.appendChild(td);
+        markersTbody.appendChild(tr);
+        return;
+      }
+
+      for (let i = 0; i < markers.length; i++) {
+        const mk = markers[i];
+        if (!mk) continue;
+        const tr = el('tr');
+        tr.setAttribute('data-marker-id', mk.id || '');
+
+        // Label
+        const tdLbl = el('td');
+        const lblSpan = el('span', 'gt-label-text', mk.label || 'Untitled');
+        if (!presenting) {
+          lblSpan.addEventListener('click', () => {
+            startInlineTextEdit(tdLbl, mk.label || '', {
+              replaceTarget: lblSpan,
+              onSave(val) {
+                const cleaned = api.cleanLabel(val, mk.label || 'Date line');
+                if (cleaned !== mk.label) {
+                  mk.label = cleaned;
+                  api.commit('marker-label');
+                }
+              }
+            });
+          });
+        }
+        tdLbl.appendChild(lblSpan);
+        tr.appendChild(tdLbl);
+
+        // Date
+        const tdDate = el('td', 'gt-marker-col-date');
+        if (presenting) {
+          tdDate.appendChild(el('span', 'gt-rolled', mk.date || '—'));
+        } else {
+          const dateBtn = el('button', 'gt-date-btn' + (mk.date ? '' : ' is-empty'), mk.date || 'Set date');
+          dateBtn.type = 'button';
+          dateBtn.addEventListener('click', () => {
+            openDatePicker(dateBtn, {
+              value: mk.date || api.getTodayStr(),
+              allowClear: false,
+              onSelect(val) {
+                if (val && val !== mk.date) {
+                  mk.date = val;
+                  api.commit('marker-date');
+                }
+              }
+            });
+          });
+          tdDate.appendChild(dateBtn);
+        }
+        tr.appendChild(tdDate);
+
+        // Category
+        const tdCat = el('td', 'gt-marker-col-cat');
+        tdCat.appendChild(buildCategorySelect(mk.color || '', slots, (val) => {
+          if (val) mk.color = val;
+          else delete mk.color;
+          api.commit('marker-color');
+        }, presenting));
+        tr.appendChild(tdCat);
+
+        // Delete
+        const tdDel = el('td', 'gt-marker-col-del');
+        if (!presenting) {
+          const delBtn = el('button', 'gt-icon-del');
+          delBtn.type = 'button';
+          delBtn.title = 'Delete date line';
+          delBtn.setAttribute('aria-label', `Delete ${mk.label || 'date line'}`);
+          delBtn.appendChild(makeIcon(api, 'trash', { size: 14 }, '×'));
+          delBtn.addEventListener('click', () => {
+            const data = api.getData();
+            data.markers = (data.markers || []).filter((m) => m && m.id !== mk.id);
+            api.commit('delete-marker');
+          });
+          tdDel.appendChild(delBtn);
+        }
+        tr.appendChild(tdDel);
+
+        markersTbody.appendChild(tr);
+      }
+    }
+
+    // --- Main render() ---
+    function render() {
+      if (destroyed) return;
+      const presenting = Boolean(api.isPresenting());
+      hostEl.classList.toggle('is-presenting', presenting);
+
+      // Remember if focus was inside tbody so we can restore it cleanly
+      const wasFocusInTbody = document.activeElement && tbody.contains(document.activeElement);
+
+      const allItems = api.getAllItems() || [];
+      const tree = buildTreeModel(allItems);
+      lastTree = tree;
+
+      const selectedIds = api.getSelectedIds() || new Set();
+      const slots = api.getPaletteSlots() || [];
+
+      // Summary count
+      const totalCount = tree.orderedAll.length;
+      countBadge.textContent = `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`;
+
+      // Update select-all checkbox state
+      const visCount = tree.visibleRows.length;
+      let selVisCount = 0;
+      for (let i = 0; i < visCount; i++) {
+        if (selectedIds.has(tree.visibleRows[i].item.id)) selVisCount++;
+      }
+      selectAllCb.checked = visCount > 0 && selVisCount === visCount;
+      selectAllCb.indeterminate = selVisCount > 0 && selVisCount < visCount;
+
+      // Ensure activeCellCoord points to a visible row & visible column if possible
+      if (presenting && activeCellCoord.colIdx === 0) {
+        activeCellCoord.colIdx = 1;
+      }
+      if (visCount > 0) {
+        const hasActive = activeCellCoord.itemId && tree.visibleRows.some((m) => m.item.id === activeCellCoord.itemId);
+        if (!hasActive) {
+          activeCellCoord = { itemId: tree.visibleRows[0].item.id, colIdx: 1 };
+        }
+      }
+
+      tbody.textContent = '';
+      const frag = document.createDocumentFragment();
+
+      for (let r = 0; r < visCount; r++) {
+        const meta = tree.visibleRows[r];
+        const it = meta.item;
+        const isGroup = it.kind === 'group';
+        const isMilestone = it.kind === 'milestone';
+        const isParentWithKids = meta.hasChildren;
+        const isSelected = selectedIds.has(it.id);
+
+        const tr = el('tr');
+        tr.setAttribute('data-item-id', it.id);
+        tr.setAttribute('aria-level', String(meta.depth + 1));
+        if (isParentWithKids) {
+          tr.setAttribute('aria-expanded', it.collapsed ? 'false' : 'true');
+        }
+        if (isGroup) tr.classList.add('is-group');
+        if (isSelected) tr.classList.add('is-selected');
+
+        function makeCell(colKey, colIdx, cls) {
+          const td = el('td', cls);
+          td.setAttribute('data-gt-cell', '');
+          td.setAttribute('data-col', colKey);
+          td.setAttribute('data-col-idx', String(colIdx));
+          const isActive = activeCellCoord.itemId === it.id && activeCellCoord.colIdx === colIdx;
+          td.tabIndex = isActive ? 0 : -1;
+          return td;
+        }
+
+        // Col 0: Checkbox
+        const tdCheck = makeCell('check', 0, 'gt-col-check');
+        if (!presenting) {
+          const cb = el('input', 'gt-checkbox');
+          cb.type = 'checkbox';
+          cb.checked = isSelected;
+          cb.setAttribute('aria-label', `Select ${it.label || 'row'}`);
+          cb.addEventListener('change', () => {
+            const next = new Set(api.getSelectedIds());
+            if (cb.checked) next.add(it.id);
+            else next.delete(it.id);
+            api.setSelectedIds(next);
+            render();
+          });
+          tdCheck.appendChild(cb);
+        }
+        tr.appendChild(tdCheck);
+
+        // Col 1 (non-navigable or static): # row number
+        const tdNum = el('td', 'gt-col-num', String(meta.rowNum));
+        tr.appendChild(tdNum);
+
+        // Col 2: Task (indented by depth * 18px, chevron if hasChildren, inline editable label)
+        const tdTask = makeCell('task', 1, 'gt-col-task');
+        const taskWrap = el('div', 'gt-task-cell');
+        taskWrap.style.paddingLeft = `${meta.depth * 18}px`;
+
+        if (isParentWithKids) {
+          const chevBtn = el('button', 'gt-chevron' + (it.collapsed ? ' is-collapsed' : ''));
+          chevBtn.type = 'button';
+          chevBtn.title = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
+          chevBtn.setAttribute('aria-label', it.collapsed ? 'Expand subtasks' : 'Collapse subtasks');
+          chevBtn.appendChild(makeIcon(api, 'chevron-down', { size: 12 }, '▾'));
+          chevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            it.collapsed = !it.collapsed;
+            api.commitSilent();
+          });
+          taskWrap.appendChild(chevBtn);
+        } else {
+          taskWrap.appendChild(el('span', 'gt-chevron-spacer'));
+        }
+
+        const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isGroup ? ' is-group' : ''));
+        if (it.color || it._color) {
+          kindDot.style.background = api.resolveColor(it.color || it._color);
+        }
+        taskWrap.appendChild(kindDot);
+
+        const lblSpan = el('span', 'gt-label-text', it.label || 'Untitled');
+        lblSpan.title = it.label || 'Untitled';
+        if (!presenting) {
+          const openLabelEdit = () => {
+            startInlineTextEdit(tdTask, it.label || '', {
+              replaceTarget: lblSpan,
+              onSave(val) {
+                const cleaned = api.cleanLabel(val, it.label || 'Untitled');
+                if (cleaned !== it.label) {
+                  it.label = cleaned;
+                  api.commit('label');
+                }
+              }
+            });
+          };
+          lblSpan.addEventListener('click', openLabelEdit);
+          lblSpan.addEventListener('dblclick', openLabelEdit);
+        }
+        taskWrap.appendChild(lblSpan);
+        tdTask.appendChild(taskWrap);
+        tr.appendChild(tdTask);
+
+        // Col 3: Type (hidden for groups and parent rows; leaves toggle Task <-> Milestone with 1-click icon)
+        const tdType = makeCell('type', 2, 'gt-col-type');
+        const isGroupOrParent = it.kind === 'group' || isParentWithKids;
+        if (!isGroupOrParent) {
+          const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
+          if (presenting) {
+            const iconWrap = el('span', 'gt-type-icon' + (curKind === 'milestone' ? ' is-milestone' : ''));
+            iconWrap.title = TYPE_LABELS[curKind];
+            iconWrap.setAttribute('aria-label', TYPE_LABELS[curKind]);
+            iconWrap.appendChild(makeTypeSvg(curKind));
+            tdType.appendChild(iconWrap);
+          } else {
+            const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
+            const typeBtn = el('button', 'gt-type-btn' + (curKind === 'milestone' ? ' is-milestone' : ''));
+            typeBtn.type = 'button';
+            typeBtn.setAttribute('data-kind', curKind);
+            typeBtn.title = `${TYPE_LABELS[curKind]} — click to switch to ${TYPE_LABELS[nextKind]}`;
+            typeBtn.setAttribute('aria-label', `${TYPE_LABELS[curKind]} (click to switch to ${TYPE_LABELS[nextKind]})`);
+            typeBtn.appendChild(makeTypeSvg(curKind));
+            typeBtn.addEventListener('click', () => {
+              it.kind = nextKind;
+              if (nextKind === 'milestone') {
+                const s = ganttFormatDate(it.start) || meta.start || api.getTodayStr();
+                it.start = s;
+                it.end = s;
+              } else {
+                const s = ganttFormatDate(it.start) || meta.start;
+                if (s && (!it.end || it.end === s)) {
+                  it.start = s;
+                  it.end = ganttAddDays(s, 6);
+                }
+              }
+              api.commit('kind');
+            });
+            tdType.appendChild(typeBtn);
+          }
+        }
+        tr.appendChild(tdType);
+
+        // Col 4: Start
+        const tdStart = makeCell('start', 3, 'gt-col-start');
+        if (isParentWithKids) {
+          const rolled = el('span', 'gt-rolled', meta.start || '—');
+          rolled.title = 'Auto-calculated from subtasks';
+          tdStart.appendChild(rolled);
+        } else if (presenting) {
+          tdStart.appendChild(el('span', it.start ? 'gt-rolled' : 'gt-muted-dash', it.start || '—'));
+        } else {
+          const startBtn = el('button', 'gt-date-btn' + (it.start ? '' : ' is-empty'), it.start || 'Set date');
+          startBtn.type = 'button';
+          startBtn.setAttribute('data-field', 'start');
+          startBtn.addEventListener('click', () => {
+            openDatePicker(startBtn, {
+              value: it.start || api.getTodayStr(),
+              allowClear: true,
+              onSelect(val) {
+                if (!val) {
+                  delete it.start;
+                  if (it.kind === 'milestone') delete it.end;
+                } else {
+                  it.start = val;
+                  if (it.kind === 'milestone') {
+                    it.end = val;
+                  } else if (it.end && val > it.end) {
+                    it.end = val;
+                  }
+                }
+                api.commit('start');
+              }
+            });
+          });
+          tdStart.appendChild(startBtn);
+        }
+        tr.appendChild(tdStart);
+
+        // Col 5: End
+        const tdEnd = makeCell('end', 4, 'gt-col-end');
+        if (isMilestone) {
+          tdEnd.appendChild(el('span', 'gt-muted-dash', '—'));
+        } else if (isParentWithKids) {
+          const rolled = el('span', 'gt-rolled', meta.end || '—');
+          rolled.title = 'Auto-calculated from subtasks';
+          tdEnd.appendChild(rolled);
+        } else if (presenting) {
+          tdEnd.appendChild(el('span', it.end ? 'gt-rolled' : 'gt-muted-dash', it.end || '—'));
+        } else {
+          const endBtn = el('button', 'gt-date-btn' + (it.end ? '' : ' is-empty'), it.end || 'Set date');
+          endBtn.type = 'button';
+          endBtn.setAttribute('data-field', 'end');
+          endBtn.addEventListener('click', () => {
+            openDatePicker(endBtn, {
+              value: it.end || it.start || api.getTodayStr(),
+              min: it.start || undefined,
+              allowClear: true,
+              onSelect(val) {
+                if (!val) {
+                  delete it.end;
+                } else {
+                  it.end = val;
+                  if (!it.start || val < it.start) it.start = val;
+                }
+                api.commit('end');
+              }
+            });
+          });
+          tdEnd.appendChild(endBtn);
+        }
+        tr.appendChild(tdEnd);
+
+        // Col 6: Duration
+        const tdDur = makeCell('dur', 5, 'gt-col-dur');
+        if (isMilestone) {
+          tdDur.appendChild(el('span', 'gt-muted-dash', '0d'));
+        } else if (isParentWithKids) {
+          const durText = (meta.start && meta.end) ? `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d*` : '—';
+          const rolled = el('span', 'gt-rolled', durText);
+          rolled.title = 'Auto-calculated from subtasks';
+          tdDur.appendChild(rolled);
+        } else {
+          const hasDates = Boolean(meta.start && meta.end);
+          const days = hasDates ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
+          const durStr = days ? `${days}d` : '—';
+          if (presenting) {
+            tdDur.appendChild(el('span', days ? 'gt-rolled' : 'gt-muted-dash', durStr));
+          } else {
+            const durSpan = el('span', 'gt-dur-val', durStr);
+            durSpan.title = 'Click to edit duration (e.g. 14, 14d, 2w)';
+            durSpan.addEventListener('click', () => {
+              startInlineTextEdit(tdDur, days ? `${days}d` : '', {
+                replaceTarget: durSpan,
+                isNum: true,
+                placeholder: 'e.g. 14d or 2w',
+                onSave(val) {
+                  const parsedDays = parseDurationDays(val);
+                  if (!parsedDays) return;
+                  const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
+                  it.start = baseStart;
+                  it.end = ganttAddDays(baseStart, Math.max(1, parsedDays) - 1);
+                  api.commit('duration');
+                }
+              });
+            });
+            tdDur.appendChild(durSpan);
+          }
+        }
+        tr.appendChild(tdDur);
+
+        // Col 7: Depends on
+        const tdDep = makeCell('dep', 6, 'gt-col-dep');
+        const depText = formatDepShorthand(it.id, tree.rowNumById);
+        if (presenting) {
+          tdDep.appendChild(el('span', depText ? 'gt-rolled' : 'gt-muted-dash', depText || '—'));
+        } else {
+          const depBtn = el('button', 'gt-dep-btn' + (depText ? '' : ' is-empty'), depText || '—');
+          depBtn.type = 'button';
+          depBtn.title = depText ? `Depends on: ${depText}` : 'Click to add dependencies';
+          depBtn.addEventListener('click', () => openDepPopover(depBtn, it));
+          tdDep.appendChild(depBtn);
+        }
+        tdDep.addEventListener('mouseenter', () => highlightDepRows(it.id));
+        tdDep.addEventListener('mouseleave', clearDepRowHighlights);
+        tr.appendChild(tdDep);
+
+        // Col 8: Category
+        const tdCat = makeCell('cat', 7, 'gt-col-cat');
+        tdCat.appendChild(buildCategorySelect(it.color || '', slots, (val) => {
+          applyCategoryWithSync(it, val, tree);
+          api.commit('color');
+        }, presenting));
+        tr.appendChild(tdCat);
+
+        // Col 9: Notes
+        const tdNote = makeCell('note', 8, 'gt-col-note');
+        const noteObj = api.getNoteForItem(it.id);
+        const noteText = noteObj && noteObj.text ? noteObj.text : '';
+        if (presenting) {
+          tdNote.appendChild(el('span', noteText ? 'gt-note-preview' : 'gt-muted-dash', noteText || '—'));
+        } else {
+          const noteSpan = el('span', 'gt-note-preview' + (noteText ? '' : ' is-empty'), noteText || 'Add note...');
+          noteSpan.title = noteText || 'Click to add note';
+          noteSpan.addEventListener('click', () => {
+            startInlineTextEdit(tdNote, noteText, {
+              replaceTarget: noteSpan,
+              placeholder: 'Enter note...',
+              onSave(val) {
+                const next = String(val || '').trim();
+                if (next !== noteText) {
+                  api.setNoteForItem(it.id, next);
+                }
+              }
+            });
+          });
+          tdNote.appendChild(noteSpan);
+        }
+        tr.appendChild(tdNote);
+
+        frag.appendChild(tr);
+      }
+
+      tbody.appendChild(frag);
+
+      // Restore cell focus if focus was inside tbody prior to render
+      if (wasFocusInTbody && activeCellCoord.itemId) {
+        const activeTd = tbody.querySelector('td[data-gt-cell][tabindex="0"]');
+        if (activeTd) activeTd.focus({ preventScroll: true });
+      }
+
+      renderMarkers(slots, presenting);
+      renderBulkBar(selectedIds, slots, presenting);
+    }
+
+    function focusItem(id) {
+      if (destroyed || !id) return;
+      // Expand any collapsed ancestors so the item is visible
+      const tree = buildTreeModel(api.getAllItems());
+      let cur = tree.validParent.get(id);
+      let expanded = false;
+      const seen = new Set();
+      while (cur && !seen.has(cur)) {
+        seen.add(cur);
+        const pObj = tree.byId.get(cur);
+        if (pObj && pObj.collapsed) {
+          pObj.collapsed = false;
+          expanded = true;
+        }
+        cur = tree.validParent.get(cur);
+      }
+      if (expanded) api.commitSilent();
+      else render();
+
+      const tr = tbody.querySelector(`tr[data-item-id="${CSS && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"')}"]`);
+      if (!tr) return;
+      tr.scrollIntoView({ block: 'center', inline: 'nearest' });
+      tr.classList.add('is-flash');
+      setTimeout(() => tr.classList.remove('is-flash'), 900);
+
+      const taskCell = tr.querySelector('td[data-gt-cell][data-col="task"]');
+      if (taskCell) setRovingFocus(taskCell);
+    }
+
+    function destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      closeDepPopover();
+      hostEl.removeEventListener('paste', onHostPaste);
+      hostEl.removeEventListener('copy', onHostCopy);
+      hostEl.textContent = '';
+    }
+
+    return {
+      render,
+      focusItem,
+      destroy
+    };
+  }
+
+  window.GanttTable = {
+    create
+  };
+})();
 // --- GANTT DIAGRAM PLUGIN ---
 // Renders chartData (diagramType "gantt") laid out by assets/types/gantt/engine.js.
 // Split-pane workspace: resizable left task tree + scrollable right calendar timeline with sticky two-tier header.
@@ -7235,6 +9810,8 @@ function toMermaid(data, opts) {
   const btnInViewHintApply = document.getElementById('btn-inview-hint-apply');
   const btnInViewHintDismiss = document.getElementById('btn-inview-hint-dismiss');
   const emptyFilterEl = document.getElementById('gantt-empty-filter');
+  const modeSwitchEl = document.getElementById('gantt-mode-switch');
+  const tableViewEl = document.getElementById('gantt-table-view');
 
   const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
   const VIEW_LABELS = {
@@ -7250,7 +9827,14 @@ function toMermaid(data, opts) {
   }
   const _initView = initialViewMode();
 
+  function initialDisplayMode() {
+    const param = new URLSearchParams(window.location.search).get('mode');
+    return param === 'table' ? 'table' : 'timeline';
+  }
+
   // --- STATE ---
+  let displayMode = initialDisplayMode(); // 'timeline' | 'table'
+  let tableCtrl = null;            // GanttTable controller instance
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
   let lastSelItemId = null;        // anchor for Shift+click range selection
   let selMarkerId = null;          // selected chart-wide vertical marker ID
@@ -9016,14 +11600,20 @@ function toMermaid(data, opts) {
     }
     const target = ancestors[ancestors.length - 1];
     const breadcrumb = ancestors.map((a) => a.label || a.id).join(' › ');
-    stickyPhaseEl.dataset.targetId = target.id;
-    stickyPhaseEl.textContent = '';
-    const dot = htmlEl('span', 'gantt-sticky-phase-dot');
     const col = effectiveColor(target);
-    if (col) dot.style.background = `var(--c-${col}-border, var(--primary))`;
-    const lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
-    const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
-    stickyPhaseEl.append(dot, lbl, cue);
+    let dot = stickyPhaseEl.querySelector('.gantt-sticky-phase-dot');
+    let lbl = stickyPhaseEl.querySelector('.gantt-sticky-phase-label');
+    if (!dot || !lbl) {
+      stickyPhaseEl.textContent = '';
+      dot = htmlEl('span', 'gantt-sticky-phase-dot');
+      lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
+      const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
+      stickyPhaseEl.append(dot, lbl, cue);
+    } else if (lbl.textContent !== breadcrumb) {
+      lbl.textContent = breadcrumb;
+    }
+    stickyPhaseEl.dataset.targetId = target.id;
+    dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : '';
     stickyPhaseEl.hidden = false;
   }
 
@@ -9162,9 +11752,39 @@ function toMermaid(data, opts) {
     }, 220);
   }
 
+  function syncDisplayModeUi() {
+    if (root) root.dataset.mode = displayMode;
+    document.body.dataset.ganttMode = displayMode;
+    if (tableViewEl) tableViewEl.hidden = displayMode !== 'table';
+    if (modeSwitchEl) {
+      modeSwitchEl.querySelectorAll('[data-gantt-mode]').forEach((btn) => {
+        const active = btn.dataset.ganttMode === displayMode;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
+  }
+
+  function setDisplayMode(nextMode) {
+    const mode = nextMode === 'table' ? 'table' : 'timeline';
+    if (mode === displayMode) return;
+    removeActionBar();
+    if (window.GanttDatePicker) window.GanttDatePicker.close();
+    displayMode = mode;
+    syncDisplayModeUi();
+    render();
+  }
+
   // --- MAIN RENDER ---
   function render() {
     applyLayout();
+    syncDisplayModeUi();
+    if (displayMode === 'table') {
+      if (tableCtrl && typeof tableCtrl.render === 'function') tableCtrl.render();
+      renderHolidaysList();
+      if (typeof showZoom === 'function') showZoom();
+      return;
+    }
     const range = chartData._range;
     const zoomKey = currentZoom();
     if (root) root.dataset.zoom = zoomKey;
@@ -9631,6 +12251,19 @@ function toMermaid(data, opts) {
         pop.append(row2);
       }
 
+      if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+        window.GanttDatePicker.attachInput(inStart, {
+          onChange: (val) => {
+            if (inEnd && val && inEnd.value && inEnd.value < val) inEnd.value = val;
+          }
+        });
+        if (inEnd) {
+          window.GanttDatePicker.attachInput(inEnd, {
+            min: () => ganttFormatDate(inStart.value) || ''
+          });
+        }
+      }
+
       const apply = htmlEl('button', 'btn gantt-pop-apply', 'Apply');
       apply.type = 'button';
       apply.addEventListener('click', () => {
@@ -9722,6 +12355,9 @@ function toMermaid(data, opts) {
       const input = htmlEl('input', 'gantt-pop-input');
       input.type = 'date';
       input.value = m.date || getTodayStr();
+      if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+        window.GanttDatePicker.attachInput(input);
+      }
       const apply = htmlEl('button', 'btn gantt-pop-apply', 'Save');
       apply.type = 'button';
       apply.addEventListener('click', () => {
@@ -9838,6 +12474,7 @@ function toMermaid(data, opts) {
       const p = itemById(parentId);
       if (p) {
         it.parent = p.id;
+        if (p.kind === 'task') p.kind = 'group';
         if (p.collapsed) delete p.collapsed;
       }
     }
@@ -9845,8 +12482,12 @@ function toMermaid(data, opts) {
     selectSingleItem(it.id);
     render();
     updateStatus(true);
-    const row = els.rows.get(it.id);
-    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    if (displayMode === 'table' && tableCtrl) {
+      tableCtrl.focusItem(it.id);
+    } else {
+      const row = els.rows.get(it.id);
+      if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    }
   }
 
   function addSubtask(parentId, opts) {
@@ -9875,8 +12516,12 @@ function toMermaid(data, opts) {
     selectSingleItem(it.id);
     render();
     updateStatus(true);
-    const row = els.rows.get(it.id);
-    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    if (displayMode === 'table' && tableCtrl) {
+      tableCtrl.focusItem(it.id);
+    } else {
+      const row = els.rows.get(it.id);
+      if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    }
   }
 
   function addVerticalMarker(opts) {
@@ -10574,11 +13219,18 @@ function toMermaid(data, opts) {
     }
   }
 
+  let expectedTreeScrollTop = null;
+  let expectedTimelineScrollTop = null;
   if (timeline && treeEl) {
     timeline.addEventListener('scroll', () => {
-      if (!isSyncingScroll) {
+      if (expectedTimelineScrollTop !== null && timeline.scrollTop === expectedTimelineScrollTop) {
+        expectedTimelineScrollTop = null;
+      } else if (!isSyncingScroll) {
         isSyncingScroll = true;
-        if (treeEl.scrollTop !== timeline.scrollTop) treeEl.scrollTop = timeline.scrollTop;
+        if (treeEl.scrollTop !== timeline.scrollTop) {
+          treeEl.scrollTop = timeline.scrollTop;
+          expectedTreeScrollTop = treeEl.scrollTop;
+        }
         if (actionBarEl) removeActionBar();
         isSyncingScroll = false;
       }
@@ -10588,9 +13240,16 @@ function toMermaid(data, opts) {
     }, { passive: true });
 
     treeEl.addEventListener('scroll', () => {
+      if (expectedTreeScrollTop !== null && treeEl.scrollTop === expectedTreeScrollTop) {
+        expectedTreeScrollTop = null;
+        return;
+      }
       if (isSyncingScroll) return;
       isSyncingScroll = true;
-      if (timeline.scrollTop !== treeEl.scrollTop) timeline.scrollTop = treeEl.scrollTop;
+      if (timeline.scrollTop !== treeEl.scrollTop) {
+        timeline.scrollTop = treeEl.scrollTop;
+        expectedTimelineScrollTop = timeline.scrollTop;
+      }
       if (actionBarEl) removeActionBar();
       isSyncingScroll = false;
       scheduleScrollOverlays();
@@ -10839,6 +13498,30 @@ function toMermaid(data, opts) {
       if (holNameInput) holNameInput.value = '';
       render();
       updateStatus(true);
+    });
+  }
+  if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+    if (holDateInput) {
+      window.GanttDatePicker.attachInput(holDateInput, {
+        allowClear: true,
+        onChange: (val) => {
+          if (holEndInput && val && holEndInput.value && holEndInput.value < val) holEndInput.value = val;
+        }
+      });
+    }
+    if (holEndInput) {
+      window.GanttDatePicker.attachInput(holEndInput, {
+        allowClear: true,
+        min: () => (holDateInput ? ganttFormatDate(holDateInput.value) : '') || ''
+      });
+    }
+  }
+
+  if (modeSwitchEl) {
+    modeSwitchEl.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-gantt-mode]') : null;
+      if (!btn) return;
+      setDisplayMode(btn.dataset.ganttMode);
     });
   }
 
@@ -11092,10 +13775,11 @@ function toMermaid(data, opts) {
 
   // Close popovers / commit note on outside click
   window.addEventListener('pointerdown', (e) => {
-    if (floatingPop && !floatingPop.contains(e.target) && (!actionBarEl || !actionBarEl.contains(e.target))) {
+    const inCalPop = Boolean(e.target && e.target.closest && e.target.closest('.gantt-cal-pop'));
+    if (!inCalPop && floatingPop && !floatingPop.contains(e.target) && (!actionBarEl || !actionBarEl.contains(e.target))) {
       closeFloatingPop();
     }
-    if (holidaysPop && !holidaysPop.hidden && !holidaysPop.contains(e.target) && (!btnHolidays || !btnHolidays.contains(e.target))) {
+    if (!inCalPop && holidaysPop && !holidaysPop.hidden && !holidaysPop.contains(e.target) && (!btnHolidays || !btnHolidays.contains(e.target))) {
       toggleHolidaysPop(false);
     }
     if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
@@ -11116,6 +13800,10 @@ function toMermaid(data, opts) {
     if (connectState) {
       connectState = null;
       if (root) root.classList.remove('is-connecting');
+      cancelled = true;
+    }
+    if (window.GanttDatePicker && window.GanttDatePicker.isOpen()) {
+      window.GanttDatePicker.close();
       cancelled = true;
     }
     if (floatingPop) {
@@ -11441,6 +14129,72 @@ function toMermaid(data, opts) {
     delete d.layout;
     slotColors(d, 'items', 'markers');
     return d;
+  }
+
+  // --- TABLE VIEW CONTROLLER ---
+  if (tableViewEl && window.GanttTable && typeof window.GanttTable.create === 'function') {
+    tableCtrl = window.GanttTable.create(tableViewEl, {
+      getData: () => chartData,
+      getAllItems: () => itemsList(),
+      getVisibleItems: () => visibleItems(),
+      getMarkers: () => markersList(),
+      getDeps: () => depsList(),
+      getNotes: () => notesList(),
+      getColorKey: () => (chartData && chartData.colorKey) || {},
+      getSelectedIds: () => selItems,
+      setSelectedIds: (nextSet) => {
+        selItems = nextSet instanceof Set ? new Set(nextSet) : new Set(nextSet || []);
+        selMarkerId = null;
+        selDepKey = null;
+        selNoteId = null;
+      },
+      isPresenting: () => presenting(),
+      commit: () => {
+        render();
+        updateStatus(true);
+      },
+      commitSilent: () => {
+        render();
+      },
+      newId: (prefix) => newId(prefix),
+      getTodayStr: () => getTodayStr(),
+      cleanLabel: (val, fallback) => cleanLabel(val, fallback),
+      getNoteForItem: (id) => notesList().find((n) => n && n.target === id) || null,
+      setNoteForItem: (id, text) => {
+        const trimmed = String(text == null ? '' : text).trim();
+        if (!Array.isArray(chartData.notes)) chartData.notes = [];
+        const existing = chartData.notes.find((n) => n && n.target === id);
+        if (!trimmed) {
+          if (existing) {
+            chartData.notes = chartData.notes.filter((n) => n !== existing);
+            if (!chartData.notes.length) delete chartData.notes;
+          }
+        } else if (existing) {
+          existing.text = trimmed;
+        } else {
+          chartData.notes.push({ id: newId('n'), text: trimmed, target: id });
+        }
+        render();
+        updateStatus(true);
+      },
+      getPaletteSlots: () => {
+        const ck = (chartData && chartData.colorKey) || {};
+        const out = [];
+        for (let i = 1; i <= 9; i++) {
+          const slot = String(i);
+          const sw = swatchColors(slot);
+          const lbl = (ck[slot] && String(ck[slot]).trim()) || `Color ${slot}`;
+          out.push({ slot, label: lbl, color: sw.solid || sw.border || sw.fill });
+        }
+        return out;
+      },
+      resolveColor: (slot) => {
+        const sw = swatchColors(slot || '1');
+        return sw.solid || sw.border || sw.fill;
+      },
+      toast: (msg) => ui.toast(msg),
+      icon: (name, opts) => ui.iconEl(name, opts)
+    });
   }
 
   // --- REGISTER WITH THE SHELL ---
