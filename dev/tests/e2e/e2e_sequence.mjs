@@ -254,10 +254,12 @@ try {
   await t.press('Enter');
   t.check('the + between two participant boxes inserts one there, name in edit',
     JSON.parse(await t.ev(names)).join() === [order[0].name, order[1].name, 'Fraud', order[2].name, order[3].name].join(), await t.ev(names));
-  // The participant kind from the action bar
+  // The participant icon from the action bar (shared icon picker)
   await t.clickOn('.seq-participant[data-node-id="p3"]');
-  await t.clickOn('.seq-ab-btn[data-value="database"]');
-  t.check('the action bar sets the participant kind (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
+  await t.clickOn('.seq-ab-btn[data-act="icon"]');
+  await t.type('database');
+  await t.clickOn('#seq-icons button[data-icon="database"]');
+  t.check('the action bar sets the participant icon (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
 
   // Delete a participant with messages: asks first
   await t.open(page);
@@ -1154,6 +1156,36 @@ try {
   const drag = Date.now() - t0;
   await t.press('Escape');
   t.check('a 40-move message drag over the long page runs without page errors', t.errors.length === 0 && drag < 8000, `${drag}ms ${t.errors.join(' | ')}`);
+  });
+
+  // --- Shared C4-style icon picker & note-next-to-delete order ---
+  await t.section('icon-picker-and-note', async () => {
+  await t.open(page);
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  const pActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('participant bar uses the shared Icon button (not inline pkind buttons) and places note right before delete',
+    pActs.includes('icon') && !pActs.includes('pkind') && pActs[pActs.length - 2] === 'note' && pActs[pActs.length - 1] === 'delete', JSON.stringify(pActs));
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  const pickerOpen = await t.ev(`(() => { const p = document.getElementById('seq-icons'); return !!(p && p.querySelector('#seq-icon-search') && p.querySelectorAll('button[data-icon]').length > 20); })()`);
+  t.check('clicking Icon opens the shared #seq-icons picker with search and grouped icons', pickerOpen);
+  await t.type('postgresql');
+  await t.check('searching postgresql shows logo:devicon/postgresql in sequence picker',
+    await t.ev(`!!document.querySelector('#seq-icons button[data-icon="logo:devicon/postgresql"]')`));
+  await t.clickOn('#seq-icons button[data-icon="logo:devicon/postgresql"]');
+  const hasLogo = await t.ev(`!!document.querySelector('.seq-participant[data-node-id="p2"] .seq-kind-icon.is-logo svg')`);
+  d = await saved();
+  t.check('picking a tech logo renders it on the participant pill and saves p.icon',
+    hasLogo && d.participants[1].icon === 'logo:devicon/postgresql', JSON.stringify([hasLogo, d.participants[1]]));
+  // Picking Default clears p.icon
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  await t.clickOn('#seq-icons button[data-icon=""]');
+  d = await saved();
+  t.check('picking Default clears p.icon', d.participants[1].icon === undefined, JSON.stringify(d.participants[1]));
+  // Message bar also puts note right before delete
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  const mActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('message bar places note right before delete',
+    mActs[mActs.length - 2] === 'note' && mActs[mActs.length - 1] === 'delete', JSON.stringify(mActs));
   });
 } catch (err) {
   console.error('[ERROR]', err.message);

@@ -169,6 +169,23 @@
       function kindIcon(kind, size) {
         return ui.iconEl(hasKindIcon(kind) ? kindIconName(kind) : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
       }
+      const participantIconKey = (p, rail) => {
+        if (p.icon) {
+          if (String(p.icon).startsWith('logo:') && ui.hasLogo(p.icon.slice(5))) return p.icon;
+          if (ICONS[p.icon] !== undefined) return p.icon;
+        }
+        return hasKindIcon(p.kind) ? kindIconName(p.kind) : rail ? 'kind-system' : '';
+      };
+      function participantIconEl(p, rail) {
+        const key = participantIconKey(p, rail);
+        if (!key) return null;
+        if (key.startsWith('logo:')) {
+          const wrap = htmlEl('span', 'seq-kind-icon is-logo');
+          wrap.innerHTML = ui.logo(key.slice(5), { size: rail ? 14 : 16 });
+          return wrap;
+        }
+        return ui.iconEl(key, { size: rail ? 14 : 16, class: 'seq-kind-icon' });
+      }
 
       const SEQ_FLIP_SPECS = [
         { selector: '.seq-participant[data-node-id]', key: 'nodeId', mode: 'clip' },
@@ -537,12 +554,13 @@
             seqAttrs(cap.el, { x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom });
             seqPaint(cap, sw);
           }
-          const icon = hasKindIcon(p.kind) ? p.kind : rail ? 'system' : '';   // which kind icon the box holds ('' none)
+          const icon = participantIconKey(p, rail);   // which icon/logo the box holds ('' none)
           const boxR = seqPut(htmlL, `pb:${pid}`, `${rail ? 'r' : 'p'}:${icon}`,
             `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, (c, refs) => {
               const box = htmlEl('div', c);
               box.dataset.nodeId = pid;
-              if (icon) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
+              const iconEl = participantIconEl(p, rail);
+              if (iconEl) box.appendChild(iconEl);
               box.appendChild(refs.name = htmlEl('span', 'seq-participant-name'));
               if (rail) {
                 const tip = refs.tip = htmlEl('span', 'seq-rail-tip');
@@ -1861,11 +1879,13 @@
         const sameBar = barKey !== null && barKey === lastBarKey;
         lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
+          ui.closeIconPicker();
           if (oldBar) motion.hideBar(oldBar);
           ui.clearBars();
           seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
           return;
         }
+        if (!sameBar) ui.closeIconPicker();
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
         ui.clearBars();
         seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
@@ -1887,9 +1907,9 @@
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note under this message, over its sender'));
           bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected message (or Shift+click range) in a frame'));
           bar.appendChild(delSep());
+          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note under this message, over its sender'));
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24 - (self ? 0 : ((m.lab || 1) - 1) * SQ.LABEL_LINE), bottom: m.y + 10 };
@@ -1905,9 +1925,11 @@
             bar.appendChild(abButton('show', `${ui.icon('eye')}`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
-          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
+          const iconBtn = abButton('icon', `${ui.icon('shapes', { size: 'sm' })}<span>Icon</span>`, 'Icon: pick an icon or tech logo');
+          iconBtn.removeAttribute('title');
+          iconBtn.dataset.menu = '';
+          iconBtn.setAttribute('aria-haspopup', 'dialog');
+          bar.appendChild(iconBtn);
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(swatchPicker(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', white: WHITE }));
           if (p.column) {
@@ -1915,6 +1937,7 @@
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
           }
           bar.appendChild(delSep());
+          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
           bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
           // With lifespans: drag the start box or the cap outward to make the lifeline begin earlier or end later
           const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
@@ -2020,7 +2043,27 @@
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
           const p = partById(sel.id);
-          if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
+          if (p && act === 'icon') {
+            const barEl = el && el.closest('.seq-actionbar');
+            const a = el.getBoundingClientRect(), br = barEl ? barEl.getBoundingClientRect() : a;
+            const anchor = br.height ? { left: a.left, right: a.right, top: br.top, bottom: br.bottom } : a;
+            const missing = [...new Set(chartData.participants.map((x) => x.icon).filter((n) => n && ICONS[n] === undefined && !ui.hasLogo(String(n).slice(5))))];
+            ui.openIconPicker(anchor, {
+              id: 'seq-icons',
+              searchId: 'seq-icon-search',
+              trigger: el,
+              current: p.icon || '',
+              defaultIcon: hasKindIcon(p.kind) ? kindIconName(p.kind) : 'kind-system',
+              defaultLabel: hasKindIcon(p.kind) ? `Default for ${p.kind}` : 'None (plain pill)',
+              missing,
+              missingText: `Missing icon pack: ${missing.join(', ')}. Those participants show the icon of their kind.`,
+              onPick: (name) => {
+                if ((p.icon || '') === name) return;
+                if (name) p.icon = name; else delete p.icon;
+                relayout();
+              }
+            });
+          } else if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
           else if (p && act === 'own') { delete p.column; relayout(); }
           else if (p && act === 'show') { expandFramesHiding([p.id]); relayout(); }
         } else if (sel.kind === 'fragment') {
@@ -2778,7 +2821,7 @@
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || seqDrag || !seqSel) return;
         if (document.activeElement && document.activeElement.isContentEditable) return;
-        if (ui.closeConfirm()) return;
+        if (ui.closeIconPicker(true) || ui.closeConfirm()) return;
         select(null);
       }, true);
       window.addEventListener('keydown', (e) => {
@@ -2916,14 +2959,14 @@
         isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
         clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
         cancelInteraction() {
-          if (ui.closeConfirm()) return true;
+          if (ui.closeIconPicker(true) || ui.closeConfirm()) return true;
           if (!seqDrag) return false;
           endSeqDrag();
           render();
           return true;
         },
         hasSelection: () => !!seqSel,
-        onViewChange() { ui.closeConfirm(); pinParticipants(); },
+        onViewChange() { ui.closeIconPicker(); ui.closeConfirm(); pinParticipants(); },
         // The colour key sits above the card
         contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
         deleteSelection,
