@@ -82,6 +82,11 @@
     #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
     #seq-html .frame-tag .frame-chev { vertical-align: baseline; }
     #seq-html .frame-summary { translate: -50% -50%; }
+    .seq-frag-focus { position: relative; }
+    .seq-frag-focus::before {
+      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+      width: var(--hit-min, 24px); height: var(--hit-min, 24px);
+    }
     .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
     #btn-show-all[hidden] { display: none; }

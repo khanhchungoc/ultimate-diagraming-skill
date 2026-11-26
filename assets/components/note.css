@@ -150,9 +150,13 @@
       color: var(--note-accent);
     }
     .note-add:hover { background: var(--note-bg); border-style: solid; }
-    .note-del::after, .note-badge::after { content: ''; position: absolute; inset: -3px; }
+    .note-del::after { content: ''; position: absolute; inset: -3px; }
+    /* Invisible hit area of at least 24x24 (WCAG 2.5.8), centred on the chip */
+    .note-badge::after, .note-add::after {
+      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+      width: var(--hit-min, 24px); height: var(--hit-min, 24px);
+    }
     .note-link::after { content: ''; position: absolute; inset: -2px; }
-    .note-add::after { content: ''; position: absolute; inset: -1px; }
     .note-badge svg, .note-add svg { display: block; }
     /* With every note on show the badges would only repeat them */
     .notes-on .note-badge { display: none; }
