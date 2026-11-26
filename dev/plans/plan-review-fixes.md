@@ -13,6 +13,7 @@ Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating
 | 5 | Shared UI elements across types | L | Medium | Yes (types converge on one look) |
 | 6 | Shared notes module | M | Medium | No |
 | 7 | Smaller pages | S | Low | No |
+| 9 | Phone toolbar: overflow into More (before Phase 8) | M | Low | Yes (on narrow screens only) |
 | 8 | Keyboard access for items | L | Medium | Focus rings only |
 
 ## Phase 1: Quick WCAG fixes
@@ -104,6 +105,25 @@ Notes logic is copied in c4, erd, flowchart, usecase and gantt (`commitNote`, `r
 1. In `assemble_page` (`scripts/layout_engine.py`), strip whole-line `//` comments and leading indentation from bundled JS, and `/* */` comments from CSS. No minifier dependency. Skip template literals and strings (use a tokenizer that tracks quotes and backticks, not a regex).
 2. Expected: about 0.9 MB to about 0.6 MB per page uncompressed.
 3. Regenerate and re-sign samples; e2e suites run against the stripped pages.
+
+## Phase 9 (runs before Phase 8): Phone toolbar overflows into a More menu
+
+Found by `dev/tests/e2e/e2e_device.mjs` checks (2026-11-26): the bottom dock is wider than the screen on phones, so its last buttons are cut off. Measured dock width vs screen: Gantt 521 px on every phone (320, 390, 412 px wide); ERD 387 px at 390 px and below; sequence 344 px at 320 px. Flowchart, usecase and c4 fit. The dock must not scroll sideways (`dock.css`: overflow would clip the popovers that open above it), so buttons that do not fit fold into a More menu.
+
+1. **One shared mechanism in the shell, not per type:** a `More` button at the dock's end (reuse the header's `#btn-more` / `.menu` pattern and `ui` factory style) that appears only when the dock would overflow. Measure with a `ResizeObserver` on the dock (no fixed breakpoints): while the dock is wider than its space, move the lowest-priority buttons into the menu, last first; move them back when there is room.
+2. **Priority per button, declared in each type's `toolbar.html`** (for example `data-dock-priority="1..9"`, lower stays longest). Primary actions (Add menu, Notes, Auto-Tidy, Undo/Redo zone) never fold. Proposed fold order: Gantt Legend, Weekends, Holidays, Today, view filter, dependencies; ERD Auto-Tidy label, Types, Columns; sequence Lifespans, Details, Numbers. Final order agreed with the user before implementing.
+3. **A folded button keeps working:** the menu item calls the same button (`.click()` on the original, which stays in the DOM, hidden), keeps its label, icon, pressed state (`aria-pressed` / `aria-checked` on the menu item) and disabled state. A toggle's state change updates both.
+4. **Accessibility:** menu `role="menu"`, items `menuitem` / `menuitemcheckbox`, arrow-key navigation and Escape like the header menu; 24 px targets; focus returns to More on close.
+5. **Motion:** opening morphs from the More button (as the header menu does), never a fade.
+6. **Tests:** extend `e2e_device.mjs` to assert no dock child is outside the screen for every type at 320, 390 and 412 px, that every folded action works from More, and that toggles show their state; add the More button to the components gallery and `dev/docs/ui-elements.md`.
+
+Not implemented yet (user decision 2026-11-26: use a More menu, plan only).
+
+## Known issues found during Wave C (not yet planned)
+
+- **Gantt opens at the wrong place below about 1,280 px wide** (desktop and touch, already on `stg`): the example roadmap opens scrolled to 2022 with every bar off-screen. Setting the timeline's `scrollLeft` from a script also snaps back, so the cause is probably in how Gantt anchors its timeline scroll. Investigate after the Wave C Gantt stream lands.
+- **Gantt never animated note removal** (already on `stg`): being fixed in the Wave C Gantt stream (pass `anchorEl` to the shared notes controller).
+- **Sequence restores an emptied note's old text** instead of removing it like the other types: changes with the Wave C sequence notes migration.
 
 ## Phase 8 (lowest priority): Keyboard access for diagram items
 
