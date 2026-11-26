@@ -25,7 +25,7 @@ const ACTIONS = {
   flowchart: { prep: async (t) => { await t.ev(t.drag('.flow-node')); await t.ev(t.key('Delete')); await sleep(800); }, run: (t) => t.key('z', { ctrlKey: true }), label: 'undo a delete (57 steps)' },
   sequence: { run: () => `document.querySelector('.seq-frag-focus').click()`, label: 'Focus a fragment' },
   erd: { run: () => `document.getElementById('btn-columns').click()`, label: 'Columns view toggle (30 tables)' },
-  usecase: { run: () => `document.querySelector('.uc-subject .frame-chev').click()`, label: 'collapse a subject' },
+  usecase: { run: () => `document.querySelector('.uc-subject .chevron').click()`, label: 'collapse a subject' },
 };
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });

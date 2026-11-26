@@ -700,7 +700,7 @@ try {
     (await count('.seq-msg-label')) === 42 && (await count('.frame-tag')) === 7 && (await count('.note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
   // Collapse a phase: its messages hide, the numbers stay
   const num = (id) => t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${id}"] .seq-msg-num')?.textContent`);
-  await t.clickOn('.frame-tag[data-frag-id="f1"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .chevron');
   const sum = await t.ev(`document.querySelector('.frame-summary')?.textContent`);
   t.check('collapsing a frame hides its messages behind one summary row and keeps every step number',
     sum === '9 messages hidden (steps 2–10)' && (await count('.seq-msg-label')) === 33 && (await num('m11')) === '11' && (await num('m1')) === '1', `${sum} ${await count('.seq-msg-label')}`);
@@ -1013,7 +1013,7 @@ try {
   const dimmed = await count('.search-dim');
   await t.clickOn('#btn-present');
   t.check('sequence: entering Present closes and clears the search', dimmed > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   await t.press('Escape');
   t.check('sequence: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
@@ -1030,7 +1030,7 @@ try {
       && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
   }
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   const presentCollapsed = await count('.frame-summary');
   const badge = await t.ev(`document.getElementById('save-status').textContent`);
   await t.clickOn('.frame-summary');
