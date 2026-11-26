@@ -43,7 +43,7 @@ const ER = {
   PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
   CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)
   SELF_CTRL: 60,                                 // self-reference loop: right side out, top in
-  LABEL_H: 22, LABEL_X: 12, LABEL_CHAR_W: TOKENS.font.metrics.edgeLabel,
+  LABEL_H: 22, LABEL_X: 6, LABEL_MAX_W: 140, LABEL_CHAR_W: TOKENS.font.metrics.edgeLabel,
   MARGIN: 40, CLEAR: 24                          // canvas margin; clearance a curve keeps from a table it passes
 };
 
@@ -143,7 +143,7 @@ function erNeedOf(data, sizes) {
   (data.relationships || []).forEach((r) => {
     const a = idx[r.from], b = idx[r.to];
     if (a === undefined || b === undefined || a === b) return;
-    const g = Math.max(ER.REL_GAP, r.label ? erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X + ER.REL_LABEL_GAP : 0);
+    const g = Math.max(ER.REL_GAP, r.label ? Math.min(ER.LABEL_MAX_W, erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X) + ER.REL_LABEL_GAP : 0);
     need[a * n + b] = need[b * n + a] = Math.max(need[a * n + b], g);
   });
   return need;
@@ -744,7 +744,7 @@ function erRouteAll(data, boxes, quick, base, useAlt) {
     const overlapsBox = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
     const placeLabel = (L, skip) => {
       const r = L.r, c = L.c;
-      const w = erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X, h = ER.LABEL_H;
+      const w = Math.min(ER.LABEL_MAX_W, erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X), h = ER.LABEL_H;
       let best = null;
       for (const u of [0.5, 0.42, 0.58, 0.34, 0.66, 0.25, 0.75]) {
         const mid = evalC(c, u), p1 = evalC(c, Math.min(1, u + 0.02)), p0 = evalC(c, Math.max(0, u - 0.02));

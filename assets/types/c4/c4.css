@@ -11,8 +11,9 @@
     /* --- Groups: a dashed frame with its tag; collapsed, one system tile --- */
     .c4-group { position: absolute; box-sizing: border-box; pointer-events: none; color: var(--text-main); }   /* no z-index: the frame paints under the arrows, its tag (25) over them */
     .c4-group.is-frame {
+      pointer-events: auto;
       background: color-mix(in srgb, var(--bg-soft) 50%, var(--bg-canvas, var(--bg-panel)));
-      border: var(--ring-thin) dashed var(--border-dark); border-radius: var(--radius-2xl);
+      border: var(--ring-thin) dashed var(--border-dark); border-radius: var(--radius-3xl);
       transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
     }
     /* A group's colour (slot or custom hex, setSwatch) works as a sequence frame's: opaque pastel surface, line and tag in both themes */
@@ -284,8 +285,8 @@
     :root[data-theme="dark"] #btn-add-queue { --c4-tile-ink: var(--sw-5-line); }
     #c4-pop .btn-shape { cursor: grab; touch-action: none; }
     #c4-pop .btn-shape:hover .c4-tile-card { border-color: var(--primary); }
-    #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--bg-soft) 35%, transparent); stroke: var(--border-dark); stroke-width: var(--ring-thin); }
-    #btn-add-group svg > .c4-grp-tag { fill: var(--bg-soft); stroke: var(--border-dark); stroke-width: 1px; }
+    #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--text-soft) 8%, transparent); stroke: currentColor; stroke-width: var(--ring-thin); }
+    #btn-add-group svg > .c4-grp-tag { fill: var(--bg-panel); stroke: currentColor; stroke-width: 1px; }
     #btn-add-group:hover svg > * { stroke: var(--primary); }
 
     /* Palette drag-to-add ghost preview */

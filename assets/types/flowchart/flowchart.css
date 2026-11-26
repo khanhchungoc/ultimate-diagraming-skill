@@ -6,8 +6,8 @@
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       box-shadow: var(--shadow-canvas);
-      border-radius: var(--radius-lg);
-      --lane-r: calc(var(--radius-lg) - 1px);
+      border-radius: var(--radius-4xl);
+      --lane-r: calc(var(--radius-4xl) - 1px);
       margin: var(--space-40);
       width: fit-content;
       min-width: 1400px;
@@ -176,6 +176,7 @@
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
        display scaling, so that is 1px */
     .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out) {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
+      z-index: 35;
       border-width: 2px;
       padding: var(--space-2) var(--space-8);
     }
