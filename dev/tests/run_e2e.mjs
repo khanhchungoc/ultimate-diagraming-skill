@@ -124,6 +124,7 @@ const TESTS = [
   { id: 'gantt',           file: 'e2e_gantt.mjs',           types: ['gantt'],                   weight: 30,  fixtures: [], args: () => [] },
   { id: 'a11y',            file: 'e2e_a11y.mjs',            types: ['cross', 'shell'],          weight: 40,  fixtures: [], args: () => [] },
   { id: 'components',      file: 'e2e_components.mjs',      types: ['cross', 'shell'],          weight: 25,  fixtures: [], args: () => [] },
+  { id: 'device',          file: 'e2e_device.mjs',          types: ['cross', 'shell'],          weight: 45,  fixtures: [], args: () => [], motion: true },
   { id: 'render_reuse',    file: 'e2e_render_reuse.mjs',    types: ['flowchart'],               weight: 15,  fixtures: ['fc_loan'], args: (f) => ['--page', f.fc_loan] },
   { id: 'sequence',        file: 'e2e_sequence.mjs',        types: ['sequence'],                weight: 90,  shards: 3, fixtures: ['seq_checkout', 'seq_payment', 'seq_checkout_art'],
     args: (f) => ['--page', f.seq_checkout, '--long', f.seq_payment, '--artifact', f.seq_checkout_art] },
