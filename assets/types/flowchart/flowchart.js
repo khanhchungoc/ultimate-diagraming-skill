@@ -561,7 +561,7 @@
           pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
           pill.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
+            if (editable && !pill.classList.contains('is-editing')) selectLane(lane.id);
           });
           pill.appendChild(laneIconEl(lane, 18));
           const title = document.createElement('span');
@@ -600,7 +600,7 @@
 
           function startRename() {
             pill.draggable = false;   // a draggable ancestor would swallow text selection
-            pill.classList.add('editing');
+            pill.classList.add('is-editing');
             title.contentEditable = 'true';
             title.focus();
             const range = document.createRange();
@@ -617,7 +617,7 @@
           title.addEventListener('blur', () => {
             title.contentEditable = 'false';
             pill.draggable = editable;
-            pill.classList.remove('editing');
+            pill.classList.remove('is-editing');
             const name = title.textContent.trim();
             if (name && lane.name !== name) {
               lane.name = name;
@@ -1269,6 +1269,7 @@
         const nodeEl = document.createElement('div');
         nodeEl.id = `node-${node.id}`;
         nodeEl.dataset.nodeId = node.id;
+        nodeEl.dataset.item = '';   // shared hover / selected / dim look (components/item-states.css)
         nodeEl.dataset.noTip = '';
         // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
         const outline = shapeOutlineSvg(node.type);
@@ -1282,8 +1283,7 @@
         nodeEl.appendChild(label);
         // 4 Anchor Ports
         ['top', 'right', 'bottom', 'left'].forEach(pos => {
-          const port = document.createElement('div');
-          port.className = `port port-${pos}`;
+          const port = ui.port(pos);   // the shared connection handle (components/port.css)
           port.dataset.port = pos;
           port.dataset.nodeId = node.id;
           nodeEl.appendChild(port);
@@ -1578,8 +1578,9 @@
               ['from', 'to'].forEach(end => {
                 const atCircle = isConnector(nodeById(end === 'from' ? edge.from : edge.to));
                 const pt = path.getPointAtLength(end === 'from' ? 0 : total);
-                const h = document.createElement('div');
-                h.className = 'edge-end-handle' + (atCircle ? ' at-connector' : '');
+                const h = ui.port('end');   // the shared end handle (components/port.css .port-end)
+                h.classList.add('edge-end-handle');
+                if (atCircle) h.classList.add('at-connector');
                 h.dataset.tip = atCircle ? 'Drag onto a step to move this circle there'
                   : end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node, or onto a connector circle to send this arrow into that pair';
                 h.style.left = `${pt.x}px`;
@@ -1587,7 +1588,7 @@
                 h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
                 edgeLabelsGroup.appendChild(h);
                 if (popBar) {
-                  motion.anim(h, [{ transform: 'translate(-50%, -50%) scale(0.4)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+                  motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'scale(1)' }], {
                     duration: 110, easing: motion.curve('curve-spring-tactile')
                   });
                 }
@@ -1680,9 +1681,9 @@
         const els = edgeEls.get(edgeId);
         if (!els || !els.label) return;
         const labelContainer = els.label, labelText = els.text;
-        const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('editing');
+        const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('is-editing');
         labelText.contentEditable = 'true';
-        labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
+        labelContainer.classList.add('is-editing');   // shows an empty label's box, hides the toolbar
         if (wasEmpty) {
           motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
             duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
@@ -1932,7 +1933,7 @@
             el.style.translate = `${p.left - item.baseLeft}px ${p.top - item.baseTop}px`;
           }
           el.style.scale = '1.02';
-          el.classList.add('dragging');
+          el.classList.add('is-dragging');
         };
         moveDragItem(dragOrigin);
         // The other selected steps move by the same distance and the same number of lanes (held within the first
@@ -2088,7 +2089,7 @@
           draggingNode = null;
           dragGroup = null;
           dragOrigin = null;
-          const clearDrag = (n) => { const el = nodeElOf(n.id); if (el) { el.classList.remove('dragging'); placeNodeEl(el, n); } };
+          const clearDrag = (n) => { const el = nodeElOf(n.id); if (el) { el.classList.remove('is-dragging'); placeNodeEl(el, n); } };
           clearDrag(node);
           if (group) group.forEach(g => clearDrag(g.node));
           if (dragMoved && isConnector(node)) {
@@ -2136,7 +2137,7 @@
         connectingFromNodeId = nodeId;
         connectingFromPort = port;
         connectingDownAt = { x: e.clientX, y: e.clientY };
-        document.body.classList.add('connecting');
+        document.body.classList.add('connecting', 'is-dragging');   // is-dragging: no connect ports while an arrow is drawn (components/port.css)
 
         const fromEl = document.getElementById(`node-${nodeId}`);
         const stageRect = swimlanesContainer.getBoundingClientRect();
@@ -2345,7 +2346,7 @@
         connectingFromPort = null;
         connectingDownAt = null;
         connectingStartPoint = null;
-        document.body.classList.remove('connecting');
+        document.body.classList.remove('connecting', 'is-dragging');
         dragEdge.style.display = 'none';
         document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('connect-target'));
 
@@ -2439,6 +2440,7 @@
         const many = selectedNodeIds.size > 1;
         document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
         swimlanesContainer.classList.toggle('multi-select', many);
+        swimlanesContainer.classList.toggle('is-multi', many);   // components/port.css: no connect ports with several selected
         updateSubButtons();
         applyNodeHover();
         syncNodeBar();

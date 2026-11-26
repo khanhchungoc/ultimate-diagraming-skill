@@ -1493,10 +1493,22 @@ border: 1.5px solid var(--border-dark);
 border-radius: var(--radius-lg);
 color: var(--text-main);
 cursor: pointer;
+-webkit-user-select: none; user-select: none;
 z-index: 30;
 box-shadow: var(--shadow-sm);
+display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 3px 8px;
+font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading);
+white-space: normal; overflow-wrap: break-word; text-align: center;
+max-width: var(--edge-label-max-w, 140px);
 transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
 }
+.edge-label--wrap { white-space: normal; }
+.edge-label--single {
+display: flex; padding: 0 8px; max-width: none; white-space: nowrap; pointer-events: auto;
+font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-none);
+}
+.edge-label--single > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.edge-label.is-dim { opacity: var(--dim); }
 .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
 .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
 .edge-label:is(:hover, .hover, .linked, .selected) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
@@ -1506,20 +1518,76 @@ background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radiu
 color: var(--text-main); cursor: pointer; user-select: none;
 }
 .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
-.frame-chev {
-display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-vertical-align: -3px;
-}
-.frame-tag:hover .frame-chev, .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-.frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
-.frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
 .frame-summary {
 position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
 background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
 white-space: nowrap; cursor: pointer;
 }
 .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+.chevron {
+position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+width: var(--chevron-size); height: var(--chevron-size); padding: 0; border: none; border-radius: var(--radius-md);
+background: transparent; color: var(--text-soft); cursor: pointer;
+transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+}
+.chevron::before { content: ''; position: absolute; inset: min(0px, calc((var(--chevron-size) - var(--hit-min)) / 2)); }
+.chevron:hover { background: var(--bg-hover); color: var(--text-main); }
+.chevron:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
+.chevron[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.chevron-spacer { flex: none; width: var(--chevron-size); height: 1px; }
+@media (prefers-reduced-motion: reduce) {
+.chevron, .chevron svg { transition: none; }
+}
+.port {
+--port-d: var(--port-size);
+position: absolute; box-sizing: border-box; width: var(--port-d);     height: var(--port-d); padding: 0; z-index: 35;
+border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
+opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
+cursor: crosshair; touch-action: none;
+transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
+}
+.port::before {
+content: ''; position: absolute; width: max(var(--port-d), var(--hit-min)); height: max(var(--port-d), var(--hit-min));
+top: 50%; left: 50%; translate: -50% -50%;
+}
+.port-top::before { top: auto; bottom: 50%; translate: -50% 0; }
+.port-bottom::before { top: 50%; translate: -50% 0; }
+.port-left::before { left: auto; right: 50%; translate: 0 -50%; }
+.port-right::before { left: 50%; translate: 0 -50%; }
+.port-top { top: 0; left: 50%; }
+.port-bottom { top: 100%; left: 50%; }
+.port-left { top: 50%; left: 0; }
+.port-right { top: 50%; left: 100%; }
+:is(:hover, :focus-within) > .port:not(.port-end), .is-touch .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
+@media (hover: none) { .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); } }
+.is-touch .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); }
+.is-touch .port { --port-d: var(--port-size-touch); border-width: 2.5px; }
+.port:is(:hover, :focus-visible) { transform: scale(1.35); background: var(--primary); outline: none; }
+.port-end { opacity: 1; pointer-events: auto; transform: none; border-width: var(--ring-thin); background: transparent; box-shadow: none; cursor: grab; z-index: 54; }
+.port-end:hover { transform: none; }
+.is-dragging .port, .is-multi .port, :has(.is-editing) > .port, .is-editing > .port { opacity: 0 !important; pointer-events: none !important; }
+body:is(.presentation, .present, .exporting, .capture) .port { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+.port { transition: none; transform: none; }
+.port:is(:hover, :focus-visible) { transform: none; }
+}
+[data-item]:is(:hover, .is-hover):not(.selected, .is-dragging, .is-editing) {
+box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring, var(--node-border)), var(--hover-shadow);
+}
+[data-item].selected {
+--ring: var(--primary); --ring-w: var(--select-ring-w);
+box-shadow: inset 0 0 0 var(--select-ring-w) var(--primary), var(--shadow-ring);
+}
+[data-item].is-dim { opacity: var(--dim); filter: var(--dim-filter); }
+.item-shape:is(:hover, .is-hover):not(.selected) { stroke: var(--primary); }
+.item-shape.selected { stroke: var(--primary); stroke-width: var(--select-ring-w); }
+.item-shape.is-dim { opacity: var(--dim); }
+body.exporting :is([data-item], .item-shape).is-dim { opacity: 1 !important; filter: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+[data-item] { transition: box-shadow var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
+.item-shape { transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out); }
+}
 .actionbar {
 position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
 white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
@@ -2234,7 +2302,7 @@ marker-end: var(--mk-e);
 .erd-rel .edge-line:not(.identifying) { stroke-dasharray: 6 4; }
 body.presentation .edge-hit { cursor: default; }
 .erd-rel:is(.hl-in, .hl-out, .hover, .selected) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
-.edge-label:is(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+#erd-html { --edge-in: var(--primary); --edge-out: var(--primary); --edge-in-glow: var(--primary-glow); --edge-out-glow: var(--primary-glow); }
 .erd-rel.is-dim { opacity: 0.16; }
 .erd-mk path, .erd-mk circle {
 stroke: var(--mk, var(--connector));
@@ -2244,19 +2312,6 @@ stroke-linecap: round;
 stroke-linejoin: round;
 }
 .erd-mk circle { fill: var(--bg-panel); }
-.edge-label {
-display: flex;
-align-items: center;
-justify-content: center;
-padding: 0 8px;
-font-size: var(--t-detail-size);
-font-weight: var(--t-detail-weight);
-line-height: var(--leading-none);
-white-space: nowrap;
-pointer-events: auto;
-}
-.erd-rel-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.edge-label.is-dim { opacity: 0.25; }
 .erd-entity {
 --ring: var(--node-border);
 --node-accent: var(--task-accent);
@@ -2278,13 +2333,10 @@ content: '';
 position: absolute;
 inset: 0;
 border-radius: var(--radius-lg);
-box-shadow: inset 0 0 0 var(--ring-thin) var(--ring);
+box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring);
 pointer-events: none;
 }
-.erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
 .erd-entity:is(.rel-parent, .rel-child, .selected) { --ring: var(--primary); }
-.erd-entity.selected { box-shadow: var(--shadow-ring); }
-.erd-entity.is-dim { opacity: 0.38; }
 body.exporting .is-dim { opacity: 1 !important; }
 .drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
 .erd-head {
@@ -2310,23 +2362,7 @@ font-size: var(--t-title-size);
 font-weight: var(--t-title-weight);
 line-height: var(--line-20);
 }
-.erd-chevron {
-flex: none;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-width: 22px; height: 22px;
-padding: 0;
-border: none;
-border-radius: var(--radius-md);
-background: transparent;
-color: inherit;
-opacity: 0.7;
-cursor: pointer;
-}
-.erd-chevron:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
-.erd-chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
-.erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
+.erd-head .chevron { margin-right: 4px; }
 .erd-row {
 position: relative;
 display: flex;
@@ -2381,7 +2417,7 @@ body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --
 body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-thin) var(--ring); }
 body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-child .erd-head { box-shadow: none; }
 .erd-head.hover  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 14%, transparent); }
-.erd-entity, .edge-label { -webkit-user-select: none; user-select: none; }
+.erd-entity { -webkit-user-select: none; user-select: none; }
 [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
 .erd-head { position: relative; }
 .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-col-note.is-editing, .erd-rel-label-text.is-editing {
@@ -2398,37 +2434,10 @@ text-overflow: clip;
 .erd-col-type.is-editing { text-align: right; }
 .erd-col-type:empty { min-width: 28px; }
 .erd-col-name.is-editing, .erd-col-note.is-editing { flex: 1 1 auto; }
-.erd-port {
-position: absolute;
-right: -6px; top: 50%;
-width: 12px; height: 12px;
-margin-top: -6px;
-box-sizing: border-box;
-border-radius: var(--radius-round);
-border: 2px solid var(--primary);
-background: var(--bg-panel);
-display: none;
-cursor: crosshair;
-z-index: 4;
-touch-action: none;
-padding: 0;
-scale: var(--ui-scale, 1);
-transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
-}
-.erd-port:hover { background: var(--primary); }
-.erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port {
-display: block;
-animation: erd-port-in var(--dur-micro) var(--curve-spring-tactile);
-}
-body.erd-armed .erd-port { transform: scale(1.15); }
-@keyframes erd-port-in { from { transform: scale(0.55); } to { transform: none; } }
-body.erd-dragging .erd-port { display: none; }
-.erd-multi .erd-port { display: none !important; }
-body.erd-touch .erd-entity.touch-ports .erd-port { display: block; width: 22px; height: 22px; right: -11px; margin-top: -11px; border-width: 2.5px; }
-body.erd-touch .erd-handle { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-width: 2.5px; }
+body.erd-armed .port:not(.port-end) { opacity: 1; pointer-events: auto; transform: scale(1.15); }
 body.erd-touch .edge-hit { stroke-width: 26px; }
 body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
-body.erd-armed .erd-chevron { display: none; }
+body.erd-armed .chevron { display: none; }
 .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-md) var(--primary); }
 .erd-entity.erd-target { --ring: var(--primary); }
 #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
@@ -2445,20 +2454,6 @@ body.erd-armed .erd-chevron { display: none; }
 .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); transition: opacity var(--dur-micro) var(--curve-out); }
 .erd-entity.erd-ghost.off-target { opacity: 0.5; }
 body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
-.erd-handle {
-position: absolute;
-width: 10px; height: 10px;
-margin: -5px 0 0 -5px;
-box-sizing: border-box;
-z-index: 54;
-border-radius: var(--radius-round);
-border: 1.5px solid var(--primary);
-background: transparent;
-cursor: grab;
-touch-action: none;
-pointer-events: auto;
-}
-.erd-handle:hover { background: var(--primary); }
 .erd-actionbar {
 position: absolute;
 display: flex;
@@ -2491,21 +2486,21 @@ font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); c
 .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
 .erd-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
 .erd-ab-swatch { height: 30px; width: 30px; }
-body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle { display: none !important; }
+body.erd-dragging .erd-actionbar { display: none !important; }
 .edge-label.is-editing-label { z-index: 60; }
 .erd-key { position: absolute; pointer-events: auto; }
 body.presentation .erd-key { pointer-events: none; }
 body.note-picking .erd-entity:not(:has(.erd-row:hover)):hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
 body.note-picking .erd-row:hover { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
 body.note-picking .erd-entity, body.note-picking .erd-entity * { cursor: copy !important; }
-body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar { cursor: default; }
-body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar,
+body.presentation .erd-actionbar { cursor: default; }
+body.presentation .erd-actionbar,
 body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
 body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg, var(--bg-soft)) 45%, var(--node-bg)); }
 body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-row,
 body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-more,
-body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-port,
-body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-chevron,
+body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .port,
+body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .chevron,
 body.erd-overview:not(.exporting) .note-badge { display: none !important; }
 body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-head {
 position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: var(--radius-lg); border-bottom: none;
@@ -2980,6 +2975,22 @@ const tpl = document.createElement('template');
 tpl.innerHTML = icon(name, o);
 return tpl.content.firstChild;
 }
+function chevron(o) {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = 'chevron';
+b.title = o.label;
+b.setAttribute('aria-label', o.label);
+b.setAttribute('aria-expanded', String(!!o.expanded));
+b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+return b;
+}
+function port(side) {
+const p = document.createElement('span');
+p.className = `port port-${side}`;
+p.dataset.exportSkip = '';
+return p;
+}
 let confirmEl = null;
 function closeConfirm() {
 if (!confirmEl) return false;
@@ -3195,7 +3206,7 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -4109,6 +4120,10 @@ panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 :
 panY = minPan - frame.y * scale;
 updateTransform();
 };
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+let fontLoadedSinceRender = false;
+const onFontLoaded = () => { fontLoadedSinceRender = true; };
+if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
 try {
 plugin.render();
 applyInitialView();
@@ -4122,7 +4137,8 @@ document.documentElement.dataset.diagramReady = '1';
 requestAnimationFrame(() => {
 applyInitialView();
 syncHeaderCompact();
-const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
 ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
 : Promise.resolve();
 fontsIn.then(() => {
@@ -4888,7 +4904,7 @@ else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('o
 }
 const btnExport = document.getElementById('btn-export');
 const exportMenu = document.getElementById('export-menu');
-const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
 const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
 const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
 let defaultStyleCache = null;
@@ -6228,6 +6244,75 @@ return;
 plugin.deleteSelection();
 }
 });
+function createNotes(opts) {
+let editing = null;   // the note being typed
+let draft = null;     // { id, isNew, wasOn, before }
+const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
+const byId = (id) => list().find((n) => n && n.id === id) || null;
+const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function begin(note, isNew) {
+draft = { id: note.id, isNew: !!isNew, wasOn: opts.data().showNotes === true, before: isNew ? '' : textOf(note) };
+editing = note.id;
+}
+function edit(id) {
+const note = byId(id);
+if (!note || (opts.canEdit && !opts.canEdit())) return;
+const prev = { editing, draft };
+if (editing !== id || !draft) begin(note, false);
+const card = opts.openCard(note);
+const text = card && card.querySelector('.note-text');
+if (!text) { if (!card) ({ editing, draft } = prev); return; }
+text.contentEditable = 'true';
+text.focus();
+const range = document.createRange();
+range.selectNodeContents(text);
+range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+if (opts.afterFocus) opts.afterFocus(card);
+}
+function remove(id, record = true, reason = 'remove') {
+const note = byId(id);
+if (!note) return;
+const card = opts.cardOf(id);
+if (opts.anchorEl && card) motion.foldNote(card, opts.anchorEl(note));   // morph into the badge, never fade
+const token = opts.beforeRemove ? opts.beforeRemove(note) : undefined;
+const data = opts.data();
+data.notes = list().filter((n) => n && n.id !== id);
+if (!data.notes.length) delete data.notes;
+if (editing === id) { editing = null; draft = null; }
+opts.clearSelection(id);
+opts.render({ note, token, reason });
+if (record) opts.onChange();
+}
+function commit(note, textEl) {
+textEl.contentEditable = 'false';
+if (editing !== note.id) return;
+const d = draft;
+editing = null; draft = null;
+const value = clean(textEl.innerText);
+if (!value) {
+if (opts.restoreSwitch && d && d.isNew && !d.wasOn) delete opts.data().showNotes;   // a note given up leaves the switch as it was
+remove(note.id, !(d && d.isNew), 'cleared');
+return;
+}
+if (d && value === d.before) { textEl.textContent = note.text; opts.render({ note, reason: 'same' }); return; }
+note.text = value;
+textEl.textContent = value;
+opts.render({ note, reason: 'text' });
+opts.onChange();
+}
+window.addEventListener('pointerdown', (e) => {
+if (!editing) return;
+const card = opts.cardOf(editing);
+if (card && card.contains(e.target)) return;
+const text = card && card.querySelector('.note-text'), note = byId(editing);
+if (text && note) { text.blur(); commit(note, text); }   // no-op if the blur already committed it
+}, true);
+return { begin, edit, commit, remove, list, byId, editingId: () => editing, isEditing: (id) => editing === id };
+}
 //@engine-begin
 function routeEdgesOrthogonal(model) {
 const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
@@ -9579,7 +9664,6 @@ const ERD_DETAILS = ['all', 'keys', 'names'];
 const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
 const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
 const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
-const ERD_CHEVRON_ICON = ui.icon('chevron-down', { size: 'sm', bold: true });
 const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col } | { kind: 'key', color }: class `selected`
 let erdKeyDraft = null;         // a colour whose legend entry is being named for the first time (shown only while it is edited)
@@ -9826,7 +9910,7 @@ drawSelectionTools(oldBarRect);
 } finally { erdInRender = false; }
 if (snap) erdPlay(snap, m);
 if (m && m.collapseId && motion.enabled()) {
-const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.erd-chevron svg');
+const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.chevron svg');
 if (ent && chev) {
 const on = ent.collapsed === true;
 motion.anim(chev, [{ transform: on ? 'rotate(0deg)' : 'rotate(-90deg)' }, { transform: on ? 'rotate(-90deg)' : 'none' }],
@@ -9848,6 +9932,7 @@ const detail = erdDetail();
 const showTypes = chartData.showTypes !== false;
 const vis = erVisibleColumns(e, chartData);
 const el = erdHtmlEl('div', 'erd-entity');
+el.dataset.item = '';
 if (asCard) {
 el.classList.add('erd-card-table');
 el.style.minWidth = `${box.w}px`;
@@ -9869,13 +9954,8 @@ name.title = erName(e);
 head.appendChild(name);
 if (!asCard) head.appendChild(buildPort(''));
 if (!asCard && (e.columns || []).length && detail !== 'names') {
-const chev = erdHtmlEl('button', 'erd-chevron');
-chev.type = 'button';
+const chev = ui.chevron({ expanded: e.collapsed !== true, label: e.collapsed ? 'Expand this table' : 'Collapse this table to its header' });
 chev.dataset.exportSkip = '';
-chev.title = e.collapsed ? 'Expand this table' : 'Collapse this table to its header';
-chev.setAttribute('aria-label', chev.title);
-chev.setAttribute('aria-expanded', String(e.collapsed !== true));
-chev.innerHTML = ERD_CHEVRON_ICON;
 chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
 chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(e.id); });
 head.appendChild(chev);
@@ -9974,7 +10054,7 @@ erdRelsList().forEach((rel) => {
 const b = rel.labelBox;
 const text = rel.label === undefined || rel.label === null ? '' : String(rel.label);
 if (!b || !text) return;
-const el = erdHtmlEl('div', 'edge-label');
+const el = erdHtmlEl('div', 'edge-label edge-label--single');
 el.dataset.edgeId = rel.id;
 el.style.left = `${b.x}px`;
 el.style.top = `${b.y}px`;
@@ -10002,9 +10082,18 @@ out.push({ id: to.id, cols: named.length ? named : (first ? [first] : []) });
 }
 return out;
 }
-const entityEl = (id) => [...erdHtml.querySelectorAll('.erd-entity')].find((el) => el.dataset.nodeId === id);
-const relEl = (id) => [...erdRels.children].find((el) => el.dataset.edgeId === id);
-const labelEl = (id) => [...erdHtml.querySelectorAll('.edge-label')].find((el) => el.dataset.edgeId === id);
+const erdIndex = (list, key) => {
+let map = null;
+const build = () => { map = new Map(); for (const el of list()) { const k = el.dataset[key]; if (!map.has(k)) map.set(k, el); } };
+return (id) => {
+let el = map && map.get(id);
+if (!el || !el.isConnected) { build(); el = map.get(id); }
+return el;
+};
+};
+const entityEl = erdIndex(() => erdHtml.querySelectorAll('.erd-entity'), 'nodeId');
+const relEl = erdIndex(() => erdRels.children, 'edgeId');
+const labelEl = erdIndex(() => erdHtml.querySelectorAll('.edge-label'), 'edgeId');
 function markRows(rel, cls) {
 joinedRows(rel).forEach((end) => {
 const el = entityEl(end.id);
@@ -10122,17 +10211,17 @@ erdSyncCard();
 }
 function markTouchPorts() {
 const many = isMultiSelected();
-erdCanvas.classList.toggle('erd-multi', many);
-erdCanvas.querySelectorAll('.erd-port[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
+erdCanvas.classList.toggle('is-multi', many);
+erdCanvas.querySelectorAll('.port:not(.port-end)[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
 const id = !many && !erdPresenting() ? erdSelectedEntityId() : null;
 const el = id && entityEl(id);
-if (el) el.querySelectorAll('.erd-port').forEach((p) => p.setAttribute('data-touch-drag', ''));
+if (el) el.querySelectorAll('.port:not(.port-end)').forEach((p) => p.setAttribute('data-touch-drag', ''));
 el && el.classList.add('touch-ports');
 erdCanvas.querySelectorAll('.erd-entity.touch-ports').forEach((x) => { if (x !== el) x.classList.remove('touch-ports'); });
 if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';
 }
 const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
-window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);   // .is-touch: the shell
 function setSelection(sel) {
 selectedNoteId = null;
 erdSel = sel;
@@ -10403,9 +10492,29 @@ const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
 const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
 const noteById = (id) => notesList().find((n) => n.id === id);
 const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
-let editingNoteId = null;      // the note being typed: it counts as live while still empty
+const noteCtl = createNotes({   // the note being typed counts as live while still empty
+data: () => chartData,
+cardOf: (id) => noteCard(id),
+canEdit: () => !erdPresenting(),
+openCard: (note) => {
+cancelDrag();
+setRelArmed(false);
+setNotePicking(false);
+selectNote(note.id);
+if (!noteCard(note.id)) renderNotes(false);
+const card = noteCard(note.id);
+if (!card) return null;
+card.style.pointerEvents = '';
+applyNoteVisibility();
+return card;
+},
+afterFocus: (card) => panIntoView(card),
+clearSelection: (id) => { if (selectedNoteId === id) selectedNoteId = null; },
+render: (ctx) => (ctx.reason === 'remove' ? render() : render({ skipKeys: new Set([ctx.note.id]), duration: 160 })),
+onChange: () => updateStatus(true),
+});
 const isFreeNote = (note) => !(note.entities || []).length;
-const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedEntities(n).length));
+const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedEntities(n).length));
 const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
 const erdPresenting = () => document.body.classList.contains('presentation');
 const boxesOverlap = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
@@ -10600,11 +10709,11 @@ motion.unfoldNote(card);
 } else {
 const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
 const leader = erdLeaders.querySelector(`.note-leader[data-note-id="${id}"]`);
-if (editingNoteId !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
+if (noteCtl.editingId() !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
 card.style.pointerEvents = 'none';
 setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
 }
-if (selectedNoteId === id || editingNoteId === id) {
+if (selectedNoteId === id || noteCtl.editingId() === id) {
 motion.anim(card, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: motion.curve('curve-out') });
 if (leader) motion.drawPath(leader, { duration: 150, easing: 'curve-out' });
 } else motion.unfoldNote(card, badge, leader);
@@ -10756,7 +10865,7 @@ if (!d) return;
 if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
 if (!d.moved) {
 d.moved = true;
-document.body.classList.add('erd-dragging');
+document.body.classList.add('erd-dragging', 'is-dragging');
 hoverEntityId = null;
 hoverRelId = null;
 applyHighlight();
@@ -10769,7 +10878,7 @@ function endDrag() {
 window.removeEventListener('pointermove', onDragMove);
 window.removeEventListener('pointerup', onDragUp);
 window.removeEventListener('pointercancel', cancelDrag);
-document.body.classList.remove('erd-dragging');
+document.body.classList.remove('erd-dragging', 'is-dragging');
 erdRubber.style.display = 'none';
 erdDropLine.style.display = 'none';
 erdGuideV.style.display = 'none';
@@ -10793,9 +10902,8 @@ if (d.moved) render(false);   // everything back where it was immediately
 return true;
 }
 function buildPort(col) {
-const p = erdHtmlEl('span', 'erd-port');
+const p = ui.port('right');
 p.dataset.col = col;
-p.dataset.exportSkip = '';
 p.title = col ? 'Drag to another table or column to relate them' : 'Drag to another table to relate them';
 return p;
 }
@@ -10822,10 +10930,9 @@ prev = p;
 return at(0.5);   // a line shorter than the gap: the middle
 }
 function addHandle(role, id, x, y) {
-const h = erdHtmlEl('div', 'erd-handle');
+const h = ui.port('end');
 h.dataset.role = role;
 h.dataset.id = id;
-h.dataset.exportSkip = '';
 h.setAttribute('data-touch-drag', '');   // a finger may drag it (the shell's touch rule)
 h.title = role === 'from' ? 'Drag to another table or column to move the child end' : 'Drag to another table or column to move the parent end';
 Object.assign(h.style, { left: erdPx(x), top: erdPx(y) });
@@ -10839,7 +10946,7 @@ const barKey = erdSel && !erdPresenting() ? JSON.stringify([erdSel.kind, erdSel.
 const sameBar = barKey !== null && barKey === lastBarKey;
 lastBarKey = barKey;
 if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
+erdHtml.querySelectorAll('.port-end').forEach((el) => el.remove());
 if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
 if (erdSel.kind !== 'rel') lastHandleRelId = null;
 const bar = ui.actionBar('erd-actionbar');
@@ -10895,7 +11002,7 @@ const hFrom = erdPointAlong(rel.curve, gap, false), hTo = erdPointAlong(rel.curv
 addHandle('from', rel.id, hFrom[0], hFrom[1]);
 addHandle('to', rel.id, hTo[0], hTo[1]);
 if (lastHandleRelId !== erdSel.id && motion.enabled()) {
-erdHtml.querySelectorAll('.erd-handle').forEach((h) => {
+erdHtml.querySelectorAll('.port-end').forEach((h) => {
 motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-spring-tactile') });
 });
 }
@@ -11035,24 +11142,24 @@ const t = e.target;
 if (!(t instanceof Element) || t.isContentEditable) return;
 const entEl = t.closest('.erd-entity');
 if (erdPresenting()) {   // read only: selecting a table is all a press does
-if (entEl && !t.closest('.erd-chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
+if (entEl && !t.closest('.chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
 return;
 }
-if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
-const handle = t.closest('.erd-handle');
+if (t.closest('.erd-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
+const handle = t.closest('.port-end');
 if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
 if (!entEl || t.closest('.note')) return;
 const id = entEl.dataset.nodeId;
 if (notePicking) { e.preventDefault(); const nr = t.closest('.erd-row'); giveNoteTo(id, nr ? nr.dataset.col : null); return; }
 if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
-if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
+if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port:not(.port-end)')) { e.preventDefault(); toggleEntity(id); return; }
 const group = isMultiSelected() && selectedEntityIds().includes(id) ? selectedEntityIds() : null;
 if (group) {
 if (erdSel.id !== id) { erdSel = { kind: 'entity', id }; erdMultiOwner = erdSel; applyHighlight(); drawSelectionTools(); }
 beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
 return;
 }
-const port = t.closest('.erd-port'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
+const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
 if (port) {
 const from = { entity: id, col: port.dataset.col || null };
 beginDrag(e, connectDrag(from, () => (from.col ? selectCol(id, from.col) : selectEntity(id))));
@@ -11387,7 +11494,7 @@ if (!erdSel || erdSel.kind !== 'rel' || erdSel.id !== id) selectRel(id);
 let box = labelEl(id);
 if (!box) {
 const mid = relMid(rel);
-box = erdHtmlEl('div', 'edge-label');
+box = erdHtmlEl('div', 'edge-label edge-label--single');
 box.dataset.edgeId = id;
 box.dataset.exportSkip = '';
 Object.assign(box.style, { left: erdPx(mid.x - 44), top: erdPx(mid.y - 11), width: '88px', height: '22px' });
@@ -11409,7 +11516,7 @@ onCancel: () => { box.classList.remove('is-editing-label'); if (rel.label == nul
 erdHtml.addEventListener('dblclick', (e) => {
 if (erdPresenting()) return;
 const t = e.target;
-if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .erd-port, .erd-handle, .note')) return;
+if (t.closest('.erd-actionbar, .chevron, .note-badge, .port, .note')) return;
 if (t.isContentEditable) return;
 const label = t.closest('.edge-label');
 if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }
@@ -11642,61 +11749,9 @@ applyHighlight();
 drawSelectionTools();
 if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
 }
-function editNote(id) {
-const note = noteById(id);
-if (!note || erdPresenting()) return;
-cancelDrag();
-setRelArmed(false);
-setNotePicking(false);
-editingNoteId = id;
-selectNote(id);
-if (!noteCard(id)) renderNotes(false);
-const card = noteCard(id);
-if (!card) return;
-card.style.pointerEvents = '';
-applyNoteVisibility();
-const text = card.querySelector('.note-text');
-text.contentEditable = 'true';
-text.focus();
-const range = document.createRange();
-range.selectNodeContents(text);
-range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
-const sel = window.getSelection();
-sel.removeAllRanges();
-sel.addRange(range);
-panIntoView(card);
-}
-function commitNote(note, text) {
-text.contentEditable = 'false';
-if (editingNoteId !== note.id) return;
-editingNoteId = null;
-const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-if (value) note.text = value;
-else {
-chartData.notes = notesList().filter((n) => n !== note);
-if (!chartData.notes.length) delete chartData.notes;
-if (selectedNoteId === note.id) selectedNoteId = null;
-}
-updateStatus(true);
-render({ skipKeys: new Set([note.id]), duration: 160 });   // badges appear or go, and the notes are fitted again around the new size
-}
-window.addEventListener('pointerdown', (e) => {
-if (!editingNoteId) return;
-const card = noteCard(editingNoteId);
-if (card && card.contains(e.target)) return;
-const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
-if (text) text.blur();
-if (text && note) commitNote(note, text);   // no-op if the blur already committed it
-}, true);
-function removeNote(id) {
-if (!noteById(id)) return;
-chartData.notes = notesList().filter((n) => n.id !== id);
-if (!chartData.notes.length) delete chartData.notes;
-if (editingNoteId === id) editingNoteId = null;
-if (selectedNoteId === id) selectedNoteId = null;
-updateStatus(true);
-render();
-}
+function editNote(id) { noteCtl.edit(id); }
+function commitNote(note, text) { noteCtl.commit(note, text); }
+function removeNote(id) { noteCtl.remove(id); }
 function toggleNoteLink(noteId, entityId) {
 const note = noteById(noteId), e = erdEntity(entityId);
 if (!note || !e) return;

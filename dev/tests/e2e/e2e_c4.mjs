@@ -249,8 +249,8 @@ try {
       J(pillMetrics));
     // connector anchor circles match Flowchart: hidden at rest, visible on hover, 16px diameter centered on edge
     const portRest = await t.ev(`(() => { const p = document.querySelector('.c4-node .port[data-side="N"]'); const cs = getComputedStyle(p); return { op: cs.opacity, pe: cs.pointerEvents, w: cs.width, h: cs.height, bw: cs.borderTopWidth, bs: cs.boxSizing }; })()`);
-    t.check('connector ports are hidden at rest and use Flowchart 12px content-box + 2px border styling',
-      portRest.op === '0' && portRest.pe === 'none' && portRest.w === '12px' && portRest.h === '12px' && portRest.bw === '2px' && portRest.bs === 'content-box', J(portRest));
+    t.check('connector ports are hidden at rest and use the shared 12px handle (border-box, 2px ring)',
+      portRest.op === '0' && portRest.pe === 'none' && portRest.w === '12px' && portRest.h === '12px' && portRest.bw === '2px' && portRest.bs === 'border-box', J(portRest));
     const custPt = await t.at(await sel('Customer'));
     await t.mouse('mouseMoved', custPt.x, custPt.y);
     await sleep(180);

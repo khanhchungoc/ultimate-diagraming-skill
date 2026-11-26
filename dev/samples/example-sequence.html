@@ -1409,10 +1409,22 @@ border: 1.5px solid var(--border-dark);
 border-radius: var(--radius-lg);
 color: var(--text-main);
 cursor: pointer;
+-webkit-user-select: none; user-select: none;
 z-index: 30;
 box-shadow: var(--shadow-sm);
+display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 3px 8px;
+font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading);
+white-space: normal; overflow-wrap: break-word; text-align: center;
+max-width: var(--edge-label-max-w, 140px);
 transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
 }
+.edge-label--wrap { white-space: normal; }
+.edge-label--single {
+display: flex; padding: 0 8px; max-width: none; white-space: nowrap; pointer-events: auto;
+font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-none);
+}
+.edge-label--single > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.edge-label.is-dim { opacity: var(--dim); }
 .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
 .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
 .edge-label:is(:hover, .hover, .linked, .selected) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
@@ -1422,20 +1434,76 @@ background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radiu
 color: var(--text-main); cursor: pointer; user-select: none;
 }
 .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
-.frame-chev {
-display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-vertical-align: -3px;
-}
-.frame-tag:hover .frame-chev, .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-.frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
-.frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
 .frame-summary {
 position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
 background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
 white-space: nowrap; cursor: pointer;
 }
 .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+.chevron {
+position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+width: var(--chevron-size); height: var(--chevron-size); padding: 0; border: none; border-radius: var(--radius-md);
+background: transparent; color: var(--text-soft); cursor: pointer;
+transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+}
+.chevron::before { content: ''; position: absolute; inset: min(0px, calc((var(--chevron-size) - var(--hit-min)) / 2)); }
+.chevron:hover { background: var(--bg-hover); color: var(--text-main); }
+.chevron:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
+.chevron[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.chevron-spacer { flex: none; width: var(--chevron-size); height: 1px; }
+@media (prefers-reduced-motion: reduce) {
+.chevron, .chevron svg { transition: none; }
+}
+.port {
+--port-d: var(--port-size);
+position: absolute; box-sizing: border-box; width: var(--port-d);     height: var(--port-d); padding: 0; z-index: 35;
+border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
+opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
+cursor: crosshair; touch-action: none;
+transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
+}
+.port::before {
+content: ''; position: absolute; width: max(var(--port-d), var(--hit-min)); height: max(var(--port-d), var(--hit-min));
+top: 50%; left: 50%; translate: -50% -50%;
+}
+.port-top::before { top: auto; bottom: 50%; translate: -50% 0; }
+.port-bottom::before { top: 50%; translate: -50% 0; }
+.port-left::before { left: auto; right: 50%; translate: 0 -50%; }
+.port-right::before { left: 50%; translate: 0 -50%; }
+.port-top { top: 0; left: 50%; }
+.port-bottom { top: 100%; left: 50%; }
+.port-left { top: 50%; left: 0; }
+.port-right { top: 50%; left: 100%; }
+:is(:hover, :focus-within) > .port:not(.port-end), .is-touch .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
+@media (hover: none) { .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); } }
+.is-touch .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); }
+.is-touch .port { --port-d: var(--port-size-touch); border-width: 2.5px; }
+.port:is(:hover, :focus-visible) { transform: scale(1.35); background: var(--primary); outline: none; }
+.port-end { opacity: 1; pointer-events: auto; transform: none; border-width: var(--ring-thin); background: transparent; box-shadow: none; cursor: grab; z-index: 54; }
+.port-end:hover { transform: none; }
+.is-dragging .port, .is-multi .port, :has(.is-editing) > .port, .is-editing > .port { opacity: 0 !important; pointer-events: none !important; }
+body:is(.presentation, .present, .exporting, .capture) .port { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+.port { transition: none; transform: none; }
+.port:is(:hover, :focus-visible) { transform: none; }
+}
+[data-item]:is(:hover, .is-hover):not(.selected, .is-dragging, .is-editing) {
+box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring, var(--node-border)), var(--hover-shadow);
+}
+[data-item].selected {
+--ring: var(--primary); --ring-w: var(--select-ring-w);
+box-shadow: inset 0 0 0 var(--select-ring-w) var(--primary), var(--shadow-ring);
+}
+[data-item].is-dim { opacity: var(--dim); filter: var(--dim-filter); }
+.item-shape:is(:hover, .is-hover):not(.selected) { stroke: var(--primary); }
+.item-shape.selected { stroke: var(--primary); stroke-width: var(--select-ring-w); }
+.item-shape.is-dim { opacity: var(--dim); }
+body.exporting :is([data-item], .item-shape).is-dim { opacity: 1 !important; filter: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+[data-item] { transition: box-shadow var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
+.item-shape { transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out); }
+}
 .actionbar {
 position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
 white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
@@ -2145,13 +2213,12 @@ box-shadow: var(--shadow-canvas);
 .seq-life-hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; cursor: crosshair; touch-action: none; }
 body.presentation .seq-activation, body.presentation .seq-life-hit { pointer-events: none; cursor: default; }
 .seq-line { stroke: var(--text-main); stroke-width: 1.5; fill: none; transition: opacity var(--dur-micro) var(--curve-inout), stroke var(--dur-micro) var(--curve-out); }
-.seq-line.is-reply { stroke-dasharray: 7 5; stroke: var(--text-muted); }
-.seq-line.selected { stroke: var(--primary); stroke-width: 2; }
+.seq-line.is-reply { stroke-dasharray: 7 5; }
+.seq-line.is-reply:not(.selected) { stroke: var(--text-muted); }
 .seq-arrow-fill { fill: var(--text-main); }
 .seq-arrow-open { fill: none; stroke: var(--text-main); stroke-width: 1.5; }
 .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; touch-action: none; }
 .seq-frag-box { fill: var(--primary); fill-opacity: 0.02; stroke: var(--border-dark); stroke-width: 1.5; pointer-events: none; transition: fill var(--dur-base) var(--curve-inout), stroke var(--dur-base) var(--curve-inout); }
-.seq-frag-box.selected { stroke: var(--primary); stroke-width: 2; }
 .seq-frag-hit { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer; }
 .seq-div-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: row-resize; }
 .seq-frag-box.swatch-scope { fill: var(--sw-line); fill-opacity: 0.035; stroke: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
@@ -2166,7 +2233,7 @@ padding: 5px 12px; font-size: var(--text-xl); cursor: grab; touch-action: none;
 .seq-participant.swatch-pill { --halo: 0 0 transparent; border: 2px solid var(--sw-line); }
 .seq-participant.is-external { border: 2.5px dashed var(--sw-line); }
 .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
-.seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
+.seq-participant.is-dragging, .seq-msg-label.is-dragging { opacity: 0.75; z-index: 20; }
 .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-20); }
 .seq-participant:not(.is-rail) .seq-kind-icon { margin-right: 4px; }
 .seq-participant:not(.is-rail) .seq-participant-name {
@@ -2198,13 +2265,12 @@ background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
 .seq-frag-branch-label::before { content: '['; } .seq-frag-branch-label::after { content: ']'; }
 .seq-branch-text { outline: none; }
 .seq-frag-branch-label.selected { color: var(--primary); }
-.seq-frag-else.selected { stroke: var(--primary); stroke-width: 2; }
 .seq-frag-focus {
 display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
 padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
 }
 #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
-#seq-html .frame-tag .frame-chev { vertical-align: baseline; }
+#seq-html .frame-tag .chevron { margin: 0 2px 0 -4px; vertical-align: baseline; }
 #seq-html .frame-summary { translate: -50% -50%; }
 .seq-frag-focus { position: relative; }
 .seq-frag-focus::before {
@@ -2214,8 +2280,8 @@ width: var(--hit-min); height: var(--hit-min);
 .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
 .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
 #btn-show-all[hidden] { display: none; }
-body.capture .frame-tag:not(.is-collapsed) .frame-chev,
-body.exporting .frame-tag:not(.is-collapsed) .frame-chev,
+body.capture .frame-tag:not(.is-collapsed) .chevron,
+body.exporting .frame-tag:not(.is-collapsed) .chevron,
 body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
 .seq-msg-detail {
 position: absolute; height: 18px; line-height: var(--line-18); padding: 0 4px; white-space: nowrap; font-size: var(--text-sm);
@@ -2259,7 +2325,6 @@ body.exporting .frame-tag.is-riding, body.capture .frame-tag.is-riding { transla
 .seq-ab-break { flex-basis: 100%; height: 0; }
 .seq-ab-swatch { height: 30px; width: 30px; }
 .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; transition: stroke var(--dur-base) var(--curve-inout); }
-.seq-cap.selected { stroke: var(--primary); stroke-width: 3; }
 .seq-participant { transition: opacity var(--dur-micro) var(--curve-inout), background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout); }
 .seq-participant.is-gone { opacity: 0; pointer-events: none; }
 body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
@@ -2273,7 +2338,7 @@ body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone {
 body.presentation .seq-participant, body.presentation .seq-msg-label,
 body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .note,
 body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
-body.presentation .frame-tag, body.presentation .frame-chev, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; cursor: pointer; }
+body.presentation .frame-tag, body.presentation .frame-tag .chevron, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; cursor: pointer; }
 #seq-canvas.seq-pinned .seq-participant { translate: 0 var(--pin-dy, 0px); z-index: 6; }
 body.exporting #seq-canvas .seq-participant, body.capture #seq-canvas .seq-participant { translate: none !important; }
 .seq-line.is-dim, .seq-msg-label.is-dim, .seq-msg-detail.is-dim { opacity: 0.22; }
@@ -2315,7 +2380,7 @@ transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-
 .seq-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
 .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-line); border: 1px solid var(--dot-edge-soft); }
 .seq-swatch.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
-.seq-handle {
+.seq-grip {
 position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; z-index: 9;
 border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); touch-action: none;
 animation: seq-pop var(--dur-micro) var(--curve-spring-tactile);
@@ -2324,10 +2389,9 @@ animation: seq-pop var(--dur-micro) var(--curve-spring-tactile);
 from { transform: scale(0.5); }
 to   { transform: none; }
 }
-.seq-handle.seq-end { cursor: grab; }
-.seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
-.seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
-body.seq-dragging .seq-handle:not(.is-drag) { display: none; }
+.seq-grip.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
+.seq-grip.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
+body.seq-dragging [data-handle]:not(.is-drag) { display: none; }
 .seq-add-branch {
 position: absolute; height: 22px; padding: 0 9px; translate: 0 -50%; z-index: 9; border-radius: var(--radius-pill);
 border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
@@ -2338,7 +2402,7 @@ transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-
 .seq-marquee { position: absolute; border: 1.5px dashed var(--primary); background: var(--primary-wash); pointer-events: none; z-index: 9; }
 .seq-msg-detail.is-editing, .seq-frag-branch-label.is-editing { min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
 body.seq-dragging .seq-actionbar, body.seq-dragging .seq-add-branch, body.seq-dragging .seq-insert { display: none !important; }
-body.presentation .seq-actionbar, body.presentation .seq-handle, body.presentation .seq-plus, body.presentation .seq-insert,
+body.presentation .seq-actionbar, body.presentation [data-handle], body.presentation .seq-plus, body.presentation .seq-insert,
 body.presentation .seq-add-branch { display: none !important; }
 body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
 .seq-dock-ghost { position: fixed; z-index: 1000; box-sizing: border-box; pointer-events: none; font-size: var(--t-detail-size); }
@@ -2791,6 +2855,22 @@ const tpl = document.createElement('template');
 tpl.innerHTML = icon(name, o);
 return tpl.content.firstChild;
 }
+function chevron(o) {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = 'chevron';
+b.title = o.label;
+b.setAttribute('aria-label', o.label);
+b.setAttribute('aria-expanded', String(!!o.expanded));
+b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+return b;
+}
+function port(side) {
+const p = document.createElement('span');
+p.className = `port port-${side}`;
+p.dataset.exportSkip = '';
+return p;
+}
 let confirmEl = null;
 function closeConfirm() {
 if (!confirmEl) return false;
@@ -3006,7 +3086,7 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -3920,6 +4000,10 @@ panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 :
 panY = minPan - frame.y * scale;
 updateTransform();
 };
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+let fontLoadedSinceRender = false;
+const onFontLoaded = () => { fontLoadedSinceRender = true; };
+if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
 try {
 plugin.render();
 applyInitialView();
@@ -3933,7 +4017,8 @@ document.documentElement.dataset.diagramReady = '1';
 requestAnimationFrame(() => {
 applyInitialView();
 syncHeaderCompact();
-const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
 ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
 : Promise.resolve();
 fontsIn.then(() => {
@@ -4699,7 +4784,7 @@ else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('o
 }
 const btnExport = document.getElementById('btn-export');
 const exportMenu = document.getElementById('export-menu');
-const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
 const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
 const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
 let defaultStyleCache = null;
@@ -6039,6 +6124,75 @@ return;
 plugin.deleteSelection();
 }
 });
+function createNotes(opts) {
+let editing = null;   // the note being typed
+let draft = null;     // { id, isNew, wasOn, before }
+const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
+const byId = (id) => list().find((n) => n && n.id === id) || null;
+const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function begin(note, isNew) {
+draft = { id: note.id, isNew: !!isNew, wasOn: opts.data().showNotes === true, before: isNew ? '' : textOf(note) };
+editing = note.id;
+}
+function edit(id) {
+const note = byId(id);
+if (!note || (opts.canEdit && !opts.canEdit())) return;
+const prev = { editing, draft };
+if (editing !== id || !draft) begin(note, false);
+const card = opts.openCard(note);
+const text = card && card.querySelector('.note-text');
+if (!text) { if (!card) ({ editing, draft } = prev); return; }
+text.contentEditable = 'true';
+text.focus();
+const range = document.createRange();
+range.selectNodeContents(text);
+range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+if (opts.afterFocus) opts.afterFocus(card);
+}
+function remove(id, record = true, reason = 'remove') {
+const note = byId(id);
+if (!note) return;
+const card = opts.cardOf(id);
+if (opts.anchorEl && card) motion.foldNote(card, opts.anchorEl(note));   // morph into the badge, never fade
+const token = opts.beforeRemove ? opts.beforeRemove(note) : undefined;
+const data = opts.data();
+data.notes = list().filter((n) => n && n.id !== id);
+if (!data.notes.length) delete data.notes;
+if (editing === id) { editing = null; draft = null; }
+opts.clearSelection(id);
+opts.render({ note, token, reason });
+if (record) opts.onChange();
+}
+function commit(note, textEl) {
+textEl.contentEditable = 'false';
+if (editing !== note.id) return;
+const d = draft;
+editing = null; draft = null;
+const value = clean(textEl.innerText);
+if (!value) {
+if (opts.restoreSwitch && d && d.isNew && !d.wasOn) delete opts.data().showNotes;   // a note given up leaves the switch as it was
+remove(note.id, !(d && d.isNew), 'cleared');
+return;
+}
+if (d && value === d.before) { textEl.textContent = note.text; opts.render({ note, reason: 'same' }); return; }
+note.text = value;
+textEl.textContent = value;
+opts.render({ note, reason: 'text' });
+opts.onChange();
+}
+window.addEventListener('pointerdown', (e) => {
+if (!editing) return;
+const card = opts.cardOf(editing);
+if (card && card.contains(e.target)) return;
+const text = card && card.querySelector('.note-text'), note = byId(editing);
+if (text && note) { text.blur(); commit(note, text); }   // no-op if the blur already committed it
+}, true);
+return { begin, edit, commit, remove, list, byId, editingId: () => editing, isEditing: (id) => editing === id };
+}
 //@engine-begin
 function routeEdgesOrthogonal(model) {
 const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
@@ -9094,16 +9248,11 @@ seqHtml.textContent = '';
 fs.forEach((f) => {
 if (f.x === undefined) return;
 const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
-seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
+seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box item-shape', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
 seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
 const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
 tag.dataset.fragId = f.id;
-const chev = htmlEl('button', 'frame-chev');
-chev.type = 'button';
-chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
-chev.setAttribute('aria-label', chev.title);
-chev.setAttribute('aria-expanded', String(!f.collapsed));
-chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+const chev = ui.chevron({ expanded: !f.collapsed, label: f.collapsed ? 'Expand this frame' : 'Collapse this frame' });
 tag.appendChild(chev);
 if (f.kind !== 'group') {
 const kind = htmlEl('span', 'seq-frag-kind');
@@ -9126,7 +9275,7 @@ tag.appendChild(fb);
 }
 seqHtml.appendChild(tag);
 (f.dividers || []).forEach((d) => {
-seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
+seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else item-shape', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
 seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
 if (d.label) {
 const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
@@ -9163,7 +9312,7 @@ const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
 const sw = drawnSwatch(p);
 seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
 seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
-if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
+if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap item-shape', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
 const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
 box.dataset.nodeId = p.id;
 paintSwatch(box, sw);
@@ -9226,7 +9375,7 @@ labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 28 - ((m.lab || 1) - 1) * 
 detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
 }
 const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
-seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
+seqMsgG.appendChild(svgEl('path', { class: `seq-line item-shape${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
 seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
 const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
 label.dataset.edgeId = m.id;
@@ -9344,7 +9493,7 @@ onComplete: () => { retiringSvgEls.forEach((el) => el.remove()); retiringSvgEls 
 }
 fs.forEach((f) => {
 if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
-const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
+const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .chevron svg`);
 if (chev) motion.anim(chev, [
 { transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
 { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
@@ -9814,7 +9963,7 @@ document.querySelectorAll('.seq-lifeline').forEach((el) => el.classList.toggle('
 function participantDrag(id, el) {
 return {
 move(pt, d) {
-el.classList.add('dragging');
+el.classList.add('is-dragging');
 el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
 const ps = chartData.participants, me = partById(id), L = chartData.layout;
 const others = ps.filter((p) => p.id !== id);
@@ -9877,7 +10026,7 @@ return {
 move(pt, d) {
 const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
 if (el) {
-el.classList.add('dragging');
+el.classList.add('is-dragging');
 el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
 }
 const m = msgById(id);
@@ -10219,8 +10368,8 @@ select('message', id, ids.length > 1 ? { ids, anchor } : {});
 function onSeqPointerDown(e) {
 if (isPresent() || e.button > 0) return;
 if (e.target.isContentEditable) return;
-if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
-const handle = e.target.closest('.seq-handle');
+if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+const handle = e.target.closest('[data-handle]');
 if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
 if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
 const src = e.target.closest('.seq-life-hit, .seq-activation');
@@ -10258,7 +10407,9 @@ beginDrag(e, messageDrag(id));
 }
 const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
 function addHandle(role, id, x, y, extraClass) {
-const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+const h = extraClass === 'seq-end' ? ui.port('end') : htmlEl('div', `seq-grip ${extraClass || ''}`.trim());
+Object.assign(h.style, { left: px(x), top: px(y) });
+h.dataset.handle = '';   // every handle drawn on the selection, whichever look it has
 h.dataset.role = role;
 h.dataset.id = id;
 h.dataset.exportSkip = '';
@@ -10275,11 +10426,11 @@ const sameBar = barKey !== null && barKey === lastBarKey;
 lastBarKey = barKey;
 if (!sel.kind || isPresent()) {
 if (oldBar) motion.hideBar(oldBar);
-seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
 return;
 }
 if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
 const bar = ui.actionBar('seq-actionbar');
 let at = null;
 const byId = {};
@@ -10655,7 +10806,7 @@ beginEdit(box && box.querySelector(EDIT_TEXT));
 }
 function onSeqDblClick(e) {
 if (isPresent()) return;
-if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
+if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
 const kl = e.target.closest('.color-key-label');
 if (kl) { e.stopPropagation(); editKey(kl); return; }
 const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
@@ -10766,8 +10917,8 @@ btnShowAll.addEventListener('click', showAll);
 seqHtml.addEventListener('click', (e) => {
 if (e.target.isContentEditable) return;
 const btn = e.target.closest(isPresent()
-? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
-: '.frame-chev, .frame-summary, .seq-frag-focus');
+? '.chevron, .frame-summary, .seq-frag-focus, .frame-tag'
+: '.chevron, .frame-summary, .seq-frag-focus');
 if (!btn) return;
 e.stopPropagation();
 const fid = btn.closest('[data-frag-id]').dataset.fragId;

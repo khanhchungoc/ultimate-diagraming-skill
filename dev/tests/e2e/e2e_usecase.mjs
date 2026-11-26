@@ -515,7 +515,7 @@ sys.stdout.write(f.format_json(out))`;
   await t.clickOn(item('checkout'));
   await sleep(120);
   const portRect = await t.ev(`(() => { const p = document.querySelector('.uc-case[data-node-id="checkout"] > .port'); const r = p.getBoundingClientRect(); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, uiScale: getComputedStyle(document.getElementById('stage')).getPropertyValue('--ui-scale').trim() }; })()`);
-  t.check('connection port stays ~16px on screen when zoomed out', Math.abs(portRect.w - 16) <= 1.5 && Math.abs(portRect.h - 16) <= 1.5 && parseFloat(portRect.uiScale) > 1, J(portRect));
+  t.check('connection port stays ~12px on screen when zoomed out', Math.abs(portRect.w - 12) <= 1.5 && Math.abs(portRect.h - 12) <= 1.5 && parseFloat(portRect.uiScale) > 1, J(portRect));
   await t.clickOn('#btn-zoom-reset');
   await sleep(100);
   // swatch picker opens on hover with frosted-glass box-shadow (no ancestor filter: drop-shadow, which would break backdrop-filter)

@@ -21,13 +21,16 @@ if (built.status !== 0) { console.error('[ERROR] gallery build failed:', (built.
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
-// The corners of a HIT x HIT box centred on the element must still hit the element (or a descendant): the invisible hit area
-const hitProbe = (sel) => `(() => {
+// The corners of a HIT x HIT box centred on the element must still hit the element (or a descendant): the invisible hit area.
+// outward: a side port's box starts at its centre (the item's edge) and runs away from the item (components/port.css)
+const hitProbe = (sel, outward = false) => `(() => {
   const els = [...document.querySelectorAll(${JSON.stringify(sel)})];
   let bad = 0;
   for (const el of els) {
     el.scrollIntoView({ block: 'center', inline: 'center' });
-    const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2, h = ${HIT} / 2 - 1;
+    const b = el.getBoundingClientRect(), h = ${HIT} / 2 - 1, side = ${outward} && ['top', 'right', 'bottom', 'left'].find((k) => el.classList.contains('port-' + k));
+    const out = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] }[side] || [0, 0];
+    const cx = b.left + b.width / 2 + out[0] * (h + 0.5), cy = b.top + b.height / 2 + out[1] * (h + 0.5);
     for (const [dx, dy] of [[-h, -h], [h, -h], [-h, h], [h, h]]) {
       const hit = document.elementFromPoint(cx + dx, cy + dy);
       if (!hit || !(hit === el || el.contains(hit))) { bad++; break; }
@@ -66,8 +69,8 @@ try {
       await t.mouse('mouseMoved', 5, 5);
 
       // Port: hit area, show and hide rules, touch size
-      const ports = await t.ev(hitProbe('.port.is-shown'));
-      t.check(`${theme}: a shown port has a hit area of at least ${HIT}x${HIT} (${ports.n} probed)`, ports.n >= 4 && ports.bad === 0, JSON.stringify(ports));
+      const ports = await t.ev(hitProbe('.port.is-shown', true));
+      t.check(`${theme}: a shown port has a hit area of at least ${HIT}x${HIT}, outward from the item edge (${ports.n} probed)`, ports.n >= 4 && ports.bad === 0, JSON.stringify(ports));
       const end = await t.ev(hitProbe('#port-end'));
       t.check(`${theme}: the end handle has a hit area of at least ${HIT}x${HIT}`, end.n === 1 && end.bad === 0, JSON.stringify(end));
       const portState = (id) => t.ev(`(() => { const c = getComputedStyle(document.querySelector('#${id} .port')); return [c.opacity, c.pointerEvents]; })()`);

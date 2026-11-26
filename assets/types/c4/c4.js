@@ -143,7 +143,7 @@
         return `url(#${id})`;
       }
 
-      document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch', 'is-touch'); }, true);   // bigger ports for a finger
+      document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch'); }, true);   // bigger ports for a finger
 
       // --- INPUT CHECKS (the boundary: a name or a label is checked once, here, and refused loudly) ---
       function cleanText(v, what, max) {

@@ -1534,6 +1534,9 @@
           updateTransform();
         };
 
+        // .is-touch on the body while the last press was a finger: shared components (port.css) size and show handles for touch
+        window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+
         // A face can start and finish loading between the first render (whose layout asks for it) and the frame below,
         // which would then see every font in and skip the re-render: note any load that finishes in that gap
         let fontLoadedSinceRender = false;
@@ -2429,7 +2432,7 @@
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;

@@ -672,7 +672,7 @@
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';
       }
       const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
-      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);   // .is-touch: the shell
 
       // Selecting changes classes and the tools drawn on the selection, never the tables themselves: the second click
       // of a double-click must land on the element the first one did

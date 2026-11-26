@@ -6,14 +6,22 @@
        text being edited, exporting, presenting, capture. Compatible with the flowchart's `.port .port-${pos}` markup. */
     .port {
       --port-d: var(--port-size);
-      position: absolute; box-sizing: content-box; width: var(--port-d); height: var(--port-d); padding: 0; z-index: 35;
+      position: absolute; box-sizing: border-box; width: var(--port-d);   /* --port-size is the outer size, ring included */ height: var(--port-d); padding: 0; z-index: 35;
       border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
       opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
       cursor: crosshair; touch-action: none;
       transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
     }
-    /* Invisible hit area of at least --hit-min around the visible ring */
-    .port::before { content: ''; position: absolute; inset: min(0px, calc((var(--port-d) - var(--hit-min)) / 2)); }
+    /* Invisible hit area of at least --hit-min. A side port's area grows outward from the item's edge (the ring's centre) only, so on
+       a small or zoomed-out item it never covers the item's own text (a press there selects the item); an end handle's is centred */
+    .port::before {
+      content: ''; position: absolute; width: max(var(--port-d), var(--hit-min)); height: max(var(--port-d), var(--hit-min));
+      top: 50%; left: 50%; translate: -50% -50%;
+    }
+    .port-top::before { top: auto; bottom: 50%; translate: -50% 0; }
+    .port-bottom::before { top: 50%; translate: -50% 0; }
+    .port-left::before { left: auto; right: 50%; translate: 0 -50%; }
+    .port-right::before { left: 50%; translate: 0 -50%; }
     .port-top { top: 0; left: 50%; }
     .port-bottom { top: 100%; left: 50%; }
     .port-left { top: 50%; left: 0; }

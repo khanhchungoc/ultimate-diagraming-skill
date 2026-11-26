@@ -31,12 +31,7 @@ RULES = {
     "edge-label-style": "a .edge-label rule that styles the label beyond its position (the look is components/edge.css)",
     "state-name": "a state class outside the convention (.selected .is-editing .is-collapsed .is-dim .is-dragging)",
 }
-# Files that still hold the pre-Phase-5 copies. TODO(Phase 5 follow-up): migrate flowchart (ports in renderNodes, .editing, edge label states),
-# then delete this entry.
-ALLOW = {
-    "assets/types/flowchart/flowchart.css": "flowchart migration (ports, edge label states, .editing) follows B1's renderNodes refactor",
-    "assets/types/flowchart/flowchart.js": "flowchart migration (ports, edge label states, .editing) follows B1's renderNodes refactor",
-}
+ALLOW: dict = {}   # files still holding pre-Phase-5 copies, each with the follow-up that removes it
 SHARED_CLASSES = {"chevron", "chevron-spacer", "port", "port-top", "port-right", "port-bottom", "port-left", "port-end"}
 SHARED_PARTS = {"chevron", "chev", "port", "handle"}
 LABEL_OK_PROPS = {"position", "left", "top", "right", "bottom", "transform", "transform-origin", "translate", "z-index", "display", "max-width", "visibility", "opacity"}
