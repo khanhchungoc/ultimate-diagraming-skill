@@ -1183,7 +1183,7 @@
       function participantDrag(id, el) {
         return {
           move(pt, d) {
-            el.classList.add('dragging');
+            el.classList.add('is-dragging');
             el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
             const ps = chartData.participants, me = partById(id), L = chartData.layout;
             const others = ps.filter((p) => p.id !== id);
@@ -1257,7 +1257,7 @@
           move(pt, d) {
             const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
             if (el) {
-              el.classList.add('dragging');
+              el.classList.add('is-dragging');
               el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
             }
             const m = msgById(id);
@@ -1636,7 +1636,7 @@
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
         if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
-        const handle = e.target.closest('.seq-handle');
+        const handle = e.target.closest('[data-handle]');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
         // DRAW FROM A LIFELINE: a drag from a lifeline or an activation bar draws a message from the nearest row gap
@@ -1678,7 +1678,10 @@
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
       const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
-        const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+        // A message's end is the shared end handle (ui.port); the other handles resize a bar, a frame or a note (.seq-grip)
+        const h = extraClass === 'seq-end' ? ui.port('end') : htmlEl('div', `seq-grip ${extraClass || ''}`.trim());
+        Object.assign(h.style, { left: px(x), top: px(y) });
+        h.dataset.handle = '';   // every handle drawn on the selection, whichever look it has
         h.dataset.role = role;
         h.dataset.id = id;
         h.dataset.exportSkip = '';
@@ -1696,11 +1699,11 @@
         lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
           if (oldBar) motion.hideBar(oldBar);
-          seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+          seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
           return;
         }
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+        seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
