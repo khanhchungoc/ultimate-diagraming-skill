@@ -2252,7 +2252,7 @@
         syncNodeBar();
       }
 
-      // The selected step's action bar (components/actionbar.css), in its node: Note (one step) and Delete. It sits over the
+      // The selected step's action bar (components/actionbar.css), in its node: Note (one step), Go to partner (a circle) and Delete. It sits over the
       // node, or under it when there is no room above in the window (placeNodeBar, also run when the view moves).
       let lastNodeBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
       function syncNodeBar() {
@@ -2266,6 +2266,7 @@
         const many = selectedNodeIds.size > 1, node = nodeById(selectedNodeId);
         const bar = ui.actionBar('actionbar node-bar', 'Step');
         const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+        if (!many && isConnector(node) && connectorPartners(node).length) bar.appendChild(btn('goto', ui.icon('arrow-right'), 'Go to the other circle of this pair'));
         if (!many && !isConnector(node)) bar.appendChild(btn('note', ui.icon('note'), 'Add a note (N)'));
         bar.appendChild(btn('delete', many ? `${ui.icon('trash')}<span>Delete ${selectedNodeIds.size}</span>` : ui.icon('trash'), many ? `Delete these ${selectedNodeIds.size} steps` : 'Delete (Delete key)', 'is-danger'));
         ['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
@@ -2274,6 +2275,7 @@
           const b = e.target.closest('.ab-btn');
           if (!b) return;
           if (b.dataset.act === 'note') addNoteTo(selectedNodeId);
+          else if (b.dataset.act === 'goto') jumpToPartner(node);
           else if (many) deleteNodes([...selectedNodeIds]);
           else deleteNode(selectedNodeId);
         });

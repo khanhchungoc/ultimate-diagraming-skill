@@ -104,6 +104,17 @@ try {
   const inSelected = await t.ev(`(${conn('in')}).classList.contains('selected')`);
   t.check('editing: clicking a connector selects it and does not pan to its partner',
     inSelected && panBefore[0] === panAfter[0] && panBefore[1] === panAfter[1], JSON.stringify({ panBefore, panAfter, inSelected }));
+  // The selected circle's bar has a Go to partner button: it centres the other circle at the same zoom, with a pulse
+  const goto = `document.querySelector('.node-bar .ab-btn[data-act="goto"]')`;
+  t.check('a selected connector shows a Go to partner button', await t.ev(`!!${goto}`));
+  const zoom0 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
+  await t.ev(`${goto}.click()`);
+  await sleep(450);
+  const centred = await offCentre(conn('out'));
+  const pulsed = await t.ev(`(${conn('out')}).classList.contains('connector-pulse')`);
+  const zoom1 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
+  t.check('Go to partner centres the out-connector at the same zoom, with a pulse',
+    Math.abs(centred[0]) <= 3 && Math.abs(centred[1]) <= 3 && pulsed && zoom1 === zoom0, JSON.stringify({ centred, pulsed, zoom0, zoom1 }));
 
   // 4. Rename renames the pair; a letter in use or not a letter is refused
   await rename(conn('in'), 'c');
