@@ -2128,6 +2128,9 @@ backdrop-filter: none;
 [data-item], .item-shape, .flow-node, .c4-node, .c4-group, .gantt-bar { outline: 1px solid CanvasText; }
 .selected, .selected .item-shape { outline: 2px solid Highlight; stroke: Highlight; }
 :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+.flow-node:has(> .shape-outline), .flow-node.selected:has(> .shape-outline) { outline: none; }
+.shape-outline > * { stroke: CanvasText; }
+.flow-node.selected .shape-outline > * { stroke: Highlight; }
 }
 #seq-canvas {
 position: relative; margin: 24px;
