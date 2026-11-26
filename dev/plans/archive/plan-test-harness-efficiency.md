@@ -1,6 +1,6 @@
 # Plan: Test Harness Speed, Stability, and Remote Tooling
 
-Status: In Progress (created 2026-11-26 from the PR #166 / PR #167 session audit; scope refined 2026-11-26).
+Status: Completed (2026-11-26 — Phases 1, 2, 4, and 5 shipped in PR #170 and `ultimate-harness` PR #18; deferred Phase 3 pure-logic unit tests and Phase 6 opportunistic modularization split into `dev/plans/plan-modularity-and-pure-unit-tests.md`).
 
 ## Why
 
