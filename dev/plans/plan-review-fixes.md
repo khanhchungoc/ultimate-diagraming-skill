@@ -6,7 +6,7 @@ Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating
 
 ## Progress and where to pick up (paused 2026-11-26)
 
-Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration branch; it is based on `stg` and holds everything below that is not yet on `stg`.
+Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration branch; it is based on `stg` and holds everything below that is not yet on `stg`. To resume: start from that branch (not `stg`), read this section, then `git apply dev/plans/wip/wave-c-<type>.patch` for the type being finished.
 
 ### Done
 
@@ -18,7 +18,7 @@ Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration br
 | Wave B2: Phase 5 for all six types, flowchart included (shared chevron, port, edge label, item states, state names, `dev/docs/ui-elements.md`, `check_components.py`, gallery `dev/playground/components.html`, `e2e_components.mjs`) | integration branch | port is 12 px outer; a side port's 24 px target runs outward only; shell sets `body.is-touch` |
 | Wave B3: Phase 6 shared notes controller for flowchart, usecase, erd, c4, gantt | integration branch | `assets/shell/notes.js` |
 | Phone check `dev/tests/e2e/e2e_device.mjs` (registered as `device`) | integration branch | see "Open failures" |
-| Harness rule for shared UI elements | `ultimate-harness` PR #17 | open, not merged |
+| Harness rule for shared UI elements | `ultimate-harness` `main` (PR #17, merged) | points at files that reach `stg` with the integration branch PR |
 
 Last full run on the integration branch (commit f71e00a, before `e2e_device.mjs` was added): unit `--all` 29/29, e2e 46/46, samples up to date.
 
@@ -44,7 +44,7 @@ Rules each stream followed (keep them when resuming): keep element identity (a M
 1. Finish the four patches above (one PR, or one per type), plus:
    - **Sequence notes onto the shared controller** (`createNotes` in `assets/shell/notes.js`): only additive, optional hooks in `notes.js`; keep the sequence note function names as thin wrappers. An emptied note is then removed with a fold, like the other types.
    - **Gantt note fold animation:** pass `anchorEl` (the note's badge on its bar or row) to `createNotes`.
-2. Open the integration branch PR to `stg` (Waves B and B follow-ups), with full unit and e2e suites green and samples rebuilt. Merge harness PR #17 once the skill PR is on `stg`.
+2. Open the integration branch PR to `stg` (Waves B and B follow-ups), with full unit and e2e suites green and samples rebuilt.
 3. Investigate the known Gantt issue below (opens scrolled to 2022 below ~1,280 px wide).
 4. Phase 4 step 1 (migrate every CSS file to `--space-*`, add a `spacing-literal` rule) and step 3 (control height, padding and dock inset tokens): not started.
 5. Phase 9 (phone toolbar More menu): planned, agree the fold order with the user first.
