@@ -10,6 +10,8 @@
       //                          Omit it when the type animates removal itself (c4 re-renders with a FLIP).
       //     canEdit()         -> optional; false blocks editing (presentation mode)
       //     openCard(note)    -> select the note, make sure its card exists, return the card (or null: edit is dropped)
+      //     beforeEdit(note, card, text) -> optional; run right before enabling contentEditable (e.g. unwrap wrapped text)
+      //     selectAll         -> optional; true selects all text on edit instead of placing the caret at the end
       //     afterFocus(card)  -> optional; after the caret is placed (pan the card into view)
       //     beforeRemove(note)-> optional; capture anything the re-render needs; the result arrives as ctx.token
       //     clearSelection(id)-> drop the note from the type's selection if it is selected
@@ -43,11 +45,12 @@
           const card = opts.openCard(note);
           const text = card && card.querySelector('.note-text');
           if (!text) { if (!card) ({ editing, draft } = prev); return; }
+          if (opts.beforeEdit) opts.beforeEdit(note, card, text);
           text.contentEditable = 'true';
           text.focus();
           const range = document.createRange();
           range.selectNodeContents(text);
-          range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+          if (!opts.selectAll) range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
           const sel = window.getSelection();
           sel.removeAllRanges();
           sel.addRange(range);

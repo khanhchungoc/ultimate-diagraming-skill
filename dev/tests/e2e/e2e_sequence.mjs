@@ -1060,6 +1060,90 @@ try {
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
   });
+
+  // Render path: every item element is kept across renders (identity for the morphs), the layers listen once each
+  // (events reach kept elements), and a drag leaves nothing behind on the element it moved.
+  await t.section('render-reuse', async () => {
+  const KEPT = '.seq-participant[data-node-id], .seq-msg-label[data-edge-id], .seq-line[data-edge-id], .seq-lifeline[data-node-id], .frame-tag[data-frag-id], .seq-frag-box[data-frag-id], .note[data-note-id], .seq-activation';
+  const mark = () => t.ev(`(() => { let n = 0; document.querySelectorAll('${KEPT}').forEach((el, i) => { el.__mark = i; n++; }); return n; })()`);
+  const kept = () => t.ev(`(() => { const els = [...document.querySelectorAll('${KEPT}')]; return { n: els.length, ok: els.filter((el) => el.__mark === undefined).length }; })()`);
+  // Undo / Redo restore a snapshot and render it; one cheap edit (the title) gives them something to restore
+  const rerender = async () => {
+    await t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      h.textContent = 'Reuse check'; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); return true; })()`);
+    await t.ev(`document.getElementById('btn-undo').click(); document.getElementById('btn-redo').click(); true`);
+    await t.settle();
+  };
+  await t.open(long);
+  const n0 = await mark();
+  await rerender();
+  let k = await kept();
+  t.check('a render keeps every participant, lifeline, arrow, label, frame, bar and note element (identity for the morphs)', n0 > 40 && k.n === n0 && k.ok === 0, `${n0} ${JSON.stringify(k)}`);
+
+  // Hover, click and double-click still reach a kept element through the layer listeners
+  const lab = await t.ev(`(() => { const el = document.querySelector('.seq-msg-label[data-edge-id]'); return { id: el.dataset.edgeId }; })()`);
+  await t.clickOn(`.seq-msg-label[data-edge-id="${lab.id}"]`);
+  const sel = await t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${lab.id}"]').classList.contains('selected') && document.querySelector('.seq-line[data-edge-id="${lab.id}"]').classList.contains('selected')`);
+  await t.press('Escape');
+  await t.clickOn(`.seq-msg-label[data-edge-id="${lab.id}"]`, { count: 2 });
+  await sleep(60);
+  const typing = await editing();
+  await t.press('Escape');
+  await t.ev(`document.activeElement && document.activeElement.blur(); true`);
+  t.check('after a render a click selects a kept arrow and its label, a double-click edits the label', sel && typing !== null, `sel=${sel} editing=${typing}`);
+  await rerender();
+  await t.clickOn('#btn-zoom-reset');
+  await t.settle();
+  const noteId = await t.ev(`(document.querySelector('.note[data-note-id]') || {dataset: {}}).dataset.noteId || ''`);
+  await t.clickOn(`.note[data-note-id="${noteId}"]`, { count: 2 });
+  await sleep(60);
+  const noteTyping = await editing();
+  await t.press('Escape');
+  await t.ev(`document.activeElement && document.activeElement.blur(); true`);
+  t.check('a double-click on a kept note edits it', noteId && noteTyping !== null, `${noteId} ${noteTyping}`);
+
+  // A rename changes the text of the one element and keeps all the others
+  await t.open(page);
+  const n1 = await mark();
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  await t.press('Enter');
+  await t.ev(`(() => { const e = document.activeElement; if (e && e.isContentEditable) { e.textContent = 'Renamed once'; e.blur(); } return true; })()`);
+  await t.settle();
+  k = await kept();
+  const text1 = await t.ev(`document.querySelector('.seq-msg-label[data-edge-id="m1"] .seq-msg-label-text').textContent`);
+  t.check('renaming a message rewrites its own label and keeps every element', k.n === n1 && k.ok === 0 && text1 === 'Renamed once', `${n1} ${JSON.stringify(k)} ${text1}`);
+
+  // A delete removes that arrow's elements only
+  await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
+  await t.press('Delete');
+  await t.settle();
+  k = await kept();
+  const gone = (await count('.seq-msg-label[data-edge-id="m2"]')) + (await count('.seq-line[data-edge-id="m2"]'));
+  t.check('deleting a message removes its elements and keeps the others', gone === 0 && k.ok === 0 && k.n < n1, `${gone} ${JSON.stringify(k)} ${n1}`);
+
+  // A drag that ends where it began renders again: the label is back as drawn (no drag class, no inline transform)
+  await t.open(page);
+  await mark();
+  const at = await t.at('.seq-msg-label[data-edge-id="m3"]');
+  await t.dragTo(at.x, at.y, at.x, at.y + 6, { steps: 4 });
+  await t.settle();
+  const left = await t.ev(`(() => { const el = document.querySelector('.seq-msg-label[data-edge-id="m3"]'); return { kept: el.__mark !== undefined, cls: el.classList.contains('is-dragging'), tr: el.style.transform }; })()`);
+  t.check('a drag dropped back in place leaves the label as drawn: same element, no .is-dragging, no transform', left.kept && !left.cls && left.tr === '', JSON.stringify(left));
+  const pbox = await t.at('.seq-participant');
+  await t.dragTo(pbox.x, pbox.y, pbox.x + 6, pbox.y, { steps: 4 });
+  await t.settle();
+  const pleft = await t.ev(`(() => { const el = document.querySelector('.seq-participant'); return { kept: el.__mark !== undefined, cls: el.classList.contains('is-dragging'), tr: el.style.transform }; })()`);
+  t.check('a participant dropped back in place is as drawn too', pleft.kept && !pleft.cls && pleft.tr === '', JSON.stringify(pleft));
+
+  // The drop rows are worked out once per render, not per pointer move: a long drag over the long page stays cheap
+  await t.open(long);
+  const m = await t.at('.seq-msg-label[data-edge-id]');
+  const t0 = Date.now();
+  await t.dragTo(m.x, m.y, m.x, m.y + 120, { steps: 40 });
+  const drag = Date.now() - t0;
+  await t.press('Escape');
+  t.check('a 40-move message drag over the long page runs without page errors', t.errors.length === 0 && drag < 8000, `${drag}ms ${t.errors.join(' | ')}`);
+  });
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;
