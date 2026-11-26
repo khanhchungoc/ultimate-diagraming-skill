@@ -27,7 +27,7 @@
         const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
         const byId = (id) => list().find((n) => n && n.id === id) || null;
         const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
-        const clean = (s) => s.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
         // Call after pushing a new note and before the first render: it counts as live while typed into
         function begin(note, isNew) {
