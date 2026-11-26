@@ -14,13 +14,12 @@
     .seq-life-hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; cursor: crosshair; touch-action: none; }
     body.presentation .seq-activation, body.presentation .seq-life-hit { pointer-events: none; cursor: default; }
     .seq-line { stroke: var(--text-main); stroke-width: 1.5; fill: none; transition: opacity var(--dur-micro) var(--curve-inout), stroke var(--dur-micro) var(--curve-out); }
-    .seq-line.is-reply { stroke-dasharray: 7 5; stroke: var(--text-muted); }
-    .seq-line.selected { stroke: var(--primary); stroke-width: 2; }
+    .seq-line.is-reply { stroke-dasharray: 7 5; }
+    .seq-line.is-reply:not(.selected) { stroke: var(--text-muted); }
     .seq-arrow-fill { fill: var(--text-main); }
     .seq-arrow-open { fill: none; stroke: var(--text-main); stroke-width: 1.5; }
     .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; touch-action: none; }
     .seq-frag-box { fill: var(--primary); fill-opacity: 0.02; stroke: var(--border-dark); stroke-width: 1.5; pointer-events: none; transition: fill var(--dur-base) var(--curve-inout), stroke var(--dur-base) var(--curve-inout); }
-    .seq-frag-box.selected { stroke: var(--primary); stroke-width: 2; }
     /* The frame's border selects it: an 8px invisible stroke, the inside stays click-through */
     .seq-frag-hit { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer; }
     .seq-div-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: row-resize; }
@@ -39,8 +38,8 @@
     /* Like an activation bar: the swatch's soft fill and strong outline, no halo */
     .seq-participant.swatch-pill { --halo: 0 0 transparent; border: 2px solid var(--sw-line); }
     .seq-participant.is-external { border: 2.5px dashed var(--sw-line); }
-    .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
-    .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
+    .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }   /* the pill's own hover ring (components/pill.css), kept on select */
+    .seq-participant.is-dragging, .seq-msg-label.is-dragging { opacity: 0.75; z-index: 20; }
     .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-20); }
     .seq-participant:not(.is-rail) .seq-kind-icon { margin-right: 4px; }
     .seq-participant:not(.is-rail) .seq-participant-name {
@@ -72,7 +71,6 @@
     .seq-frag-branch-label::before { content: '['; } .seq-frag-branch-label::after { content: ']'; }
     .seq-branch-text { outline: none; }
     .seq-frag-branch-label.selected { color: var(--primary); }
-    .seq-frag-else.selected { stroke: var(--primary); stroke-width: 2; }
     /* Focus: collapse the other phases (the participants they leave become rails) */
     .seq-frag-focus {
       display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
@@ -80,7 +78,7 @@
     }
     /* The tag lays its chevron, kind, label and focus button out on one centred row */
     #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
-    #seq-html .frame-tag .frame-chev { vertical-align: baseline; }
+    #seq-html .frame-tag .chevron { margin: 0 2px 0 -4px; vertical-align: baseline; }
     #seq-html .frame-summary { translate: -50% -50%; }
     .seq-frag-focus { position: relative; }
     .seq-frag-focus::before {
@@ -91,8 +89,8 @@
     .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
     #btn-show-all[hidden] { display: none; }
     /* Screenshots and exports of an expanded frame look as they did before frames could collapse */
-    body.capture .frame-tag:not(.is-collapsed) .frame-chev,
-    body.exporting .frame-tag:not(.is-collapsed) .frame-chev,
+    body.capture .frame-tag:not(.is-collapsed) .chevron,
+    body.exporting .frame-tag:not(.is-collapsed) .chevron,
     body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
@@ -147,7 +145,6 @@
     .seq-ab-swatch { height: 30px; width: 30px; }
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
     .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; transition: stroke var(--dur-base) var(--curve-inout); }
-    .seq-cap.selected { stroke: var(--primary); stroke-width: 3; }
     .seq-participant { transition: opacity var(--dur-micro) var(--curve-inout), background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout); }
     .seq-participant.is-gone { opacity: 0; pointer-events: none; }
     body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
@@ -165,7 +162,7 @@
     body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .note,
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the frame tag, chevron, focus and summary row stay live: they walk an audience through the flow phase by phase */
-    body.presentation .frame-tag, body.presentation .frame-chev, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; cursor: pointer; }
+    body.presentation .frame-tag, body.presentation .frame-tag .chevron, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; cursor: pointer; }
     /* Pinned participant row (see pinParticipants): the pills ride at the viewport's top, each in its halo, over the lifelines */
     #seq-canvas.seq-pinned .seq-participant { translate: 0 var(--pin-dy, 0px); z-index: 6; }
     body.exporting #seq-canvas .seq-participant, body.capture #seq-canvas .seq-participant { translate: none !important; }
@@ -211,7 +208,7 @@
     .seq-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-line); border: 1px solid var(--dot-edge-soft); }
     .seq-swatch.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
-    .seq-handle {
+    .seq-grip {
       position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; z-index: 9;
       border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); touch-action: none;
       animation: seq-pop var(--dur-micro) var(--curve-spring-tactile);
@@ -220,10 +217,9 @@
       from { transform: scale(0.5); }
       to   { transform: none; }
     }
-    .seq-handle.seq-end { cursor: grab; }
-    .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
-    .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
-    body.seq-dragging .seq-handle:not(.is-drag) { display: none; }
+    .seq-grip.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
+    .seq-grip.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
+    body.seq-dragging [data-handle]:not(.is-drag) { display: none; }
     .seq-add-branch {
       position: absolute; height: 22px; padding: 0 9px; translate: 0 -50%; z-index: 9; border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
@@ -234,7 +230,7 @@
     .seq-marquee { position: absolute; border: 1.5px dashed var(--primary); background: var(--primary-wash); pointer-events: none; z-index: 9; }
     .seq-msg-detail.is-editing, .seq-frag-branch-label.is-editing { min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     body.seq-dragging .seq-actionbar, body.seq-dragging .seq-add-branch, body.seq-dragging .seq-insert { display: none !important; }
-    body.presentation .seq-actionbar, body.presentation .seq-handle, body.presentation .seq-plus, body.presentation .seq-insert,
+    body.presentation .seq-actionbar, body.presentation [data-handle], body.presentation .seq-plus, body.presentation .seq-insert,
     body.presentation .seq-add-branch { display: none !important; }
     body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
 

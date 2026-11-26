@@ -278,6 +278,26 @@
           tpl.innerHTML = icon(name, o);
           return tpl.content.firstChild;
         }
+        // The collapse toggle every type uses (components/chevron.css): { expanded, label } -> <button class="chevron">. The rotation follows
+        // aria-expanded, so the caller only flips that attribute (and the title) when the state changes; it adds its own click handler.
+        function chevron(o) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chevron';
+          b.title = o.label;
+          b.setAttribute('aria-label', o.label);
+          b.setAttribute('aria-expanded', String(!!o.expanded));
+          b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+          return b;
+        }
+        // The connection handle every type uses (components/port.css): side = top | right | bottom | left, or end (a line's end handle, always shown).
+        // The caller positions it (a type's CSS sets left / top) and adds its own pointer handler; it is never exported.
+        function port(side) {
+          const p = document.createElement('span');
+          p.className = `port port-${side}`;
+          p.dataset.exportSkip = '';
+          return p;
+        }
         let confirmEl = null;
         function closeConfirm() {
           if (!confirmEl) return false;
@@ -521,7 +541,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -1514,6 +1534,14 @@
           updateTransform();
         };
 
+        // .is-touch on the body while the last press was a finger: shared components (port.css) size and show handles for touch
+        window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+
+        // A face can start and finish loading between the first render (whose layout asks for it) and the frame below,
+        // which would then see every font in and skip the re-render: note any load that finishes in that gap
+        let fontLoadedSinceRender = false;
+        const onFontLoaded = () => { fontLoadedSinceRender = true; };
+        if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
         try {
           plugin.render();
           applyInitialView();
@@ -1530,7 +1558,8 @@
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
           syncHeaderCompact();
-          const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+          if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+          const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
             ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
@@ -2403,7 +2432,7 @@
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;

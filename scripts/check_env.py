@@ -38,6 +38,7 @@ REQUIRED_FILES = [
     "assets/shell/shell.html",
     "assets/shell/shell.css",
     "assets/shell/shell.js",
+    "assets/shell/notes.js",
     "assets/types/flowchart/engine.js",
     "assets/types/sequence/engine.js",
 ]

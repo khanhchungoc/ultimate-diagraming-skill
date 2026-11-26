@@ -76,7 +76,7 @@ try {
     const r = await t.at(col ? row(id, col) : head(id), 0.4, 0.5);
     await t.mouse('mouseMoved', r.x, r.y);
     await sleep(60);
-    return t.at(`.erd-entity[data-node-id="${id}"] ${col ? `.erd-row[data-col="${col}"]` : '.erd-head'} .erd-port`);
+    return t.at(`.erd-entity[data-node-id="${id}"] ${col ? `.erd-row[data-col="${col}"]` : '.erd-head'} .port:not(.port-end)`);
   };
   const freshPage = async (file = page, query = '') => { await t.open(file, query); };
   // The saved block, run through the Python codec (from_disk, to_disk, format_json): must come out as written
@@ -317,7 +317,7 @@ sys.stdout.write(format_json(out))`;
   t.check('dragging from a row’s port onto a PK row: the start row becomes fk, ends zero-or-many to one, `columns` set',
     d.relationships.length === before + 1 && r10?.columns?.join() === 'rating' && r10.fromEnd === 'zeroOrMany' && r10.toEnd === 'one' && !('toColumns' in r10)
       && ent(d, 'review').columns[3].fk === true && !r10.identifying && /^r\d+$/.test(r10.id), J(r10));
-  t.check('the new line is selected, with its end handles and action bar', (await count('.erd-rel.selected')) === 1 && (await count('.erd-handle')) === 2 && (await count('.erd-actionbar [data-act="reverse"]')) === 1);
+  t.check('the new line is selected, with its end handles and action bar', (await count('.erd-rel.selected')) === 1 && (await count('.port-end')) === 2 && (await count('.erd-actionbar [data-act="reverse"]')) === 1);
   await undo();
   t.check('drawing a relationship is one undo step', (await saved()).relationships.length === before);
   // from the header onto the header: no columns
@@ -394,7 +394,7 @@ sys.stdout.write(format_json(out))`;
   await t.click(q.x, q.y);
   t.check('clicking a line selects it: two crow’s-foot pickers (4 glyphs each), Identifying, Reverse, label and 2 end handles',
     (await count('.erd-rel.selected')) === 1 && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4 && (await count('.erd-actionbar [data-act="toEnd"]')) === 4
-      && (await count('.erd-actionbar [data-act="identifying"], .erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 3 && (await count('.erd-handle')) === 2);
+      && (await count('.erd-actionbar [data-act="identifying"], .erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 3 && (await count('.port-end')) === 2);
   t.check('the pickers show the current ends as pressed', (await t.ev(`document.querySelector('.erd-actionbar [data-act="fromEnd"][data-value="zeroOrMany"]').getAttribute('aria-pressed')`)) === 'true'
     && (await t.ev(`document.querySelector('.erd-actionbar [data-act="toEnd"][data-value="one"]').getAttribute('aria-pressed')`)) === 'true');
   await t.clickOn('.erd-actionbar [data-act="fromEnd"][data-value="oneOrMany"]');
@@ -443,13 +443,13 @@ sys.stdout.write(format_json(out))`;
   await freshPage();
   q = await onLine('r8');
   await t.click(q.x, q.y);
-  const h = await t.at('.erd-handle[data-role="to"]');
+  const h = await t.at('.port-end[data-role="to"]');
   await t.mouse('mouseMoved', 5, 600);
   const handleGap = JSON.parse(await t.ev(`JSON.stringify((() => { const g = document.querySelector('.erd-rel[data-edge-id="r8"] .edge-line'), L = g.getTotalLength(), m = g.getScreenCTM();
     const pt = (l) => { const q = g.getPointAtLength(l); return [m.a * q.x + m.e, m.d * q.y + m.f]; }; const sc = m.a;
-    return [...document.querySelectorAll('.erd-handle')].map((el) => { const r = el.getBoundingClientRect(), c = [r.left + r.width / 2, r.top + r.height / 2], e = el.dataset.role === 'from' ? pt(0) : pt(L);
+    return [...document.querySelectorAll('.port-end')].map((el) => { const r = el.getBoundingClientRect(), c = [r.left + r.width / 2, r.top + r.height / 2], e = el.dataset.role === 'from' ? pt(0) : pt(L);
       return { role: el.dataset.role, d: Math.hypot(c[0] - e[0], c[1] - e[1]) / sc, w: r.width / sc, hollow: getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)' }; }); })())`));
-  t.check('the end handles sit past the crow’s feet (about 34px from the table edge) as small hollow rings', handleGap.length === 2 && handleGap.every((x) => x.d >= 30 && x.d <= 38 && x.w <= 10.5 && x.hollow), J(handleGap));
+  t.check('the end handles sit past the crow’s feet (about 34px from the table edge) as hollow rings', handleGap.length === 2 && handleGap.every((x) => x.d >= 30 && x.d <= 38 && x.w <= 16.5 && x.hollow), J(handleGap));
   tgt = await t.at(row('category', 'name'));
   await t.dragTo(h.x, h.y, tgt.x, tgt.y);
   d = await saved();
@@ -458,7 +458,7 @@ sys.stdout.write(format_json(out))`;
   await undo();
   q = await onLine('r8');
   await t.click(q.x, q.y);
-  const h2 = await t.at('.erd-handle[data-role="from"]');
+  const h2 = await t.at('.port-end[data-role="from"]');
   tgt = await t.at(row('order', 'placed_at'));
   await t.dragTo(h2.x, h2.y, tgt.x, tgt.y);
   d = await saved();
@@ -472,7 +472,7 @@ sys.stdout.write(format_json(out))`;
   p = await portOf('category', 'name');
   tgt = await t.at(row('category', 'id'));
   await t.dragTo(p.x, p.y, tgt.x, tgt.y);
-  const handleSelf = await t.at('.erd-handle[data-role="from"]');
+  const handleSelf = await t.at('.port-end[data-role="from"]');
   const catHeadAt = await t.at(head('category'));
   await t.dragTo(handleSelf.x, handleSelf.y, catHeadAt.x, catHeadAt.y);
   t.check('a self-reference keeps its column: dropping its child end on the table’s header is refused with a hint',
@@ -781,11 +781,11 @@ sys.stdout.write(format_json(out))`;
   const overlap = await t.ev(`(() => { const b = [...document.querySelectorAll('.erd-entity')].map((e) => e.getBoundingClientRect()); for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) if (b[i].left < b[j].right && b[i].right > b[j].left && b[i].top < b[j].bottom && b[i].bottom > b[j].top) return true; return false; })()`);
   t.check('the new table does not sit on another table', !overlap);
   // collapse only re-routes
-  await t.clickOn(`${head('order')} .erd-chevron`);
+  await t.clickOn(`${head('order')} .chevron`);
   const off4 = await layoutOf();
   t.check('collapsing a table only re-routes (no table moves) and the lines still end on its header',
     Object.keys(off3).every((k) => J(off3[k]) === J(off4[k])) && (await count('.erd-entity.is-collapsed')) === 1 && (await t.ev(`document.querySelector('.erd-entity.is-collapsed').getBoundingClientRect().height`)) < 40);
-  await t.clickOn(`${head('order')} .erd-chevron`);
+  await t.clickOn(`${head('order')} .chevron`);
   // relationship and column edits re-route without moving
   const off5 = await layoutOf();
   p = await portOf('review', 'rating');
@@ -814,7 +814,7 @@ sys.stdout.write(format_json(out))`;
     ['drag a column', async () => { const a1 = await t.at(row('customer', 'name')), b1 = await t.at(row('customer', 'email')); await t.dragTo(a1.x, a1.y, b1.x, b1.y - 10); }],
     ['delete a column', async () => { await pickRow('order', 'status'); await t.press('Delete'); }],
     ['draw a relationship', async () => { const p1 = await portOf('review', 'rating'), g1 = await t.at(row('category', 'id')); await t.dragTo(p1.x, p1.y, g1.x, g1.y); }],
-    ['re-point a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); const h1 = await t.at('.erd-handle[data-role="to"]'), g1 = await t.at(row('category', 'name')); await t.dragTo(h1.x, h1.y, g1.x, g1.y); }],
+    ['re-point a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); const h1 = await t.at('.port-end[data-role="to"]'), g1 = await t.at(row('category', 'name')); await t.dragTo(h1.x, h1.y, g1.x, g1.y); }],
     ['pick a cardinality', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="toEnd"][data-value="oneOrMany"]'); }],
     ['toggle identifying', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="identifying"]'); }],
     ['reverse a relationship', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="reverse"]'); }],
@@ -822,7 +822,7 @@ sys.stdout.write(format_json(out))`;
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
     ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-trigger'); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); await t.press('Escape'); }],
-    ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
+    ['collapse a table', async () => { await t.clickOn(`${head('order')} .chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
     ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const c1 = await t.at('.note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
@@ -870,7 +870,7 @@ sys.stdout.write(format_json(out))`;
   await ctrlClick(head('order'));
   t.check('multi: Ctrl+click adds tables to the selection (both outlined, the dock Delete shows the count)', J(await selIds()) === J(['customer', 'order']) && (await deleteLabel()) === 'Delete 2', `${J(await selIds())} ${await deleteLabel()}`);
   t.check('multi: the last clicked table is the primary and has the action bar', (await count('.erd-actionbar')) === 1 && (await t.ev(`(() => { const b = document.querySelector('.erd-actionbar').getBoundingClientRect(), o = document.querySelector('.erd-entity[data-node-id="order"]').getBoundingClientRect(); return Math.abs((b.left + b.right) / 2 - (o.left + o.right) / 2) < 6; })()`)));
-  t.check('multi: with several selected no ports show on hover', await (async () => { const r = await t.at(row('order', 'status')); await t.mouse('mouseMoved', r.x, r.y); await sleep(80); return t.ev(`[...document.querySelectorAll('.erd-port')].every((p) => getComputedStyle(p).display === 'none')`); })());
+  t.check('multi: with several selected no ports show on hover', await (async () => { const r = await t.at(row('order', 'status')); await t.mouse('mouseMoved', r.x, r.y); await sleep(80); return t.ev(`[...document.querySelectorAll('.port:not(.port-end)')].every((p) => { const c = getComputedStyle(p); return c.display === 'none' || c.pointerEvents === 'none'; })`); })());
   await ctrlClick(head('customer'));
   t.check('multi: Ctrl+click on a selected table takes it out again', J(await selIds()) === J(['order']) && (await deleteLabel()) === 'Delete');
   await t.press('Escape');
@@ -997,12 +997,12 @@ sys.stdout.write(format_json(out))`;
     const r = await t.at(row('order', 'status'));
     await t.mouse('mouseMoved', r.x, r.y);
     await sleep(80);
-    return t.ev(`[...document.querySelectorAll('.erd-port')].some((p) => getComputedStyle(p).display !== 'none')`);
+    return t.ev(`[...document.querySelectorAll('.port:not(.port-end)')].some((p) => { const c = getComputedStyle(p); return c.display !== 'none' && c.pointerEvents !== 'none'; })`);
   })();
   t.check('?present: no ports, handles, + chips or dock', !portHover && (await t.ev(`getComputedStyle(document.querySelector('.toolbar-center')).display`)) === 'none'
     && (await count('.note-add')) === 0);
   await t.clickOn(head('order'), { count: 2 });
-  t.check('?present: a double-click edits nothing', (await editing()) === null && (await count('.erd-actionbar')) === 0 && (await count('.erd-handle')) === 0);
+  t.check('?present: a double-click edits nothing', (await editing()) === null && (await count('.erd-actionbar')) === 0 && (await count('.port-end')) === 0);
   await t.press('Delete');
   await t.press('n');
   t.check('?present: Delete and N do nothing', (await count('.erd-entity')) === 8 && (await count('.note')) === notes0 && (await count('.confirm')) === 0);
@@ -1010,7 +1010,7 @@ sys.stdout.write(format_json(out))`;
   await t.mouse('mouseMoved', hov.x, hov.y);
   await sleep(80);
   t.check('?present: hovering a table still lights its lines and dims the rest', (await count('.erd-entity.is-dim')) > 0 && (await count('.erd-rel.hl-in')) > 0);
-  await t.clickOn(`${head('order')} .erd-chevron`);
+  await t.clickOn(`${head('order')} .chevron`);
   const collapsedPresent = await count('.erd-entity.is-collapsed');
   t.check('?present: collapse works and is a change of view only (no unsaved badge, no undo step)', collapsedPresent === 1 && !(await unsaved()) && (await undoDisabled()));
   const pp = await t.at(row('customer', 'email')), ph = await t.at(head('customer'));
@@ -1132,7 +1132,7 @@ sys.stdout.write(format_json(out))`;
   await hoverOn('order');
   t.check('detail names: no chips or peeks on the related tables', (await count('.erd-key-chip, .erd-key-peek')) === 0 && (await count('.rel-child')) === 2);
   await freshPage();
-  await t.clickOn(`${head('customer')} .erd-chevron`);
+  await t.clickOn(`${head('customer')} .chevron`);
   await t.mouse('mouseMoved', 5, 600);
   await hoverOn('order');
   t.check('a collapsed related table shows no peek either', (await count('.erd-key-chip, .erd-key-peek')) === 0);
@@ -1151,7 +1151,7 @@ sys.stdout.write(format_json(out))`;
   const dimmedE = await count('.search-dim');
   await t.clickOn('#btn-present');
   t.check('erd: entering Present closes and clears the search', dimmedE > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
-  await t.clickOn(`${head('order')} .erd-chevron`);
+  await t.clickOn(`${head('order')} .chevron`);
   await t.press('Escape');
   t.check('erd: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))

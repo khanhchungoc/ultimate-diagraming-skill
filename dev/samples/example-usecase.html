@@ -1423,10 +1423,22 @@ border: 1.5px solid var(--border-dark);
 border-radius: var(--radius-lg);
 color: var(--text-main);
 cursor: pointer;
+-webkit-user-select: none; user-select: none;
 z-index: 30;
 box-shadow: var(--shadow-sm);
+display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 3px 8px;
+font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading);
+white-space: normal; overflow-wrap: break-word; text-align: center;
+max-width: var(--edge-label-max-w, 140px);
 transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
 }
+.edge-label--wrap { white-space: normal; }
+.edge-label--single {
+display: flex; padding: 0 8px; max-width: none; white-space: nowrap; pointer-events: auto;
+font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-none);
+}
+.edge-label--single > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.edge-label.is-dim { opacity: var(--dim); }
 .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
 .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
 .edge-label:is(:hover, .hover, .linked, .selected) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
@@ -1436,20 +1448,76 @@ background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radiu
 color: var(--text-main); cursor: pointer; user-select: none;
 }
 .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
-.frame-chev {
-display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-vertical-align: -3px;
-}
-.frame-tag:hover .frame-chev, .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-.frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
-.frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
 .frame-summary {
 position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
 background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
 white-space: nowrap; cursor: pointer;
 }
 .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+.chevron {
+position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+width: var(--chevron-size); height: var(--chevron-size); padding: 0; border: none; border-radius: var(--radius-md);
+background: transparent; color: var(--text-soft); cursor: pointer;
+transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+}
+.chevron::before { content: ''; position: absolute; inset: min(0px, calc((var(--chevron-size) - var(--hit-min)) / 2)); }
+.chevron:hover { background: var(--bg-hover); color: var(--text-main); }
+.chevron:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
+.chevron[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.chevron-spacer { flex: none; width: var(--chevron-size); height: 1px; }
+@media (prefers-reduced-motion: reduce) {
+.chevron, .chevron svg { transition: none; }
+}
+.port {
+--port-d: var(--port-size);
+position: absolute; box-sizing: border-box; width: var(--port-d);     height: var(--port-d); padding: 0; z-index: 35;
+border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
+opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
+cursor: crosshair; touch-action: none;
+transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
+}
+.port::before {
+content: ''; position: absolute; width: max(var(--port-d), var(--hit-min)); height: max(var(--port-d), var(--hit-min));
+top: 50%; left: 50%; translate: -50% -50%;
+}
+.port-top::before { top: auto; bottom: 50%; translate: -50% 0; }
+.port-bottom::before { top: 50%; translate: -50% 0; }
+.port-left::before { left: auto; right: 50%; translate: 0 -50%; }
+.port-right::before { left: 50%; translate: 0 -50%; }
+.port-top { top: 0; left: 50%; }
+.port-bottom { top: 100%; left: 50%; }
+.port-left { top: 50%; left: 0; }
+.port-right { top: 50%; left: 100%; }
+:is(:hover, :focus-within) > .port:not(.port-end), .is-touch .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
+@media (hover: none) { .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); } }
+.is-touch .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); }
+.is-touch .port { --port-d: var(--port-size-touch); border-width: 2.5px; }
+.port:is(:hover, :focus-visible) { transform: scale(1.35); background: var(--primary); outline: none; }
+.port-end { opacity: 1; pointer-events: auto; transform: none; border-width: var(--ring-thin); background: transparent; box-shadow: none; cursor: grab; z-index: 54; }
+.port-end:hover { transform: none; }
+.is-dragging .port, .is-multi .port, :has(.is-editing) > .port, .is-editing > .port { opacity: 0 !important; pointer-events: none !important; }
+body:is(.presentation, .present, .exporting, .capture) .port { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+.port { transition: none; transform: none; }
+.port:is(:hover, :focus-visible) { transform: none; }
+}
+[data-item]:is(:hover, .is-hover):not(.selected, .is-dragging, .is-editing) {
+box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring, var(--node-border)), var(--hover-shadow);
+}
+[data-item].selected {
+--ring: var(--primary); --ring-w: var(--select-ring-w);
+box-shadow: inset 0 0 0 var(--select-ring-w) var(--primary), var(--shadow-ring);
+}
+[data-item].is-dim { opacity: var(--dim); filter: var(--dim-filter); }
+.item-shape:is(:hover, .is-hover):not(.selected) { stroke: var(--primary); }
+.item-shape.selected { stroke: var(--primary); stroke-width: var(--select-ring-w); }
+.item-shape.is-dim { opacity: var(--dim); }
+body.exporting :is([data-item], .item-shape).is-dim { opacity: 1 !important; filter: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+[data-item] { transition: box-shadow var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
+.item-shape { transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out); }
+}
 .actionbar {
 position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
 white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
@@ -2150,15 +2218,13 @@ backdrop-filter: none;
 #uc-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
 #uc-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 body.capture #uc-canvas { margin: 0; }
-.uc-actor, .uc-case, .uc-subject-title, .edge-label { -webkit-user-select: none; user-select: none; }
+.uc-actor, .uc-case, .uc-subject-title { -webkit-user-select: none; user-select: none; }
 [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
 .uc-subject {
 position: absolute; box-sizing: border-box; z-index: 5; pointer-events: none;
 background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-2xl); color: var(--text-main);
 box-shadow: var(--shadow-canvas); transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
 }
-.uc-subject:is(:hover, .is-hover):not(.selected, .drop-target) { border-color: var(--node-border); box-shadow: var(--shadow-md); }
-.uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
 .uc-subject-tab { position: absolute; box-sizing: border-box; background: var(--bg-panel); border: 2px solid var(--primary); border-radius: var(--radius-pill); opacity: 0; pointer-events: auto; touch-action: none; transition: opacity var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out); }
 .uc-subject-tab.is-x { right: -5px; top: 50%; width: 10px; height: 36px; margin-top: -18px; cursor: ew-resize; }
 .uc-subject-tab.is-y { bottom: -5px; left: 50%; height: 10px; width: 36px; margin-left: -18px; cursor: ns-resize; }
@@ -2166,7 +2232,7 @@ box-shadow: var(--shadow-canvas); transition: border-color var(--dur-micro) var(
 .uc-subject-tab:hover { background: var(--primary); }
 .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
 body.exporting .uc-subject:is(:hover, .is-hover):not(.selected),
-body.capture .uc-subject:is(:hover, .is-hover):not(.selected) { border-color: var(--border-color); box-shadow: var(--shadow-canvas); }
+body.capture .uc-subject:is(:hover, .is-hover):not(.selected) { box-shadow: var(--shadow-canvas); }
 body.exporting .uc-subject .uc-subject-tab,
 body.capture .uc-subject .uc-subject-tab,
 body.presentation .uc-subject .uc-subject-tab { display: none; }
@@ -2176,8 +2242,7 @@ pointer-events: auto; cursor: move; color: var(--text-main);
 }
 .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; }
-.uc-subject .frame-chev { color: var(--text-soft); flex: none; width: 24px; height: 24px; margin: 0 0 0 -4px; vertical-align: baseline; }
-.uc-subject.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
+.uc-subject .chevron { margin: 0 0 0 -4px; }
 .uc-link { transition: opacity 110ms var(--curve-inout); }
 .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: var(--stroke-thin); stroke-linecap: round; marker-end: var(--mk-e); }
 .uc-link.is-dashed .edge-line { stroke-dasharray: var(--dash); }
@@ -2193,7 +2258,7 @@ pointer-events: auto; cursor: move; color: var(--text-main);
 .uc-mk-hollow path { fill: var(--bg-panel); stroke: var(--mk, var(--text-soft)); stroke-width: var(--ring-md); }
 body.exporting .is-dim { opacity: 1 !important; }
 .uc-label {
-display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; pointer-events: auto;
+display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0 8px; max-width: none; pointer-events: auto;
 font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight); white-space: nowrap; cursor: pointer;
 color: var(--text-muted); background: var(--bg-panel); border-color: var(--border-color); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
 transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity 110ms var(--curve-inout);
@@ -2269,19 +2334,6 @@ box-shadow: var(--shadow-sm); transition: border-color var(--dur-micro) var(--cu
 .uc-actor:focus-visible, .uc-case:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .uc-subject-title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .uc-label:focus-visible, .uc-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.uc-port {
-position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; box-sizing: border-box; padding: 0;
-border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); display: none; cursor: crosshair; z-index: 4; touch-action: none;
-scale: var(--ui-scale, 1);
-animation: uc-port-in var(--dur-micro) var(--curve-spring-tactile);
-}
-@keyframes uc-port-in { from { transform: scale(0.55); } to { transform: none; } }
-.uc-port.is-left { right: auto; left: -7px; }
-.uc-port:hover { background: var(--primary); }
-.uc-case:hover > .uc-port, .uc-actor:hover > .uc-port, .uc-case.selected > .uc-port, .uc-actor.selected > .uc-port { display: block; }
-body.uc-dragging .uc-port, .uc-multi .uc-port { display: none !important; }
-body.uc-touch .uc-port { width: 22px; height: 22px; margin-top: -11px; right: -11px; border-width: 2.5px; }
-body.uc-touch .uc-port.is-left { right: auto; left: -11px; }
 body.uc-touch .edge-hit { stroke-width: 26px; }
 #uc-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
 .uc-target { --ring: var(--primary); }
@@ -2318,7 +2370,7 @@ body.uc-dragging .uc-actionbar { display: none !important; }
 body.note-picking .uc-case:hover, body.note-picking .uc-actor:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
 body.note-picking .uc-case, body.note-picking .uc-actor, body.note-picking .uc-case *, body.note-picking .uc-actor * { cursor: copy !important; }
 .uc-case.note-target, .uc-actor.note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
-body.presentation .uc-port, body.presentation .uc-actionbar { display: none !important; }
+body.presentation .uc-actionbar { display: none !important; }
 .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .uc-help-line svg { flex: none; fill: none; stroke: var(--node-border); stroke-width: var(--ring-thin); stroke-linecap: round; stroke-linejoin: round; }
 .uc-help-line svg .d { stroke-dasharray: var(--dash); }
@@ -2792,6 +2844,22 @@ const tpl = document.createElement('template');
 tpl.innerHTML = icon(name, o);
 return tpl.content.firstChild;
 }
+function chevron(o) {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = 'chevron';
+b.title = o.label;
+b.setAttribute('aria-label', o.label);
+b.setAttribute('aria-expanded', String(!!o.expanded));
+b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+return b;
+}
+function port(side) {
+const p = document.createElement('span');
+p.className = `port port-${side}`;
+p.dataset.exportSkip = '';
+return p;
+}
 let confirmEl = null;
 function closeConfirm() {
 if (!confirmEl) return false;
@@ -3007,7 +3075,7 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -3921,6 +3989,10 @@ panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 :
 panY = minPan - frame.y * scale;
 updateTransform();
 };
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+let fontLoadedSinceRender = false;
+const onFontLoaded = () => { fontLoadedSinceRender = true; };
+if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
 try {
 plugin.render();
 applyInitialView();
@@ -3934,7 +4006,8 @@ document.documentElement.dataset.diagramReady = '1';
 requestAnimationFrame(() => {
 applyInitialView();
 syncHeaderCompact();
-const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
 ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
 : Promise.resolve();
 fontsIn.then(() => {
@@ -4700,7 +4773,7 @@ else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('o
 }
 const btnExport = document.getElementById('btn-export');
 const exportMenu = document.getElementById('export-menu');
-const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
 const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
 const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
 let defaultStyleCache = null;
@@ -6040,6 +6113,76 @@ return;
 plugin.deleteSelection();
 }
 });
+function createNotes(opts) {
+let editing = null;   // the note being typed
+let draft = null;     // { id, isNew, wasOn, before }
+const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
+const byId = (id) => list().find((n) => n && n.id === id) || null;
+const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function begin(note, isNew) {
+draft = { id: note.id, isNew: !!isNew, wasOn: opts.data().showNotes === true, before: isNew ? '' : textOf(note) };
+editing = note.id;
+}
+function edit(id) {
+const note = byId(id);
+if (!note || (opts.canEdit && !opts.canEdit())) return;
+const prev = { editing, draft };
+if (editing !== id || !draft) begin(note, false);
+const card = opts.openCard(note);
+const text = card && card.querySelector('.note-text');
+if (!text) { if (!card) ({ editing, draft } = prev); return; }
+if (opts.beforeEdit) opts.beforeEdit(note, card, text);
+text.contentEditable = 'true';
+text.focus();
+const range = document.createRange();
+range.selectNodeContents(text);
+if (!opts.selectAll) range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+if (opts.afterFocus) opts.afterFocus(card);
+}
+function remove(id, record = true, reason = 'remove') {
+const note = byId(id);
+if (!note) return;
+const card = opts.cardOf(id);
+if (opts.anchorEl && card) motion.foldNote(card, opts.anchorEl(note));   // morph into the badge, never fade
+const token = opts.beforeRemove ? opts.beforeRemove(note) : undefined;
+const data = opts.data();
+data.notes = list().filter((n) => n && n.id !== id);
+if (!data.notes.length) delete data.notes;
+if (editing === id) { editing = null; draft = null; }
+opts.clearSelection(id);
+opts.render({ note, token, reason });
+if (record) opts.onChange();
+}
+function commit(note, textEl) {
+textEl.contentEditable = 'false';
+if (editing !== note.id) return;
+const d = draft;
+editing = null; draft = null;
+const value = clean(textEl.innerText);
+if (!value) {
+if (opts.restoreSwitch && d && d.isNew && !d.wasOn) delete opts.data().showNotes;   // a note given up leaves the switch as it was
+remove(note.id, !(d && d.isNew), 'cleared');
+return;
+}
+if (d && value === d.before) { textEl.textContent = note.text; opts.render({ note, reason: 'same' }); return; }
+note.text = value;
+textEl.textContent = value;
+opts.render({ note, reason: 'text' });
+opts.onChange();
+}
+window.addEventListener('pointerdown', (e) => {
+if (!editing) return;
+const card = opts.cardOf(editing);
+if (card && card.contains(e.target)) return;
+const text = card && card.querySelector('.note-text'), note = byId(editing);
+if (text && note) { text.blur(); commit(note, text); }   // no-op if the blur already committed it
+}, true);
+return { begin, edit, commit, remove, list, byId, editingId: () => editing, isEditing: (id) => editing === id };
+}
 //@engine-begin
 function routeEdgesOrthogonal(model) {
 const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
@@ -9213,11 +9356,11 @@ c.pts[2], c.pts[3]
 function captureSvg() {
 if (!motion.enabled()) return null;
 const links = new Map(), parents = new Map(), leaders = new Map();
-linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
-const line = g.querySelector('.edge-line');
-if (line) links.set(g.dataset.edgeId, parsePathCoords(line.getAttribute('d')));
+els.links.forEach((rec, id) => {
+const line = rec.g.querySelector('.edge-line');
+if (line) links.set(id, parsePathCoords(line.getAttribute('d')));
 });
-linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+els.parents.forEach((g) => {
 const line = g.querySelector('.edge-line');
 if (line) parents.set(`${g.dataset.from}->${g.dataset.to}`, parsePathCoords(line.getAttribute('d')));
 });
@@ -9244,15 +9387,15 @@ if (diff) tracks.push({ type: bz ? 'bezier' : 'line', el, from, to });
 drawEls.push(el);
 }
 };
-linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
-const id = g.dataset.edgeId, line = g.querySelector('.edge-line');
+els.links.forEach((rec, id) => {
+const line = rec.g.querySelector('.edge-line');
 if (!line) return;
 if (o.drawLinkIds && o.drawLinkIds.has(id)) { drawEls.push(line); return; }
 const prev = svgSnap.links.get(id);
 if (prev) addDiff(line, prev, parsePathCoords(line.getAttribute('d')));
 else drawEls.push(line);
 });
-linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+els.parents.forEach((g) => {
 const line = g.querySelector('.edge-line');
 if (!line) return;
 const prev = svgSnap.parents.get(`${g.dataset.from}->${g.dataset.to}`);
@@ -9275,6 +9418,64 @@ for (let i = 0; i < drawEls.length; i++) motion.drawPath(drawEls[i], { duration:
 function ensureLayout() {
 routeDiagram(chartData);   // lays out afresh by itself when an actor or use case has no x/y
 }
+const elState = new WeakMap();
+const sigOf = (o, extra) => JSON.stringify(o, (k, v) => (k === 'x' || k === 'y' ? undefined : v)) + extra;
+const itemSig = (o, extra) => `${presenting()}|${sigOf(o, extra)}`;
+const subjectSig = (s) => `${realSubjects().includes(s)}|${JSON.stringify(s, (k, v) => (k === 'x' || k === 'y' || k === 'w' || k === 'h' ? undefined : v))}`;
+const noteSig = (notes) => notes.map((n) => `${n.id}\u0001${noteText(n)}`).join('\u0002');
+function keyed(map, id, sig, build) {
+let el = map.get(id), st = el && elState.get(el);
+if (!el) {
+el = build();
+elState.set(el, { sig, cls: el.getAttribute('class') || '' });
+map.set(id, el);
+} else if (!st || st.sig !== sig) {
+const fresh = build();
+const keep = new Set();
+for (const a of fresh.attributes) {
+keep.add(a.name);
+if (a.name !== 'style' && el.getAttribute(a.name) !== a.value) el.setAttribute(a.name, a.value);
+}
+for (const a of [...el.attributes]) {
+if (a.name !== 'style' && !keep.has(a.name)) el.removeAttribute(a.name);
+}
+el.style.translate = '';
+el.style.transformOrigin = '';
+el.replaceChildren(...fresh.childNodes);
+elState.set(el, { sig, cls: fresh.getAttribute('class') || '' });
+} else {
+el.setAttribute('class', st.cls);
+el.style.translate = '';
+el.style.transformOrigin = '';   // left by an entrance morph; a new element has none
+}
+return el;
+}
+const staleEl = (el) => { const st = el && elState.get(el); if (st) st.sig = null; };
+function pruneKeyed(map, seen) {
+map.forEach((el, id) => { if (!seen.has(id)) { el.remove(); map.delete(id); } });
+}
+function layerCursor(layer) {
+let last = null;
+const place = (el) => {
+const want = last ? last.nextSibling : layer.firstChild;
+if (want !== el) layer.insertBefore(el, want);
+last = el;
+};
+place.sweep = () => { while (last ? last.nextSibling : layer.firstChild) (last ? last.nextSibling : layer.firstChild).remove(); };
+return place;
+}
+function setBox(el, b) {
+const st = el.style, l = px(b.x), t = px(b.y), w = px(b.w), h = px(b.h);
+if (st.left !== l) st.left = l;
+if (st.top !== t) st.top = t;
+if (st.width !== w) st.width = w;
+if (st.height !== h) st.height = h;
+}
+function notesByItem() {
+const by = new Map();
+liveNotes().forEach((n) => linkedItems(n).forEach((id) => { if (!by.has(id)) by.set(id, []); by.get(id).push(n); }));
+return by;
+}
 function render(motionOpts) {
 const useMotion = motionOpts !== false && motion.enabled();
 const mOpts = typeof motionOpts === 'object' && motionOpts ? motionOpts : {};
@@ -9285,6 +9486,7 @@ snap = motion.capture(canvas, FLIP_SPECS, mOpts.captureOpts);
 svgSnap = captureSvg();
 }
 html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
+motion.tweenSvg([]);   // a line tween still running would write its old end points onto the lines kept below
 ensureLayout();
 const C = chartData.canvas || { width: 800, height: 400 };
 canvas.style.width = px(C.width);
@@ -9292,20 +9494,38 @@ canvas.style.height = px(C.height);
 svg.setAttribute('width', C.width);
 svg.setAttribute('height', C.height);
 const hadFocus = document.activeElement && html.contains(document.activeElement) && document.activeElement.dataset.nodeId;
-linksG.textContent = '';
 leadersG.textContent = '';
-html.textContent = '';
-els.items = new Map(); els.links = new Map(); els.subjects = new Map(); els.parents = [];
 actorSw = actorSlots();
 selIds = selIds.filter((id) => itemOf(id));
 if (selOther && !otherExists(selOther)) selOther = null;
 if (hoverLinkId && !linkOf(hoverLinkId)) hoverLinkId = null;
 if (hoverSubjectId && !subjectOf(hoverSubjectId)) hoverSubjectId = null;
-allSubjects().forEach((s) => html.appendChild(buildSubject(s)));
+const notesBy = notesByItem(), place = layerCursor(html), seenItems = new Set(), seenSubjects = new Set();
+allSubjects().forEach((s) => {
+const el = keyed(els.subjects, s.id, subjectSig(s), () => buildSubject(s));
+setBox(el, typeof s.x === 'number' ? s : { x: 0, y: 0, w: 200, h: 100 });
+el.classList.toggle('is-hover', s.id === hoverSubjectId);
+place(el); seenSubjects.add(s.id);
+});
 renderLinks();
-actors().forEach((a) => { if (placed(a)) { const el = buildActor(a); els.items.set(a.id, el); html.appendChild(el); } });
-cases().forEach((u) => { if (placed(u) && !isHiddenCase(u)) { const el = buildCase(u); els.items.set(u.id, el); html.appendChild(el); } });
-renderLabels();
+actors().forEach((a) => {
+if (!placed(a)) return;
+const notes = notesBy.get(a.id) || [];
+const el = keyed(els.items, a.id, itemSig(a, `${actorSw.get(a.id)}|${noteSig(notes)}`), () => buildActor(a, notes));
+setBox(el, a);
+place(el); seenItems.add(a.id);
+});
+cases().forEach((u) => {
+if (!placed(u) || isHiddenCase(u)) return;
+const notes = notesBy.get(u.id) || [];
+const el = keyed(els.items, u.id, itemSig(u, `${chartData.showRefs === true}|${noteSig(notes)}`), () => buildCase(u, notes));
+setBox(el, u);
+place(el); seenItems.add(u.id);
+});
+renderLabels(place);
+place.sweep();
+pruneKeyed(els.items, seenItems);
+pruneKeyed(els.subjects, seenSubjects);
 renderLegend();
 renderNotes(true);
 updateButtons();
@@ -9328,25 +9548,16 @@ return false;
 function buildSubject(s) {
 const real = realSubjects().includes(s);
 const el = htmlEl('div', 'uc-subject');
+el.dataset.item = '';
 el.dataset.subjectId = s.id;
-const box = typeof s.x === 'number' ? s : { x: 0, y: 0, w: 200, h: 100 };
-Object.assign(el.style, { left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
 const titleH = s._titleH || 36;
 if (s.collapsed === true) el.classList.add('is-collapsed');
-if (s.id === hoverSubjectId) el.classList.add('is-hover');
 const title = htmlEl('div', 'uc-subject-title');
 title.style.height = px(titleH);
 title.tabIndex = -1;
 if (real) {
-const chev = htmlEl('button', 'frame-chev');
-chev.type = 'button';
+const chev = ui.chevron({ expanded: s.collapsed !== true, label: s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name' });
 chev.dataset.exportSkip = '';
-chev.title = s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name';
-chev.setAttribute('aria-label', chev.title);
-chev.setAttribute('aria-expanded', String(s.collapsed !== true));
-chev.innerHTML = ui.icon('chevron-down', { size: 'sm', bold: true });
-chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(s.id); });
 title.appendChild(chev);
 }
 title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
@@ -9360,7 +9571,6 @@ tab.title = title;
 el.appendChild(tab);
 });
 }
-els.subjects.set(s.id, el);
 return el;
 }
 function actorSlots() {
@@ -9378,29 +9588,27 @@ fig.innerHTML = ui.icon(KIND_ICON[kind] || KIND_ICON.human, { size: Math.round((
 if (size) { fig.style.width = px(size); fig.style.height = px(size); }
 return fig;
 }
-function buildActor(a) {
+function buildActor(a, notes) {
 const el = htmlEl('div', 'uc-actor');
 el.dataset.nodeId = a.id;
 el.dataset.kind = a.kind || 'human';
 el.tabIndex = -1;
 el.setAttribute('role', 'group');
 el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
-Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
 setSwatch(el, actorSw.get(a.id));
 el.appendChild(avatar(a.kind, a._figW));
 el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
 if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-addItemChrome(el, a);
+addItemChrome(el, a, notes);
 return el;
 }
-function buildCase(u) {
+function buildCase(u, notes) {
 const el = htmlEl('div', 'uc-case');
 el.dataset.nodeId = u.id;
 el.dataset.level = LEVELS.includes(u.level) ? u.level : 'user';
 el.tabIndex = -1;
 el.setAttribute('role', 'group');
 el.setAttribute('aria-label', `Use case ${nameOf(u)}`);
-Object.assign(el.style, { left: px(u.x), top: px(u.y), width: px(u.w), height: px(u.h) });
 if (u.color) setSwatch(el, u.color);
 const shape = htmlEl('div', 'uc-shape');
 if (typeof u._r === 'number') shape.style.borderRadius = px(u._r);   // the engine's corner radius: a pill on one line
@@ -9424,36 +9632,25 @@ const refs = htmlEl('div', 'uc-refs');
 u.refs.forEach((r) => refs.appendChild(htmlEl('span', 'uc-ref t-caption', String(r))));
 el.appendChild(refs);
 }
-addItemChrome(el, u);
+addItemChrome(el, u, notes);
 return el;
 }
-function addItemChrome(el, o) {
+function addItemChrome(el, o, notes) {
 if (!presenting()) {
 [false, true].forEach((leftPort) => {   // an anchor on each side
-const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-port.dataset.exportSkip = '';
+const port = ui.port(leftPort ? 'left' : 'right');
 port.dataset.touchDrag = '';
 port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
 if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
 const off = px((o.w - o._figW) / 2);
 port.style.top = px(o._figH / 2);
-if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+port.style.left = leftPort ? `calc(${off} - 1px)` : `calc(100% - ${off} + 1px)`;
 }
 el.appendChild(port);
 });
 }
-const badge = buildNoteBadge(o);
+const badge = buildNoteBadge(o, notes);
 if (badge) el.appendChild(badge);
-el.addEventListener('pointerenter', (ev) => {
-if (ev.pointerType === 'touch' || drag) return;
-hoverItemId = o.id;
-applyFocus();
-if (notesOfItem(o.id).length) peekSoon(o.id, 100);
-});
-el.addEventListener('pointerleave', () => {
-if (peekId === o.id) unpeekSoon(o.id);
-if (hoverItemId === o.id) { hoverItemId = null; applyFocus(); }
-});
 }
 const pathOf = (p) => (p.length === 4 ? `M ${p[0][0]} ${p[0][1]} C ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]} ${p[3][0]} ${p[3][1]}`
 : p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
@@ -9480,82 +9677,84 @@ line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
 line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
 }
 function renderLinks() {
+const place = layerCursor(linksG), seen = new Set(), seenParents = new Set(), parents = [];
 linksOf().forEach((l) => {
 if (!LINK_TYPES.includes(l.type) || !l.points || l.points.length < 2) return;
 if (isHiddenByLevel(l.from) || isHiddenByLevel(l.to)) return;
-const d = pathOf(l.points);
+const d = pathOf(l.points), sig = `${l.type}|${l.navigable === true}|${l.from}|${l.to}`;
+let rec = els.links.get(l.id), st = rec && elState.get(rec.g);
+const label = rec ? rec.label : null;   // renderLabels judges it
+if (rec && st.sig !== sig) { rec.g.remove(); rec = null; }
+if (!rec) {
 const g = svgEl('g', { class: `uc-link${l.type !== 'association' ? ' is-dashed' : ''}`, 'data-edge-id': l.id, 'data-from': l.from, 'data-to': l.to, 'data-type': l.type });
 const line = svgEl('path', { class: 'edge-line', d });
 setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
 g.append(svgEl('path', { class: 'edge-hit', d }), line);
-g.addEventListener('pointerenter', (ev) => {
-if (ev.pointerType === 'touch' || drag) return;
-hoverLinkId = l.id;
-applyLinkState();
-});
-g.addEventListener('pointerleave', (ev) => {
-if (hoverLinkId !== l.id) return;
-const rec = els.links.get(l.id);
-if (rec && rec.label && ev.relatedTarget && rec.label.contains(ev.relatedTarget)) return;
-hoverLinkId = null;
-applyLinkState();
-});
-g.addEventListener('pointerdown', (ev) => {
-if (ev.button === 0 && !presenting()) {
-ev.stopPropagation();
-linkBarAvoid = { id: l.id, x: ev.clientX, y: ev.clientY };
-selectOther('link', l.id);
+elState.set(g, { sig, cls: g.getAttribute('class') });
+rec = { g, label };
+els.links.set(l.id, rec);
+} else {
+rec.g.setAttribute('class', st.cls);   // drops the hover, selected and dimmed state classes: applyFocus draws them again
+const [hit, line] = rec.g.children;
+if (hit.getAttribute('d') !== d) hit.setAttribute('d', d);
+if (line.getAttribute('d') !== d) line.setAttribute('d', d);   // read apart: a running tween only moves the visible line
 }
-});
-g.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); editLinkCondition(l.id); });
-linksG.appendChild(g);
-els.links.set(l.id, { g, label: null });
+place(rec.g); seen.add(l.id);
 });
 (chartData._parents || []).forEach((p) => {
 if (!p.points || p.points.length < 2 || !drawn(p.from) || !drawn(p.to)) return;
-const g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
-const line = svgEl('path', { class: 'edge-line', d: p.ortho ? roundedPath(p.points, 10) : pathOf(p.points) });
+const key = `${p.from}->${p.to}`, d = p.ortho ? roundedPath(p.points, 10) : pathOf(p.points);
+let g = parentEls.get(key);
+if (!g) {
+g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
+const line = svgEl('path', { class: 'edge-line', d });
 setMarkers(line, 'tri');
 g.append(line);
-linksG.appendChild(g);
-els.parents.push(g);
-});
+elState.set(g, { sig: key, cls: g.getAttribute('class') });
+parentEls.set(key, g);
+} else {
+g.setAttribute('class', elState.get(g).cls);
+const line = g.firstChild;
+if (line.getAttribute('d') !== d) line.setAttribute('d', d);
 }
-function renderLabels() {
+place(g); parents.push(g); seenParents.add(key);
+});
+place.sweep();
+els.links.forEach((rec, id) => {
+if (seen.has(id)) return;
+rec.g.remove();
+if (rec.label) rec.label.remove();
+els.links.delete(id);
+});
+pruneKeyed(parentEls, seenParents);
+els.parents = parents;
+}
+const parentEls = new Map();   // "from->to" -> the generalization line kept for that pair (els.parents is this render's list)
+function renderLabels(place) {
 linksOf().forEach((l) => {
 const b = l.labelBox, rec = els.links.get(l.id);
-if (!b || !rec || (l.type !== 'include' && l.type !== 'extend')) return;
-const el = htmlEl('div', 'edge-label uc-label');
+if (!rec) return;
+if (!b || (l.type !== 'include' && l.type !== 'extend')) {
+if (rec.label) { rec.label.remove(); rec.label = null; }
+return;
+}
+let el = rec.label, st = el && elState.get(el);
+const sig = `${l.type}|${l.condition || ''}`;
+if (el && st.sig !== sig) { el.remove(); el = null; }
+if (!el) {
+el = htmlEl('div', 'edge-label uc-label');
 el.dataset.edgeId = l.id;
-Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
 el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
 if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-el.addEventListener('pointerenter', (ev) => {
-if (ev.pointerType === 'touch' || drag) return;
-hoverLinkId = l.id;
-applyLinkState();
-});
-el.addEventListener('pointerleave', (ev) => {
-if (hoverLinkId !== l.id) return;
-const linkRec = els.links.get(l.id);
-if (linkRec && ev.relatedTarget && linkRec.g.contains(ev.relatedTarget)) return;
-hoverLinkId = null;
-applyLinkState();
-});
-el.addEventListener('pointerdown', (ev) => {
-if (ev.button === 0 && !presenting()) {
-ev.stopPropagation();
-if (!ev.target.isContentEditable) selectOther('link', l.id);
-}
-});
-el.addEventListener('dblclick', (ev) => {
-if (ev.target.isContentEditable) return;
-ev.preventDefault();
-ev.stopPropagation();
-editLinkCondition(l.id);
-});
-html.appendChild(el);
+elState.set(el, { sig, cls: el.getAttribute('class') });
 rec.label = el;
+} else {
+el.setAttribute('class', st.cls);
+el.style.translate = '';
+el.style.transformOrigin = '';
+}
+setBox(el, b);
+place(el);
 });
 }
 function applyLinkState() {
@@ -9608,7 +9807,7 @@ el.classList.toggle('selected', sset.has(id));
 el.tabIndex = id === primaryId() ? 0 : -1;
 });
 if (!selIds.length) { const first = els.items.values().next().value; if (first) first.tabIndex = 0; }
-canvas.classList.toggle('uc-multi', selIds.length > 1);
+canvas.classList.toggle('is-multi', selIds.length > 1);
 els.subjects.forEach((el, id) => el.classList.toggle('selected', !!selOther && selOther.kind === 'subject' && selOther.id === id));
 applyLinkState();
 applyNoteSelection();
@@ -9668,8 +9867,9 @@ const peer = dir === 'out' ? to : from;
 if (peer !== focusId && (!peerDir.has(peer) || dir === 'out')) peerDir.set(peer, dir);
 };
 const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
+const linkById = new Map(linksOf().map((x) => [x.id, x]));
 els.links.forEach((rec, id) => {
-const l = linkOf(id);
+const l = linkById.get(id);
 if (!l) return;
 const on = lineLit(l.from, l.to);
 const dir = dirOf(l.from, l.to);
@@ -9786,12 +9986,36 @@ render(motionOpts === false ? false : mOpts);
 updateStatus(true);
 }
 const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
-let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null, editingNoteId = null;
+let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null;
+const noteCtl = createNotes({
+data: () => chartData,
+cardOf: (id) => noteCard(id),
+anchorEl: (note) => (isFreeNote(note) ? null : noteBadgeEl(note)),
+canEdit: () => !presenting(),
+openCard: (note) => {
+cancelDrag();
+selectOther('note', note.id);
+const existed = !!noteCard(note.id);
+if (!existed) renderNotes(false, false);
+const card = noteCard(note.id);
+if (!card) return null;
+applyNoteVisibility(existed);
+if (!existed && motion.enabled()) {
+const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
+motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
+}
+return card;
+},
+afterFocus: (card) => panIntoView(card),
+clearSelection: (id) => { if (selectedNoteId() === id) selOther = null; },
+render: () => render(),
+onChange: () => updateStatus(true),
+});
 const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
 const linkedItems = (n) => (n.useCases || []).concat(n.actors || []).filter((id) => itemOf(id) && drawn(id));
 const linkCount = (n) => (n.useCases || []).length + (n.actors || []).length;
 const isFreeNote = (n) => !linkCount(n);
-const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedItems(n).length));
+const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedItems(n).length));
 const notesOfItem = (id) => liveNotes().filter((n) => linkedItems(n).includes(id));
 const noteCard = (id) => notesLayer && [...notesLayer.children].find((el) => el.dataset.noteId === id);
 const selectedNoteId = () => (selOther && selOther.kind === 'note' ? selOther.id : null);
@@ -9939,8 +10163,7 @@ if (!notesLayer) return;
 }
 function peekSoon(id, delay) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId !== id) { peekId = id; applyNoteVisibility(true); } }, delay); }
 function unpeekSoon(id) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId === id) { peekId = null; applyNoteVisibility(true); } }, 220); }
-function buildNoteBadge(o) {
-const notes = notesOfItem(o.id);
+function buildNoteBadge(o, notes) {
 if (!notes.length) {
 return null;   // no hover (+): the action bar's note button adds one
 }
@@ -9949,13 +10172,7 @@ b.type = 'button';
 b.dataset.exportSkip = '';
 b.setAttribute('aria-label', notes.map((n) => `Note: ${noteText(n)}`).join(' · '));
 b.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
-b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-b.addEventListener('mouseenter', () => peekSoon(o.id, 0));
-b.addEventListener('click', (ev) => {
-ev.stopPropagation();
-if (presenting()) { selOther = selectedNoteId() === notes[0].id ? null : { kind: 'note', id: notes[0].id }; applyNoteVisibility(); } else editNote(notes[0].id);
-});
-return b;
+return b;   // its pointer, hover and click are handled by the layer listeners (ITEM EVENTS)
 }
 function addNoteTo(id) {
 if (!itemOf(id) || presenting()) return;
@@ -9975,68 +10192,9 @@ chartData.notes = notesList();
 chartData.notes.push(note);
 editNote(note.id);
 }
-function editNote(id) {
-const note = noteOf(id);
-if (!note || presenting()) return;
-cancelDrag();
-editingNoteId = id;
-selectOther('note', id);
-const existed = !!noteCard(id);
-if (!existed) renderNotes(false, false);
-const card = noteCard(id);
-if (!card) return;
-applyNoteVisibility(existed);
-if (!existed && motion.enabled()) {
-const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
-motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
-}
-const text = card.querySelector('.note-text');
-text.contentEditable = 'true';
-text.focus();
-const range = document.createRange();
-range.selectNodeContents(text);
-range.collapse(false);
-const s = window.getSelection();
-s.removeAllRanges();
-s.addRange(range);
-panIntoView(card);
-}
-function commitNote(note, text) {
-text.contentEditable = 'false';
-if (editingNoteId !== note.id) return;
-editingNoteId = null;
-const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-if (value) note.text = value;
-else {
-const card = noteCard(note.id);
-if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-chartData.notes = notesList().filter((n) => n !== note);
-if (!chartData.notes.length) delete chartData.notes;
-if (selectedNoteId() === note.id) selOther = null;
-}
-updateStatus(true);
-render();
-}
-window.addEventListener('pointerdown', (e) => {
-if (!editingNoteId) return;
-const card = noteCard(editingNoteId);
-if (card && card.contains(e.target)) return;
-const text = card && card.querySelector('.note-text'), note = noteOf(editingNoteId);
-if (text) text.blur();
-if (text && note) commitNote(note, text);
-}, true);
-function removeNote(id) {
-const note = noteOf(id);
-if (!note) return;
-const card = noteCard(id);
-if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-chartData.notes = notesList().filter((n) => n.id !== id);
-if (!chartData.notes.length) delete chartData.notes;
-if (editingNoteId === id) editingNoteId = null;
-if (selectedNoteId() === id) selOther = null;
-updateStatus(true);
-render();
-}
+function editNote(id) { noteCtl.edit(id); }
+function commitNote(note, text) { noteCtl.commit(note, text); }
+function removeNote(id) { noteCtl.remove(id); }
 function toggleNoteLink(noteId, itemId) {
 const note = noteOf(noteId), kind = kindOf(itemId);
 if (!note || !kind) return;
@@ -10140,7 +10298,7 @@ function onDragMove(e) {
 const d = drag;
 if (!d) return;
 if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
-if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
+if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging', 'is-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
 d.dx = (e.clientX - d.startX) / scale;
 d.dy = (e.clientY - d.startY) / scale;
 if (d.move) d.move(e, d);
@@ -10149,7 +10307,7 @@ function endDrag() {
 window.removeEventListener('pointermove', onDragMove);
 window.removeEventListener('pointerup', onDragUp);
 window.removeEventListener('pointercancel', cancelDrag);
-document.body.classList.remove('uc-dragging');
+document.body.classList.remove('uc-dragging', 'is-dragging');
 rubber.style.display = 'none';
 canvas.querySelectorAll('.uc-target, .drop-target').forEach((el) => el.classList.remove('uc-target', 'drop-target'));
 const d = drag;
@@ -10168,6 +10326,11 @@ const d = endDrag();
 if (!d) return false;
 if (d.moved) render();
 return true;
+}
+function setMarks(d, list) {
+(d.marks || []).forEach(([el, cls]) => el.classList.remove(cls));
+d.marks = list.filter(([el]) => el);
+d.marks.forEach(([el, cls]) => el.classList.add(cls));
 }
 function itemIdAt(x, y) {
 const el = document.elementFromPoint(x, y), it = el && el.closest('.uc-actor, .uc-case');
@@ -10204,18 +10367,86 @@ const subEl = t.closest('.uc-subject');
 setHoverSubject(subEl ? subEl.dataset.subjectId : subjectIdAtClient(e.clientX, e.clientY));
 });
 canvas.addEventListener('pointerleave', () => setHoverSubject(null));
+const PRESS_OWN = '.uc-subject-title > .chevron, .uc-actor > .note-badge, .uc-case > .note-badge';
+const itemElAt = (t) => (t instanceof Element && (t.classList.contains('uc-actor') || t.classList.contains('uc-case')) ? t : null);
+function linkEnter(id, ev) {
+if (ev.pointerType === 'touch' || drag) return;
+hoverLinkId = id;
+applyLinkState();
+}
+function linkLeave(id, ev, other) {   // moving between a line and its label keeps it lit
+if (hoverLinkId !== id) return;
+if (other && ev.relatedTarget && other.contains(ev.relatedTarget)) return;
+hoverLinkId = null;
+applyLinkState();
+}
+html.addEventListener('pointerenter', (ev) => {
+const t = ev.target, item = itemElAt(t);
+if (item) {
+if (ev.pointerType === 'touch' || drag) return;
+const id = item.dataset.nodeId;
+hoverItemId = id;
+applyFocus();
+if (notesOfItem(id).length) peekSoon(id, 100);
+} else if (t instanceof Element && t.classList.contains('uc-label')) linkEnter(t.dataset.edgeId, ev);
+}, true);
+html.addEventListener('pointerleave', (ev) => {
+const t = ev.target, item = itemElAt(t);
+if (item) {
+const id = item.dataset.nodeId;
+if (peekId === id) unpeekSoon(id);
+if (hoverItemId === id) { hoverItemId = null; applyFocus(); }
+} else if (t instanceof Element && t.classList.contains('uc-label')) {
+const rec = els.links.get(t.dataset.edgeId);
+linkLeave(t.dataset.edgeId, ev, rec && rec.g);
+}
+}, true);
+html.addEventListener('mouseenter', (ev) => {
+const t = ev.target;
+if (t instanceof Element && t.matches('.uc-actor > .note-badge, .uc-case > .note-badge')) peekSoon(t.parentNode.dataset.nodeId, 0);
+}, true);
+linksG.addEventListener('pointerenter', (ev) => {
+const g = ev.target;
+if (g instanceof Element && g.dataset.edgeId) linkEnter(g.dataset.edgeId, ev);
+}, true);
+linksG.addEventListener('pointerleave', (ev) => {
+const g = ev.target;
+if (!(g instanceof Element) || !g.dataset.edgeId) return;
+const rec = els.links.get(g.dataset.edgeId);
+linkLeave(g.dataset.edgeId, ev, rec && rec.label);
+}, true);
+linksG.addEventListener('pointerdown', (ev) => {
+const g = ev.target instanceof Element && ev.target.closest('.uc-link[data-edge-id]');
+if (!g || ev.button !== 0 || presenting()) return;
+ev.stopPropagation();
+linkBarAvoid = { id: g.dataset.edgeId, x: ev.clientX, y: ev.clientY };
+selectOther('link', g.dataset.edgeId);
+});
+linksG.addEventListener('dblclick', (ev) => {
+const g = ev.target instanceof Element && ev.target.closest('.uc-link[data-edge-id]');
+if (!g) return;
+ev.preventDefault();
+ev.stopPropagation();
+editLinkCondition(g.dataset.edgeId);
+});
 function onPointerDown(e) {
-if (e.pointerType === 'touch') document.body.classList.add('uc-touch');
+const t0 = e.target;
+if (t0 instanceof Element) {   // a label selects its line; a chevron and a note badge keep the press to themselves
+const lab = t0.closest('.uc-label');
+if (lab && e.button === 0 && !presenting()) { e.stopPropagation(); if (!t0.isContentEditable) selectOther('link', lab.dataset.edgeId); return; }
+if (t0.closest(PRESS_OWN)) { e.stopPropagation(); return; }
+}
+if (e.pointerType === 'touch') document.body.classList.add('uc-touch', 'is-touch');
 if (e.button > 0) return;
 const t = e.target;
 if (!(t instanceof Element) || t.isContentEditable) return;
 const itemEl = t.closest('.uc-actor, .uc-case');
 if (presenting()) {   // read only: selecting an item (which focuses it) is all a press does
 if (itemEl && !t.closest('.note-badge')) selectItem(itemEl.dataset.nodeId);
-else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.frame-chev')) selectOther('subject', st.parentNode.dataset.subjectId); }
+else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.chevron')) selectOther('subject', st.parentNode.dataset.subjectId); }
 return;
 }
-if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-del, .note-link, .note')) return;
+if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note')) return;
 closeMenu();
 const grip = t.closest('.uc-subject-tab');
 if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
@@ -10233,8 +10464,8 @@ return;
 if (!itemEl) return;
 const id = itemEl.dataset.nodeId;
 if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
-if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.uc-port')) { e.preventDefault(); toggleItem(id); return; }
-if (t.closest('.uc-port')) { beginDrag(e, connectDrag(id)); return; }
+if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port')) { e.preventDefault(); toggleItem(id); return; }
+if (t.closest('.port')) { beginDrag(e, connectDrag(id)); return; }
 const group = selIds.length > 1 && selIds.includes(id) ? selIds.slice() : null;
 if (group) {
 if (primaryId() !== id) { selIds = selIds.filter((x) => x !== id).concat(id); applySelection(); }
@@ -10253,10 +10484,8 @@ d.raf = requestAnimationFrame(() => {
 d.raf = 0;
 apply();
 routeDiagram(chartData);
-linksG.textContent = '';
-html.querySelectorAll('.uc-label').forEach((el) => el.remove());
-els.links = new Map(); els.parents = [];
-renderLinks(); renderLabels();
+renderLinks();
+renderLabels((el) => { if (!el.parentNode) html.appendChild(el); });
 allSubjects().forEach((s) => { const el = els.subjects.get(s.id); if (el && typeof s.x === 'number') Object.assign(el.style, { left: px(s.x), top: px(s.y), width: px(s.w), height: px(s.h) }); });
 const C = chartData.canvas;
 if (C) { canvas.style.width = px(C.width); canvas.style.height = px(C.height); svg.setAttribute('width', C.width); svg.setAttribute('height', C.height); }
@@ -10288,9 +10517,14 @@ const targetSubjects = allSubjects();
 let faded = null;
 const fade = (on) => {
 if (!faded && on) {
-const g = [...linksG.querySelectorAll('.uc-link')].filter((x) => ids.includes(x.dataset.from) || ids.includes(x.dataset.to));
-const lab = [...html.querySelectorAll('.uc-label')].filter((x) => g.some((y) => y.dataset.edgeId && y.dataset.edgeId === x.dataset.edgeId));
-faded = g.concat(lab);
+const moving = new Set(ids);
+faded = [];
+els.links.forEach((rec) => {
+if (!moving.has(rec.g.dataset.from) && !moving.has(rec.g.dataset.to)) return;
+faded.push(rec.g);
+if (rec.label) faded.push(rec.label);
+});
+els.parents.forEach((g) => { if (moving.has(g.dataset.from) || moving.has(g.dataset.to)) faded.push(g); });
 }
 (faded || []).forEach((x) => x.classList.toggle('drag-fade', on));
 };
@@ -10301,11 +10535,12 @@ fade(true);
 const frame = keepSubject && els.subjects.get(keepSubject);
 if (frame) frame.style.translate = `${d.dx}px ${d.dy}px`;   // the frame travels with them
 ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
-canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+let over = null;
 if (!keepSubject && ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
-const s = subjectAt(canvasPoint(e)), el = s && els.subjects.get(s.id);
-if (el) el.classList.add('drop-target');
+const s = subjectAt(canvasPoint(e));
+over = s && els.subjects.get(s.id);
 }
+setMarks(d, [[over, 'drop-target']]);
 },
 drop(e, d) {
 const dx = Math.round(d.dx), dy = Math.round(d.dy);
@@ -10358,13 +10593,12 @@ move(e, d) {
 const c = centreOf(src), pt = canvasPoint(e);
 rubber.setAttribute('x1', c.x); rubber.setAttribute('y1', c.y); rubber.setAttribute('x2', pt.x); rubber.setAttribute('y2', pt.y);
 rubber.style.display = 'block';
-canvas.querySelectorAll('.uc-target, .drop-target').forEach((el) => el.classList.remove('uc-target', 'drop-target'));
 d.target = itemIdAt(e.clientX, e.clientY);
-if (d.target && d.target !== fromId) els.items.get(d.target).classList.add('uc-target');
+if (d.target && d.target !== fromId) setMarks(d, [[els.items.get(d.target), 'uc-target']]);
 else if (!d.target) {
-const s = subjectAt(pt), el = s && els.subjects.get(s.id);
-if (el) el.classList.add('drop-target');
-}
+const s = subjectAt(pt);
+setMarks(d, [[s && els.subjects.get(s.id), 'drop-target']]);
+} else setMarks(d, []);
 },
 drop(e, d) {
 if (d.target) { connectItems(fromId, d.target); return; }
@@ -10575,7 +10809,7 @@ if (wasCollapsed) delete s.collapsed; else s.collapsed = true;
 commit(true, {
 snap, svgSnap, duration: 220,
 afterPlay: () => {
-const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.frame-chev svg');
+const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.chevron svg');
 if (chevSvg) {
 motion.anim(chevSvg, wasCollapsed
 ? [{ transform: 'rotate(-90deg)' }, { transform: 'none' }]
@@ -10805,6 +11039,17 @@ const m = midOf(l.points);
 return { x: m.x, y: m.y, bottom: m.y };
 }
 html.addEventListener('click', (e) => {
+const t = e.target;
+const chev = t instanceof Element && t.closest('.uc-subject-title > .chevron');
+if (chev) { e.stopPropagation(); toggleCollapsed(chev.parentNode.parentNode.dataset.subjectId); return; }
+const badge = t instanceof Element && t.closest('.uc-actor > .note-badge, .uc-case > .note-badge');
+if (badge) {
+e.stopPropagation();
+const notes = notesOfItem(badge.parentNode.dataset.nodeId);
+if (!notes.length) return;
+if (presenting()) { selOther = selectedNoteId() === notes[0].id ? null : { kind: 'note', id: notes[0].id }; applyNoteVisibility(); } else editNote(notes[0].id);
+return;
+}
 const b = e.target.closest('.uc-ab-btn');
 if (!b) return;
 e.stopPropagation();
@@ -10863,6 +11108,7 @@ else if (act === 'delete') deleteSelection(btn);
 }
 function beginEdit(el, opts = {}) {
 if (!el || el.isContentEditable) return;
+staleEl(el.closest('.uc-actor, .uc-case, .uc-subject, .uc-label'));   // its text changes behind the model's back
 if (opts.raw !== undefined) el.textContent = opts.raw;
 el.classList.add('is-editing');
 el.contentEditable = 'plaintext-only';
@@ -10977,9 +11223,17 @@ if (selOther && selOther.kind === 'link') { editLinkCondition(selOther.id); retu
 if (selIds.length === 1) editName(selIds[0]);
 }
 html.addEventListener('dblclick', (e) => {
+const lab = e.target instanceof Element && e.target.closest('.uc-label');
+if (lab) {   // a label's double-click edits the line's condition
+if (e.target.isContentEditable) return;
+e.preventDefault();
+e.stopPropagation();
+editLinkCondition(lab.dataset.edgeId);
+return;
+}
 if (presenting()) return;
 const t = e.target;
-if (t.closest('.uc-actionbar, .frame-chev, .note-badge, .uc-port, .note') || t.isContentEditable) return;
+if (t.closest('.uc-actionbar, .chevron, .note-badge, .port, .note') || t.isContentEditable) return;
 const ep = t.closest('.uc-ep');
 const item = t.closest('.uc-actor, .uc-case');
 if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }

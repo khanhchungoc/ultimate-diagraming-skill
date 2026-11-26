@@ -253,6 +253,71 @@
         }
       }
 
+      // --- KEYED ELEMENT REUSE ---
+      // Every drawn item (a box, a lifeline, an arrow, a label, a note, ...) is an element kept by key across renders:
+      // made once, then only its changed attributes, class tokens and text are written, and the elements are put in
+      // drawing order. The `shape` says which children the element holds; a change of it makes that one element anew.
+      // Selection classes (.selected, .is-dim, .linked) are not written here: applySelection owns them.
+      const seqEls = new Map();      // key -> { el, shape, cls, tint, refs }
+      let seqSeen = new Set();       // the keys the render in progress drew
+      const seqSlotCache = new Map();   // skipId -> rowSlots(skipId) of the current render (the model only changes through a render)
+      function seqPut(list, key, shape, cls, make) {
+        let k = key, n = 1;
+        while (seqSeen.has(k)) k = `${key}#${n++}`;   // a duplicated id still gets an element of its own
+        seqSeen.add(k);
+        let rec = seqEls.get(k);
+        if (!rec || rec.shape !== shape) {
+          rec = { el: null, shape, cls, tint: undefined, refs: {} };
+          rec.el = make(cls, rec.refs);
+          seqEls.set(k, rec);
+        } else {
+          // A drag, a pin or a morph may have left inline state on the element: a render starts from the drawn state
+          const st = rec.el.style;
+          if (st.transform) st.transform = '';
+          if (st.transformOrigin) st.transformOrigin = '';
+          if (rec.cls !== cls) {
+            const next = cls.split(' ');
+            rec.cls.split(' ').forEach((c) => { if (c && !next.includes(c)) rec.el.classList.remove(c); });
+            next.forEach((c) => { if (c) rec.el.classList.add(c); });
+            rec.cls = cls;
+          }
+        }
+        list.push(rec.el);
+        return rec;
+      }
+      function seqAttrs(el, attrs) {
+        for (const k in attrs) { const v = String(attrs[k]); if (el.getAttribute(k) !== v) el.setAttribute(k, v); }
+      }
+      const seqAttr = (el, k, v) => { if (el.getAttribute(k) !== v) el.setAttribute(k, v); };
+      const seqProp = (el, k, v) => { if (el[k] !== v) el[k] = v; };
+      function seqStyle(el, styles) {
+        const st = el.style;
+        for (const k in styles) if (st[k] !== styles[k]) st[k] = styles[k];
+      }
+      // A box that was dragged or pinned, or whose text was typed in, comes back as drawn: no drag class, no leftover width or shift
+      function seqClean(el, dragClass, width, pin) {
+        if (dragClass) el.classList.remove(dragClass);
+        if (width && el.style.width) el.style.width = '';
+        if (pin) { if (el.style.translate) el.style.translate = ''; el.classList.remove('is-gone'); }
+      }
+      function seqPaint(rec, tint) {
+        if (rec.tint === tint) return;
+        rec.tint = tint;
+        const el = rec.el;
+        if (tint) setSwatch(el, tint);
+        else { el.classList.remove('swatch-scope'); el.style.removeProperty('--swatch-color'); delete el.dataset.sw; }
+      }
+      // Put a layer's children in drawing order: what is no longer drawn goes first, then only an element out of place is moved
+      function seqSync(parent, list) {
+        const keep = new Set(list);
+        for (let c = parent.firstChild; c;) { const next = c.nextSibling; if (!keep.has(c)) parent.removeChild(c); c = next; }
+        let cur = parent.firstChild;
+        for (let i = 0; i < list.length; i++) {
+          if (list[i] === cur) cur = cur.nextSibling;
+          else parent.insertBefore(list[i], cur);
+        }
+      }
+
       function render() {
         ensureModel();
         retiringSvgEls.forEach((el) => el.remove());
@@ -361,75 +426,96 @@
         seqCanvas.style.height = px(L.height);
         seqSvg.setAttribute('width', L.width);
         seqSvg.setAttribute('height', L.height);
-        [seqFragG, seqLifeG, seqActG, seqMsgG].forEach((g) => { g.textContent = ''; });
-        seqHtml.textContent = '';
+
+        // Every item is kept by key from one render to the next (seqPut): made once, then only what changed is written.
+        // The lists hold the drawn elements in drawing order; seqSync puts each layer in that order and drops the rest.
+        seqSeen = new Set();
+        seqSlotCache.clear();
+        const fragL = [], lifeL = [], actL = [], msgL = [], htmlL = [], clipCheck = [];
+        const focusCtx0 = focusCtx();
 
         // Fragments (behind everything else)
         fs.forEach((f) => {
           if (f.x === undefined) return;
-          const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
-          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
+          const tint = swatchOf(f), fid = f.id;   // a frame's colour is a slot or custom hex like a participant's
+          const box = seqPut(fragL, `fb:${fid}`, '', 'seq-frag-box item-shape', (c) => svgEl('rect', { class: c, rx: 6, 'data-frag-id': fid }));
+          seqAttrs(box.el, { x: f.x, y: f.y, width: f.w, height: f.h });
+          seqPaint(box, tint);
           // The border selects the frame (an 8px hit stroke); the inside stays click-through
-          seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
-          const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
-          tag.dataset.fragId = f.id;
-          const chev = htmlEl('button', 'frame-chev');
-          chev.type = 'button';
-          chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(!f.collapsed));
-          chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
-          tag.appendChild(chev);
-          if (f.kind !== 'group') {
-            const kind = htmlEl('span', 'seq-frag-kind');
-            kind.textContent = f.kind;
-            tag.appendChild(kind);
-          }
-          const text = htmlEl('span', 'seq-frag-text');
-          text.textContent = f.label || (f.kind === 'group' ? 'phase' : 'condition');
-          tag.appendChild(text);
-          const foc = focusState(f.id);
-          if (foc && foc.toCollapse.length) {
+          const hit = seqPut(fragL, `fh:${fid}`, '', 'seq-frag-hit', (c) => svgEl('rect', { class: c, rx: 6, 'data-frag-id': fid }));
+          seqAttrs(hit.el, { x: f.x, y: f.y, width: f.w, height: f.h });
+          const foc = focusState(f.id, focusCtx0), hasFocus = !!(foc && foc.toCollapse.length), isGroup = f.kind === 'group';
+          const tagLabel = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
+          const tagR = seqPut(htmlL, `ft:${fid}`, `${isGroup ? 0 : 1}${hasFocus ? 1 : 0}`, `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, (c, refs) => {
+            const tag = htmlEl('div', c);
+            tag.dataset.fragId = fid;
+            tag.appendChild(refs.chev = ui.chevron({ expanded: !f.collapsed, label: tagLabel }));
+            if (!isGroup) tag.appendChild(refs.kind = htmlEl('span', 'seq-frag-kind'));
+            tag.appendChild(refs.text = htmlEl('span', 'seq-frag-text'));
+            if (hasFocus) {
+              const fb = refs.focus = htmlEl('button', 'seq-frag-focus');
+              fb.type = 'button';
+              fb.innerHTML = ui.icon('focus', { size: 'sm', bold: true });
+              tag.appendChild(fb);
+            }
+            return tag;
+          });
+          const tag = tagR.el, tr = tagR.refs;
+          seqStyle(tag, { left: px(f.x), top: px(f.y) });
+          seqPaint(tagR, tint);
+          seqAttr(tr.chev, 'aria-expanded', String(!f.collapsed));
+          seqAttr(tr.chev, 'aria-label', tagLabel);
+          seqProp(tr.chev, 'title', tagLabel);
+          if (tr.kind) seqProp(tr.kind, 'textContent', f.kind);
+          seqProp(tr.text, 'textContent', f.label || (isGroup ? 'phase' : 'condition'));
+          if (hasFocus) {
             const on = isFocused(foc);
-            const fb = htmlEl('button', 'seq-frag-focus');
-            fb.type = 'button';
-            fb.title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
-            fb.setAttribute('aria-label', fb.title);
-            fb.setAttribute('aria-pressed', String(on));
-            fb.innerHTML = ui.icon('focus', { size: 'sm', bold: true });
-            tag.appendChild(fb);
+            const title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
+            seqProp(tr.focus, 'title', title);
+            seqAttr(tr.focus, 'aria-label', title);
+            seqAttr(tr.focus, 'aria-pressed', String(on));
           }
-          seqHtml.appendChild(tag);
           (f.dividers || []).forEach((d) => {
-            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
-            seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
+            const dk = `${fid}:${d.at}`;
+            const el = seqPut(fragL, `fe:${dk}`, '', 'seq-frag-else item-shape', (c) => svgEl('line', { class: c, 'data-frag-id': fid, 'data-at': d.at }));
+            seqAttrs(el.el, { x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y });
+            const dh = seqPut(fragL, `fd:${dk}`, '', 'seq-div-hit', (c) => svgEl('line', { class: c, 'data-frag-id': fid, 'data-at': d.at }));
+            seqAttrs(dh.el, { x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y });
             if (d.label) {
-              const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
-              el.dataset.fragId = f.id;
-              el.dataset.at = d.at;
-              const t = htmlEl('span', 'seq-branch-text');
-              t.textContent = d.label;
-              el.appendChild(t);
-              seqHtml.appendChild(el);
+              const bl = seqPut(htmlL, `fl:${dk}`, '', 'seq-frag-branch-label', (c, refs) => {
+                const el = htmlEl('div', c);
+                el.dataset.fragId = fid;
+                el.dataset.at = d.at;
+                el.appendChild(refs.text = htmlEl('span', 'seq-branch-text'));
+                return el;
+              });
+              seqStyle(bl.el, { left: px(f.x + 10), top: px(d.y + 3) });
+              seqProp(bl.refs.text, 'textContent', d.label);
             } else if (f.kind === 'alt') {
               // The short form (elseAt): an unlabelled "else" at the right, as before branches existed
-              const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(d.y + 3) });
-              el.dataset.fragId = f.id;
-              el.dataset.at = d.at;
-              el.textContent = 'else';
-              seqHtml.appendChild(el);
+              const el = seqPut(htmlL, `fs:${dk}`, '', 'seq-frag-else-label', (c) => {
+                const e = htmlEl('div', c);
+                e.dataset.fragId = fid;
+                e.dataset.at = d.at;
+                e.textContent = 'else';
+                return e;
+              });
+              seqStyle(el.el, { left: px(f.x + f.w - 10), top: px(d.y + 3) });
             }
           });
           if (f.collapsed) {
             const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
             if (inside.length) {
               const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
-              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y) });
-              sum.type = 'button';
-              sum.dataset.fragId = f.id;
-              sum.title = 'Expand this frame';
-              sum.textContent = `${inside.length} message${inside.length === 1 ? '' : 's'} hidden (step${a === b ? ` ${a}` : `s ${a}–${b}`})`;
-              seqHtml.appendChild(sum);
+              const sum = seqPut(htmlL, `fm:${fid}`, '', 'frame-summary', (c) => {
+                const s = htmlEl('button', c);
+                s.type = 'button';
+                s.dataset.fragId = fid;
+                s.title = 'Expand this frame';
+                return s;
+              });
+              seqStyle(sum.el, { left: px(f.x + f.w / 2), top: px(inside[0].y) });
+              seqProp(sum.el, 'textContent', `${inside.length} message${inside.length === 1 ? '' : 's'} hidden (step${a === b ? ` ${a}` : `s ${a}–${b}`})`);
             }
           }
         });
@@ -439,54 +525,72 @@
         ps.forEach((p) => {
           const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
           const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
-          const sw = drawnSwatch(p);
-          seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
+          const sw = drawnSwatch(p), pid = p.id;
+          const life = seqPut(lifeL, `lf:${pid}`, '', `seq-lifeline${rail ? ' is-rail' : ''}`, (c) => svgEl('line', { class: c, 'data-node-id': pid }));
+          seqAttrs(life.el, { x1: p.x, x2: p.x, y1: top + boxH, y2 });
+          seqPaint(life, sw);
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
-          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
-          if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
-          const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
-          box.dataset.nodeId = p.id;
-          paintSwatch(box, sw);
-          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
-          const name = htmlEl('span', 'seq-participant-name');
-          name.textContent = p.name;
-          box.appendChild(name);
-          if (rail) {
-            const tip = htmlEl('span', 'seq-rail-tip');
-            tip.textContent = p.name;
-            tip.dataset.exportSkip = '';
-            box.appendChild(tip);
+          const lh = seqPut(lifeL, `lh:${pid}`, '', 'seq-life-hit', (c) => svgEl('line', { class: c, 'data-pid': pid, 'data-export-skip': '' }));
+          seqAttrs(lh.el, { x1: p.x, x2: p.x, y1: top + boxH, y2 });
+          if (p.bottom !== undefined) {
+            const cap = seqPut(lifeL, `lc:${pid}`, '', 'seq-cap item-shape', (c) => svgEl('line', { class: c, 'data-node-id': pid }));
+            seqAttrs(cap.el, { x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom });
+            seqPaint(cap, sw);
           }
-          seqHtml.appendChild(box);
-          if (rail) {
-            name.dataset.tip = p.name;
-          } else if (name.scrollHeight > name.clientHeight + 2 || name.scrollWidth > name.clientWidth + 2) {
-            name.dataset.tip = p.name;
-            box.title = p.name;
-          }
+          const icon = hasKindIcon(p.kind) ? p.kind : rail ? 'system' : '';   // which kind icon the box holds ('' none)
+          const boxR = seqPut(htmlL, `pb:${pid}`, `${rail ? 'r' : 'p'}:${icon}`,
+            `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, (c, refs) => {
+              const box = htmlEl('div', c);
+              box.dataset.nodeId = pid;
+              if (icon) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
+              box.appendChild(refs.name = htmlEl('span', 'seq-participant-name'));
+              if (rail) {
+                const tip = refs.tip = htmlEl('span', 'seq-rail-tip');
+                tip.dataset.exportSkip = '';
+                box.appendChild(tip);
+              }
+              return box;
+            });
+          seqStyle(boxR.el, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
+          seqClean(boxR.el, 'is-dragging', false, true);
+          seqPaint(boxR, sw);
+          seqProp(boxR.refs.name, 'textContent', p.name);
+          if (rail) seqProp(boxR.refs.tip, 'textContent', p.name);
+          clipCheck.push({ box: boxR.el, name: boxR.refs.name, rail, text: p.name });
         });
         // Insert a participant between two boxes, or past either end (only the one nearest the pointer shows, see onCanvasHover)
         const half = (p) => (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2;
         [-1].concat(ps.map((p, i) => i)).forEach((i) => {
           const x = i < 0 ? ps[0].x - half(ps[0]) - 26 : i + 1 < ps.length ? (ps[i].x + ps[i + 1].x) / 2 : ps[i].x + half(ps[i]) + 26;
-          const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
-          ins.type = 'button';
-          ins.dataset.index = i + 1;   // -1 is the left end: index 0
-          ins.dataset.exportSkip = '';
-          ins.title = i >= 0 && i + 1 < ps.length ? 'Insert a participant here' : `Add a participant at the ${i < 0 ? 'left' : 'right'} end`;
-          ins.setAttribute('aria-label', ins.title);
-          ins.textContent = '+';
-          seqHtml.appendChild(ins);
+          const ins = seqPut(htmlL, `ia:${i + 1}`, '', 'seq-insert', (c) => {
+            const b = htmlEl('button', c);
+            b.type = 'button';
+            b.dataset.index = i + 1;   // -1 is the left end: index 0
+            b.dataset.exportSkip = '';
+            b.textContent = '+';
+            return b;
+          });
+          seqStyle(ins.el, { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
+          ins.el.classList.remove('is-near');
+          const title = i >= 0 && i + 1 < ps.length ? 'Insert a participant here' : `Add a participant at the ${i < 0 ? 'left' : 'right'} end`;
+          seqProp(ins.el, 'title', title);
+          seqAttr(ins.el, 'aria-label', title);
         });
 
         // Activation bars
         const bars = seqBars = seqActivations();
+        const barsOf = new Map();   // per participant, so a row reads only its own bars
+        bars.forEach((b) => { if (!barsOf.has(b.pid)) barsOf.set(b.pid, []); barsOf.get(b.pid).push(b); });
+        const anonBar = {};
         bars.forEach((b) => {
           const p = byId[b.pid];
           if (!p) return;
-          seqActG.appendChild(paintSwatch(svgEl('rect', Object.assign({ class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }, b.mid ? { 'data-mid': b.mid } : {})), drawnSwatch(p)));
+          const bk = b.mid ? `${b.pid}:${b.mid}` : `${b.pid}:anon:${(anonBar[b.pid] = (anonBar[b.pid] || 0) + 1)}`;
+          const bar = seqPut(actL, `ac:${bk}`, '', 'seq-activation', (c) => svgEl('rect', Object.assign({ class: c, rx: 2, 'data-node-id': b.pid }, b.mid ? { 'data-mid': b.mid } : {})));
+          seqAttrs(bar.el, { x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1 });
+          seqPaint(bar, drawnSwatch(p));
         });
-        const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
+        const activeDepth = (pid, y) => (barsOf.get(pid) || []).reduce((mx, b) => (b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
         const edgeX = (p, y, dir) => {
           const d = activeDepth(p.id, y);
           return d < 0 ? p.x : p.x + dir * (ACT_HALF + d * ACT_STEP);
@@ -496,7 +600,7 @@
         ms.forEach((m) => {
           const a = byId[m.from], b = byId[m.to];
           if (!a || !b || m.hidden) return;
-          const self = a === b;
+          const self = a === b, mid = m.id;
           let d, labelStyle, detailStyle;
           if (self) {
             const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
@@ -511,45 +615,85 @@
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
-          seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
-          seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
-          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
-          label.dataset.edgeId = m.id;
-          if (chartData.numbered) {
-            const num = htmlEl('span', 'seq-msg-num');
-            num.textContent = stepOf[m.id];
-            label.appendChild(num);
-          }
+          const line = seqPut(msgL, `ml:${mid}`, '', `seq-line item-shape${m.kind === 'reply' ? ' is-reply' : ''}`, (c) => svgEl('path', { class: c, 'data-edge-id': mid }));
+          seqAttrs(line.el, { d, 'marker-end': marker });
+          const mh = seqPut(msgL, `mh:${mid}`, '', 'seq-msg-hit', (c) => svgEl('path', { class: c, 'data-edge-id': mid }));
+          seqAttrs(mh.el, { d });
+          const numbered = !!chartData.numbered;
+          const lab = seqPut(htmlL, `mb:${mid}`, numbered ? 'n' : '', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, (c, refs) => {
+            const el = htmlEl('div', c);
+            el.dataset.edgeId = mid;
+            if (numbered) el.appendChild(refs.num = htmlEl('span', 'seq-msg-num'));
+            el.appendChild(refs.text = htmlEl('span', 'seq-msg-label-text'));
+            return el;
+          });
+          seqStyle(lab.el, labelStyle);
+          seqClean(lab.el, 'is-dragging', true);
+          if (numbered) seqProp(lab.refs.num, 'textContent', String(stepOf[mid]));
           const maxW = self ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
-          const text = htmlEl('span', 'seq-msg-label-text');
-          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, maxW).join('\n') : (m.label || '');
-          label.appendChild(text);
-          if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
-          seqHtml.appendChild(label);
+          seqProp(lab.refs.text, 'textContent', m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, maxW).join('\n') : (m.label || ''));
+          if (m.detail && !showDetails) seqProp(lab.el, 'title', m.detail);   // details hidden: the payload is the tooltip
+          else if (lab.el.hasAttribute('title')) lab.el.removeAttribute('title');
           if (m.detail && showDetails) {
-            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
-            det.dataset.edgeId = m.id;
-            const dt = htmlEl('span', 'seq-msg-detail-text');
-            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, maxW).join('\n') : m.detail;
-            det.appendChild(dt);
-            seqHtml.appendChild(det);
+            const det = seqPut(htmlL, `md:${mid}`, '', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, (c, refs) => {
+              const el = htmlEl('div', c);
+              el.dataset.edgeId = mid;
+              el.appendChild(refs.text = htmlEl('span', 'seq-msg-detail-text'));
+              return el;
+            });
+            seqStyle(det.el, detailStyle);
+            seqClean(det.el, '', true);
+            seqProp(det.refs.text, 'textContent', m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, maxW).join('\n') : m.detail);
           }
         });
 
         // Notes: a folded card over one lifeline, or stretched over two
         ns.forEach((n) => {
           if (n.x === undefined) return;
-          const { card, text } = ui.noteCard(n, {});
-          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h), minHeight: px(n.h) });
-          text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
-          seqHtml.appendChild(card);
+          const note = seqPut(htmlL, `nt:${n.id}`, '', 'note', (c, refs) => {
+            const { card, text } = ui.noteCard(n, {});
+            text.addEventListener('paste', (e) => {
+              e.preventDefault();
+              document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+            });
+            text.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'F2') e.stopPropagation();
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                document.execCommand('insertText', false, '\n');
+              } else if (e.key === 'Enter' || e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                const cur = noteById(card.dataset.noteId);
+                text.blur();
+                if (cur) noteCtl.commit(cur, text);
+              }
+            });
+            text.addEventListener('blur', () => {
+              const cur = noteById(card.dataset.noteId);
+              if (cur) noteCtl.commit(cur, text);
+            });
+            refs.text = text;
+            return card;
+          });
+          seqStyle(note.el, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h), minHeight: px(n.h) });
+          seqClean(note.el, 'dragging', false);
+          seqProp(note.refs.text, 'textContent', sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n'));
         });
         // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
-        // with no label yet is a prompt in edit, and left out of ?present and exports.
+        // with no label yet is a prompt in edit, and left out of ?present and exports. Small and always rebuilt.
         const used = [];
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && swatchSlot(sw) && !used.includes(sw)) used.push(sw); });   // a white (hex) is no legend entry
         const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
-        if (key) seqHtml.appendChild(key);
+        if (key) htmlL.push(key);
+        seqSync(seqFragG, fragL); seqSync(seqLifeG, lifeL); seqSync(seqActG, actL); seqSync(seqMsgG, msgL); seqSync(seqHtml, htmlL);
+        seqEls.forEach((rec, k) => { if (!seqSeen.has(k)) seqEls.delete(k); });
+        // A name too long for its box is the box's tooltip: all measured together, then written
+        const clipped = clipCheck.map((c) => c.rail || c.name.scrollHeight > c.name.clientHeight + 2 || c.name.scrollWidth > c.name.clientWidth + 2);
+        clipCheck.forEach((c, i) => {
+          if (clipped[i]) { c.name.dataset.tip = c.text; if (!c.rail) c.box.title = c.text; }
+          else { if (c.name.dataset.tip !== undefined) delete c.name.dataset.tip; if (c.box.hasAttribute('title')) c.box.removeAttribute('title'); }
+        });
         applySelection();
         seqPinCache = null;
         pinParticipants();
@@ -637,7 +781,7 @@
           // Frame chevron rotations, number badge unfolds, participant kind icon morphs, swatch colour tweens
           fs.forEach((f) => {
             if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
-            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
+            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .chevron svg`);
             if (chev) motion.anim(chev, [
               { transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
               { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
@@ -680,12 +824,12 @@
         if (!L) return;
         if (!seqPinCache) {
           const top = seqCanvas.offsetTop + seqCanvas.clientTop;
-          const partEls = [...seqHtml.querySelectorAll('.seq-participant')].map((el) => ({
-            el,
-            p: partById(el.dataset.nodeId)
-          }));
+          const partEls = chartData.participants.map((p) => {
+            const rec = seqEls.get(`pb:${p.id}`);
+            return rec && { el: rec.el, p };
+          }).filter(Boolean);
           const fragTags = chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).map((f) => {
-            const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
+            const rec = seqEls.get(`ft:${f.id}`), tag = rec && rec.el;
             if (!tag) return null;
             return { f, tag, textEl: tag.querySelector('.seq-frag-text'), h: tag.offsetHeight || 22 };
           }).filter(Boolean);
@@ -820,18 +964,40 @@
       //          engine draws an after-note inside every frame that ends at that message and a before-note outside every
       //          frame that starts at it, so only the innermost end slot and the outside slots can be written.
       function rowSlots(skipId) {
+        // The slots only change with a render (every edit ends in one), so a drag or a hover over the canvas reads them from here
+        const ck = skipId === undefined ? '' : skipId;
+        if (!seqSlotCache.has(ck)) seqSlotCache.set(ck, computeRowSlots(skipId));
+        return seqSlotCache.get(ck);
+      }
+      function computeRowSlots(skipId) {
         const ms = chartData.messages.filter((m) => m.id !== skipId);
         const vis = [];
         ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
         if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT, plain: true, frame: null, join: [], note: {} }];
         const spans = drawnSpans(skipId), bottom = (s) => s.f.y + s.f.h;
+        // Per gap lookups, built once: the frames that close or open at a message, its notes, the dividers that start at it
+        const closeAt = new Map(), openAt = new Map(), divAt = new Map(), afterOf = new Map(), beforeOf = new Map();
+        const push = (map, key, v) => { if (!map.has(key)) map.set(key, []); map.get(key).push(v); };
+        spans.forEach((sp) => {
+          push(closeAt, sp.b, sp);
+          push(openAt, sp.a, sp);
+          branchList(sp.f).forEach((br, bi) => {
+            const dv = (sp.f.dividers || []).find((d) => d.at === br.at);
+            if (dv) push(divAt, br.at, { f: sp.f, bi, y: dv.y });
+          });
+        });
+        (chartData.notes || []).forEach((n) => {
+          if (n.y === undefined || n.hidden) return;   // not drawn
+          if (n.after !== undefined) push(afterOf, n.after, n);
+          if (n.before !== undefined) push(beforeOf, n.before, n);
+        });
         let last = vis[vis.length - 1].i + 1;
         while (last < ms.length && ms[last].hidden) last++;
         const slots = [];
         for (let k = 0; k <= vis.length; k++) {
           const A = vis[k - 1] || null, B = vis[k] || null, index = B ? B.i : last;
-          const closing = A ? spans.filter((s) => s.b === A.i).sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
-          const opening = B ? spans.filter((s) => s.a === B.i).sort((u, v) => u.f.y - v.f.y) : [];           // outer first
+          const closing = A ? (closeAt.get(A.i) || []).slice().sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
+          const opening = B ? (openAt.get(B.i) || []).slice().sort((u, v) => u.f.y - v.f.y) : [];           // outer first
           closing.forEach((s, i) => slots.push({
             index, y: bottom(s) - 10, plain: false, frame: s.f, join: closing.slice(i).map((c) => ({ id: c.f.id, edge: 'to' })), note: i === 0 ? { after: A.m.id } : null
           }));
@@ -842,33 +1008,28 @@
           else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
           // Notes drawn between A and the next row: after-notes of A (inside A's frames) and before-notes of B (after
           // any branch divider, before any frame that opens at B)
-          const drawn = (n) => n.y !== undefined && !n.hidden;
-          const afterA = A ? (chartData.notes || []).filter((n) => n.after === A.m.id && drawn(n)) : [];
-          const beforeB = B ? (chartData.notes || []).filter((n) => n.before === B.m.id && drawn(n)) : [];
+          const afterA = A ? afterOf.get(A.m.id) || [] : [];
+          const beforeB = B ? beforeOf.get(B.m.id) || [] : [];
           const toAfter = afterA.map((n) => ({ id: n.id, key: 'after' })), toBefore = beforeB.map((n) => ({ id: n.id, key: 'before' }));
           // Between A and its first after-note: inside every frame A is in
           if (afterA.length) {
-            slots.push({ index, y: (A.m.y + afterA[0].y) / 2 + 6, plain: false, frame: frameAtSlot(index, skipId) || (closing[0] && closing[0].f) || null,
+            slots.push({ index, y: (A.m.y + afterA[0].y) / 2 + 6, plain: false, frame: frameAtSlot(index, spans) || (closing[0] && closing[0].f) || null,
               join: closing.map((c) => ({ id: c.f.id, edge: 'to' })), renote: toAfter, note: null });
           }
           // A branch divider at B: the end of the branch above it, and the start of the branch below it
-          const divs = [];
-          if (B) spans.forEach((sp) => branchList(sp.f).forEach((br, bi) => {
-            const dv = (sp.f.dividers || []).find((d) => d.at === br.at);
-            if (br.at === B.m.id && dv) divs.push({ f: sp.f, bi, y: dv.y });
-          }));
+          const divs = B ? divAt.get(B.m.id) || [] : [];
           if (divs.length) y = Math.min(y, divs[0].y - 12);
           else if (beforeB.length) y = Math.min(y, beforeB[0].y - 8);
           const nextId = B ? B.m.id : A && A.i + 1 < ms.length ? ms[A.i + 1].id : null;
           const note = nextId ? { before: nextId } : closing.length ? null : { after: A.m.id };
-          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note: divs.length ? { after: A.m.id } : note });
+          slots.push({ index, y, plain: true, frame: frameAtSlot(index, spans), join: [], note: divs.length ? { after: A.m.id } : note });
           divs.forEach((dv) => slots.push({
             index, y: dv.y + 20, plain: false, frame: dv.f, join: [{ id: dv.f.id, edge: 'branch', branch: dv.bi }], note: null
           }));
           // Between the before-notes of B and B (and the frames that open at B)
           if (beforeB.length && !opening.length) {
             const lastN = beforeB[beforeB.length - 1];
-            slots.push({ index, y: (lastN.y + lastN.h + B.m.y) / 2 - 6, plain: false, frame: frameAtSlot(index, skipId), join: [], renote: toBefore, note: null });
+            slots.push({ index, y: (lastN.y + lastN.h + B.m.y) / 2 - 6, plain: false, frame: frameAtSlot(index, spans), join: [], renote: toBefore, note: null });
           }
           opening.forEach((s, j) => slots.push({
             index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), renote: toBefore, note: null
@@ -882,21 +1043,24 @@
       function drawnSpans(skipId) {
         const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
         const full = chartData.messages.map((m) => m.id);
+        // first index of each id (what indexOf finds), -1 when absent
+        const firstAt = (list) => { const at = new Map(); list.forEach((id, i) => { if (!at.has(id)) at.set(id, i); }); return (id) => (at.has(id) ? at.get(id) : -1); };
+        const inFull = firstAt(full), inOrder = firstAt(order);
         const out = [];
         chartData.fragments.forEach((f) => {
           if (f.x === undefined) return;
-          let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
+          let fa = inFull(f.from), fb = inFull(f.to);
           while (fa <= fb && full[fa] === skipId) fa++;
           while (fb >= fa && full[fb] === skipId) fb--;
           if (fa > fb) return;
-          out.push({ f, a: order.indexOf(full[fa]), b: order.indexOf(full[fb]) });
+          out.push({ f, a: inOrder(full[fa]), b: inOrder(full[fb]) });
         });
         return out;
       }
-      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
-      function frameAtSlot(index, skipId) {
+      // The innermost of `spans` (drawnSpans) a message inserted at `index` (of the list without skipId) would land in
+      function frameAtSlot(index, spans) {
         let best = null;
-        drawnSpans(skipId).forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
+        spans.forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
         return best && best.f;
       }
       // The slots that are outside every frame closing or opening at their gap: one per gap
@@ -1188,7 +1352,7 @@
       function participantDrag(id, el) {
         return {
           move(pt, d) {
-            el.classList.add('dragging');
+            el.classList.add('is-dragging');
             el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
             const ps = chartData.participants, me = partById(id), L = chartData.layout;
             const others = ps.filter((p) => p.id !== id);
@@ -1262,7 +1426,7 @@
           move(pt, d) {
             const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
             if (el) {
-              el.classList.add('dragging');
+              el.classList.add('is-dragging');
               el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
             }
             const m = msgById(id);
@@ -1640,8 +1804,8 @@
       function onSeqPointerDown(e) {
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
-        const handle = e.target.closest('.seq-handle');
+        if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        const handle = e.target.closest('[data-handle]');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
         // DRAW FROM A LIFELINE: a drag from a lifeline or an activation bar draws a message from the nearest row gap
@@ -1683,7 +1847,10 @@
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
       const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
-        const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+        // A message's end is the shared end handle (ui.port); the other handles resize a bar, a frame or a note (.seq-grip)
+        const h = extraClass === 'seq-end' ? ui.port('end') : htmlEl('div', `seq-grip ${extraClass || ''}`.trim());
+        Object.assign(h.style, { left: px(x), top: px(y) });
+        h.dataset.handle = '';   // every handle drawn on the selection, whichever look it has
         h.dataset.role = role;
         h.dataset.id = id;
         h.dataset.exportSkip = '';
@@ -1701,11 +1868,11 @@
         lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
           if (oldBar) motion.hideBar(oldBar);
-          seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+          seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
           return;
         }
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+        seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
@@ -2042,15 +2209,22 @@
           }
         });
       }
-      function editNote(id) {
-        const n = noteById(id);
-        const el = seqHtml.querySelector(`.note[data-note-id="${id}"] .note-text`);
-        if (!n || !el) return;
-        beginEdit(el, {
-          multiline: true, raw: n.text || '', restore: true,
-          apply: (e, value) => { if (!value || value === n.text) return false; n.text = value; return true; }
-        });
-      }
+      const noteCtl = createNotes({
+        data: () => chartData,
+        cardOf: (id) => seqHtml.querySelector(`.note[data-note-id="${id}"]`),
+        anchorEl: (n) => {
+          const over = Array.isArray(n.over) ? n.over[0] : n.over;
+          return (over && seqHtml.querySelector(`.seq-participant[data-node-id="${over}"]`)) || null;
+        },
+        canEdit: () => !isPresent(),
+        openCard: (n) => seqHtml.querySelector(`.note[data-note-id="${n.id}"]`),
+        beforeEdit: (n, card, text) => { text.textContent = n.text || ''; },
+        selectAll: true,
+        clearSelection: (id) => { if (seqSel && seqSel.kind === 'note' && seqSel.id === id) seqSel = null; },
+        render: ({ reason }) => { if (reason === 'same') render(); else relayout(); },
+        onChange: () => {},   // relayout() already calls updateStatus(true)
+      });
+      function editNote(id) { noteCtl.edit(id); }
       // A branch's condition. An "else" (no label) is given a label element for the edit
       function editBranch(fid, at) {
         const f = fragById(fid);
@@ -2106,7 +2280,7 @@
       }
       function onSeqDblClick(e) {
         if (isPresent()) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
+        if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
         const kl = e.target.closest('.color-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
@@ -2193,14 +2367,25 @@
       // Only top-level frames fold: a frame that crosses another one's edge is left alone (it could not be collapsed
       // without cutting that frame in half). Pressing Focus on the focused frame shows everything again.
       function frameSpans() {
-        return chartData.fragments.map((f) => ({ f, a: msgIndex(f.from), b: msgIndex(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
+        const at = new Map();
+        chartData.messages.forEach((m, i) => { if (!at.has(m.id)) at.set(m.id, i); });
+        const idx = (id) => (at.has(id) ? at.get(id) : -1);
+        return chartData.fragments.map((f) => ({ f, a: idx(f.from), b: idx(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
       }
-      function focusState(fid) {
-        const rs = frameSpans(), me = rs.find((r) => r.f.id === fid);
-        if (!me) return null;
-        const encloses = (o, i) => o !== i && o.a <= i.a && i.b <= o.b && (o.b - o.a > i.b - i.a || (o.b - o.a === i.b - i.a && rs.indexOf(o) < rs.indexOf(i)));
+      // What focusState needs of every frame at once: the spans, which one encloses which, the top-level ones. render
+      // builds it once for all the tags; a lone call builds its own.
+      function focusCtx() {
+        const rs = frameSpans();
+        rs.forEach((r, k) => { r.k = k; });
+        const encloses = (o, i) => o !== i && o.a <= i.a && i.b <= o.b && (o.b - o.a > i.b - i.a || (o.b - o.a === i.b - i.a && o.k < i.k));
         const crossing = (r) => rs.some((o) => o !== r && ((o.a < r.a && r.a <= o.b && o.b < r.b) || (r.a < o.a && o.a <= r.b && r.b < o.b)));
         const tops = rs.filter((r) => !rs.some((o) => encloses(o, r)));
+        const cross = new Map();
+        return { rs, encloses, tops, crossing: (r) => { if (!cross.has(r)) cross.set(r, crossing(r)); return cross.get(r); } };
+      }
+      function focusState(fid, ctx = focusCtx()) {
+        const { rs, encloses, tops, crossing } = ctx, me = rs.find((r) => r.f.id === fid);
+        if (!me) return null;
         const keep = rs.filter((r) => r === me || encloses(r, me));
         const toCollapse = tops.filter((r) => !keep.includes(r) && !crossing(r));
         return { me, keep, toCollapse };
@@ -2234,8 +2419,8 @@
       seqHtml.addEventListener('click', (e) => {
         if (e.target.isContentEditable) return;
         const btn = e.target.closest(isPresent()
-          ? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
-          : '.frame-chev, .frame-summary, .seq-frag-focus');
+          ? '.chevron, .frame-summary, .seq-frag-focus, .frame-tag'
+          : '.chevron, .frame-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;
@@ -2337,10 +2522,8 @@
           return;
         }
         if (sel.kind === 'message') removeMessages(selIds(sel));
-        else if (sel.kind === 'note') {
-          chartData.notes = (chartData.notes || []).filter((n) => n.id !== sel.id);
-          if (!chartData.notes.length) delete chartData.notes;
-        } else if (sel.kind === 'divider') {
+        else if (sel.kind === 'note') { noteCtl.remove(sel.id); return; }
+        else if (sel.kind === 'divider') {
           // The messages of the branch merge into the branch above
           const f = fragById(sel.id);
           if (f) setBranches(f, branchList(f).filter((br) => br.at !== sel.at));

@@ -1,8 +1,33 @@
 # Plan: engineering review fixes (performance, tokens, WCAG AA)
 
-Follow-up to the 2026-11-26 codebase review. Eight phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
+Follow-up to the 2026-11-26 codebase review. Nine phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
 
 Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating, and `npm run test:e2e:changed`, light/dark contrast, and `build_examples.py --check` before merge. Goldens (`check_golden.py`) must stay byte-identical unless a phase says otherwise: layout and routing are deterministic and the file format does not change in any phase.
+
+## Progress and where to pick up (paused 2026-11-26)
+
+Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration branch; it is based on `stg` and holds everything below that is not yet on `stg`. To resume: start from that branch (not `stg`), read this section, then `git apply dev/plans/wip/wave-c-<type>.patch` for the type being finished.
+
+### Done
+
+| Item | Where | Notes |
+|---|---|---|
+| Wave A: Phase 1 (WCAG quick fixes), Phase 2 steps 1, 2, 4 (router grid index, bench, perf test), Phase 4 steps 2, 4, 5, 6 + `space` and interaction token definitions, Phase 7 (smaller pages) | `stg` (PR #155) | 400-node routing ~5.3 s to ~0.45 s, pages 20-29% smaller |
+| 9 stale goldens refreshed (C4 #113, flowchart 88c41fd) | `stg` (PR #156) | golden 60/60 |
+| Wave B1: Phase 2 step 3 + Phase 3 for flowchart (keyed reuse, delegation, incremental drag re-route) and ERD element index | integration branch | 500 steps: render ~225 ms to ~112 ms, drag move ~60 ms to ~12 ms |
+| Wave B2: Phase 5 for all six types, flowchart included (shared chevron, port, edge label, item states, state names, `dev/docs/ui-elements.md`, `check_components.py`, gallery `dev/playground/components.html`, `e2e_components.mjs`) | integration branch | port is 12 px outer; a side port's 24 px target runs outward only; shell sets `body.is-touch` |
+| Wave B3: Phase 6 shared notes controller for all six types (flowchart, usecase, erd, c4, gantt + anchorEl fold, sequence + optional `beforeEdit`/`selectAll` hooks) | integration branch | `assets/shell/notes.js` |
+| Wave C: Phase 3 render reuse & event delegation for c4, usecase, gantt (timeline + table), sequence | integration branch | `dev/plans/wip/` removed; reuse + delegation checks added to each type's e2e |
+| Phone check `dev/tests/e2e/e2e_device.mjs` (registered as `device`) | integration branch | all 6 types green (including gantt + sequence note fold morphs) |
+| Harness rule for shared UI elements | `ultimate-harness` `main` (PR #17, merged) | points at files that reach `stg` with the integration branch PR |
+
+### Remaining, in order
+
+1. Run full unit + e2e suites, rebuild and verify samples (`build_examples.py`), and open the integration branch PR to `stg` (Waves B and C).
+2. Investigate the known Gantt issue below (opens scrolled to 2022 below ~1,280 px wide).
+3. Phase 4 step 1 (migrate every CSS file to `--space-*`, add a `spacing-literal` rule) and step 3 (control height, padding and dock inset tokens): not started.
+4. Phase 9 (phone toolbar More menu): planned, agree the fold order with the user first.
+5. Phase 8 (keyboard access): lowest priority, not started.
 
 | # | Phase | Size | Risk | Changes look? |
 |---|---|---|---|---|
@@ -13,6 +38,7 @@ Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating
 | 5 | Shared UI elements across types | L | Medium | Yes (types converge on one look) |
 | 6 | Shared notes module | M | Medium | No |
 | 7 | Smaller pages | S | Low | No |
+| 9 | Phone toolbar: overflow into More (before Phase 8) | M | Low | Yes (on narrow screens only) |
 | 8 | Keyboard access for items | L | Medium | Focus rings only |
 
 ## Phase 1: Quick WCAG fixes
@@ -75,7 +101,7 @@ Drift found (2026-11-26):
 
 Steps:
 
-1. **Element inventory (the global definition):** add `references/ui-elements.md` listing each shared element: its class or `ui.*` call, states (`rest`, `hover`, `selected`, `is-editing`, `is-collapsed`, `is-dim`, `disabled`), tokens used, minimum hit area, and which types use it. `SKILL.md` and `CONTRIBUTING.md` link to it from the "new diagram type" checklist.
+1. **Element inventory (the global definition):** add `dev/docs/ui-elements.md` listing each shared element: its class or `ui.*` call, states (`rest`, `hover`, `selected`, `is-editing`, `is-collapsed`, `is-dim`, `disabled`), tokens used, minimum hit area, and which types use it. `SKILL.md` and `CONTRIBUTING.md` link to it from the "new diagram type" checklist.
 2. **State naming convention:** one name per state across all types: `.selected`, `.is-editing`, `.is-collapsed`, `.is-dim`, `.is-dragging`. Rename the 9 `.editing` uses.
 3. **Component tokens for interaction** (extends Phase 4 step 3): `--select-ring-w`, `--hover-shadow`, `--chevron-size`, `--port-size`, `--port-size-touch`, `--hit-min` (24 px). Types read these; none set their own.
 4. **Shared components** (CSS in `assets/components`, markup factory in the `ui` object in `shell.js`):
@@ -87,7 +113,7 @@ Steps:
 6. **Migrate one type per commit**, deleting the type's own copy in the same commit. Type CSS may only position or size shared elements, not restyle them.
 7. **Guard against new drift:** extend `check_tokens.py` (or add `check_components.py` to `run_unit.mjs`) to fail when type CSS declares a selector for a shared element concept (`*-chevron`, `*-port`, `*-handle`, `.edge-label` styling beyond position) or uses a state name outside the convention. Exceptions need a `components-ok: <reason>` comment.
 8. **Component gallery:** a `dev/playground/components.html` page built from the shared CSS and `ui.*` calls showing every element in every state, light and dark, and an e2e screenshot of it. This is the reference a new type is checked against.
-9. **New-type contract:** the type slice checklist in the project rules gains "uses shared elements from `references/ui-elements.md`; no type-specific copies".
+9. **New-type contract:** the type slice checklist in the project rules gains "uses shared elements from `dev/docs/ui-elements.md`; no type-specific copies".
 
 Samples change visually, so `dev/samples/example-*.html` are regenerated and re-signed in this phase.
 
@@ -104,6 +130,25 @@ Notes logic is copied in c4, erd, flowchart, usecase and gantt (`commitNote`, `r
 1. In `assemble_page` (`scripts/layout_engine.py`), strip whole-line `//` comments and leading indentation from bundled JS, and `/* */` comments from CSS. No minifier dependency. Skip template literals and strings (use a tokenizer that tracks quotes and backticks, not a regex).
 2. Expected: about 0.9 MB to about 0.6 MB per page uncompressed.
 3. Regenerate and re-sign samples; e2e suites run against the stripped pages.
+
+## Phase 9 (runs before Phase 8): Phone toolbar overflows into a More menu
+
+Found by `dev/tests/e2e/e2e_device.mjs` checks (2026-11-26): the bottom dock is wider than the screen on phones, so its last buttons are cut off. Measured dock width vs screen: Gantt 521 px on every phone (320, 390, 412 px wide); ERD 387 px at 390 px and below; sequence 344 px at 320 px. Flowchart, usecase and c4 fit. The dock must not scroll sideways (`dock.css`: overflow would clip the popovers that open above it), so buttons that do not fit fold into a More menu.
+
+1. **One shared mechanism in the shell, not per type:** a `More` button at the dock's end (reuse the header's `#btn-more` / `.menu` pattern and `ui` factory style) that appears only when the dock would overflow. Measure with a `ResizeObserver` on the dock (no fixed breakpoints): while the dock is wider than its space, move the lowest-priority buttons into the menu, last first; move them back when there is room.
+2. **Priority per button, declared in each type's `toolbar.html`** (for example `data-dock-priority="1..9"`, lower stays longest). Primary actions (Add menu, Notes, Auto-Tidy, Undo/Redo zone) never fold. Proposed fold order: Gantt Legend, Weekends, Holidays, Today, view filter, dependencies; ERD Auto-Tidy label, Types, Columns; sequence Lifespans, Details, Numbers. Final order agreed with the user before implementing.
+3. **A folded button keeps working:** the menu item calls the same button (`.click()` on the original, which stays in the DOM, hidden), keeps its label, icon, pressed state (`aria-pressed` / `aria-checked` on the menu item) and disabled state. A toggle's state change updates both.
+4. **Accessibility:** menu `role="menu"`, items `menuitem` / `menuitemcheckbox`, arrow-key navigation and Escape like the header menu; 24 px targets; focus returns to More on close.
+5. **Motion:** opening morphs from the More button (as the header menu does), never a fade.
+6. **Tests:** extend `e2e_device.mjs` to assert no dock child is outside the screen for every type at 320, 390 and 412 px, that every folded action works from More, and that toggles show their state; add the More button to the components gallery and `dev/docs/ui-elements.md`.
+
+Not implemented yet (user decision 2026-11-26: use a More menu, plan only).
+
+## Known issues found during Wave C (not yet planned)
+
+- **Gantt opens at the wrong place below about 1,280 px wide** (desktop and touch, already on `stg`): the example roadmap opens scrolled to 2022 with every bar off-screen. Setting the timeline's `scrollLeft` from a script also snaps back, so the cause is probably in how Gantt anchors its timeline scroll. Investigate after the Wave C Gantt stream lands.
+- **Gantt never animated note removal** (already on `stg`): being fixed in the Wave C Gantt stream (pass `anchorEl` to the shared notes controller).
+- **Sequence restores an emptied note's old text** instead of removing it like the other types: changes with the Wave C sequence notes migration.
 
 ## Phase 8 (lowest priority): Keyboard access for diagram items
 
@@ -126,7 +171,7 @@ The phases above are in priority order. Several can run at the same time because
 | A | A3 Token groundwork | Phase 4 steps 2, 4, 5, 6, plus the definitions (not the migration) of the `space` scale and the Phase 5 step 3 interaction tokens | `assets/tokens/default.json`, `scripts/tokens.py`, `check_tokens.py`, `check_contrast.py`, the 15 findings in `gantt.css`, `table.css`, `c4.css`, `flowchart.js` lines 1-4 |
 | A | A4 Smaller pages | Phase 7 | `scripts/layout_engine.py` (`assemble_page`) and its unit test |
 | B | B1 Drag and render speed | Phase 2 step 3 + Phase 3 | `flowchart.js` render and drag functions, then the same pattern in the other types' render functions |
-| B | B2 Shared UI elements | Phase 5, plus Phase 1 hit areas for collapse arrows and handles | `assets/components/*` (new `chevron.css`, `port.css`, `item-states.css`, `edge.css`), the `ui` object in `shell.js`, type CSS, the chevron/port markup in type JS, `references/ui-elements.md`, gallery page, drift checker |
+| B | B2 Shared UI elements | Phase 5, plus Phase 1 hit areas for collapse arrows and handles | `assets/components/*` (new `chevron.css`, `port.css`, `item-states.css`, `edge.css`), the `ui` object in `shell.js`, type CSS, the chevron/port markup in type JS, `dev/docs/ui-elements.md`, gallery page, drift checker |
 | B | B3 Shared notes module | Phase 6 | new `assets/shell/notes.js`, the notes functions in each type's JS |
 | C | C1 Spacing migration | Phase 4 step 1 (migrate every CSS file to `--space-*`) | all CSS files |
 | C | C2 Keyboard access | Phase 8 | new `assets/shell/keyboard.js`, new `assets/components/focus.css`, key handling in type JS |

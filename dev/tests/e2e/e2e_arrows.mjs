@@ -158,13 +158,13 @@ try {
   // A touch-only browser (hover: none, as headless Chrome reports) keeps the anchor points on a selected step
   const touch = await t.ev(`matchMedia('(hover: none)').matches`);
   t.check('anchor points are hidden at rest, shown on hover, and on a selected step only without hover', rest === '0' && hovered === '1' && selectedAway === (touch ? '1' : '0'), JSON.stringify({ rest, selectedAway, hovered, touch }));
-  await t.ev(`document.body.classList.add('connecting')`);
+  await t.ev(`document.body.classList.add('connecting', 'is-dragging')`);   // as startConnecting does
   await sleep(300);
   t.check('anchor points stay hidden while connecting', (await portOp()) === '0');
-  await t.ev(`document.body.classList.remove('connecting')`);
+  await t.ev(`document.body.classList.remove('connecting', 'is-dragging')`);
   t.check('a selected step keeps its anchor points only under (hover: none)', await t.ev(`(() => {
     const rules = [];
-    const walk = (list, media) => [...list].forEach(r => { if (r.media) walk(r.cssRules, r.media.mediaText); else if (/\\.port/.test(r.selectorText || '') && /selected/.test(r.selectorText)) rules.push(media); });
+    const walk = (list, media) => [...list].forEach(r => { if (r.media) walk(r.cssRules, r.media.mediaText); else if (/\\.port/.test(r.selectorText || '') && /selected/.test(r.selectorText) && !/\\.is-touch/.test(r.selectorText)) rules.push(media); });   // .is-touch: the last press was a finger
     [...document.styleSheets].forEach(s => { try { walk(s.cssRules, ''); } catch (e) {} });
     return rules.length > 0 && rules.every(m => /hover:\\s*none/.test(m));
   })()`));

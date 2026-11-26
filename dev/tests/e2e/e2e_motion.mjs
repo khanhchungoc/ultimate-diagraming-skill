@@ -49,7 +49,7 @@ const TYPES = {
   },
   usecase: {
     rects: '.uc-actor[data-node-id], .uc-case[data-node-id], .uc-subject[data-subject-id]',
-    act: () => `document.querySelector('.uc-subject .frame-chev').click()`,
+    act: () => `document.querySelector('.uc-subject .chevron').click()`,
   },
 };
 const undo = t.key('z', { ctrlKey: true });

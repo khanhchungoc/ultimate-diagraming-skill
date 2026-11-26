@@ -29,7 +29,8 @@
     body.presentation .edge-hit { cursor: default; }
     /* Lines of the hovered table, hovered line, selected line: one colour */
     .erd-rel:is(.hl-in, .hl-out, .hover, .selected) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
-    .edge-label:is(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+    /* One colour for the lines and labels of the hovered table, as the lines draw them (the shared label reads --edge-in / --edge-out) */
+    #erd-html { --edge-in: var(--primary); --edge-out: var(--primary); --edge-in-glow: var(--primary-glow); --edge-out-glow: var(--primary-glow); }
     .erd-rel.is-dim { opacity: 0.16; }
     /* Marker content: the line colour of its variant (--mk is set on the -in, -out and -sel copies) */
     .erd-mk path, .erd-mk circle {
@@ -41,20 +42,7 @@
     }
     .erd-mk circle { fill: var(--bg-panel); }
 
-    /* Label on a line: the shared edge label (components/edge.css), one line of detail text */
-    .edge-label {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 8px;
-      font-size: var(--t-detail-size);
-      font-weight: var(--t-detail-weight);
-      line-height: var(--leading-none);
-      white-space: nowrap;
-      pointer-events: auto;
-    }
-    .erd-rel-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .edge-label.is-dim { opacity: 0.25; }
+    /* Label on a line: the shared one-line edge label (components/edge.css, .edge-label--single); only its position is set here */
 
     /* --- Tables --- */
     .erd-entity {
@@ -80,14 +68,11 @@
       position: absolute;
       inset: 0;
       border-radius: var(--radius-lg);
-      box-shadow: inset 0 0 0 var(--ring-thin) var(--ring);
+      box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring);
       pointer-events: none;
     }
-    .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
     /* The neighbourhood of the hovered or selected table: related tables look exactly like the selected one */
     .erd-entity:is(.rel-parent, .rel-child, .selected) { --ring: var(--primary); }
-    .erd-entity.selected { box-shadow: var(--shadow-ring); }   /* only the selected table has the glow */
-    .erd-entity.is-dim { opacity: 0.38; }
     body.exporting .is-dim { opacity: 1 !important; }
     /* Lines of a table being dragged: faded until the drop re-routes them */
     .drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
@@ -115,24 +100,7 @@
       font-weight: var(--t-title-weight);
       line-height: var(--line-20);
     }
-    .erd-chevron {
-      flex: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 22px; height: 22px;
-      padding: 0;
-      border: none;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: inherit;
-      opacity: 0.7;
-      cursor: pointer;
-    }
-    .erd-chevron:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
-    .erd-chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
-    .erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
-
+    .erd-head .chevron { margin-right: 4px; }   /* clear of the note badge on the corner: their 24px hit areas must not overlap (WCAG 2.5.8) */
     .erd-row {
       position: relative;
       display: flex;
@@ -196,7 +164,7 @@
        EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
        aid ([data-export-skip] in the DOM) and is hidden in ?present.
        ===================================================================================================== */
-    .erd-entity, .edge-label { -webkit-user-select: none; user-select: none; }
+    .erd-entity { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
     .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-col-note.is-editing, .erd-rel-label-text.is-editing {
@@ -214,41 +182,12 @@
     .erd-col-type:empty { min-width: 28px; }
     .erd-col-name.is-editing, .erd-col-note.is-editing { flex: 1 1 auto; }
 
-    /* Connect ports: on the right edge of each row and of the header, shown on hover (all of them while the Relationship tool is armed) */
-    .erd-port {
-      position: absolute;
-      right: -6px; top: 50%;
-      width: 12px; height: 12px;
-      margin-top: -6px;
-      box-sizing: border-box;
-      border-radius: var(--radius-round);
-      border: 2px solid var(--primary);
-      background: var(--bg-panel);
-      display: none;
-      cursor: crosshair;
-      z-index: 4;
-      touch-action: none;
-      padding: 0;
-      scale: var(--ui-scale, 1);
-      transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
-    }
-    .erd-port:hover { background: var(--primary); }
-    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port {
-      display: block;
-      animation: erd-port-in var(--dur-micro) var(--curve-spring-tactile);
-    }
-    body.erd-armed .erd-port { transform: scale(1.15); }
-    @keyframes erd-port-in { from { transform: scale(0.55); } to { transform: none; } }
-    body.erd-dragging .erd-port { display: none; }
-    /* Several tables selected: no ports, a drag moves them all */
-    .erd-multi .erd-port { display: none !important; }
-    /* Touch: the selected table shows its ports (the row ports and the header's) as finger-sized targets, and a selected
-       line's end handles grow; elsewhere a drag pans (the shell's touch rule: only .selected and [data-touch-drag] reach this file) */
-    body.erd-touch .erd-entity.touch-ports .erd-port { display: block; width: 22px; height: 22px; right: -11px; margin-top: -11px; border-width: 2.5px; }
-    body.erd-touch .erd-handle { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-width: 2.5px; }
+    /* Connect ports (components/port.css): on the right edge of each row and of the header; all of them show while the Relationship tool is armed */
+    body.erd-armed .port:not(.port-end) { opacity: 1; pointer-events: auto; transform: scale(1.15); }   /* components-ok: the armed tool is this type's state */
+    /* Touch: a selected line's end handles are finger-sized (components/port.css); elsewhere a drag pans (the shell's touch rule: only .selected and [data-touch-drag] reach this file) */
     body.erd-touch .edge-hit { stroke-width: 26px; }
     body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
-    body.erd-armed .erd-chevron { display: none; }
+    body.erd-armed .chevron { display: none; }
     /* The row or header a connection would end at, and the table around it */
     .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-md) var(--primary); }
     .erd-entity.erd-target { --ring: var(--primary); }
@@ -268,22 +207,6 @@
     .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); transition: opacity var(--dur-micro) var(--curve-out); }
     .erd-entity.erd-ghost.off-target { opacity: 0.5; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
-
-    /* End handles of the selected line */
-    .erd-handle {
-      position: absolute;
-      width: 10px; height: 10px;
-      margin: -5px 0 0 -5px;
-      box-sizing: border-box;
-      z-index: 54;   /* above the action bar (53): a handle under the unzoomed bar stays grabbable */
-      border-radius: var(--radius-round);
-      border: 1.5px solid var(--primary);
-      background: transparent;   /* a hollow ring, so the line shows through */
-      cursor: grab;
-      touch-action: none;
-      pointer-events: auto;
-    }
-    .erd-handle:hover { background: var(--primary); }
 
     /* Action bar over the selection (the sequence type's, renamed) */
     .erd-actionbar {
@@ -318,7 +241,7 @@
     .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     .erd-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .erd-ab-swatch { height: 30px; width: 30px; }
-    body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle { display: none !important; }
+    body.erd-dragging .erd-actionbar { display: none !important; }
     .edge-label.is-editing-label { z-index: 60; }
 
     /* The colour legend (components/colorkey.css) above the tables' top-left corner */
@@ -331,8 +254,8 @@
 
 
     /* ?present: read only. Hover, highlight and collapse still work. */
-    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar { cursor: default; }
-    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar,
+    body.presentation .erd-actionbar { cursor: default; }
+    body.presentation .erd-actionbar,
     body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
 
     /* =====================================================================================================
@@ -342,8 +265,8 @@
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg, var(--bg-soft)) 45%, var(--node-bg)); }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-row,
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-more,
-    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-port,
-    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-chevron,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .port,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .chevron,
     body.erd-overview:not(.exporting) .note-badge { display: none !important; }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-head {
       position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: var(--radius-lg); border-bottom: none;

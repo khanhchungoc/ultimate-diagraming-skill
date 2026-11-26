@@ -126,7 +126,7 @@ try {
   await t.ev(`__t.click('n5', { ctrlKey: true })`);
   const two = await t.ev(`__t.sel()`);
   const dock = await t.ev(`new Promise(r => requestAnimationFrame(() => r([document.querySelector('.node-bar [data-act="delete"]').textContent.trim(), true])))`);
-  const portsHidden = await t.ev(`getComputedStyle(document.querySelector('#node-n2 .port')).display === 'none'`);
+  const portsHidden = await t.ev(`getComputedStyle(document.querySelector('#node-n2 .port')).pointerEvents === 'none'`);
   t.check('Ctrl+click adds a step; the step bar shows "Delete 2" and connect ports hide', same(two, ['n2', 'n5']) && dock[0] === 'Delete 2' && dock[1] && portsHidden,
     `sel=${JSON.stringify(two)} dock=${JSON.stringify(dock)} portsHidden=${portsHidden}`);
   await t.ev(`__t.click('n5', { metaKey: true })`);

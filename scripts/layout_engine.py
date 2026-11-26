@@ -1549,7 +1549,7 @@ def auto_lane_icons(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
 # Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
 # its `.toolbar-center .btn` rules and `.btn:disabled` have equal weight and the disabled look must win; toggle comes
 # after both so a pressed toggle wins inside the dock.
-COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame", "actionbar", "colorkey", "search")
+COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame", "chevron", "port", "item-states", "actionbar", "colorkey", "search")
 
 
 def components_css() -> str:
@@ -1599,7 +1599,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "SHELL_HELP": html_part(_read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10))),
         "DATA": payload,
         "THEME": theme_script(theme),
-        "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
+        "SHELL_JS": "\n".join(_read_asset(ASSETS_DIR / "shell" / f).rstrip(chr(10)) for f in ("shell.js", "notes.js")),   # notes.js: the shared notes controller, after the shell it builds on
         "TOKENS_JS": tokens_js(tokens, logos),
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)

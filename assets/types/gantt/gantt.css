@@ -298,49 +298,6 @@
     .gantt-row.drop-after::after,
     .gantt-row.drag-over-after::after { bottom: -1px; }
 
-    .gantt-chevron {
-      position: relative;
-      flex: none;
-      width: 20px;
-      height: 20px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      border: 0;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: transform var(--dur-fast) var(--curve-out), background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
-    }
-    .gantt-chevron::after {
-      content: '';
-      position: absolute;
-      inset: -2px;
-    }
-    .gantt-chevron:hover {
-      background: var(--bg-hover);
-      color: var(--text-main);
-    }
-    .gantt-chevron svg {
-      transition: transform var(--dur-fast) var(--curve-out);
-    }
-    .gantt-chevron[aria-expanded="false"] svg {
-      transform: rotate(-90deg);
-    }
-    .gantt-chevron[aria-expanded="false"] svg:has(path[d^="M6 15"]) {
-      transform: rotate(90deg);
-    }
-    .gantt-chevron[aria-expanded="false"]:not(:has(svg)) {
-      transform: rotate(-90deg);
-    }
-    .gantt-chevron-spacer {
-      flex: none;
-      width: 12px;
-      height: 20px;
-    }
-
     .gantt-row-grip {
       position: absolute;
       left: 0;
@@ -862,6 +819,7 @@
     }
 
     .gantt-bar {
+      --ring: var(--bar-border); --ring-w: var(--ring-hair);   /* the rest outline the shared hover and selected states (components/item-states.css) build on */
       --bar-bg: color-mix(in srgb, var(--sw-pill-bg, var(--primary-wash)) 100%, var(--bg-panel));
       --bar-border: var(--sw-line, var(--primary));
       --bar-ink: var(--sw-pill-ink, var(--text-main));
@@ -878,13 +836,7 @@
       cursor: grab;
       transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), filter var(--dur-micro) var(--curve-out);
     }
-    .gantt-bar:hover {
-      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-md);
-    }
-    .gantt-bar.selected {
-      box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
-      z-index: 12;
-    }
+    .gantt-bar.selected { z-index: 12; }
     .gantt-bar.is-dragging {
       cursor: grabbing;
       box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-lg);
@@ -924,9 +876,6 @@
     }
     .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary) {
       box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-md);
-    }
-    .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary).selected {
-      box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
     }
 
     .gantt-bar-label {
@@ -979,59 +928,11 @@
       opacity: 0.75;
     }
 
-    /* Left & right dependency connector grips (24x24 hit area with centered 10px visible dot) */
-    .gantt-port-l,
-    .gantt-port-r {
-      position: absolute;
-      top: 50%;
-      width: 24px;
-      height: 24px;
-      margin-top: -12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      background: transparent;
-      border: 0;
-      opacity: 0;
-      scale: var(--ui-scale, 1);
-      transform: scale(0.75);
-      cursor: crosshair;
-      z-index: 6;
-      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-fast) var(--curve-spring-tactile);
-    }
-    .gantt-port-l::after,
-    .gantt-port-r::after {
-      content: '';
-      width: 10px;
-      height: 10px;
-      box-sizing: border-box;
-      border-radius: var(--radius-round);
-      background: var(--bg-panel);
-      border: var(--ring-md) solid var(--primary);
-      box-shadow: var(--shadow-sm);
-      transition: transform var(--dur-fast) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
-    }
-    .gantt-port-l { left: -16px; }
-    .gantt-port-r { right: -16px; }
-    .gantt-bar:hover .gantt-port-l,
-    .gantt-bar:hover .gantt-port-r,
-    .gantt-bar.selected .gantt-port-l,
-    .gantt-bar.selected .gantt-port-r,
-    .gantt-milestone:hover .gantt-port-l,
-    .gantt-milestone:hover .gantt-port-r,
-    .gantt-milestone.selected .gantt-port-l,
-    .gantt-milestone.selected .gantt-port-r,
-    .gantt-root.is-connecting .gantt-port-l,
-    .gantt-root.is-connecting .gantt-port-r {
-      opacity: 1;
-      transform: scale(1);
-    }
-    .gantt-port-l:hover::after,
-    .gantt-port-r:hover::after {
-      background: var(--primary);
-      transform: scale(1.25);
-    }
+    /* Left & right dependency connector grips: the shared port (components/port.css), set a little outside the bar's ends */
+    .gantt-bar > .port-left, .gantt-milestone > .port-left { left: -4px; z-index: 6; }
+    .gantt-bar > .port-right, .gantt-milestone > .port-right { left: calc(100% + 4px); z-index: 6; }
+    /* While a dependency is being drawn every grip is a target */
+    .gantt-root.is-connecting .port { opacity: 1; pointer-events: auto; transform: scale(1); }   /* components-ok: the connecting tool is this type's state */
 
     /* Note indicator badge at top-left (clear of outgoing right-edge dependency arrows) */
     /* Reuse shared .note-badge from assets/components/note.css; nudge position on slim Gantt bars */
@@ -2015,10 +1916,6 @@
     body.present .gantt-resize-l,
     body.presentation .gantt-resize-r,
     body.present .gantt-resize-r,
-    body.presentation .gantt-port-l,
-    body.present .gantt-port-l,
-    body.presentation .gantt-port-r,
-    body.present .gantt-port-r,
     body.presentation .gantt-actionbar,
     body.present .gantt-actionbar,
     body.presentation .gantt-mini-pop,

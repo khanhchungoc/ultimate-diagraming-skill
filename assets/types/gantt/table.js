@@ -300,6 +300,8 @@
     let lastTree = buildTreeModel([]);
     let activeCellCoord = { itemId: null, colIdx: 1 };
     let depPopState = null; // { el, itemId, anchorEl, onDocDown, onDocKey }
+    const rowRecs = new Map();   // itemId -> { tr, shape } (keyed sheet rows, reused across renders)
+    let metaById = new Map();    // itemId -> visible row meta of the last render (delegated events read it)
 
     // --- Build static shell inside hostEl ---
     hostEl.textContent = '';
@@ -629,8 +631,8 @@
       return out;
     }
 
-    function formatDepShorthand(itemId, rowNumById) {
-      const incoming = getDepsForItem(itemId);
+    function formatDepShorthand(itemId, rowNumById, incomingDeps) {
+      const incoming = incomingDeps || getDepsForItem(itemId);
       const parts = [];
       const seen = new Set();
       for (let i = 0; i < incoming.length; i++) {
@@ -1478,6 +1480,173 @@
       };
     });
 
+    // --- Delegated sheet events (rows are reused across renders, so nothing is bound per cell) ---
+    function rowMetaAt(target) {
+      const tr = target && target.closest ? target.closest('tr[data-item-id]') : null;
+      if (!tr || tr.parentNode !== tbody) return null;
+      const meta = metaById.get(tr.getAttribute('data-item-id'));
+      return meta && rowRecs.get(meta.item.id) && rowRecs.get(meta.item.id).tr === tr ? meta : null;
+    }
+
+    function openLabelEdit(tdTask, lblSpan, it) {
+      startInlineTextEdit(tdTask, it.label || '', {
+        replaceTarget: lblSpan,
+        onSave(val) {
+          const cleaned = api.cleanLabel(val, it.label || 'Untitled');
+          if (cleaned !== it.label) {
+            it.label = cleaned;
+            api.commit('label');
+          }
+        }
+      });
+    }
+
+    function toggleKind(it, meta) {
+      const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
+      const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
+      it.kind = nextKind;
+      if (nextKind === 'milestone') {
+        const s = ganttFormatDate(it.start) || meta.start || api.getTodayStr();
+        it.start = s;
+        it.end = s;
+      } else {
+        const s = ganttFormatDate(it.start) || meta.start;
+        if (s && (!it.end || it.end === s)) {
+          it.start = s;
+          it.end = ganttAddDays(s, 6);
+        }
+      }
+      api.commit('kind');
+    }
+
+    function openStartPicker(startBtn, it) {
+      openDatePicker(startBtn, {
+        value: it.start || api.getTodayStr(),
+        allowClear: true,
+        onSelect(val) {
+          if (!val) {
+            delete it.start;
+            if (it.kind === 'milestone') delete it.end;
+          } else {
+            it.start = val;
+            if (it.kind === 'milestone') {
+              it.end = val;
+            } else if (it.end && val > it.end) {
+              it.end = val;
+            }
+          }
+          api.commit('start');
+        }
+      });
+    }
+
+    function openEndPicker(endBtn, it) {
+      openDatePicker(endBtn, {
+        value: it.end || it.start || api.getTodayStr(),
+        min: it.start || undefined,
+        allowClear: true,
+        onSelect(val) {
+          if (!val) {
+            delete it.end;
+          } else {
+            it.end = val;
+            if (!it.start || val < it.start) it.start = val;
+          }
+          api.commit('end');
+        }
+      });
+    }
+
+    function openDurationEdit(tdDur, durSpan, it, meta) {
+      const days = (meta.start && meta.end) ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
+      startInlineTextEdit(tdDur, days ? `${days}d` : '', {
+        replaceTarget: durSpan,
+        isNum: true,
+        placeholder: 'e.g. 14d or 2w',
+        onSave(val) {
+          const parsedDays = parseDurationDays(val);
+          if (!parsedDays) return;
+          const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
+          it.start = baseStart;
+          it.end = ganttAddDays(baseStart, Math.max(1, parsedDays) - 1);
+          api.commit('duration');
+        }
+      });
+    }
+
+    function openNoteEdit(tdNote, noteSpan, it) {
+      const noteObj = api.getNoteForItem(it.id);
+      const noteText = noteObj && noteObj.text ? noteObj.text : '';
+      startInlineTextEdit(tdNote, noteText, {
+        replaceTarget: noteSpan,
+        placeholder: 'Enter note...',
+        onSave(val) {
+          const next = String(val || '').trim();
+          if (next !== noteText) {
+            api.setNoteForItem(it.id, next);
+          }
+        }
+      });
+    }
+
+    tbody.addEventListener('click', (e) => {
+      const meta = rowMetaAt(e.target);
+      if (!meta) return;
+      const it = meta.item;
+      const t = e.target;
+      if (meta.hasChildren && t.closest('.gt-task-cell > .chevron')) {
+        e.stopPropagation();
+        it.collapsed = !it.collapsed;
+        api.commitSilent();
+        return;
+      }
+      if (api.isPresenting()) return;
+      const td = t.closest('td[data-gt-cell]');
+      const col = td ? td.getAttribute('data-col') : '';
+      let hit;
+      if (col === 'task' && (hit = t.closest('.gt-label-text'))) openLabelEdit(td, hit, it);
+      else if (col === 'type' && (hit = t.closest('.gt-type-btn'))) toggleKind(it, meta);
+      else if (col === 'start' && (hit = t.closest('.gt-date-btn'))) openStartPicker(hit, it);
+      else if (col === 'end' && (hit = t.closest('.gt-date-btn'))) openEndPicker(hit, it);
+      else if (col === 'dur' && (hit = t.closest('.gt-dur-val'))) openDurationEdit(td, hit, it, meta);
+      else if (col === 'dep' && (hit = t.closest('.gt-dep-btn'))) openDepPopover(hit, it);
+      else if (col === 'note' && (hit = t.closest('.gt-note-preview'))) openNoteEdit(td, hit, it);
+    });
+
+    tbody.addEventListener('dblclick', (e) => {
+      const meta = rowMetaAt(e.target);
+      const lbl = meta && !api.isPresenting() ? e.target.closest('td[data-col="task"] .gt-label-text') : null;
+      if (lbl) openLabelEdit(lbl.closest('td'), lbl, meta.item);
+    });
+
+    tbody.addEventListener('change', (e) => {
+      const meta = rowMetaAt(e.target);
+      if (!meta || api.isPresenting()) return;
+      const it = meta.item;
+      const t = e.target;
+      if (t.matches('td[data-col="check"] input.gt-checkbox')) {
+        const next = new Set(api.getSelectedIds());
+        if (t.checked) next.add(it.id);
+        else next.delete(it.id);
+        api.setSelectedIds(next);
+        render();
+      } else if (t.matches('td[data-col="cat"] select.gt-cat-select')) {
+        applyCategoryWithSync(it, t.value, lastTree);
+        api.commit('color');
+      }
+    });
+
+    tbody.addEventListener('mouseenter', (e) => {
+      const td = e.target;
+      if (!td.matches || !td.matches('td.gt-col-dep')) return;
+      const meta = rowMetaAt(td);
+      if (meta) highlightDepRows(meta.item.id);
+    }, true);
+    tbody.addEventListener('mouseleave', (e) => {
+      const td = e.target;
+      if (td.matches && td.matches('td.gt-col-dep') && rowMetaAt(td)) clearDepRowHighlights();
+    }, true);
+
     // --- Render helpers ---
     function buildCategorySelect(currentVal, slots, onChange, disabled) {
       const wrap = el('div', 'gt-cat-wrap');
@@ -1512,7 +1681,7 @@
         select.appendChild(customOpt);
       }
       select.value = currentVal ? String(currentVal) : '';
-      select.addEventListener('change', () => onChange(select.value));
+      if (onChange) select.addEventListener('change', () => onChange(select.value));
       wrap.appendChild(select);
       return wrap;
     }
@@ -1633,6 +1802,190 @@
       }
     }
 
+    // One sheet row, without listeners (tbody events are delegated) and without selection / roving tabindex, which
+    // render() patches in place. It is rebuilt only when rowShape() changes, otherwise the element is reused.
+    function buildRow(meta, presenting, slots, depText, noteText) {
+      const it = meta.item;
+      const isGroup = it.kind === 'group';
+      const isMilestone = it.kind === 'milestone';
+      const isParentWithKids = meta.hasChildren;
+
+      const tr = el('tr');
+      tr.setAttribute('data-item-id', it.id);
+      tr.setAttribute('aria-level', String(meta.depth + 1));
+      if (isParentWithKids) {
+        tr.setAttribute('aria-expanded', it.collapsed ? 'false' : 'true');
+      }
+      if (isGroup) tr.classList.add('is-group');
+
+      function makeCell(colKey, colIdx, cls) {
+        const td = el('td', cls);
+        td.setAttribute('data-gt-cell', '');
+        td.setAttribute('data-col', colKey);
+        td.setAttribute('data-col-idx', String(colIdx));
+        const isActive = activeCellCoord.itemId === it.id && activeCellCoord.colIdx === colIdx;
+        td.tabIndex = isActive ? 0 : -1;
+        return td;
+      }
+
+      // Col 0: Checkbox
+      const tdCheck = makeCell('check', 0, 'gt-col-check');
+      if (!presenting) {
+        const cb = el('input', 'gt-checkbox');
+        cb.type = 'checkbox';
+        cb.setAttribute('aria-label', `Select ${it.label || 'row'}`);
+        tdCheck.appendChild(cb);
+      }
+      tr.appendChild(tdCheck);
+
+      // Col 1 (non-navigable or static): # row number
+      const tdNum = el('td', 'gt-col-num', String(meta.rowNum));
+      tr.appendChild(tdNum);
+
+      // Col 2: Task (indented by depth * 14px, chevron if hasChildren, inline editable label)
+      const tdTask = makeCell('task', 1, 'gt-col-task');
+      const taskWrap = el('div', 'gt-task-cell');
+      taskWrap.style.paddingLeft = `${meta.depth * 14}px`;
+
+      if (isParentWithKids) {
+        const chevLabel = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
+        const chevBtn = api.chevron({ expanded: !it.collapsed, label: chevLabel });
+        taskWrap.appendChild(chevBtn);
+      } else {
+        taskWrap.appendChild(el('span', 'chevron-spacer'));
+      }
+
+      const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isGroup ? ' is-group' : ''));
+      if (it.color || it._color) {
+        kindDot.style.background = api.resolveColor(it.color || it._color);
+      }
+      taskWrap.appendChild(kindDot);
+
+      const lblSpan = el('span', 'gt-label-text', it.label || 'Untitled');
+      lblSpan.title = it.label || 'Untitled';
+      taskWrap.appendChild(lblSpan);
+      tdTask.appendChild(taskWrap);
+      tr.appendChild(tdTask);
+
+      // Col 3: Type (hidden for groups and parent rows; leaves toggle Task <-> Milestone with 1-click icon)
+      const tdType = makeCell('type', 2, 'gt-col-type');
+      const isGroupOrParent = it.kind === 'group' || isParentWithKids;
+      if (!isGroupOrParent) {
+        const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
+        if (presenting) {
+          const iconWrap = el('span', 'gt-type-icon' + (curKind === 'milestone' ? ' is-milestone' : ''));
+          iconWrap.title = TYPE_LABELS[curKind];
+          iconWrap.setAttribute('aria-label', TYPE_LABELS[curKind]);
+          iconWrap.appendChild(makeTypeSvg(curKind));
+          tdType.appendChild(iconWrap);
+        } else {
+          const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
+          const typeBtn = el('button', 'gt-type-btn' + (curKind === 'milestone' ? ' is-milestone' : ''));
+          typeBtn.type = 'button';
+          typeBtn.setAttribute('data-kind', curKind);
+          typeBtn.title = `${TYPE_LABELS[curKind]} — click to switch to ${TYPE_LABELS[nextKind]}`;
+          typeBtn.setAttribute('aria-label', `${TYPE_LABELS[curKind]} (click to switch to ${TYPE_LABELS[nextKind]})`);
+          typeBtn.appendChild(makeTypeSvg(curKind));
+          tdType.appendChild(typeBtn);
+        }
+      }
+      tr.appendChild(tdType);
+
+      // Col 4: Start
+      const tdStart = makeCell('start', 3, 'gt-col-start');
+      if (isParentWithKids) {
+        const rolled = el('span', 'gt-rolled', meta.start || '—');
+        rolled.title = 'Auto-calculated from subtasks';
+        tdStart.appendChild(rolled);
+      } else if (presenting) {
+        tdStart.appendChild(el('span', it.start ? 'gt-rolled' : 'gt-muted-dash', it.start || '—'));
+      } else {
+        const startBtn = el('button', 'gt-date-btn' + (it.start ? '' : ' is-empty'), it.start || 'Set date');
+        startBtn.type = 'button';
+        startBtn.setAttribute('data-field', 'start');
+        tdStart.appendChild(startBtn);
+      }
+      tr.appendChild(tdStart);
+
+      // Col 5: End
+      const tdEnd = makeCell('end', 4, 'gt-col-end');
+      if (isMilestone) {
+        tdEnd.appendChild(el('span', 'gt-muted-dash', '—'));
+      } else if (isParentWithKids) {
+        const rolled = el('span', 'gt-rolled', meta.end || '—');
+        rolled.title = 'Auto-calculated from subtasks';
+        tdEnd.appendChild(rolled);
+      } else if (presenting) {
+        tdEnd.appendChild(el('span', it.end ? 'gt-rolled' : 'gt-muted-dash', it.end || '—'));
+      } else {
+        const endBtn = el('button', 'gt-date-btn' + (it.end ? '' : ' is-empty'), it.end || 'Set date');
+        endBtn.type = 'button';
+        endBtn.setAttribute('data-field', 'end');
+        tdEnd.appendChild(endBtn);
+      }
+      tr.appendChild(tdEnd);
+
+      // Col 6: Duration
+      const tdDur = makeCell('dur', 5, 'gt-col-dur');
+      if (isMilestone) {
+        tdDur.appendChild(el('span', 'gt-muted-dash', '0d'));
+      } else if (isParentWithKids) {
+        const durText = (meta.start && meta.end) ? `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d*` : '—';
+        const rolled = el('span', 'gt-rolled', durText);
+        rolled.title = 'Auto-calculated from subtasks';
+        tdDur.appendChild(rolled);
+      } else {
+        const hasDates = Boolean(meta.start && meta.end);
+        const days = hasDates ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
+        const durStr = days ? `${days}d` : '—';
+        if (presenting) {
+          tdDur.appendChild(el('span', days ? 'gt-rolled' : 'gt-muted-dash', durStr));
+        } else {
+          const durSpan = el('span', 'gt-dur-val', durStr);
+          durSpan.title = 'Click to edit duration (e.g. 14, 14d, 2w)';
+          tdDur.appendChild(durSpan);
+        }
+      }
+      tr.appendChild(tdDur);
+
+      // Col 7: Depends on
+      const tdDep = makeCell('dep', 6, 'gt-col-dep');
+      if (presenting) {
+        tdDep.appendChild(el('span', depText ? 'gt-rolled' : 'gt-muted-dash', depText || '—'));
+      } else {
+        const depBtn = el('button', 'gt-dep-btn' + (depText ? '' : ' is-empty'), depText || '—');
+        depBtn.type = 'button';
+        depBtn.title = depText ? `Depends on: ${depText}` : 'Click to add dependencies';
+        tdDep.appendChild(depBtn);
+      }
+      tr.appendChild(tdDep);
+
+      // Col 8: Category
+      const tdCat = makeCell('cat', 7, 'gt-col-cat');
+      tdCat.appendChild(buildCategorySelect(it.color || '', slots, null, presenting));
+      tr.appendChild(tdCat);
+
+      // Col 9: Notes
+      const tdNote = makeCell('note', 8, 'gt-col-note');
+      if (presenting) {
+        tdNote.appendChild(el('span', noteText ? 'gt-note-preview' : 'gt-muted-dash', noteText || '—'));
+      } else {
+        const noteSpan = el('span', 'gt-note-preview' + (noteText ? '' : ' is-empty'), noteText || 'Add note...');
+        noteSpan.title = noteText || 'Click to add note';
+        tdNote.appendChild(noteSpan);
+      }
+      tr.appendChild(tdNote);
+
+      return tr;
+    }
+
+    function rowShape(meta, presenting, slotsKey, depText, noteText) {
+      const it = meta.item;
+      return JSON.stringify([presenting, meta.depth, meta.rowNum, meta.hasChildren, meta.start, meta.end, it.kind, it.label,
+        it.start, it.end, Boolean(it.collapsed), it.color || '', it.color || it._color ? api.resolveColor(it.color || it._color) : '',
+        depText, noteText, slotsKey]);
+    }
+
     // --- Main render() ---
     function render() {
       if (destroyed) return;
@@ -1673,307 +2026,53 @@
         }
       }
 
-      tbody.textContent = '';
-      const frag = document.createDocumentFragment();
-
+      // Keyed rows: reuse each row whose shape is unchanged, rebuild the rest, then put them in order
+      clearDepRowHighlights();
+      const slotsKey = slots.map((sl) => `${sl.slot}:${sl.label || ''}`).join(',');
+      const incomingByTo = new Map();
+      (api.getDeps() || []).forEach((d) => {
+        if (!d || !d.to) return;
+        if (!incomingByTo.has(d.to)) incomingByTo.set(d.to, []);
+        incomingByTo.get(d.to).push(d);
+      });
+      const order = [];
+      const seen = new Set();
+      metaById = new Map();
       for (let r = 0; r < visCount; r++) {
         const meta = tree.visibleRows[r];
         const it = meta.item;
-        const isGroup = it.kind === 'group';
-        const isMilestone = it.kind === 'milestone';
-        const isParentWithKids = meta.hasChildren;
-        const isSelected = selectedIds.has(it.id);
-
-        const tr = el('tr');
-        tr.setAttribute('data-item-id', it.id);
-        tr.setAttribute('aria-level', String(meta.depth + 1));
-        if (isParentWithKids) {
-          tr.setAttribute('aria-expanded', it.collapsed ? 'false' : 'true');
-        }
-        if (isGroup) tr.classList.add('is-group');
-        if (isSelected) tr.classList.add('is-selected');
-
-        function makeCell(colKey, colIdx, cls) {
-          const td = el('td', cls);
-          td.setAttribute('data-gt-cell', '');
-          td.setAttribute('data-col', colKey);
-          td.setAttribute('data-col-idx', String(colIdx));
-          const isActive = activeCellCoord.itemId === it.id && activeCellCoord.colIdx === colIdx;
-          td.tabIndex = isActive ? 0 : -1;
-          return td;
-        }
-
-        // Col 0: Checkbox
-        const tdCheck = makeCell('check', 0, 'gt-col-check');
-        if (!presenting) {
-          const cb = el('input', 'gt-checkbox');
-          cb.type = 'checkbox';
-          cb.checked = isSelected;
-          cb.setAttribute('aria-label', `Select ${it.label || 'row'}`);
-          cb.addEventListener('change', () => {
-            const next = new Set(api.getSelectedIds());
-            if (cb.checked) next.add(it.id);
-            else next.delete(it.id);
-            api.setSelectedIds(next);
-            render();
-          });
-          tdCheck.appendChild(cb);
-        }
-        tr.appendChild(tdCheck);
-
-        // Col 1 (non-navigable or static): # row number
-        const tdNum = el('td', 'gt-col-num', String(meta.rowNum));
-        tr.appendChild(tdNum);
-
-        // Col 2: Task (indented by depth * 14px, chevron if hasChildren, inline editable label)
-        const tdTask = makeCell('task', 1, 'gt-col-task');
-        const taskWrap = el('div', 'gt-task-cell');
-        taskWrap.style.paddingLeft = `${meta.depth * 14}px`;
-
-        if (isParentWithKids) {
-          const chevBtn = el('button', 'gt-chevron' + (it.collapsed ? ' is-collapsed' : ''));
-          chevBtn.type = 'button';
-          chevBtn.title = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
-          chevBtn.setAttribute('aria-label', it.collapsed ? 'Expand subtasks' : 'Collapse subtasks');
-          chevBtn.appendChild(makeIcon(api, 'chevron-down', { size: 12 }, '▾'));
-          chevBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            it.collapsed = !it.collapsed;
-            api.commitSilent();
-          });
-          taskWrap.appendChild(chevBtn);
-        } else {
-          taskWrap.appendChild(el('span', 'gt-chevron-spacer'));
-        }
-
-        const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isGroup ? ' is-group' : ''));
-        if (it.color || it._color) {
-          kindDot.style.background = api.resolveColor(it.color || it._color);
-        }
-        taskWrap.appendChild(kindDot);
-
-        const lblSpan = el('span', 'gt-label-text', it.label || 'Untitled');
-        lblSpan.title = it.label || 'Untitled';
-        if (!presenting) {
-          const openLabelEdit = () => {
-            startInlineTextEdit(tdTask, it.label || '', {
-              replaceTarget: lblSpan,
-              onSave(val) {
-                const cleaned = api.cleanLabel(val, it.label || 'Untitled');
-                if (cleaned !== it.label) {
-                  it.label = cleaned;
-                  api.commit('label');
-                }
-              }
-            });
-          };
-          lblSpan.addEventListener('click', openLabelEdit);
-          lblSpan.addEventListener('dblclick', openLabelEdit);
-        }
-        taskWrap.appendChild(lblSpan);
-        tdTask.appendChild(taskWrap);
-        tr.appendChild(tdTask);
-
-        // Col 3: Type (hidden for groups and parent rows; leaves toggle Task <-> Milestone with 1-click icon)
-        const tdType = makeCell('type', 2, 'gt-col-type');
-        const isGroupOrParent = it.kind === 'group' || isParentWithKids;
-        if (!isGroupOrParent) {
-          const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
-          if (presenting) {
-            const iconWrap = el('span', 'gt-type-icon' + (curKind === 'milestone' ? ' is-milestone' : ''));
-            iconWrap.title = TYPE_LABELS[curKind];
-            iconWrap.setAttribute('aria-label', TYPE_LABELS[curKind]);
-            iconWrap.appendChild(makeTypeSvg(curKind));
-            tdType.appendChild(iconWrap);
-          } else {
-            const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
-            const typeBtn = el('button', 'gt-type-btn' + (curKind === 'milestone' ? ' is-milestone' : ''));
-            typeBtn.type = 'button';
-            typeBtn.setAttribute('data-kind', curKind);
-            typeBtn.title = `${TYPE_LABELS[curKind]} — click to switch to ${TYPE_LABELS[nextKind]}`;
-            typeBtn.setAttribute('aria-label', `${TYPE_LABELS[curKind]} (click to switch to ${TYPE_LABELS[nextKind]})`);
-            typeBtn.appendChild(makeTypeSvg(curKind));
-            typeBtn.addEventListener('click', () => {
-              it.kind = nextKind;
-              if (nextKind === 'milestone') {
-                const s = ganttFormatDate(it.start) || meta.start || api.getTodayStr();
-                it.start = s;
-                it.end = s;
-              } else {
-                const s = ganttFormatDate(it.start) || meta.start;
-                if (s && (!it.end || it.end === s)) {
-                  it.start = s;
-                  it.end = ganttAddDays(s, 6);
-                }
-              }
-              api.commit('kind');
-            });
-            tdType.appendChild(typeBtn);
-          }
-        }
-        tr.appendChild(tdType);
-
-        // Col 4: Start
-        const tdStart = makeCell('start', 3, 'gt-col-start');
-        if (isParentWithKids) {
-          const rolled = el('span', 'gt-rolled', meta.start || '—');
-          rolled.title = 'Auto-calculated from subtasks';
-          tdStart.appendChild(rolled);
-        } else if (presenting) {
-          tdStart.appendChild(el('span', it.start ? 'gt-rolled' : 'gt-muted-dash', it.start || '—'));
-        } else {
-          const startBtn = el('button', 'gt-date-btn' + (it.start ? '' : ' is-empty'), it.start || 'Set date');
-          startBtn.type = 'button';
-          startBtn.setAttribute('data-field', 'start');
-          startBtn.addEventListener('click', () => {
-            openDatePicker(startBtn, {
-              value: it.start || api.getTodayStr(),
-              allowClear: true,
-              onSelect(val) {
-                if (!val) {
-                  delete it.start;
-                  if (it.kind === 'milestone') delete it.end;
-                } else {
-                  it.start = val;
-                  if (it.kind === 'milestone') {
-                    it.end = val;
-                  } else if (it.end && val > it.end) {
-                    it.end = val;
-                  }
-                }
-                api.commit('start');
-              }
-            });
-          });
-          tdStart.appendChild(startBtn);
-        }
-        tr.appendChild(tdStart);
-
-        // Col 5: End
-        const tdEnd = makeCell('end', 4, 'gt-col-end');
-        if (isMilestone) {
-          tdEnd.appendChild(el('span', 'gt-muted-dash', '—'));
-        } else if (isParentWithKids) {
-          const rolled = el('span', 'gt-rolled', meta.end || '—');
-          rolled.title = 'Auto-calculated from subtasks';
-          tdEnd.appendChild(rolled);
-        } else if (presenting) {
-          tdEnd.appendChild(el('span', it.end ? 'gt-rolled' : 'gt-muted-dash', it.end || '—'));
-        } else {
-          const endBtn = el('button', 'gt-date-btn' + (it.end ? '' : ' is-empty'), it.end || 'Set date');
-          endBtn.type = 'button';
-          endBtn.setAttribute('data-field', 'end');
-          endBtn.addEventListener('click', () => {
-            openDatePicker(endBtn, {
-              value: it.end || it.start || api.getTodayStr(),
-              min: it.start || undefined,
-              allowClear: true,
-              onSelect(val) {
-                if (!val) {
-                  delete it.end;
-                } else {
-                  it.end = val;
-                  if (!it.start || val < it.start) it.start = val;
-                }
-                api.commit('end');
-              }
-            });
-          });
-          tdEnd.appendChild(endBtn);
-        }
-        tr.appendChild(tdEnd);
-
-        // Col 6: Duration
-        const tdDur = makeCell('dur', 5, 'gt-col-dur');
-        if (isMilestone) {
-          tdDur.appendChild(el('span', 'gt-muted-dash', '0d'));
-        } else if (isParentWithKids) {
-          const durText = (meta.start && meta.end) ? `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d*` : '—';
-          const rolled = el('span', 'gt-rolled', durText);
-          rolled.title = 'Auto-calculated from subtasks';
-          tdDur.appendChild(rolled);
-        } else {
-          const hasDates = Boolean(meta.start && meta.end);
-          const days = hasDates ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
-          const durStr = days ? `${days}d` : '—';
-          if (presenting) {
-            tdDur.appendChild(el('span', days ? 'gt-rolled' : 'gt-muted-dash', durStr));
-          } else {
-            const durSpan = el('span', 'gt-dur-val', durStr);
-            durSpan.title = 'Click to edit duration (e.g. 14, 14d, 2w)';
-            durSpan.addEventListener('click', () => {
-              startInlineTextEdit(tdDur, days ? `${days}d` : '', {
-                replaceTarget: durSpan,
-                isNum: true,
-                placeholder: 'e.g. 14d or 2w',
-                onSave(val) {
-                  const parsedDays = parseDurationDays(val);
-                  if (!parsedDays) return;
-                  const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
-                  it.start = baseStart;
-                  it.end = ganttAddDays(baseStart, Math.max(1, parsedDays) - 1);
-                  api.commit('duration');
-                }
-              });
-            });
-            tdDur.appendChild(durSpan);
-          }
-        }
-        tr.appendChild(tdDur);
-
-        // Col 7: Depends on
-        const tdDep = makeCell('dep', 6, 'gt-col-dep');
-        const depText = formatDepShorthand(it.id, tree.rowNumById);
-        if (presenting) {
-          tdDep.appendChild(el('span', depText ? 'gt-rolled' : 'gt-muted-dash', depText || '—'));
-        } else {
-          const depBtn = el('button', 'gt-dep-btn' + (depText ? '' : ' is-empty'), depText || '—');
-          depBtn.type = 'button';
-          depBtn.title = depText ? `Depends on: ${depText}` : 'Click to add dependencies';
-          depBtn.addEventListener('click', () => openDepPopover(depBtn, it));
-          tdDep.appendChild(depBtn);
-        }
-        tdDep.addEventListener('mouseenter', () => highlightDepRows(it.id));
-        tdDep.addEventListener('mouseleave', clearDepRowHighlights);
-        tr.appendChild(tdDep);
-
-        // Col 8: Category
-        const tdCat = makeCell('cat', 7, 'gt-col-cat');
-        tdCat.appendChild(buildCategorySelect(it.color || '', slots, (val) => {
-          applyCategoryWithSync(it, val, tree);
-          api.commit('color');
-        }, presenting));
-        tr.appendChild(tdCat);
-
-        // Col 9: Notes
-        const tdNote = makeCell('note', 8, 'gt-col-note');
+        metaById.set(it.id, meta);
+        const depText = formatDepShorthand(it.id, tree.rowNumById, incomingByTo.get(it.id) || []);
         const noteObj = api.getNoteForItem(it.id);
         const noteText = noteObj && noteObj.text ? noteObj.text : '';
-        if (presenting) {
-          tdNote.appendChild(el('span', noteText ? 'gt-note-preview' : 'gt-muted-dash', noteText || '—'));
-        } else {
-          const noteSpan = el('span', 'gt-note-preview' + (noteText ? '' : ' is-empty'), noteText || 'Add note...');
-          noteSpan.title = noteText || 'Click to add note';
-          noteSpan.addEventListener('click', () => {
-            startInlineTextEdit(tdNote, noteText, {
-              replaceTarget: noteSpan,
-              placeholder: 'Enter note...',
-              onSave(val) {
-                const next = String(val || '').trim();
-                if (next !== noteText) {
-                  api.setNoteForItem(it.id, next);
-                }
-              }
-            });
-          });
-          tdNote.appendChild(noteSpan);
+        const shape = rowShape(meta, presenting, slotsKey, depText, noteText);
+        let rec = rowRecs.get(it.id);
+        if (!rec || rec.shape !== shape) {
+          rec = { tr: buildRow(meta, presenting, slots, depText, noteText), shape };
+          rowRecs.set(it.id, rec);
         }
-        tr.appendChild(tdNote);
-
-        frag.appendChild(tr);
+        const isSelected = selectedIds.has(it.id);
+        rec.tr.classList.toggle('is-selected', isSelected);
+        const cb = rec.tr.querySelector('input.gt-checkbox');
+        if (cb) cb.checked = isSelected;
+        seen.add(it.id);
+        order.push(rec.tr);
       }
+      rowRecs.forEach((rec, id) => {
+        if (!seen.has(id)) { rec.tr.remove(); rowRecs.delete(id); }
+      });
+      let at = tbody.firstChild;
+      for (let i = 0; i < order.length; i++) {
+        if (order[i] === at) at = at.nextSibling;
+        else tbody.insertBefore(order[i], at);
+      }
+      while (at) { const next = at.nextSibling; at.remove(); at = next; }
 
-      tbody.appendChild(frag);
+      // Roving tabindex: exactly the active cell is 0
+      const activeRec = activeCellCoord.itemId ? rowRecs.get(activeCellCoord.itemId) : null;
+      const activeTd = activeRec ? activeRec.tr.querySelector(`td[data-gt-cell][data-col-idx="${activeCellCoord.colIdx}"]`) : null;
+      tbody.querySelectorAll('td[data-gt-cell][tabindex="0"]').forEach((td) => { if (td !== activeTd) td.tabIndex = -1; });
+      if (activeTd) activeTd.tabIndex = 0;
 
       // Restore cell focus if focus was inside tbody prior to render
       if (wasFocusInTbody && activeCellCoord.itemId) {
@@ -2004,7 +2103,8 @@
       if (expanded) api.commitSilent();
       else render();
 
-      const tr = tbody.querySelector(`tr[data-item-id="${CSS && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"')}"]`);
+      const rec = rowRecs.get(id);
+      const tr = rec && rec.tr.isConnected ? rec.tr : null;
       if (!tr) return;
       tr.scrollIntoView({ block: 'center', inline: 'nearest' });
       tr.classList.add('is-flash');

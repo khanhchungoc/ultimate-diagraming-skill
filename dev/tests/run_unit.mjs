@@ -62,6 +62,7 @@ function findPython() {
 const TESTS = [
   // Fast checks (< 2s each except subprocess ~6s)
   { id: 'tokens',          file: 'check_tokens.py',          types: ['tokens', 'shell', 'cross'] },
+  { id: 'components',      file: 'check_components.py',      types: ['tokens', 'shell', 'cross', 'sequence', 'erd', 'usecase', 'c4', 'gantt'] },
   { id: 'contrast',        file: 'check_contrast.py',        types: ['tokens', 'theme', 'shell', 'cross'] },
   { id: 'audit_flowchart', file: 'test_audit_flowchart.py',  types: ['flowchart'] },
   { id: 'audit_sequence',  file: 'test_audit_sequence.py',   types: ['sequence'] },

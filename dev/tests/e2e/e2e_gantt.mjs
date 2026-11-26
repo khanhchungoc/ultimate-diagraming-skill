@@ -222,7 +222,7 @@ try {
     const snapshot = () => cdp.ev(`(() => {
       const rows = [...document.querySelectorAll('#gantt-tree .gantt-tree-row')].map(r => r.dataset.itemId);
       const bars = [...document.querySelectorAll('#gantt-bars [data-item-id]')].map(b => b.dataset.itemId);
-      const chev = document.querySelector('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+      const chev = document.querySelector('.gantt-tree-row[data-item-id="plat"] .chevron');
       return {
         rowCount: rows.length,
         rows,
@@ -239,7 +239,7 @@ try {
       `rows=${before.rows.join(',')}`
     );
 
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const collapsed = await snapshot();
     cdp.check('collapse: plat aria-expanded becomes false', collapsed.expanded === 'false', `expanded=${collapsed.expanded}`);
@@ -254,7 +254,7 @@ try {
       `before=${before.rowCount} after=${collapsed.rowCount}`
     );
 
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const expanded = await snapshot();
     cdp.check('collapse: re-expanding sets aria-expanded="true"', expanded.expanded === 'true', `expanded=${expanded.expanded}`);
@@ -605,7 +605,7 @@ try {
         addVisible: visible('#btn-add'),
         addInlineVisible: visible('#btn-add-inline'),
         resizeHandles: document.querySelectorAll('.gantt-resize').length,
-        ports: document.querySelectorAll('.gantt-port').length,
+        ports: document.querySelectorAll('.port').length,
         zoomBefore: document.getElementById('gantt-root')?.getAttribute('data-zoom') || '',
         rowsBefore: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
       };
@@ -624,10 +624,10 @@ try {
     cdp.check('present: zoom works (#gantt-zoom-pills changes month -> week)', pres.zoomBefore === 'month' && zoomAfter === 'week', `${pres.zoomBefore}->${zoomAfter}`);
 
     // Collapse & expand still works in ?present mode
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const rowsCollapsed = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const rowsRestored = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
     cdp.check(
@@ -1021,6 +1021,48 @@ try {
     );
 
     checkNoErrors('table-view-and-calendar-pickers');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 14. Render reuse & event delegation (Timeline + Table)
+  // ---------------------------------------------------------------------------
+  await cdp.section('render-reuse-and-delegation', async () => {
+    await cdp.open(pagePath, baseQuery);
+    await sleep(noAnim ? 40 : 100);
+    await cdp.ev(`(() => {
+      document.querySelectorAll('#gantt-tree .gantt-tree-row, #gantt-bars .gantt-bar, #gantt-bars .gantt-milestone').forEach((el) => {
+        el.__mark = el.dataset.itemId + ':' + el.className.split(' ')[0];
+      });
+    })()`);
+    // Toggle Weekends twice to trigger full timeline re-renders
+    await cdp.clickOn('#btn-weekends'); await cdp.settle();
+    await cdp.clickOn('#btn-weekends'); await cdp.settle();
+    const tlKept = await cdp.ev(`(() => {
+      const els = [...document.querySelectorAll('#gantt-tree .gantt-tree-row, #gantt-bars .gantt-bar, #gantt-bars .gantt-milestone')];
+      return { n: els.length, lost: els.filter((el) => el.__mark !== el.dataset.itemId + ':' + el.className.split(' ')[0]).map((el) => el.dataset.itemId) };
+    })()`);
+    cdp.check('timeline: re-rendering keeps tree row, bar, and milestone DOM identity', tlKept.n >= 6 && tlKept.lost.length === 0, JSON.stringify(tlKept));
+
+    // Delegated click on a kept bar selects it
+    await cdp.clickOn('.gantt-bar[data-item-id="res"]');
+    await cdp.settle();
+    const barSel = await cdp.ev(`document.querySelector('.gantt-bar[data-item-id="res"]')?.classList.contains('selected')`);
+    cdp.check('timeline: delegated click on a kept bar selects it', barSel === true);
+
+    // Table view: marking rows, toggling checkbox keeps every <tr> DOM identity
+    await cdp.clickOn('#btn-mode-table');
+    await cdp.settle();
+    const wasChecked = await cdp.ev(`document.querySelector('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox')?.checked`);
+    await cdp.ev(`document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').forEach((tr) => { tr.__mark = tr.dataset.itemId; })`);
+    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox');
+    await cdp.settle();
+    const tblKept = await cdp.ev(`(() => {
+      const rows = [...document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]')];
+      return { n: rows.length, lost: rows.filter((tr) => tr.__mark !== tr.dataset.itemId).map((tr) => tr.dataset.itemId), checked: document.querySelector('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox')?.checked };
+    })()`);
+    cdp.check('table: re-rendering on selection keeps every row DOM identity', tblKept.n >= 4 && tblKept.lost.length === 0 && tblKept.checked !== wasChecked, JSON.stringify({ wasChecked, ...tblKept }));
+
+    checkNoErrors('render-reuse-and-delegation');
   });
 
   exitCode = cdp.finish();

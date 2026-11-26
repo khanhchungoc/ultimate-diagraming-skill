@@ -1,0 +1,21 @@
+    /* Item states: the one hover, selected and dim look for every diagram item. An HTML item carries data-item (the box that draws the
+       outline); an SVG shape carries .item-shape. State names are the same in every type: .selected, .is-editing, .is-collapsed, .is-dim,
+       .is-dragging (.is-hover is a hover the type drives itself). The outline is an inset ring in --ring (the item's own colour at rest,
+       --ring-w thick) so hover keeps the item's colour and lifts it with --hover-shadow; selected turns the ring --primary and
+       --select-ring-w thick. A type sets --ring / --ring-w for the rest look and never restyles the states. */
+    [data-item]:is(:hover, .is-hover):not(.selected, .is-dragging, .is-editing) {
+      box-shadow: inset 0 0 0 var(--ring-w, var(--ring-thin)) var(--ring, var(--node-border)), var(--hover-shadow);
+    }
+    [data-item].selected {
+      --ring: var(--primary); --ring-w: var(--select-ring-w);
+      box-shadow: inset 0 0 0 var(--select-ring-w) var(--primary), var(--shadow-ring);
+    }
+    [data-item].is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
+    .item-shape:is(:hover, .is-hover):not(.selected) { stroke: var(--primary); }
+    .item-shape.selected { stroke: var(--primary); stroke-width: var(--select-ring-w); }
+    .item-shape.is-dim { opacity: var(--dim); }
+    body.exporting :is([data-item], .item-shape).is-dim { opacity: 1 !important; filter: none !important; }
+    @media (prefers-reduced-motion: no-preference) {
+      [data-item] { transition: box-shadow var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
+      .item-shape { transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out); }
+    }
