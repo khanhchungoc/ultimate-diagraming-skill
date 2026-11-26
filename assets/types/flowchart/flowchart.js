@@ -868,7 +868,7 @@
       // A pair of lettered circles standing for one long arrow (engine.js ON-PAGE CONNECTORS has the data rules and
       // the layout). A pair is made by splitting a selected arrow (the Split chip), never by wiring circles by hand:
       // connectors have no ports and refuse new arrows. Hover lights every circle of the letter and draws a dotted
-      // guide between them (never exported); a click pans to the partner; a rename renames the whole pair; Delete
+      // guide between them (never exported); in ?present a click pans to the partner (editing: a click only selects, so Delete works); a rename renames the whole pair; Delete
       // joins the arrow back together.
       const connectorRole = (id) => {
         const i = chartData.edges.some(e => e.to === id), o = chartData.edges.some(e => e.from === id);
@@ -1917,8 +1917,6 @@
             finishStepMove([node, ...group.map(g => g.node)]);
           } else if (dragMoved) {
             relayout();   // the lane it was dropped in is kept; its place in the lane comes from the flow
-          } else if (isConnector(node)) {
-            jumpToPartner(node);   // a click (no drag) on a connector takes the reader to the other end
           } else if (group) {
             selectNode(node.id);   // a click (no drag) on one of several selected steps selects only that one
           }

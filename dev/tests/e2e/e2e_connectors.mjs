@@ -96,15 +96,14 @@ try {
   const look = await t.ev(`(() => { const s = getComputedStyle(${conn('in')}); return [s.borderTopStyle, s.borderTopWidth]; })()`);
   t.check('a connector wears a solid 2px ring (not the terminator look)', look[0] === 'solid' && look[1] === '2px', JSON.stringify(look));
 
-  // 3. A click pans to the partner (same zoom) and pulses it
-  const zoom0 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
+  // 3. Editing: a click only selects the circle (no pan), so it can be deleted; the partner is reached by hover guide
+  const panBefore = await offCentre(conn('out'));
   await click(conn('in'));
   await sleep(450);
-  const centred = await offCentre(conn('out'));
-  const pulsed = await t.ev(`(${conn('out')}).classList.contains('connector-pulse')`);
-  const zoom1 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
-  t.check('clicking the in-connector centres its out-connector at the same zoom, with a pulse',
-    Math.abs(centred[0]) <= 3 && Math.abs(centred[1]) <= 3 && pulsed && zoom1 === zoom0, JSON.stringify({ centred, pulsed, zoom0, zoom1 }));
+  const panAfter = await offCentre(conn('out'));
+  const inSelected = await t.ev(`(${conn('in')}).classList.contains('selected')`);
+  t.check('editing: clicking a connector selects it and does not pan to its partner',
+    inSelected && panBefore[0] === panAfter[0] && panBefore[1] === panAfter[1], JSON.stringify({ panBefore, panAfter, inSelected }));
 
   // 4. Rename renames the pair; a letter in use or not a letter is refused
   await rename(conn('in'), 'c');
