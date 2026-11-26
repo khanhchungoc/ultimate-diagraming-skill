@@ -990,9 +990,30 @@
       const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
       const noteById = (id) => notesList().find((n) => n.id === id);
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
-      let editingNoteId = null;      // the note being typed: it counts as live while still empty
+      const noteCtl = createNotes({   // the note being typed counts as live while still empty
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        canEdit: () => !erdPresenting(),
+        openCard: (note) => {
+          cancelDrag();
+          setRelArmed(false);
+          setNotePicking(false);
+          selectNote(note.id);
+          if (!noteCard(note.id)) renderNotes(false);
+          const card = noteCard(note.id);
+          if (!card) return null;
+          card.style.pointerEvents = '';
+          applyNoteVisibility();
+          return card;
+        },
+        afterFocus: (card) => panIntoView(card),
+        clearSelection: (id) => { if (selectedNoteId === id) selectedNoteId = null; },
+        // badges appear or go, and the notes are fitted again around the new size
+        render: (ctx) => (ctx.reason === 'remove' ? render() : render({ skipKeys: new Set([ctx.note.id]), duration: 160 })),
+        onChange: () => updateStatus(true),
+      });
       const isFreeNote = (note) => !(note.entities || []).length;
-      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedEntities(n).length));
+      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedEntities(n).length));
       // A table note has no `column`
       const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
       const erdPresenting = () => document.body.classList.contains('presentation');
@@ -1203,11 +1224,11 @@
             } else {
               const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
               const leader = erdLeaders.querySelector(`.note-leader[data-note-id="${id}"]`);
-              if (editingNoteId !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
+              if (noteCtl.editingId() !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
                 card.style.pointerEvents = 'none';
                 setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
               }
-              if (selectedNoteId === id || editingNoteId === id) {
+              if (selectedNoteId === id || noteCtl.editingId() === id) {
                 // a selected card is about to be dragged from (its link handle): fade in place, never move it
                 motion.anim(card, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: motion.curve('curve-out') });
                 if (leader) motion.drawPath(leader, { duration: 150, easing: 'curve-out' });
@@ -2366,62 +2387,9 @@
         drawSelectionTools();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
-      function editNote(id) {
-        const note = noteById(id);
-        if (!note || erdPresenting()) return;
-        cancelDrag();
-        setRelArmed(false);
-        setNotePicking(false);
-        editingNoteId = id;
-        selectNote(id);
-        if (!noteCard(id)) renderNotes(false);
-        const card = noteCard(id);
-        if (!card) return;
-        card.style.pointerEvents = '';
-        applyNoteVisibility();
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        panIntoView(card);
-      }
-      function commitNote(note, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== note.id) return;
-        editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (value) note.text = value;
-        else {
-          chartData.notes = notesList().filter((n) => n !== note);
-          if (!chartData.notes.length) delete chartData.notes;
-          if (selectedNoteId === note.id) selectedNoteId = null;
-        }
-        updateStatus(true);
-        render({ skipKeys: new Set([note.id]), duration: 160 });   // badges appear or go, and the notes are fitted again around the new size
-      }
-      // Clicking anywhere else finishes the note being typed
-      window.addEventListener('pointerdown', (e) => {
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
-        if (text) text.blur();
-        if (text && note) commitNote(note, text);   // no-op if the blur already committed it
-      }, true);
-      function removeNote(id) {
-        if (!noteById(id)) return;
-        chartData.notes = notesList().filter((n) => n.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) editingNoteId = null;
-        if (selectedNoteId === id) selectedNoteId = null;
-        updateStatus(true);
-        render();
-      }
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(note, text) { noteCtl.commit(note, text); }
+      function removeNote(id) { noteCtl.remove(id); }
       // Link a note to a table, or unlink it when it is linked already (a note keeps at least one table). A pinned note
       // whose anchor goes keeps its place, measured from its new anchor.
       function toggleNoteLink(noteId, entityId) {
