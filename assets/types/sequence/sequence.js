@@ -339,9 +339,9 @@
 
         const canAnim = motion.enabled() && document.documentElement.dataset.diagramSettled === '1';
         if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-        const oldBar = seqHtml.querySelector('.seq-actionbar');
+        const oldBar = document.querySelector('#actionbar-layer > .seq-actionbar');
         pendingBarRect = oldBar && canAnim && seqSel && !isPresent() ? oldBar.getBoundingClientRect() : null;
-        if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
+        if (oldBar && (!seqSel || isPresent())) { motion.hideBar(oldBar); ui.clearBars(); }
         let snap = null, exitSnap = null;
         const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
         const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
@@ -619,7 +619,7 @@
           seqAttrs(line.el, { d, 'marker-end': marker });
           const mh = seqPut(msgL, `mh:${mid}`, '', 'seq-msg-hit', (c) => svgEl('path', { class: c, 'data-edge-id': mid }));
           seqAttrs(mh.el, { d });
-          const numbered = !!chartData.numbered;
+          const numbered = chartData.numbered !== false;
           const lab = seqPut(htmlL, `mb:${mid}`, numbered ? 'n' : '', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, (c, refs) => {
             const el = htmlEl('div', c);
             el.dataset.edgeId = mid;
@@ -697,6 +697,7 @@
         applySelection();
         seqPinCache = null;
         pinParticipants();
+        ui.repositionBars();
 
         if (canAnim) {
           const railShift = prevRails !== ps.some((p) => p.rail);
@@ -787,7 +788,7 @@
               { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
             ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-inout') });
           });
-          if (!prevNumbered && chartData.numbered) {
+          if (!prevNumbered && chartData.numbered !== false) {
             seqHtml.querySelectorAll('.seq-msg-num').forEach((num) => motion.anim(num, [
               { transform: 'scale(0.4)', clipPath: 'inset(0 50% 0 50%)' },
               { transform: 'none', clipPath: 'inset(0 0 0 0)' }
@@ -858,14 +859,6 @@
           const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
           el.style.translate = own > 0 ? `0 ${own}px` : 'none';
           el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
-        }
-        if (chartData.lifespans && seqSel && seqSel.kind === 'participant') {
-          const bar = seqHtml.querySelector('.seq-actionbar.is-pill');
-          const p = partById(seqSel.id);
-          if (bar && p) {
-            const own = pinned ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-            bar.style.setProperty('--pin-dy', `${own}px`);
-          }
         }
         // A frame cut by the pinned row keeps its tag readable: the tag rides just below the row (nested frames' tags
         // stack, outer first) until the frame's bottom comes up to it
@@ -1145,8 +1138,9 @@
       function refreshDock() {
         const kind = seqSel && seqSel.kind;
         // View toggles: pressed while on. They are saved flags ("numbered", "showDetails"), so each is one undo step.
-        btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
-        btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
+        const isNumbered = chartData.numbered !== false;
+        btnNumbers.setAttribute('aria-checked', String(isNumbered));
+        btnNumbers.title = isNumbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
         const hasDetails = chartData.messages.some((m) => m.detail);
         btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
@@ -1159,10 +1153,10 @@
           motion.flipDock(() => { btnShowAll.hidden = !anyCollapsed; });
         }
         btnShowAll.title = 'Expand every collapsed frame';
-        setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
+        setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one (or drag onto the diagram)' : 'Add a participant at the right end (or drag onto the diagram)');
         const msgOk = kind === 'participant' || kind === 'message';
-        setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
-          : chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
+        setDockButton(btnAddMessage, true, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag onto the diagram'
+          : chartData.participants.length ? 'Add a message (click, or drag onto the diagram)' : 'Add a participant first');
         // Frame and Note stay clickable: without a selection they say what to select (frameHint, NOTE_HINT)
         const fc = frameCandidate();
         setDockButton(btnFrame, true, fc && fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : frameHint(fc));
@@ -1861,17 +1855,19 @@
       const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
         if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-        const oldBar = seqHtml.querySelector('.seq-actionbar');
+        const oldBar = document.querySelector('#actionbar-layer > .seq-actionbar');
         pendingBarRect = null;
         const barKey = sel.kind ? JSON.stringify([sel.kind, sel.id, sel.ids || null, sel.at || null]) : null;
         const sameBar = barKey !== null && barKey === lastBarKey;
         lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
           if (oldBar) motion.hideBar(oldBar);
+          ui.clearBars();
           seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
           return;
         }
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
+        ui.clearBars();
         seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
@@ -1981,25 +1977,21 @@
         } else {
           return;
         }
-        bar.style.left = px(Math.round(at.x));   // before measuring: how far it has to the right edge decides how it wraps
-        seqHtml.appendChild(bar);
-        if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
-        // Over the anchor, or under it when there is no room above in the window (by where it is on screen: a pill rides the pinned row)
         const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
-        const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
-        if (at.pill) {
-          bar.classList.add('is-pill');
-          if (chartData.lifespans) {
-            const p = partById(sel.id);
-            const pinDy = parseFloat(seqCanvas.style.getPropertyValue('--pin-dy')) || 0;
-            const pinTop = SQ.TOP + (seqCanvas.classList.contains('seq-pinned') ? pinDy : 0);
-            const own = p ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-            bar.style.setProperty('--pin-dy', `${own}px`);
-          }
-        }
-        bar.classList.toggle('is-below', !above);
-        const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
-        bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
+        if (at.pill) bar.classList.add('is-pill');
+        bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+        bar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const b = e.target.closest('.seq-ab-btn');
+          if (!b || !b.dataset.act || !seqSel) return;
+          runAction(b.dataset.act, b.dataset.value, b);
+        });
+        const getAnchor = pillEl || (() => {
+          const r = seqHtml.getBoundingClientRect();
+          const cx = r.left + at.x * scale;
+          return { left: cx, right: cx, top: r.top + at.top * scale, bottom: r.top + at.bottom * scale };
+        });
+        ui.pinBar(bar, getAnchor, { gap: 8 });
         if (!sameBar) motion.showBar(bar);
       }
 
@@ -2552,9 +2544,9 @@
       btnAddMessage.addEventListener('click', () => {
         ensureModel();
         const ps = chartData.participants, ms = chartData.messages;
-        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+        if (!ps.length) { ui.toast('Add a participant first'); return; }
         let m;
-        if (seqSel.kind === 'message') {
+        if (seqSel && seqSel.kind === 'message') {
           const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
           if (!last) return;
           const i = ms.indexOf(last), kind = drawnKind(last.from, last.to, i + 1);
@@ -2562,11 +2554,15 @@
           ms.splice(i + 1, 0, m);
           // A frame that ended at the selected message takes the new one in
           chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
-        } else {
+        } else if (seqSel && seqSel.kind === 'participant') {
           const i = ps.findIndex((p) => p.id === seqSel.id);
           const to = (ps[i + 1] || ps[i - 1] || ps[i]).id, kind = drawnKind(ps[i].id, to, 0);
           m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
           ms.unshift(m);
+        } else {
+          const from = ps[0].id, to = (ps[1] || ps[0]).id, kind = drawnKind(from, to, ms.length);
+          m = { id: seqUid('m'), from, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+          ms.push(m);
         }
         pendingDrawEdges.add(m.id);
         editCreated('message', m.id);
@@ -2599,10 +2595,10 @@
         editCreated('note', n.id);
       });
 
-      // --- DRAG A FRAME OR A NOTE FROM THE DOCK ---
-      // Drag the dock's Frame or Note button onto the diagram. A frame previews as an outline around the arrow nearest
-      // the pointer and wraps that arrow on drop (then drag its edges or add branches); a note lands in the row under
-      // the pointer, over the lifeline it is dropped near, or free where it is dropped. A press without a drag is a click.
+      // --- DRAG A PARTICIPANT, MESSAGE, FRAME OR NOTE FROM THE DOCK ---
+      // Drag any Add tile onto the diagram. A participant previews a vertical insertion guide between columns;
+      // a message previews a row drop line and lights the sender lifeline; a frame previews as an outline around the
+      // nearest arrow; a note lands in the row under the pointer, over the nearest lifeline or free. A press without a drag is a click.
       // The box a one-message frame around message m would take (canvas px), for the drag preview
       function frameBoxFor(m) {
         const a = partById(m.from), b = partById(m.to);
@@ -2623,21 +2619,30 @@
           ghost = null; spot = null; outline = null;
           seqDrop.style.display = 'none';
           lightLifeline(null);
-          document.body.classList.remove('seq-dragging');
+          document.body.classList.remove('seq-dragging', 'palette-dragging');
         };
         function onMove(e) {
           if (!start) return;
           if (!ghost) {
             if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
             dragged = true;
-            // The ghost looks like what is dragged: an empty frame with its tag, or a note card
+            const wrap = btn.closest('[data-dock-pop]');
+            if (wrap) {
+              wrap.classList.remove('open');
+              const trig = wrap.querySelector('.dock-pop-trigger');
+              if (trig) trig.setAttribute('aria-expanded', 'false');
+            }
+            // The ghost looks like what is dragged: participant pill, message chip, empty frame, or note card
             ghost = htmlEl('div', `seq-dock-ghost is-${kind}`);
-            ghost.innerHTML = kind === 'frame' ? '<span>opt</span>' : '<span>Note</span>';
+            ghost.innerHTML = kind === 'frame' ? '<span>opt</span>'
+              : kind === 'participant' ? '<span>Participant</span>'
+              : kind === 'message' ? '<span>Message</span>'
+              : '<span>Note</span>';
             document.body.appendChild(ghost);
-            document.body.classList.add('seq-dragging');
+            document.body.classList.add('seq-dragging', 'palette-dragging');
             hidePlus();
           }
-          // The cursor holds the frame by its tag, the note by its middle
+          // The cursor holds the frame by its tag, the others by their middle
           Object.assign(ghost.style, kind === 'frame' ? { left: `${e.clientX - 12}px`, top: `${e.clientY - 10}px` } : { left: `${e.clientX}px`, top: `${e.clientY}px` });
           ghost.style.visibility = '';
           spot = null;
@@ -2646,6 +2651,20 @@
           if (outline) outline.style.display = 'none';
           if (!overCanvas(e) || !chartData.layout) return;
           const pt = canvasPoint(e);
+          if (kind === 'participant') {
+            const ps = chartData.participants, L = chartData.layout;
+            const index = ps.filter((p) => p.x < pt.x).length;
+            const left = ps[index - 1], right = ps[index];
+            const x = left && right ? (left.x + right.x) / 2
+              : left ? left.x + SQ.BOX_W / 2 + 16
+              : right ? right.x - SQ.BOX_W / 2 - 16
+              : pt.x;
+            Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+            animateDropLine('y');
+            seqDrop.style.display = 'block';
+            spot = { pt, index };
+            return;
+          }
           if (kind === 'frame') {
             const m = nearestMessage(pt.y);
             if (!m) return;
@@ -2661,19 +2680,51 @@
           spot = { pt, slot: nearestSlot(slots, pt.y) };
           showDropLine(spot.slot.y, spot.slot.frame);
           if (kind === 'note') { const p = snapLifeline(pt.x); lightLifeline(p && p.id); }
+          else if (kind === 'message') { const p = snapLifeline(pt.x) || nearestParticipant(pt.x); lightLifeline(p && p.id); }
+        }
+        function onCancel() {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onCancel);
+          clear();
+          start = null;
         }
         function onUp() {
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onCancel);
           const at = spot;
-          const noteRect = kind === 'note' && at && ghost ? ghost.getBoundingClientRect() : null;
+          const ghostRect = at && ghost ? ghost.getBoundingClientRect() : null;
+          const noteRect = kind === 'note' ? ghostRect : null;
           const tagSpan = kind === 'frame' && at && outline ? outline.querySelector('span') : null;
           const frameTagRect = tagSpan ? tagSpan.getBoundingClientRect() : null;
           clear();
           start = null;
           if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
+          if (dragged && kind === 'message' && !chartData.participants.length) { ui.toast('Add a participant first'); return; }
           if (!dragged || !at) return;
           ensureModel();
+          if (kind === 'participant') {
+            pendingOriginRect = ghostRect;
+            insertParticipant(at.index);
+            return;
+          }
+          if (kind === 'message') {
+            const ps = chartData.participants;
+            if (!ps.length) { ui.toast('Add a participant first'); return; }
+            const from = snapLifeline(at.pt.x) || nearestParticipant(at.pt.x);
+            const fi = ps.indexOf(from);
+            const to = ps[fi + 1] || ps[fi - 1] || from;
+            const idx = at.slot.index;
+            const mKind = drawnKind(from.id, to.id, idx);
+            expandFramesHiding([from.id, to.id]);
+            const m = { id: seqUid('m'), from: from.id, to: to.id, label: mKind === 'reply' ? 'Reply' : 'Message', kind: mKind };
+            chartData.messages.splice(idx, 0, m);
+            joinFrames(at.slot, m.id);
+            pendingDrawEdges.add(m.id);
+            editCreated('message', m.id);
+            return;
+          }
           if (kind === 'note') {
             const n = Object.assign({ id: seqUid('n'), text: 'Note' }, at.slot.note);
             setNoteSpot(n, at.pt.x);
@@ -2697,15 +2748,18 @@
           dragged = false;
           window.addEventListener('pointermove', onMove);
           window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onCancel);
         });
         // The click that ends a drag is not a click on the button
         btn.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopImmediatePropagation(); } }, true);
       }
+      dockDrag(btnAddParticipant, 'participant');
+      dockDrag(btnAddMessage, 'message');
       dockDrag(btnFrame, 'frame');
       dockDrag(btnAddNote, 'note');
 
       btnNumbers.addEventListener('click', () => {
-        if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
+        if (chartData.numbered === false) delete chartData.numbered; else chartData.numbered = false;
         relayout();
       });
       btnLifespans.addEventListener('click', () => {

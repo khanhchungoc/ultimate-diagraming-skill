@@ -3,11 +3,11 @@
            To add a shape, add one more .btn-shape tile with its data-node-type to a section; the grid wraps on its own.
            The last tile, Note, attaches a note to a step rather than adding a node. -->
       <div class="dock-pop-wrap" data-dock-pop>
-        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
-          {{icon:shapes}}<span class="btn-label">Shapes</span>
+        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
           <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
         </button>
-        <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
+        <div id="shape-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
           <div class="dock-pop-section">
             <div class="dock-pop-heading" aria-hidden="true">Flow</div>
             <div class="dock-pop-grid" role="group" aria-label="Flow">
@@ -50,6 +50,14 @@
             </div>
           </div>
           <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Structure</div>
+            <div class="dock-pop-grid" role="group" aria-label="Structure">
+              <button id="btn-add-lane" class="btn btn-shape btn-lane-tool" title="Add a swimlane (click, or drag onto the canvas)" aria-label="Lane">
+                {{icon:lane:tile:fine}}<span class="tile-caption">Lane</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
             <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
             <div class="dock-pop-grid" role="group" aria-label="Annotate">
               <!-- Not a shape of its own: a note belongs to a step (no data-node-type; see the NOTE TOOL in flowchart.js) -->
@@ -60,9 +68,6 @@
           </div>
         </div>
       </div>
-      <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
-        {{icon:lane}}<span class="btn-label">Lane</span>
-      </button>
       <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
         {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>

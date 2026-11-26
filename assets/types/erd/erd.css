@@ -167,6 +167,11 @@
     .erd-entity { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
+    .erd-entity.has-editing {
+      width: max-content !important;
+      min-width: var(--edit-min-w);
+      z-index: 40;
+    }
     .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-col-note.is-editing, .erd-rel-label-text.is-editing {
       min-width: 36px;
       background: var(--bg-panel);
@@ -178,16 +183,19 @@
       overflow: visible;
       text-overflow: clip;
     }
+    .erd-name.is-editing, .erd-col-name.is-editing {
+      flex: 0 0 auto;
+      width: max-content;
+      min-width: 48px;
+      max-width: 420px;
+    }
     .erd-col-type.is-editing { text-align: right; }
     .erd-col-type:empty { min-width: 28px; }
-    .erd-col-name.is-editing, .erd-col-note.is-editing { flex: 1 1 auto; }
+    .erd-col-note.is-editing { flex: 1 1 auto; }
 
-    /* Connect ports (components/port.css): on the right edge of each row and of the header; all of them show while the Relationship tool is armed */
-    body.erd-armed .port:not(.port-end) { opacity: 1; pointer-events: auto; transform: scale(1.15); }   /* components-ok: the armed tool is this type's state */
+    /* Connect ports (components/port.css): on the right edge of each row and of the header */
     /* Touch: a selected line's end handles are finger-sized (components/port.css); elsewhere a drag pans (the shell's touch rule: only .selected and [data-touch-drag] reach this file) */
     body.erd-touch .edge-hit { stroke-width: 26px; }
-    body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
-    body.erd-armed .chevron { display: none; }
     /* The row or header a connection would end at, and the table around it */
     .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-md) var(--primary); }
     .erd-entity.erd-target { --ring: var(--primary); }
@@ -239,7 +247,7 @@
     .erd-ab-btn circle { fill: var(--bg-panel); }
     .erd-ab-glyph { padding: 0 var(--space-2); }
     .erd-ab-sep { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--border-color); }
-    .erd-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .erd-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .erd-ab-swatch { height: 30px; width: 30px; }
     body.erd-dragging .erd-actionbar { display: none !important; }
     .edge-label.is-editing-label { z-index: 60; }
@@ -299,3 +307,4 @@
 .erd-row.note-target { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
 
     #columns-pop .btn[aria-checked="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    #erd-pop .btn-shape { cursor: grab; touch-action: none; }

@@ -194,13 +194,13 @@
       position: absolute; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); z-index: 53;
       translate: -50% 0; white-space: nowrap;
     }
-    #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
+    .seq-ab-btn svg { display: block; }
     .seq-ab-btn.is-danger { color: var(--danger); }
     .seq-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .seq-ab-btn:active { transform: scale(0.94); }
@@ -247,7 +247,18 @@
       width: 150px; padding: var(--space-8) var(--space-8); translate: -50% -50%; color: var(--text-soft); background: var(--note-bg); box-shadow: var(--shadow-sm);
       border: 1px solid var(--note-border); border-left: 3px solid var(--note-accent); border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
     }
-    #btn-frame, #btn-add-note { touch-action: none; cursor: grab; }
+    .seq-dock-ghost.is-participant {
+      width: 140px; height: 44px; display: flex; align-items: center; justify-content: center; translate: -50% -50%;
+      font-weight: var(--weight-semibold); color: var(--primary); background: var(--bg-panel);
+      border: 2px solid var(--primary); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
+    }
+    .seq-dock-ghost.is-message {
+      width: 148px; padding: var(--space-4) var(--space-8); translate: -50% -50%; text-align: center;
+      font-weight: var(--weight-medium); color: var(--primary); background: var(--bg-panel);
+      border: 1.5px solid var(--primary); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+    }
+    body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
+    #btn-add-participant, #btn-add-message, #btn-frame, #btn-add-note { touch-action: none; cursor: grab; }
     /* Delete lives in the selection's action bar (an icon per kind of delete), so the dock's Delete is not shown */
     #btn-delete-selection { display: none !important; }
     /* The frame a drag from the dock would make (see dockDrag): an outline around one arrow */

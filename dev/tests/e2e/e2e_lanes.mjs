@@ -18,13 +18,17 @@ try {
   // The saved file's data block: flowchart lanes keep `color` in the trailing `layout` map; the lane order is `lanes`
   const saved = async () => {
     await t.press('s', { modifiers: 2 });
-    await sleep(250);
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const m = document.getElementById('save-modal'); if (!m || !m.open) return false; m.close(); return true; })()`)) break;
+      await sleep(100);
+    }
     return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
   };
   const colorOf = (d, name) => { const l = d.lanes.find((x) => x.name === name); return l && d.layout && d.layout[l.id] ? d.layout[l.id].color : undefined; };
   const sw = (i) => t.ev(`document.querySelectorAll('.swimlane')[${i}].dataset.sw`);
   const selectLane = (i) => t.clickOn(`.swimlane:nth-child(${i}) .lane-title`);
-  const bar = (sel = '') => `.swimlane.lane-selected .lane-bar${sel}`;
+  const bar = (sel = '') => `#actionbar-layer > .lane-bar${sel}`;
+  const clickAddLane = async () => { await t.clickOn('#btn-add-shape'); await t.clickOn('#btn-add-lane'); await t.press('Escape'); };
   const undo = () => t.press('z', { modifiers: 2 });
 
   await t.open(page);
@@ -35,7 +39,7 @@ try {
     && await t.ev(`getComputedStyle(document.querySelector(${J(bar())})).display === 'flex'`));
   t.check('only the selected lane has a visible bar', await t.ev(`[...document.querySelectorAll('.lane-bar')].filter((e) => getComputedStyle(e).display !== 'none').length === 1`));
   t.check('the bar sits over the pill (or under it near the top of the window) and follows it', await t.ev(`(() => {
-    const bar = document.querySelector(${J(bar())}), p = bar.parentElement.getBoundingClientRect(), r = bar.getBoundingClientRect();
+    const bar = document.querySelector(${J(bar())}), p = document.querySelector('.swimlane.lane-selected .lane-pill').getBoundingClientRect(), r = bar.getBoundingClientRect();
     return bar.classList.contains('is-below') ? r.top >= p.bottom - 1 : r.bottom <= p.top + 1; })()`));
   t.check('the lane bar has no move buttons (a lane moves by dragging its pill) and Rename is an icon with no label',
     await t.ev(`(() => { const b = document.querySelector(${J(bar())}); return !b.querySelector('[data-act="earlier"], [data-act="later"]') && b.querySelector('[data-act="rename"]').textContent.trim() === ''; })()`));
@@ -61,7 +65,7 @@ try {
   // 3. Rename from the bar: the name is editable, Enter commits, one undo step
   await t.clickOn(bar(' [data-act="rename"]'));
   t.check('Rename puts the name in edit and hides the bar', await t.ev(`document.activeElement.classList.contains('lane-title') && document.activeElement.isContentEditable`)
-    && (await t.ev(`getComputedStyle(document.querySelector('.swimlane.lane-selected .lane-bar')).display`)) === 'none');
+    && (await t.ev(`getComputedStyle(document.querySelector(${J(bar())})).display`)) === 'none');
   await t.type('Billing');
   await t.press('Enter');
   t.check('Enter commits the new name', (await names())[1] === 'Billing', J(await names()));
@@ -69,7 +73,7 @@ try {
   t.check('Ctrl+Z restores the old name', (await names())[1] === b);
 
   // 4. A third lane: delete
-  await t.clickOn('#btn-add-lane');
+  await clickAddLane();
   await sleep(300);
   t.check('adding a lane makes three', (await count('.swimlane')) === 3);
   const d = await saved();
@@ -95,8 +99,8 @@ try {
   // One lane left: its bar can hide the lanes ("swimlanes": false); the Lane button then reads Show lanes and brings them back
   await t.clickOn(bar(' [data-act="hide"]'));
   t.check('Hide lanes turns the lane names off and saves "swimlanes": false', (await count('#swimlanes-container.no-swimlanes')) === 1 && (await saved()).swimlanes === false);
-  t.check('and the Lane button reads Show lanes', (await text('#btn-add-lane .btn-label')) === 'Show lanes');
-  await t.clickOn('#btn-add-lane');
+  t.check('and the Lane button reads Show lanes', (await text('#btn-add-lane .tile-caption')) === 'Show lanes');
+  await clickAddLane();
   t.check('Show lanes brings them back', (await count('#swimlanes-container.no-swimlanes')) === 0 && (await saved()).swimlanes === undefined);
   await undo();
   await undo();
@@ -118,7 +122,7 @@ try {
   if (tb) {
     await t.open(tb);
     await selectLane(1);
-    t.check('top to bottom: the bar shows with no move buttons', await t.ev(`!!document.querySelector('.swimlane.lane-selected .lane-bar') && !document.querySelector('.lane-bar [data-act="later"]')`));
+    t.check('top to bottom: the bar shows with no move buttons', await t.ev(`!!document.querySelector('#actionbar-layer > .lane-bar') && !document.querySelector('.lane-bar [data-act="later"]')`));
   }
 
   // 8. Touch: a tap on a pill selects the lane and a tap on a swatch colours it (the pointer events a finger produces)

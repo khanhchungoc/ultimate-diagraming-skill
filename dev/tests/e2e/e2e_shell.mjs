@@ -132,12 +132,12 @@ try {
     const L = document.querySelector('.swimlane:nth-child(2)'), r = L.getBoundingClientRect();
     L.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
     const vis = el => !!el && el.getBoundingClientRect().width > 0;
-    const onHover = vis(L.querySelector('.lane-bar'));
+    const onHover = vis(document.querySelector('#actionbar-layer > .lane-bar'));
     L.querySelector('.lane-pill').click();
-    return [onHover, vis(L.querySelector('.lane-bar [data-act="rename"]')), vis(L.querySelector('.lane-bar [data-act="delete"]')),
-      vis(document.querySelector('.swimlane:nth-child(1) .lane-bar')), !!L.querySelector('.lane-tools')];
+    return [onHover, vis(document.querySelector('#actionbar-layer > .lane-bar [data-act="rename"]')), vis(document.querySelector('#actionbar-layer > .lane-bar [data-act="delete"]')),
+      document.querySelectorAll('#actionbar-layer > .lane-bar').length !== 1 || !L.classList.contains('lane-selected'), !!L.querySelector('.lane-tools')];
   })()`);
-  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-bar [data-act="delete"]').click()`);
+  await t.ev(`document.querySelector('#actionbar-layer > .lane-bar [data-act="delete"]').click()`);
   await t.ev(`document.querySelector('.confirm-ok').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
   t.check('hovering a lane hides its bar; selecting it shows rename + delete (only that lane), and delete (confirmed) removes the lane',
@@ -206,10 +206,11 @@ try {
   await sleep(500);
   t.check('Ctrl+S save path raises no errors', t.errors.length === 0, t.errors.join(' | '));
 
-  // 6b. First Save of a file opened from disk when directory picking is unavailable (no Link folder button):
-  //     Save copies the file's path at once and shows it in a bubble; the bubble's button opens the dialog.
+  // 6b. First Save of a file opened from disk: Save copies the file's path at once and opens native <dialog id="save-modal">;
+  //     Continue opens the file picker and writes the file; subsequent Save writes straight to the chosen handle.
   await t.open(laid);
   await t.ev(`(() => {
+    try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
     delete window.showDirectoryPicker;
     window.__picked = []; window.__copied = []; window.__written = null;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
@@ -219,26 +220,27 @@ try {
   const laidPath = resolve(laid);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  const b1 = await t.ev(`(() => { const p = document.querySelector('.confirm .save-where'); return p && { path: p.textContent,
-    title: document.querySelector('.confirm .confirm-title').textContent, msg: document.querySelector('.confirm .confirm-msg').textContent,
-    hasAlt: !!document.querySelector('.confirm .confirm-alt'), ok: document.querySelector('.confirm .confirm-ok').textContent,
+  const b1 = await t.ev(`(() => { const m = document.getElementById('save-modal'); return m && {
+    open: m.open, path: document.getElementById('save-modal-path').textContent,
+    title: document.getElementById('save-modal-title').textContent, msg: document.getElementById('save-modal-msg').textContent,
+    ok: m.querySelector('button[value="continue"]')?.textContent || '',
     copied: window.__copied, picked: window.__picked.length }; })()`);
   const expectedPath = process.platform === 'darwin' ? dirname(laidPath) : laidPath;
-  const saveShortcut = process.platform === 'win32' ? /Ctrl\+A, Ctrl\+V/ : process.platform === 'darwin' ? /⌘⇧G/ : /Ctrl\+L/;
-  t.check('save location: when directory picking is unavailable, Link folder is hidden and first Save copies the path with overwrite instructions',
-    b1 && b1.path === expectedPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && !b1.hasAlt && b1.ok === 'Choose\u2026' && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
+  const saveShortcut = process.platform === 'win32' ? /Ctrl\+V/ : process.platform === 'darwin' ? /⌘⇧G/ : /Ctrl\+L/;
+  t.check('save location: first Save opens #save-modal, copies the path, and shows overwrite instructions',
+    b1 && b1.open && b1.path === expectedPath && b1.title === 'Path copied — save over this file' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && b1.ok === 'Continue' && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
     JSON.stringify(b1));
-  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
+  await t.ev(`document.querySelector('#save-modal button[value="continue"]').click()`);
   await sleep(300);
   const pick1 = await t.ev(`({ picked: window.__picked.map(o => o.suggestedName), written: !!window.__written && window.__written.includes('id="diagram-data"'),
-    open: !!document.querySelector('.save-where'), status: document.getElementById('save-status').textContent })`);
-  t.check('save location: the bubble\'s button opens the dialog with the file\'s name and writes the file',
+    open: !!document.getElementById('save-modal')?.open, status: document.getElementById('save-status').textContent })`);
+  t.check('save location: Continue opens the file dialog with the file\'s name and writes the file',
     JSON.stringify(pick1.picked) === JSON.stringify([basename(laidPath)]) && pick1.written && !pick1.open && pick1.status === `Saved to ${basename(laidPath)}`, JSON.stringify(pick1));
   await t.ev(`window.__written = null`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  t.check('save location: the next Save writes straight to the chosen file with no bubble or dialog',
-    (await t.ev(`!!window.__written && !document.querySelector('.save-where') && window.__picked.length === 1`)));
+  t.check('save location: the next Save writes straight to the chosen file with no modal or dialog',
+    (await t.ev(`!!window.__written && !document.getElementById('save-modal')?.open && window.__picked.length === 1`)));
   // 6c. Reopening a file saved on an earlier visit (including with a different query string): the badge names the file Save writes to.
   //     The stored handle is faked as a plain { name } record (a real one needs the Save dialog).
   const badgeOf = () => t.ev(`(() => { const b = document.getElementById('save-status'); return { text: b.textContent, title: b.title }; })()`);
@@ -257,15 +259,23 @@ try {
   await t.open(laid);
   t.check('remembered file: a page with no stored file still reads "Ready"', (await badgeOf()).text === 'Ready');
 
-  // 6d. No Save dialog (Firefox, Safari): Save downloads a copy, the badge says so, and a toast says once that the
-  //     opened file was not changed
+  // 6d. No Save dialog (Firefox, Safari): Save opens #save-modal, Continue downloads a copy, the badge says so,
+  //     and a toast says once that the opened file was not changed
   await t.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: mkdtempSync(join(tmpdir(), 'dlcopy_')) });
   const copyToasts = `[...document.querySelectorAll('.toast')].filter(e => /file you opened was not changed/.test(e.textContent)).length`;
+  const confirmSaveModal = async () => {
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const b = document.querySelector('#save-modal[open] button[value="continue"]'); if (!b) return false; b.click(); return true; })()`)) break;
+      await sleep(100);
+    }
+  };
   await t.ev(t.key('s', { ctrlKey: true }));
+  await confirmSaveModal();
   await sleep(400);
   const dl1 = await badgeOf();
   const toasts1 = await t.ev(copyToasts);
   await t.ev(t.key('s', { ctrlKey: true }));
+  await confirmSaveModal();
   await sleep(400);
   t.check('download: the badge reads "Downloaded a copy" and one toast says the opened file was not changed, also after a second Save',
     dl1.text === 'Downloaded a copy' && /not changed/.test(dl1.title) && toasts1 === 1 && (await t.ev(copyToasts)) === 1, JSON.stringify({ dl1, toasts1 }));
@@ -280,113 +290,63 @@ try {
   })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  const fb = await t.ev(`({ execCopied: window.__execCopied, title: document.querySelector('.confirm .confirm-title')?.textContent })`);
+  const fb = await t.ev(`({ execCopied: window.__execCopied, open: !!document.getElementById('save-modal')?.open, title: document.getElementById('save-modal-title')?.textContent })`);
   t.check('save location: falls back to execCommand when clipboard.writeText rejects',
-    fb.execCopied === 1 && fb.title === 'Path copied', JSON.stringify(fb));
-  await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
+    fb.execCopied === 1 && fb.open && fb.title === 'Path copied — save over this file', JSON.stringify(fb));
+  await t.ev(`document.querySelector('#save-modal button[value="cancel"]').click()`);
   await sleep(100);
-  t.check('save location: Cancel closes the bubble without opening the dialog',
-    (await t.ev(`!document.querySelector('.save-where') && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
+  t.check('save location: Cancel closes the modal without opening the dialog',
+    (await t.ev(`!document.getElementById('save-modal')?.open && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
   await t.ev(`window.__execOk = false`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  const noCopy = await t.ev(`({ title: document.querySelector('.confirm .confirm-title')?.textContent, msg: document.querySelector('.confirm .confirm-msg')?.textContent })`);
+  const noCopy = await t.ev(`({ open: !!document.getElementById('save-modal')?.open, title: document.getElementById('save-modal-title')?.textContent, msg: document.getElementById('save-modal-msg')?.textContent })`);
   t.check('save location: when copying fails, prompts to copy the path and overwrite the file',
-    noCopy.title === 'Save over this file' && /^Copy path, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
-  await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
+    noCopy.open && noCopy.title === 'Save over this file' && /^Copy the path below, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
+  await t.ev(`document.querySelector('#save-modal button[value="cancel"]').click()`);
   await sleep(100);
 
-  // 6e. Linked folder (showDirectoryPicker): Link folder is primary, copies parent folder to clipboard on click,
-  //     resolves nested child files (including CRLF on disk), rejects mismatched files, and handles system/host blocks.
-  const laidParent = basename(dirname(laidPath));
-  const laidGrandparent = basename(dirname(dirname(laidPath)));
-  const laidName = basename(laidPath);
-  const laidFolder = dirname(laidPath);
+  // 6e. "Don't show this again" (#save-modal-skip): checking it and clicking Continue persists
+  //     <meta name="diagram-save-prompt" content="off"> in the saved HTML and skips the modal on reopen.
   await t.open(laid);
   await t.ev(`(() => {
-    window.__dirWritten = null; window.__picked = []; window.__copied = [];
-    navigator.clipboard.writeText = async (s) => { window.__copied.push(s); };
-    window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
-    const makeTree = (dataText) => ({
-      name: ${JSON.stringify(laidGrandparent)},
-      queryPermission: async () => 'granted',
-      getDirectoryHandle: async (sub) => {
-        if (sub !== ${JSON.stringify(laidParent)}) throw new DOMException('not found', 'NotFoundError');
-        return {
-          name: sub,
-          getFileHandle: async (fn) => {
-            if (fn !== ${JSON.stringify(laidName)}) throw new DOMException('not found', 'NotFoundError');
-            return {
-              name: fn,
-              getFile: async () => ({ text: async () => '<script id="diagram-data" type="application/' + 'json">\\r\\n' + dataText + '\\r\\n</' + 'script>' }),
-              createWritable: async () => ({ write: async (h) => { window.__dirWritten = h; }, close: async () => {} })
-            };
-          }
-        };
-      }
-    });
-    window.__makeTree = makeTree;
-    window.showDirectoryPicker = async () => makeTree('{"wrong":"diagram"}');
+    try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
+    delete window.showDirectoryPicker;
+    window.__picked = []; window.__written = null;
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
+      createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
+    navigator.clipboard.writeText = async () => {};
   })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(250);
+  const skipOpen = await t.ev(`!!document.getElementById('save-modal')?.open`);
+  await t.ev(`(() => { const c = document.getElementById('save-modal-skip'); c.checked = true; document.querySelector('#save-modal button[value="continue"]').click(); })()`);
   await sleep(300);
-  const tipInfo = await t.ev(`({
-    title: document.querySelector('.confirm .confirm-title')?.textContent || '',
-    tips: [...document.querySelectorAll('.confirm .save-folder-tip')].map(e => e.textContent).join(' | '),
-    alt: document.querySelector('.confirm .confirm-alt')?.textContent || '',
-    ok: document.querySelector('.confirm .confirm-ok')?.textContent || ''
-  })`);
-  t.check('linked folder: first-save bubble makes Link folder primary and explains both options clearly',
-    tipInfo.title === 'Save to disk' && /copies this file.s folder/i.test(tipInfo.tips) && /Choose file/i.test(tipInfo.alt) && /Link folder/i.test(tipInfo.ok),
-    JSON.stringify(tipInfo));
-  // Click Link folder with a same-named folder whose on-disk diagram-data does NOT match: copies parent folder, refuses overwrite
-  await t.ev(`window.__copied = []; document.querySelector('.confirm .confirm-ok').click()`);
-  await sleep(300);
-  const mismatch = await t.ev(`({ copied: window.__copied, written: window.__dirWritten, toasts: [...document.querySelectorAll('.toast')].map(e => e.textContent) })`);
-  t.check('linked folder: clicking Link folder copies parent folder to clipboard and rejects mismatched diagram-data',
-    JSON.stringify(mismatch.copied) === JSON.stringify([laidFolder]) && mismatch.written === null && mismatch.toasts.some(s => /does not contain/i.test(s)),
-    JSON.stringify(mismatch));
-
-  // SecurityError (blocked system folder): shows plain-English toast and keeps Link folder available
-  await t.ev(`window.showDirectoryPicker = async () => { throw new DOMException('Cannot open system files', 'SecurityError'); }`);
-  await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(300);
-  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
-  await sleep(300);
-  const sysErr = await t.ev(`[...document.querySelectorAll('.toast')].some(e => /blocks system folders/i.test(e.textContent))`);
-  t.check('linked folder: shows plain-English toast when browser blocks a system folder', sysErr);
-
-  // Matching top grandparent folder with CRLF line endings on disk: resolves nested child file, verifies diagram-data, and saves directly
-  await t.ev(`window.showDirectoryPicker = async () => window.__makeTree(document.getElementById('diagram-data').textContent.trim().replace(/\\n/g, '\\r\\n'))`);
-  await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(300);
-  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
-  await sleep(350);
-  const linkedOk = await t.ev(`({
-    written: !!window.__dirWritten && window.__dirWritten.includes('id="diagram-data"'),
-    status: document.getElementById('save-status').textContent,
-    toast: [...document.querySelectorAll('.toast')].some(e => /Linked /.test(e.textContent)),
+  const skipSaved = await t.ev(`({
+    hasMetaInDom: !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]'),
+    html: window.__written || '',
     picked: window.__picked.length
   })`);
-  t.check('linked folder: linking parent folder matches CRLF files on disk and saves nested child diagram straight to disk',
-    linkedOk.written && linkedOk.status === `Saved to ${laidName}` && linkedOk.toast && linkedOk.picked === 0, JSON.stringify(linkedOk));
-
-  // Non-system SecurityError (embedded/VS Code frame): shows clear unsupported toast and hides Link folder on next Save
-  await t.open(laid);
+  t.check('save modal: checking "Don\'t show this again" persists <meta name="diagram-save-prompt" content="off"> in saved HTML',
+    skipOpen && skipSaved.hasMetaInDom && skipSaved.picked === 1 && skipSaved.html.includes('<meta name="diagram-save-prompt" content="off">'),
+    JSON.stringify({ skipOpen, hasMetaInDom: skipSaved.hasMetaInDom, picked: skipSaved.picked, hasMetaInHtml: skipSaved.html.includes('diagram-save-prompt') }));
+  const skipFile = join(dlDir, 'skip-prompt.html');
+  writeFileSync(skipFile, skipSaved.html);
+  await t.open(skipFile);
   await t.ev(`(() => {
-    window.showSaveFilePicker = async () => { throw new DOMException('x', 'AbortError'); };
-    window.showDirectoryPicker = async () => { throw new DOMException('Cross origin sub frames are not allowed to show a file picker.', 'SecurityError'); };
+    try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
+    delete window.showDirectoryPicker;
+    window.__picked = []; window.__written = null;
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
+      createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
+    navigator.clipboard.writeText = async () => {};
   })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
-  await sleep(300);
-  const hostBlockedToast = await t.ev(`[...document.querySelectorAll('.toast')].some(e => /not supported in this browser window/i.test(e.textContent))`);
-  await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(300);
-  const hiddenAfterBlock = await t.ev(`({ hasAlt: !!document.querySelector('.confirm .confirm-alt'), ok: document.querySelector('.confirm .confirm-ok')?.textContent || '' })`);
-  t.check('linked folder: non-system SecurityError explains browser limitation and hides Link folder afterwards',
-    hostBlockedToast && !hiddenAfterBlock.hasAlt && hiddenAfterBlock.ok === 'Choose\u2026', JSON.stringify({ hostBlockedToast, hiddenAfterBlock }));
+  const skippedReopen = await t.ev(`({ modalOpen: !!document.getElementById('save-modal')?.open, picked: window.__picked.length, written: !!window.__written })`);
+  t.check('save modal: reopening a file with diagram-save-prompt=off skips #save-modal and saves directly',
+    !skippedReopen.modalOpen && skippedReopen.picked === 1 && skippedReopen.written, JSON.stringify(skippedReopen));
+  await t.ev(`try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}`);
 
   });
 
@@ -561,7 +521,7 @@ try {
     const visiblePills = `[...document.querySelectorAll('.lane-pill')].filter(h => getComputedStyle(h).display !== 'none').length`;
     const visible = await t.ev(visiblePills);
     const n = await t.ev(`document.querySelectorAll('.flow-node').length`);
-    const label = await t.ev(`document.querySelector('#btn-add-lane .btn-label').textContent`);
+    const label = await t.ev(`document.querySelector('#btn-add-lane .tile-caption').textContent`);
     t.check('swimlanes:false renders the nodes with no lane pill', n > 0 && visible === 0 && t.errors.length === 0, `nodes=${n} pills=${visible} errors=${t.errors.join(' | ')}`);
     await t.ev(`document.getElementById('btn-add-lane').click()`);
     const shown = await t.ev(visiblePills);
@@ -812,6 +772,10 @@ try {
   const saveAndRead = async () => {
     readdirSync(dlDir).forEach(f => rmSync(join(dlDir, f), { force: true }));
     await t.ev(t.key('s', { ctrlKey: true }));
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const b = document.querySelector('#save-modal[open] button[value="continue"]'); if (!b) return false; b.click(); return true; })()`)) break;
+      await sleep(100);
+    }
     for (let i = 0; i < 60; i++) {
       const f = readdirSync(dlDir).find(n => n.endsWith('.html'));
       if (f) { await sleep(200); return readFileSync(join(dlDir, f), 'utf8'); }
@@ -1122,11 +1086,11 @@ try {
       for (let i = 0; i < 30; i++) {
         savedBadge = await t.ev(`document.getElementById('save-status').textContent.trim()`);
         savedTip = await t.ev(`document.getElementById('save-status').getAttribute('title') || ''`);
-        hasPop = await t.ev(`!!document.querySelector('.confirm .save-where')`);
+        hasPop = await t.ev(`!!document.querySelector('#save-modal[open]')`);
         if (savedBadge === 'Saved to helper-direct.html') break;
         await sleep(100);
       }
-      t.check('file:// Ctrl+S saves straight through local helper with zero bubble or picker',
+      t.check('file:// Ctrl+S saves straight through local helper with zero modal or picker',
         savedBadge === 'Saved to helper-direct.html' && /local helper/i.test(savedTip) && !hasPop,
         `badge=${savedBadge} tip=${savedTip} pop=${hasPop}`);
 
@@ -1136,9 +1100,10 @@ try {
       t.check('reloading the helper-saved file shows the edited title and zero runtime errors',
         reloadedTitle === 'Saved via Helper' && t.errors.length === 0, `title=${reloadedTitle} errors=${t.errors.join(' | ')}`);
 
-      // Stop helper and verify Ctrl+S falls back cleanly to the existing first-save bubble
+      // Stop helper and verify Ctrl+S falls back cleanly to the save modal
       await new Promise((res) => { proc.once('exit', res); proc.kill('SIGKILL'); });
       await t.ev(`(() => {
+        try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
         window.__ULTIMATE_DIAGRAM_HELPER_PORTS__ = [${port}];
         delete window.showDirectoryPicker;
         navigator.clipboard.writeText = async () => {};
@@ -1151,10 +1116,10 @@ try {
       await t.ev(t.key('s', { ctrlKey: true }));
       let fallbackPop = false;
       for (let i = 0; i < 20 && !fallbackPop; i++) {
-        fallbackPop = await t.ev(`!!document.querySelector('.confirm .save-where')`);
+        fallbackPop = await t.ev(`!!document.querySelector('#save-modal[open]')`);
         if (!fallbackPop) await sleep(100);
       }
-      t.check('when helper is stopped, Ctrl+S falls back cleanly to the first-save bubble', fallbackPop);
+      t.check('when helper is stopped, Ctrl+S falls back cleanly to the save modal', fallbackPop);
     } finally {
       try { proc.kill(); } catch { /* already stopped */ }
       try { rmSync(helperCache, { recursive: true, force: true }); } catch { /* temp dir */ }

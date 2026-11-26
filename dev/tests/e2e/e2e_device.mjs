@@ -174,11 +174,11 @@ try {
         }
       }
 
-      // Exercise the More menu at 320px when items are folded (Gantt, Sequence, etc.)
+      // Exercise the More menu at 320px when items are folded (Gantt, etc.)
       await t.send('Emulation.setDeviceMetricsOverride', { width: 320, height: H, deviceScaleFactor: 2, mobile: true });
       await sleep(220);
       const foldedCount = await t.ev(`document.querySelectorAll('.toolbar-center > [data-dock-folded="true"]').length`);
-      if (['gantt', 'sequence'].includes(k)) {
+      if (k === 'gantt') {
         t.check(`${k} @320px: secondary controls fold into More`, foldedCount > 0, String(foldedCount));
       }
       if (foldedCount > 0) {

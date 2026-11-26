@@ -398,11 +398,11 @@
 --dot-edge: rgba(0, 0, 0, 0.18);
 --dot-edge-soft: rgba(0, 0, 0, 0.15);
 --menu-border: #cbd5e1;
---glass-top: rgba(255, 255, 255, 0.62);
---glass-bottom: rgba(255, 255, 255, 0.44);
---glass-bg: rgba(255, 255, 255, 0.53);
---confirm-top: rgba(255, 255, 255, 0.78);
---confirm-bottom: rgba(255, 255, 255, 0.68);
+--glass-top: rgba(255, 255, 255, 0.52);
+--glass-bottom: rgba(255, 255, 255, 0.34);
+--glass-bg: rgba(255, 255, 255, 0.43);
+--confirm-top: rgba(255, 255, 255, 0.68);
+--confirm-bottom: rgba(255, 255, 255, 0.58);
 --glass-border: rgba(255, 255, 255, 0.85);
 --glass-outer-ring: rgba(15, 23, 42, 0.10);
 --glass-rim: rgba(255, 255, 255, 0.96);
@@ -575,11 +575,11 @@ color-scheme: light;
 --lane-hover-bg: #1a2742;
 --on-primary: #0b1220;
 --on-danger: #1a1a1a;
---glass-top: rgba(24, 35, 58, 0.62);
---glass-bottom: rgba(13, 20, 38, 0.46);
---glass-bg: rgba(18, 28, 48, 0.54);
---confirm-top: rgba(24, 35, 58, 0.80);
---confirm-bottom: rgba(13, 20, 38, 0.70);
+--glass-top: rgba(16, 24, 42, 0.56);
+--glass-bottom: rgba(8, 13, 26, 0.42);
+--glass-bg: rgba(12, 18, 34, 0.49);
+--confirm-top: rgba(18, 28, 48, 0.72);
+--confirm-bottom: rgba(10, 16, 32, 0.62);
 --glass-border: rgba(148, 163, 184, 0.28);
 --glass-outer-ring: rgba(0, 0, 0, 0.36);
 --glass-rim: rgba(255, 255, 255, 0.20);
@@ -1283,6 +1283,50 @@ right: auto !important;
 transform: translateX(-50%);
 }
 }
+dialog.save-modal {
+width: 400px;
+max-width: calc(100vw - 24px);
+margin: auto;
+padding: var(--space-16);
+box-sizing: border-box;
+border-radius: var(--radius-3xl);
+border: 1px solid var(--border-dark);
+background: var(--bg-panel);
+color: var(--text-main);
+box-shadow: var(--shadow-glass-lg);
+font-size: var(--t-control-size);
+line-height: var(--t-control-leading);
+}
+dialog.save-modal:modal { overscroll-behavior: contain; }
+dialog.save-modal::backdrop {
+background: var(--scrim-bg);
+overflow: hidden;
+overscroll-behavior: contain;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+dialog.save-modal {
+background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+border-color: var(--glass-border);
+backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+}
+}
+@media (prefers-reduced-transparency: reduce) {
+dialog.save-modal {
+background: var(--bg-panel);
+border-color: var(--border-dark);
+backdrop-filter: none;
+-webkit-backdrop-filter: none;
+}
+}
+.save-modal-title { margin: 0 0 var(--space-8); font-weight: var(--weight-semibold); font-size: var(--text-lg); color: var(--text-main); }
+.save-modal-msg { margin: 0 0 var(--space-12); color: var(--text-soft); overflow-wrap: anywhere; }
+.save-modal-check {
+display: flex; align-items: center; gap: var(--space-8); margin: var(--space-8) 0 var(--space-16);
+font-size: var(--text-xs); color: var(--text-soft); cursor: pointer; user-select: none;
+}
+.save-modal-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+dialog.save-modal .btn { padding: var(--space-4) var(--space-12); font-size: var(--t-control-size); white-space: nowrap; }
 .note {
 position: absolute;
 box-sizing: border-box;
@@ -1671,6 +1715,11 @@ box-shadow: var(--shadow-md);
 scale: var(--ui-scale, 1); transform-origin: 50% 100%;
 }
 :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
+#actionbar-layer { position: absolute; inset: 0; pointer-events: none; z-index: 53; overflow: visible; }
+#actionbar-layer > :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+position: absolute; scale: none; translate: none; pointer-events: auto;
+}
+body.presentation #actionbar-layer, body.exporting #actionbar-layer { display: none !important; }
 .ab-btn {
 display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
 border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
@@ -2492,6 +2541,11 @@ body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-
 .erd-entity { -webkit-user-select: none; user-select: none; }
 [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
 .erd-head { position: relative; }
+.erd-entity.has-editing {
+width: max-content !important;
+min-width: var(--edit-min-w);
+z-index: 40;
+}
 .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-col-note.is-editing, .erd-rel-label-text.is-editing {
 min-width: 36px;
 background: var(--bg-panel);
@@ -2503,13 +2557,16 @@ padding-right: var(--space-2);
 overflow: visible;
 text-overflow: clip;
 }
+.erd-name.is-editing, .erd-col-name.is-editing {
+flex: 0 0 auto;
+width: max-content;
+min-width: 48px;
+max-width: 420px;
+}
 .erd-col-type.is-editing { text-align: right; }
 .erd-col-type:empty { min-width: 28px; }
-.erd-col-name.is-editing, .erd-col-note.is-editing { flex: 1 1 auto; }
-body.erd-armed .port:not(.port-end) { opacity: 1; pointer-events: auto; transform: scale(1.15); }
+.erd-col-note.is-editing { flex: 1 1 auto; }
 body.erd-touch .edge-hit { stroke-width: 26px; }
-body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
-body.erd-armed .chevron { display: none; }
 .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-md) var(--primary); }
 .erd-entity.erd-target { --ring: var(--primary); }
 #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
@@ -2556,7 +2613,7 @@ font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); c
 .erd-ab-btn circle { fill: var(--bg-panel); }
 .erd-ab-glyph { padding: 0 var(--space-2); }
 .erd-ab-sep { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--border-color); }
-.erd-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+.erd-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .erd-ab-swatch { height: 30px; width: 30px; }
 body.erd-dragging .erd-actionbar { display: none !important; }
 .edge-label.is-editing-label { z-index: 60; }
@@ -2599,6 +2656,7 @@ body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transfor
 body.exporting .erd-expand-card { display: none !important; }
 .erd-row.note-target { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
 #columns-pop .btn[aria-checked="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+#erd-pop .btn-shape { cursor: grab; touch-action: none; }
   </style>
 </head>
 <body>
@@ -2673,15 +2731,22 @@ body.exporting .erd-expand-card { display: none !important; }
   <div class="dock-area">
   <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
       <!-- Editing tools (see EDITING in erd.js) -->
-      <button id="btn-add-table" class="btn" title="Add a table after the selected one, or drag this onto the canvas" aria-label="Table">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 15h8"/></svg><span class="btn-label">Table</span>
-      </button>
-      <button id="btn-add-relationship" class="btn" title="Relationship: click, then drag from a column of one table to another table (or drag from a hovered column's dot)" aria-label="Relationship">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h9"/><path d="m12 12 8-5"/><path d="M12 12h8"/><path d="m12 12 8 5"/><path d="M6.5 8v8"/></svg><span class="btn-label">Relationship</span>
-      </button>
-      <button id="btn-add-note" class="btn" title="Add a note to the selected table (N), or drag this onto a table" aria-label="Note">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="btn-label">Note</span>
-      </button>
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="erd-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg><span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="erd-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid" role="group" aria-label="Add">
+            <button id="btn-add-table" class="btn btn-shape" title="Add a table after the selected one, or drag this onto the canvas" aria-label="Table">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 15h8"/></svg><span class="tile-caption">Table</span>
+            </button>
+            <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Add a note to the selected table (N), or drag this onto a table" aria-label="Note">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="tile-caption">Note</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- What is shown -->
       <!-- Columns: one of three views, so a choice from a popover (a radio group), not a button that cycles. Types below is a plain on/off switch. -->
@@ -2771,7 +2836,23 @@ body.exporting .erd-expand-card { display: none !important; }
         <div id="erd-html"></div>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
@@ -2857,8 +2938,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -2891,7 +2972,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -2961,7 +3041,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -3278,7 +3358,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -4438,6 +4571,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -4447,6 +4581,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -6099,7 +6234,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -6376,24 +6519,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -10348,7 +10582,7 @@ function erdSelExists(sel) {
 if (sel.kind === 'entity') return !!erdEntity(sel.id);
 if (sel.kind === 'rel') return !!erdRel(sel.id);
 if (sel.kind === 'col') { const e = erdEntity(sel.entity); return !!e && (e.columns || []).some((c) => c.name === sel.col); }
-if (sel.kind === 'key') return !!(chartData.colorKey && chartData.colorKey[sel.color]) && erdKeyColors().includes(sel.color);
+if (sel.kind === 'key') return erdKeyColors().includes(sel.color);
 return false;
 }
 function buildEntity(src, asCard) {
@@ -10376,7 +10610,6 @@ if (flat) el.classList.add('is-flat');
 if (e.collapsed === true) el.classList.add('is-collapsed');
 const head = erdHtmlEl('div', 'erd-head');
 const name = erdHtmlEl('span', 'erd-name', erName(e));
-name.title = erName(e);
 head.appendChild(name);
 if (!asCard) head.appendChild(buildPort(''));
 if (!asCard && (e.columns || []).length && detail !== 'names') {
@@ -10408,9 +10641,6 @@ const t = erdHtmlEl('span', 'erd-col-type', `${col.type == null ? '' : col.type}
 if (col.nullable) t.title = 'Nullable';
 row.appendChild(t);
 }
-const tip = [col.pk && col.fk ? 'Primary key, foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '',
-col.unique ? 'unique' : '', col.nullable ? 'nullable' : '', col.note || ''].filter(Boolean).join(' · ');
-if (tip) row.title = tip;
 el.appendChild(row);
 });
 if (vis.more) {
@@ -10570,18 +10800,14 @@ return erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erd
 }
 function applyHighlight() {
 erdHtml.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!erdSel && erdSel.kind === 'key' && erdSel.color === l.dataset.color));
-erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .is-dim')
-.forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'is-dim'));
+erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl')
+.forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl'));
 erdCanvas.querySelectorAll('.ov-show').forEach((el) => el.classList.remove('ov-show'));
-const keep = new Set();
-const keepRels = new Set();
 const focus = erdFocusId();
 if (focus) {
-keep.add(focus);
 erdRelsList().forEach((rel) => {
 const kind = rel.from === focus ? 'out' : rel.to === focus ? 'in' : null;
 if (!kind) return;
-keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
 const g = relEl(rel.id), label = labelEl(rel.id);
 if (g) g.classList.add(`hl-${kind}`);
 if (label) { label.classList.add(`hl-${kind}`, 'ov-show'); }
@@ -10604,16 +10830,11 @@ if (rowEl) rowEl.classList.add('key-hl');
 } else if (hoverRelId) {
 const rel = erdRel(hoverRelId);
 if (rel) {
-keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
 const g = relEl(rel.id), label = labelEl(rel.id);
 if (g) g.classList.add('hover');
 if (label) label.classList.add('hover', 'ov-show');
 markRows(rel, 'hover');
 }
-}
-if (keep.size) {
-erdHtml.querySelectorAll('.erd-entity').forEach((el) => { if (!keep.has(el.dataset.nodeId)) el.classList.add('is-dim'); });
-[...erdRels.children, ...erdHtml.querySelectorAll('.edge-label')].forEach((el) => { if (!keepRels.has(el.dataset.edgeId)) el.classList.add('is-dim'); });
 }
 erdCanvas.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
 if (erdSel) {
@@ -10924,7 +11145,6 @@ cardOf: (id) => noteCard(id),
 canEdit: () => !erdPresenting(),
 openCard: (note) => {
 cancelDrag();
-setRelArmed(false);
 setNotePicking(false);
 selectNote(note.id);
 if (!noteCard(note.id)) renderNotes(false);
@@ -11196,10 +11416,8 @@ updateNotesButton();
 updateStatus(true);
 });
 const erdBtnAddTable = document.getElementById('btn-add-table');
-const erdBtnAddRel = document.getElementById('btn-add-relationship');
 const erdBtnAddNote = document.getElementById('btn-add-note');
 let erdDrag = null;            // the pointer drag in progress: { startX, startY, dx, dy, moved, move?, drop?, click?, cleanup? }
-let relArmed = false;          // the Relationship tool waits for a drag from a column
 let notePicking = false;       // the Note tool waits for a table
 let erdUidCounter = 0;
 const erdUid = (prefix) => `${prefix}_${Date.now()}_${erdUidCounter++}`;
@@ -11413,14 +11631,13 @@ if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
 bar.setAttribute('aria-label', 'Relationship');
 bar.classList.add('is-wrap', 'is-wide');
 const ends = erRelEnds(rel, chartData);
-bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
+const fromEnt = erdEntity(rel.from), toEnt = erdEntity(rel.to);
+bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (fromEnt ? erName(fromEnt) : '') || rel.from));
 ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
+bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (toEnt ? erName(toEnt) : '') || rel.to));
 ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
-'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
 bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
 bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
 const gap = ERD_HANDLE_GAP * (erdOverview ? 1 / scale : 1);   // the markers grow by 1 / scale in the overview
@@ -11504,7 +11721,6 @@ if (!rel) return;
 const ends = erRelEnds(rel, chartData);
 if (act === 'fromEnd' && ends.fromEnd !== value) { rel.fromEnd = value; commit(); }
 else if (act === 'toEnd' && ends.toEnd !== value) { rel.toEnd = value; commit(); }
-else if (act === 'identifying') { if (rel.identifying === true) delete rel.identifying; else rel.identifying = true; commit(); }
 else if (act === 'reverse') reverseRelationship(rel);
 else if (act === 'label') editRelLabel(rel.id);
 }
@@ -11528,8 +11744,7 @@ const keySpec = [{ selector: '.color-key-item[data-color]', key: 'color' }];
 const snap = !erdInRender && motion.enabled() ? motion.capture(erdHtml, keySpec) : null;
 erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
 const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
-const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
-const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
+const el = boxes.length && ui.colorKey(erdKeyColors(), key, { prompts: true, cls: 'erd-key' });
 if (!el) return;
 el.querySelectorAll('.color-key-item').forEach((it) => { const lbl = it.querySelector('.color-key-label'); if (lbl) it.dataset.color = lbl.dataset.color; });
 Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
@@ -11547,7 +11762,12 @@ function editKey(el) {
 if (!el || erdPresenting()) return;
 const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
 el.classList.remove('is-empty');
-beginEdit(el, { raw: was, restore: was, apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); } });
+beginEdit(el, {
+raw: was,
+restore: was,
+apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); },
+onCancel: () => { if (!was) el.classList.add('is-empty'); }
+});
 el.addEventListener('blur', () => { if (erdKeyDraft) { erdKeyDraft = null; drawKey(); } });
 }
 function nameColor(color) {
@@ -11585,13 +11805,12 @@ if (erdSel.id !== id) { erdSel = { kind: 'entity', id }; erdMultiOwner = erdSel;
 beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
 return;
 }
-const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
+const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row');
 if (port) {
 const from = { entity: id, col: port.dataset.col || null };
 beginDrag(e, connectDrag(from, () => (from.col ? selectCol(id, from.col) : selectEntity(id))));
 return;
 }
-if (relArmed && (row || head)) { beginDrag(e, connectDrag({ entity: id, col: row ? row.dataset.col : null })); return; }
 if (row && e.pointerType === 'touch' && erdSel && erdSel.kind === 'entity' && erdSel.id === id) {
 const drag = entityDrag(id, entEl);
 drag.click = () => selectCol(id, row.dataset.col);
@@ -11603,6 +11822,13 @@ selectEntity(id);
 beginDrag(e, entityDrag(id, entEl));
 }
 erdHtml.addEventListener('pointerdown', onErdPointerDown);
+function syncIdentifying(rel) {
+if (!rel) return;
+const from = erdEntity(rel.from);
+const cols = Array.isArray(rel.columns) ? rel.columns : [];
+const isId = !!(from && cols.length > 0 && cols.every((n) => (from.columns || []).some((c) => c.name === n && c.pk === true)));
+if (isId) rel.identifying = true; else delete rel.identifying;
+}
 function connectDrag(from, onClick) {
 const a = erdEntity(from.entity);
 return {
@@ -11615,7 +11841,6 @@ d.target = erdTargetAt(e);
 markTarget(d.target);
 },
 drop(e, d) {
-if (relArmed) setRelArmed(false);
 if (!d.target) { render(); return; }
 connectEntities(from, d.target);
 }
@@ -11635,7 +11860,7 @@ if (useSrc) rel.columns = [srcCol.name];
 if (dstCol && dstCol.name !== erdFirstPk(b)) rel.toColumns = [dstCol.name];
 rel.fromEnd = 'zeroOrMany';
 rel.toEnd = useSrc && srcCol.nullable ? 'zeroOrOne' : 'one';
-if (useSrc && srcCol.pk) rel.identifying = true;
+syncIdentifying(rel);
 const same = erdRelsList().find((r) => r.from === rel.from && r.to === rel.to && JSON.stringify(r.columns || null) === JSON.stringify(rel.columns || null)
 && JSON.stringify(r.toColumns || null) === JSON.stringify(rel.toColumns || null));
 if (same) { erdHint('Those two are already related that way'); selectRel(same.id); render(); return false; }
@@ -11677,6 +11902,7 @@ if (draft.from === draft.to && !(draft.columns && draft.columns.length)) { erdHi
 Object.keys(rel).forEach((k) => delete rel[k]);
 Object.assign(rel, draft);
 if (role === 'from' && col && !col.fk) col.fk = true;
+syncIdentifying(rel);
 commit();
 }
 };
@@ -11694,6 +11920,7 @@ rel.toEnd = ends.fromEnd;
 if (Array.isArray(rel.toColumns) && rel.toColumns.length) rel.columns = rel.toColumns.slice();
 else if (toCol) rel.columns = [toCol]; else delete rel.columns;
 if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
+syncIdentifying(rel);
 commit();
 const line = relEl(rel.id)?.querySelector('.edge-line');
 if (line && motion.enabled()) {
@@ -11801,6 +12028,13 @@ commit({ snap, duration: 180, easing: 'curve-spring-settle' });
 function beginEdit(el, opts = {}) {
 if (!el || el.isContentEditable) return;
 if (opts.raw !== undefined) el.textContent = opts.raw;
+const card = el.closest('.erd-entity');
+if (card) {
+const ent = erdEntity(card.dataset.nodeId);
+const minW = ent && ent.box ? ent.box.w : card.offsetWidth;
+card.style.setProperty('--edit-min-w', erdPx(minW));
+card.classList.add('has-editing');
+}
 el.classList.add('is-editing');
 el.contentEditable = 'plaintext-only';
 el.spellcheck = false;
@@ -11819,6 +12053,10 @@ el.removeEventListener('blur', finish);
 el.removeEventListener('keydown', onKey);
 el.contentEditable = 'false';
 el.classList.remove('is-editing');
+if (card) {
+card.classList.remove('has-editing');
+card.style.removeProperty('--edit-min-w');
+}
 const value = el.textContent.replace(/\s*\n\s*/g, ' ').trim();
 const changed = value !== original || (how === 'enter' && value === '') ? !!opts.apply(value, how) : false;
 if (changed) commit();
@@ -11976,7 +12214,7 @@ if (!col) return;
 col.name = to;
 notesList().forEach((n) => { if (n.column === from && (n.entities || [])[0] === e.id) n.column = to; });
 erdRelsList().forEach((r) => {
-if (r.from === e.id && Array.isArray(r.columns)) r.columns = r.columns.map((n) => (n === from ? to : n));
+if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.map((n) => (n === from ? to : n)); syncIdentifying(r); }
 if (r.to === e.id && Array.isArray(r.toColumns)) r.toColumns = r.toColumns.map((n) => (n === from ? to : n));
 });
 if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === from) erdSel.col = to;
@@ -11988,7 +12226,7 @@ chartData.notes = notesList().filter((n) => !(n.column === name && (n.entities |
 if (!chartData.notes.length) delete chartData.notes;
 }
 erdRelsList().forEach((r) => {
-if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; }
+if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; syncIdentifying(r); }
 if (r.to === e.id && Array.isArray(r.toColumns)) { r.toColumns = r.toColumns.filter((n) => n !== name); if (!r.toColumns.length) delete r.toColumns; }
 });
 if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === name) erdSel = { kind: 'entity', id: e.id };
@@ -12021,6 +12259,11 @@ function toggleFlag(entityId, name, flag) {
 const e = erdEntity(entityId), col = e && (e.columns || []).find((c) => c.name === name);
 if (!col) return;
 if (col[flag]) delete col[flag]; else col[flag] = true;
+if (flag === 'pk') {
+erdRelsList().forEach((r) => {
+if (r.from === entityId && Array.isArray(r.columns) && r.columns.includes(name)) syncIdentifying(r);
+});
+}
 commit();
 if (!motion.enabled()) return;
 const row = colEls(entityId).find((r) => r.dataset.col === name);
@@ -12232,7 +12475,6 @@ function onNotePointerDown(ev, id, card) {
 if (ev.button !== 0 || ev.target.isContentEditable) return;
 ev.stopPropagation();
 if (erdPresenting()) return;
-setRelArmed(false);
 selectNote(id);
 const x0 = parseFloat(card.style.left) || 0, y0 = parseFloat(card.style.top) || 0;
 beginDrag(ev, {
@@ -12266,39 +12508,30 @@ const id = erdSelectedEntityId();
 e.preventDefault();
 if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
 });
-function setRelArmed(on) {
-if (relArmed === on) return;
-relArmed = on;
-document.body.classList.toggle('erd-armed', on);
-if (erdBtnAddRel) erdBtnAddRel.setAttribute('aria-pressed', String(on));
-if (on) erdHint('Drag from a column to another table or column · <kbd>Esc</kbd> to cancel', true); else if (!notePicking) erdHint(null);
+function closeDockPop(btn) {
+const wrap = btn && btn.closest('.dock-pop-wrap');
+if (!wrap) return;
+wrap.classList.remove('open');
+const trigger = wrap.querySelector('.dock-pop-trigger');
+if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 function setNotePicking(on) {
 if (notePicking === on) return;
 notePicking = on;
 document.body.classList.toggle('note-picking', on);
 if (erdBtnAddNote) erdBtnAddNote.setAttribute('aria-pressed', String(on));
-if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
+if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else erdHint(null);
 }
 function giveNoteTo(id, col) {
 setNotePicking(false);
 if (col) selectCol(id, col); else selectEntity(id);
 addNoteTo(id, col);
 }
-if (erdBtnAddRel) {
-erdBtnAddRel.setAttribute('aria-pressed', 'false');
-erdBtnAddRel.addEventListener('click', () => {
-if (erdPresenting()) return;
-setNotePicking(false);
-setRelArmed(!relArmed);
-});
-}
 let tableToolDrag = null;   // { startX, startY, ghost, pt }
 if (erdBtnAddTable) {
 erdBtnAddTable.addEventListener('click', (e) => {
 if (erdBtnAddTable.dataset.dragged) { delete erdBtnAddTable.dataset.dragged; e.preventDefault(); return; }
 if (erdPresenting()) return;
-setRelArmed(false);
 setNotePicking(false);
 addTable();
 });
@@ -12316,6 +12549,7 @@ const d = tableToolDrag;
 if (!d) return;
 if (!d.ghost) {
 if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+closeDockPop(erdBtnAddTable);
 d.ghost = erdHtmlEl('div', 'erd-entity erd-ghost');
 d.ghost.style.width = erdPx(ER.MIN_W);
 d.ghost.appendChild(erdHtmlEl('div', 'erd-head', ''));
@@ -12365,7 +12599,7 @@ if (erdPresenting()) return;
 const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
 if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
 else if (noteId) editNote(noteId);
-else { setRelArmed(false); setNotePicking(false); addFreeNote(); }
+else { setNotePicking(false); addFreeNote(); }
 });
 erdBtnAddNote.addEventListener('pointerdown', (e) => {
 delete erdBtnAddNote.dataset.dragged;
@@ -12393,6 +12627,7 @@ const d = noteToolDrag;
 if (!d) return;
 if (!d.ghost) {
 if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+closeDockPop(erdBtnAddNote);
 setNotePicking(false);
 d.ghost = erdHtmlEl('div', 'note note-ghost');
 d.ghost.appendChild(erdHtmlEl('div', 'note-text', 'Note'));
@@ -12485,7 +12720,6 @@ if (ui.closeConfirm()) did = true;
 if (cancelDrag()) did = true;
 if (cancelTableToolDrag()) did = true;
 if (cancelNoteToolDrag()) did = true;
-if (relArmed) { setRelArmed(false); did = true; }
 if (notePicking) { setNotePicking(false); did = true; }
 return did;
 }

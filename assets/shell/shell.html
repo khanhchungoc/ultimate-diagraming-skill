@@ -134,7 +134,23 @@
     <div id="stage">
 {{TYPE_STAGE}}
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: {{REPO_URL}}) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">

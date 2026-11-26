@@ -45,7 +45,13 @@ try {
   const blockOf = (html) => (html.match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
   // A lane's saved height is what the page measured: the last lane may carry the room for outer loop-backs (render), so it is not compared
   const same = (a, b) => !!a && a.replace(/"height": \d+/g, '"height": 0') === (b || '').replace(/"height": \d+/g, '"height": 0');
-  const save = async () => (await download(() => t.ev(t.key('s', { ctrlKey: true })), '.html'))[0]?.[1] || '';
+  const save = async () => (await download(async () => {
+    await t.ev(t.key('s', { ctrlKey: true }));
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const b = document.querySelector('#save-modal[open] button[value="continue"]'); if (!b) return false; b.click(); return true; })()`)) break;
+      await sleep(100);
+    }
+  }, '.html'))[0]?.[1] || '';
   const exportMenu = (sel) => async () => { await t.clickOn('#btn-export'); await t.clickOn(sel); };
 
   // 1. The tab row
@@ -105,7 +111,7 @@ try {
   await goTab('approve_spec');
   await t.clickOn('.swimlane:nth-child(2) .lane-title');
   await sleep(150);
-  await t.clickOn('.swimlane.lane-selected .lane-bar [data-act="rename"]');
+  await t.clickOn('#actionbar-layer > .lane-bar [data-act="rename"]');
   await t.type('Tech Desk');
   await t.press('Enter');
   await sleep(200);

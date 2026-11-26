@@ -30,6 +30,10 @@ try {
   await t.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dl });
   await t.open(page);
   await t.ev(t.key('s', { ctrlKey: true }));
+  for (let i = 0; i < 30; i++) {
+    if (await t.ev(`(() => { const b = document.querySelector('#save-modal[open] button[value="continue"]'); if (!b) return false; b.click(); return true; })()`)) break;
+    await sleep(100);
+  }
   let saved = '';
   for (let i = 0; i < 60 && !saved; i++) {
     const f = readdirSync(dl).find((n) => n.endsWith('.html'));
