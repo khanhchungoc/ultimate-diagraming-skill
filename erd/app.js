@@ -5870,7 +5870,7 @@ SEG: 16,                                       // segments per sampled curve
 PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
 CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)
 SELF_CTRL: 60,                                 // self-reference loop: right side out, top in
-LABEL_H: 22, LABEL_X: 12, LABEL_CHAR_W: TOKENS.font.metrics.edgeLabel,
+LABEL_H: 22, LABEL_X: 6, LABEL_MAX_W: 140, LABEL_CHAR_W: TOKENS.font.metrics.edgeLabel,
 MARGIN: 40, CLEAR: 24                          // canvas margin; clearance a curve keeps from a table it passes
 };
 const erGrid = (v) => Math.ceil(v / ER.GRID) * ER.GRID;
@@ -5955,7 +5955,7 @@ const need = new Float64Array(n * n);
 (data.relationships || []).forEach((r) => {
 const a = idx[r.from], b = idx[r.to];
 if (a === undefined || b === undefined || a === b) return;
-const g = Math.max(ER.REL_GAP, r.label ? erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X + ER.REL_LABEL_GAP : 0);
+const g = Math.max(ER.REL_GAP, r.label ? Math.min(ER.LABEL_MAX_W, erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X) + ER.REL_LABEL_GAP : 0);
 need[a * n + b] = need[b * n + a] = Math.max(need[a * n + b], g);
 });
 return need;
@@ -6501,7 +6501,7 @@ const placedLabels = [];
 const overlapsBox = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
 const placeLabel = (L, skip) => {
 const r = L.r, c = L.c;
-const w = erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X, h = ER.LABEL_H;
+const w = Math.min(ER.LABEL_MAX_W, erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X), h = ER.LABEL_H;
 let best = null;
 for (const u of [0.5, 0.42, 0.58, 0.34, 0.66, 0.25, 0.75]) {
 const mid = evalC(c, u), p1 = evalC(c, Math.min(1, u + 0.02)), p0 = evalC(c, Math.max(0, u - 0.02));
@@ -8808,7 +8808,7 @@ zeroOrOne: '<circle cx="-14" cy="0" r="4"/><path d="M-7 -6V6"/>',
 oneOrMany: '<path d="M-11 0 0 -6M-11 0H0M-11 0 0 6M-15 -6V6"/>',
 zeroOrMany: '<circle cx="-15.5" cy="0" r="4"/><path d="M-11 0 0 -6M-11 0H0M-11 0 0 6"/>'
 };
-const ERD_END_NAMES = { one: 'exactly one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
+const ERD_END_NAMES = { one: 'one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
 const erdEndGlyph = (kind) => `<svg width="22" height="12" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
 const abButton = (act, html, title, pressed, value, extra) => ui.abButton('erd-ab-btn', act, html, title, pressed, value, extra);
 const abSep = () => ui.abSep('erd-ab-sep');
@@ -8851,11 +8851,11 @@ const e = erdEntity(erdSel.id);
 if (!e || !e.box) return;
 bar.setAttribute('aria-label', 'Table');
 bar.appendChild(abButton('addcol', `${ui.icon('plus')}<span>Column</span>`, 'Add a column after the last one'));
-bar.appendChild(abButton('note', ui.icon('note'), 'Add a note to this table (N)'));
 bar.appendChild(abSep());
 bar.appendChild(swatchPicker(e.color || '', (slot) => setEntityColor(e.id, slot), { triggerClass: 'erd-ab-btn', btnClass: 'erd-ab-swatch' }));
 bar.appendChild(abSep());
 const nSel = selectedEntityIds().length;
+bar.appendChild(abButton('note', ui.icon('note'), 'Add a note to this table (N)'));
 bar.appendChild(abButton('delete', ui.icon('trash'), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
 at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
 at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
@@ -8868,11 +8868,10 @@ bar.setAttribute('aria-label', 'Column');
 [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
 .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
 bar.appendChild(abSep());
-bar.appendChild(abButton('colnote', ui.icon('note'), col.note ? 'Edit note on this column (or double-click it)' : 'Add a note to this column (N), e.g. its allowed values'));
-bar.appendChild(abSep());
 bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
 bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
 bar.appendChild(abSep());
+bar.appendChild(abButton('colnote', ui.icon('note'), col.note ? 'Edit note on this column (or double-click it)' : 'Add a note to this column (N), e.g. its allowed values'));
 bar.appendChild(abButton('delcol', ui.icon('trash'), 'Delete this column', undefined, undefined, 'is-danger'));
 at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
 at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
@@ -8884,13 +8883,10 @@ bar.classList.add('is-wrap', 'is-wide');
 const ends = erRelEnds(rel, chartData);
 const fromEnt = erdEntity(rel.from), toEnt = erdEntity(rel.to);
 bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (fromEnt ? erName(fromEnt) : '') || rel.from));
-ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
+ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), ERD_END_NAMES[k], ends.fromEnd === k, k, 'erd-ab-glyph')));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (toEnt ? erName(toEnt) : '') || rel.to));
-ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
-bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
-bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
+ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), ERD_END_NAMES[k], ends.toEnd === k, k, 'erd-ab-glyph')));
 const gap = ERD_HANDLE_GAP * (erdOverview ? 1 / scale : 1);   // the markers grow by 1 / scale in the overview
 const hFrom = erdPointAlong(rel.curve, gap, false), hTo = erdPointAlong(rel.curve, gap, true);
 addHandle('from', rel.id, hFrom[0], hFrom[1]);
@@ -8936,6 +8932,7 @@ const ox = Math.max(0, Math.min(x + w, b.x + b.w) - Math.max(x, b.x)), oy = Math
 cost += ox * oy;
 });
 if (y < 0) cost += 300;   // past the top of the canvas is fine (the bar floats), but a clear spot inside is better
+p.forEach((pt) => { if (pt[0] > x - 8 && pt[0] < x + w + 8 && pt[1] > y - 8 && pt[1] < y + h + 8) cost += 200; });
 handles.forEach((hd) => { if (hd[0] > x - pad && hd[0] < x + w + pad && hd[1] > y - pad && hd[1] < y + h + pad) cost += 1e6; });
 if (!best || cost < best.cost) best = { cost, x: x + w / 2, y: below ? s.y + gap : s.y - gap, below };
 }));
@@ -8972,8 +8969,6 @@ if (!rel) return;
 const ends = erRelEnds(rel, chartData);
 if (act === 'fromEnd' && ends.fromEnd !== value) { rel.fromEnd = value; commit(); }
 else if (act === 'toEnd' && ends.toEnd !== value) { rel.toEnd = value; commit(); }
-else if (act === 'reverse') reverseRelationship(rel);
-else if (act === 'label') editRelLabel(rel.id);
 }
 }
 function setEntityColor(id, slot) {
@@ -9157,28 +9152,6 @@ syncIdentifying(rel);
 commit();
 }
 };
-}
-function reverseRelationship(rel) {
-const from = erdEntity(rel.from), to = erdEntity(rel.to);
-if (!from || !to) return;
-const ends = erRelEnds(rel, chartData);
-const toCol = erdToCol(rel, to);                              // where the line entered the parent
-const oldCols = Array.isArray(rel.columns) ? rel.columns.slice() : null;
-rel.from = to.id;
-rel.to = from.id;
-rel.fromEnd = ends.toEnd;
-rel.toEnd = ends.fromEnd;
-if (Array.isArray(rel.toColumns) && rel.toColumns.length) rel.columns = rel.toColumns.slice();
-else if (toCol) rel.columns = [toCol]; else delete rel.columns;
-if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
-syncIdentifying(rel);
-commit();
-const line = relEl(rel.id)?.querySelector('.edge-line');
-if (line && motion.enabled()) {
-motion.anim(line, [{ strokeWidth: '3.2px' }, { strokeWidth: '' }], { duration: 180, easing: motion.curve('curve-out') });
-if (rel.identifying) motion.drawPath(line, { duration: 160, easing: 'curve-out' });
-else motion.anim(line, [{ strokeDashoffset: '20' }, { strokeDashoffset: '0' }], { duration: 180, easing: motion.curve('curve-out') });
-}
 }
 function entityDrag(id, el, group) {
 const e = erdEntity(id);
@@ -9416,6 +9389,9 @@ Object.assign(box.style, { left: erdPx(mid.x - 44), top: erdPx(mid.y - 11), widt
 box.appendChild(erdHtmlEl('span', 'erd-rel-label-text'));
 erdHtml.appendChild(box);
 }
+const prevW = box.style.width;
+box.style.width = 'auto';
+box.style.minWidth = erdPx(Math.max(44, parseFloat(prevW) || 44));
 box.classList.add('is-editing-label');
 beginEdit(box.querySelector('.erd-rel-label-text'), {
 raw: rel.label == null ? '' : String(rel.label),
@@ -9425,7 +9401,12 @@ if (value) rel.label = value; else delete rel.label;
 return true;
 },
 restore: rel.label == null ? '' : String(rel.label),
-onCancel: () => { box.classList.remove('is-editing-label'); if (rel.label == null && !box.querySelector('.erd-rel-label-text').textContent.trim()) box.remove(); }
+onCancel: () => {
+box.classList.remove('is-editing-label');
+box.style.width = prevW;
+box.style.minWidth = '';
+if (rel.label == null && !box.querySelector('.erd-rel-label-text').textContent.trim()) box.remove();
+}
 });
 }
 erdHtml.addEventListener('dblclick', (e) => {
