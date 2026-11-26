@@ -67,13 +67,13 @@
     { "id": "n_reselect_supplier", "laneId": "lane-procurement", "type": "task", "label": "Select Next Supplier" },
     { "id": "n_confirm_delivery", "laneId": "lane-supplier", "type": "task", "label": "Confirm Delivery Date" },
     { "id": "n_deliver_laptop", "laneId": "lane-supplier", "type": "task", "label": "Deliver Laptop to IT" },
-    { "id": "n_inspect_delivery", "laneId": "lane-it", "type": "decision", "label": "Delivered Device OK?" },
     { "id": "c_b_out", "laneId": "lane-it", "type": "connector", "label": "B" },
-    { "id": "n_configure_laptop", "laneId": "lane-it", "type": "task", "label": "Configure Laptop" },
+    { "id": "n_inspect_delivery", "laneId": "lane-it", "type": "decision", "label": "Delivered Device OK?" },
     { "id": "n_return_device", "laneId": "lane-it", "type": "task", "label": "Return to Supplier" },
     { "id": "n_send_replacement", "laneId": "lane-supplier", "type": "task", "label": "Send Replacement" },
-    { "id": "n_assign_laptop", "laneId": "lane-it", "type": "task", "label": "Assign to Employee" },
+    { "id": "n_configure_laptop", "laneId": "lane-it", "type": "task", "label": "Configure Laptop" },
     { "id": "c_b_in", "laneId": "lane-supplier", "type": "connector", "label": "B" },
+    { "id": "n_assign_laptop", "laneId": "lane-it", "type": "task", "label": "Assign to Employee" },
     { "id": "n_confirm_receipt", "laneId": "lane-employee", "type": "task", "label": "Confirm Receipt" },
     { "id": "n_check_issues", "laneId": "lane-employee", "type": "decision", "label": "Any Issue Found?" },
     { "id": "n_close_request", "laneId": "lane-it", "type": "task", "label": "Close Request" },
@@ -195,13 +195,13 @@
     "n_reselect_supplier": { "x": 2469, "y": 32 },
     "n_confirm_delivery": { "x": 2565, "y": 48 },
     "n_deliver_laptop": { "x": 2701, "y": 48 },
+    "c_b_out": { "x": 2733, "y": 88 },
     "n_inspect_delivery": { "x": 2797, "y": 32 },
-    "c_b_out": { "x": 2829, "y": 196 },
+    "n_return_device": { "x": 2797, "y": 248 },
+    "n_send_replacement": { "x": 2893, "y": 48 },
     "n_configure_laptop": { "x": 2950, "y": 32 },
-    "n_return_device": { "x": 2950, "y": 248 },
-    "n_send_replacement": { "x": 2950, "y": 48 },
+    "c_b_in": { "x": 3059, "y": 104 },
     "n_assign_laptop": { "x": 3086, "y": 32 },
-    "c_b_in": { "x": 3116, "y": 104 },
     "n_confirm_receipt": { "x": 3182, "y": 32 },
     "n_check_issues": { "x": 3318, "y": 32 },
     "n_close_request": { "x": 3318, "y": 32 },
@@ -2572,7 +2572,7 @@ stroke-width: 2px;
 transform: translate(-50%, -50%);
 transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),
 clip-path var(--dur-micro) var(--curve-out);
-clip-path: inset(4.5px 9.5px round 3px);
+clip-path: inset(3.5px 4.5px round 3px);
 }
 .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .is-editing, :focus-within) {
 clip-path: inset(-12px round var(--radius-lg));
@@ -3353,17 +3353,17 @@ width: var(--hit-min); height: var(--hit-min);
         <!-- SVG Connections Overlay -->
         <svg id="connector-svg">
           <defs>
-            <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10.6" refY="6" orient="auto">
-              <polygon points="0 1.5, 11 6, 0 10.5" style="fill:var(--connector)"/>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--connector);stroke-width:1.4px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--primary)"/>
+            <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--primary);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-in" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-in)"/>
+            <marker id="arrowhead-in" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--edge-in);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-out" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-out)"/>
+            <marker id="arrowhead-out" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--edge-out);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
           </defs>
           <!-- Dashed leaders from each visible note to its node (under the nodes, so they stop at the node's edge) -->
@@ -8742,7 +8742,7 @@ const y = p1[1];
 const minX = Math.min(p1[0], p2[0]);
 const maxX = Math.max(p1[0], p2[0]);
 const goingRight = p2[0] > p1[0];
-const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
+const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 10 : 14);
 const lo1 = endRoom(i), lo2 = endRoom(i + 1);
 const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 const hops = [];
@@ -8799,7 +8799,7 @@ d += ` L ${item[0]} ${item[1]}`;
 }
 return d;
 }
-const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
+const ARROWHEAD_LEN = 10;   // the open-chevron arrowhead's length in px (stage.html)
 function pickClearLabelPosition(points, fromPort, labelText, nodesNear, placedLabels, otherSegsNear, labelMaxW) {
 const FONT_M = TOKENS.font.metrics;
 const candidates = [];
@@ -8855,10 +8855,14 @@ y: (p1[1] + p2[1]) / 2
 });
 }
 candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
-candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+const seg2Len = Math.hypot(p3[0] - p2[0], p3[1] - p2[1]) || 1;
+const t2 = points.length === 4 ? Math.max(0, seg2Len - ARROWHEAD_LEN) * 0.5 / seg2Len : 0.5;
+candidates.push({ x: p2[0] + (p3[0] - p2[0]) * t2, y: p2[1] + (p3[1] - p2[1]) * t2 });
 if (points.length >= 5) {
 const p4 = points[4];
-candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+const seg3Len = Math.hypot(p4[0] - p3[0], p4[1] - p3[1]) || 1;
+const t3 = points.length === 5 ? Math.max(0, seg3Len - ARROWHEAD_LEN) * 0.5 / seg3Len : 0.5;
+candidates.push({ x: p3[0] + (p4[0] - p3[0]) * t3, y: p3[1] + (p4[1] - p3[1]) * t3 });
 }
 }
 for (let i = 0; i < points.length - 1; i++) {
@@ -8936,11 +8940,24 @@ by < oy + oh + pad &&
 by + bh > oy - pad
 );
 }
+let arrowBox = null;
+if (points.length >= 2) {
+const tip = points[points.length - 1], prev = points[points.length - 2];
+const dx = tip[0] - prev[0], dy = tip[1] - prev[1], segLen = Math.hypot(dx, dy);
+if (segLen > 1) {
+const depth = Math.min(segLen, ARROWHEAD_LEN + 6);
+const ex = tip[0] - (dx / segLen) * depth, ey = tip[1] - (dy / segLen) * depth;
+arrowBox = { x: Math.min(tip[0], ex), y: Math.min(tip[1], ey), w: Math.abs(tip[0] - ex), h: Math.abs(tip[1] - ey) };
+}
+}
 let fallback = null;
 for (const cand of candidates) {
 const bx = cand.x - lw / 2;
 const by = cand.y - lh / 2;
 let penalty = 0;
+if (arrowBox && BoxOverlap(bx, by, lw, lh, arrowBox.x, arrowBox.y, arrowBox.w, arrowBox.h, 4)) {
+penalty += 900;
+}
 const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
 const softPad = cand.pad ?? 8;
 for (const nb of nodesNear(bx - 9, by - 9, bx + lw + 9, by + lh + 9)) {
@@ -9162,6 +9179,22 @@ const successorPull = (id, laneId) => {
 const ls = outLanes[id];
 return ls ? ls.reduce((s, l) => s + l, 0) / ls.length : (laneIdx[laneId] || 0);
 };
+const trackBarycenter = (id, sub, seen = new Set()) => {
+const preds = revAdj[id] || [];
+if (!preds.length || seen.has(id)) return 0;
+seen.add(id);
+let sum = 0, cnt = 0;
+preds.forEach(p => {
+if (!nodeMap[p]) return;
+const s = (sub && sub[p] !== undefined)
+? (laneIdx[nodeMap[p].laneId] || 0) * 100 + sub[p]
+: trackBarycenter(p, sub, seen) + 0.01;
+sum += s;
+cnt += 1;
+});
+seen.delete(id);
+return cnt ? sum / cnt : 0;
+};
 const placeNodes = (ranks, xs, zero, tight) => {
 const groups = new Map();
 nodes.forEach(n => {
@@ -9175,13 +9208,15 @@ const isTerminal = (n) => !hasOut.has(n.id);
 const sub = {};
 [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
 if (g.list.length > 1) {
+const tbc = new Map(g.list.map(n => [n.id, trackBarycenter(n.id, sub)]));
 const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks, sub)]));
 const pl = new Map(g.list.map(n => [n.id, successorPull(n.id, g.laneId)]));
-g.list.sort((a, b) => (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9
-? bc.get(a.id) - bc.get(b.id)
+g.list.sort((a, b) => (Math.abs(tbc.get(a.id) - tbc.get(b.id)) > 1e-9
+? tbc.get(a.id) - tbc.get(b.id)
 : Math.abs(pl.get(a.id) - pl.get(b.id)) > 1e-9
 ? pl.get(a.id) - pl.get(b.id)
-: (isTerminal(a) ? 1 : 0) - (isTerminal(b) ? 1 : 0)));
+: (isTerminal(a) ? 1 : 0) - (isTerminal(b) ? 1 : 0)
+|| (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9 ? bc.get(a.id) - bc.get(b.id) : 0)));
 }
 g.list.forEach((n, i) => { sub[n.id] = i; });
 });
@@ -9234,9 +9269,10 @@ lanes.forEach(l => { nonEndSubrows[l.id] = 1; });
 nodes.forEach(n => {
 if (!isTerminal(n)) nonEndSubrows[n.laneId] = Math.max(nonEndSubrows[n.laneId] || 1, sub[n.id] + 1);
 });
+const narrowLanes = lanes.length < 3;
 [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
 const stacked = g.list.filter(n => !slid.has(n.id));
-const branchCap = stacked.length > 3 ? 3 : 2;
+const branchCap = narrowLanes ? Math.min(4, Math.max(2, stacked.length)) : (stacked.length > 3 ? 3 : 2);
 const cap = Math.max(branchCap, nonEndSubrows[g.laneId] || 1);
 const terms = stacked.filter(isTerminal);
 const maxSub = stacked.reduce((m, n) => Math.max(m, sub[n.id]), 0);
@@ -9628,14 +9664,16 @@ const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
 if (sl === undefined || dl === undefined) return;
 if (sl === dl) {
 const sameLaneOuts = forwardEdges.filter(x => x.from === e.from && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === sl).length;
-const sideBranch = s.type === 'decision'
+const isLeaf = !edges.some(x => x.from === e.to) && (revAdj[e.to] || []).length === 1;
+const sideBranch = (s.type === 'decision'
 && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
 && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
 || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl)
 || (sameLaneOuts >= 3 && !edges.some(x => x.from === e.to)))
 && (LE.LABEL_ACROSS
 ? (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB
-: sameLaneOuts >= 2);
+: sameLaneOuts >= 2))
+|| (s.type !== 'decision' && sameLaneOuts >= 2 && isLeaf && !(e.label && e.label.trim()));
 if (!sideBranch) return;
 }
 if (cands.some(c => c.k === KEY(e.from, e.to))) return;

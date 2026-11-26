@@ -2351,7 +2351,7 @@ stroke-width: 2px;
 transform: translate(-50%, -50%);
 transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),
 clip-path var(--dur-micro) var(--curve-out);
-clip-path: inset(4.5px 9.5px round 3px);
+clip-path: inset(3.5px 4.5px round 3px);
 }
 .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .is-editing, :focus-within) {
 clip-path: inset(-12px round var(--radius-lg));
