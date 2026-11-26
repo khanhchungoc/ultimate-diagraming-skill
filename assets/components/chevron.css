@@ -12,6 +12,8 @@
     .chevron:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
     .chevron[aria-expanded="false"] svg { transform: rotate(-90deg); }
+    /* The gap that keeps a row without children level with its siblings that have a chevron */
+    .chevron-spacer { flex: none; width: var(--chevron-size); height: 1px; }
     @media (prefers-reduced-motion: reduce) {
       .chevron, .chevron svg { transition: none; }
     }
