@@ -215,7 +215,7 @@ try {
   // Retarget: drag the "to" handle of a selected message to another lifeline
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
-  const toHandle = await t.at('.seq-handle[data-role="to"]');
+  const toHandle = await t.at('[data-handle][data-role="to"]');
   const ware = await lifelineAt('p4', toHandle.y);
   await t.dragTo(toHandle.x, toHandle.y, ware.x, toHandle.y);
   d = await saved();
@@ -312,18 +312,18 @@ try {
   // Drag a frame's bottom edge down one row
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
-  const bottom = await t.at('.seq-handle[data-role="bottom"]');
+  const bottom = await t.at('[data-handle][data-role="bottom"]');
   await t.dragTo(bottom.x, bottom.y, bottom.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
   t.check("a frame edge cannot be dragged to where the frame would cross another (f2 into f1)", d.fragments.find((f) => f.id === 'f2').to === 'm3', JSON.stringify(d.fragments));
   await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
-  const bottom1 = await t.at('.seq-handle[data-role="bottom"]');
+  const bottom1 = await t.at('[data-handle][data-role="bottom"]');
   await t.dragTo(bottom1.x, bottom1.y, bottom1.x, await gapY('m7'), { steps: 8 });
   d = await saved();
   t.check("dragging a frame's bottom handle down takes in the next message", d.fragments.find((f) => f.id === 'f1').to === 'm7', JSON.stringify(d.fragments));
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
-  const top = await t.at('.seq-handle[data-role="top"]');
+  const top = await t.at('[data-handle][data-role="top"]');
   await t.dragTo(top.x, top.y, top.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
   const f1b = d.fragments.find((f) => f.id === 'f1');
@@ -382,7 +382,7 @@ try {
   d = await saved();
   t.check('dragging a note moves it to another row gap and lifeline', d.notes[0].over === 'p3' && d.notes[0].before === 'm5' && d.notes[0].after === undefined, JSON.stringify(d.notes[0]));
   await t.clickOn('.note');
-  const st = await t.at('.seq-handle[data-role="stretch"]');
+  const st = await t.at('[data-handle][data-role="stretch"]');
   const wh = await lifelineAt('p4', st.y);
   await t.dragTo(st.x, st.y, wh.x, st.y);
   d = await saved();
@@ -700,7 +700,7 @@ try {
     (await count('.seq-msg-label')) === 42 && (await count('.frame-tag')) === 7 && (await count('.note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
   // Collapse a phase: its messages hide, the numbers stay
   const num = (id) => t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${id}"] .seq-msg-num')?.textContent`);
-  await t.clickOn('.frame-tag[data-frag-id="f1"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .chevron');
   const sum = await t.ev(`document.querySelector('.frame-summary')?.textContent`);
   t.check('collapsing a frame hides its messages behind one summary row and keeps every step number',
     sum === '9 messages hidden (steps 2–10)' && (await count('.seq-msg-label')) === 33 && (await num('m11')) === '11' && (await num('m1')) === '1', `${sum} ${await count('.seq-msg-label')}`);
@@ -864,7 +864,7 @@ try {
   const gapAt = (a, b) => gapY(a, b);
   // Start handle: drag the Service Bus's start box up to before step 16 (its own first message is step 19)
   await t.clickOn('.seq-participant[data-node-id="bus"]');
-  const hs = await t.at('.seq-handle[data-role="pstart"]');
+  const hs = await t.at('[data-handle][data-role="pstart"]');
   await t.dragTo(hs.x, hs.y, hs.x, await gapAt('m15', 'm16'), { steps: 8 });
   d = await saved();
   t.check('a start handle drags a lifeline earlier: only outward, onto a message id', d.participants.find((q) => q.id === 'bus').start === 'm16', JSON.stringify(d.participants.find((q) => q.id === 'bus')));
@@ -875,13 +875,13 @@ try {
   t.check('deleting the message a start names drops the override', !d.messages.some((m) => m.id === 'm16') && d.participants.every((q) => q.start === undefined || d.messages.some((m) => m.id === q.start)), JSON.stringify(d.participants.find((q) => q.id === 'bus')));
   await t.press('z', { modifiers: 2 });
   await t.clickOn('.seq-participant[data-node-id="bus"]');
-  const hs2 = await t.at('.seq-handle[data-role="pstart"]');
+  const hs2 = await t.at('[data-handle][data-role="pstart"]');
   await t.dragTo(hs2.x, hs2.y, hs2.x, await gapAt('m22', 'm23'), { steps: 8 });
   d = await saved();
   t.check('dragged back inside its own span, the override goes', d.participants.find((q) => q.id === 'bus').start === undefined);
   // End handle: the SPM lifeline (steps 7-16) ends later, at step 23
   await t.clickOn('.seq-participant[data-node-id="spm"]');
-  const he = await t.at('.seq-handle[data-role="pend"]');
+  const he = await t.at('[data-handle][data-role="pend"]');
   await t.dragTo(he.x, he.y, he.x, await gapAt('m23', 'm24'), { steps: 8 });
   d = await saved();
   t.check('an end handle drags the cap down onto a later message', d.participants.find((q) => q.id === 'spm').end === 'm23', JSON.stringify(d.participants.find((q) => q.id === 'spm')));
@@ -896,7 +896,7 @@ try {
     d.participants.find((q) => q.id === 'job').column === 'spm' && sameCol && (await canvasW()) < widthBefore, `${JSON.stringify(d.participants.find((q) => q.id === 'job'))} ${widthBefore} -> ${await canvasW()}`);
   // The end handle may not reach into the other participant's span
   await t.clickOn('.seq-participant[data-node-id="spm"]');
-  const he2 = await t.at('.seq-handle[data-role="pend"]');
+  const he2 = await t.at('[data-handle][data-role="pend"]');
   await t.dragTo(he2.x, he2.y, he2.x, await gapAt('m29', 'm30'), { steps: 8 });
   d = await saved();
   const hint1 = await t.ev(`document.querySelector('.hint')?.textContent`);
@@ -909,7 +909,7 @@ try {
   const hint2 = await t.ev(`document.querySelector('.hint')?.textContent`);
   d = await saved();
   t.check('dropping a box where the lifespans overlap is refused, and the reason names both and the step',
-    d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.dragging')`)), `${hint2}`);
+    d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.is-dragging')`)), `${hint2}`);
   await t.clickOn('.seq-participant[data-node-id="job"]');
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="own"]');
   d = await saved();
@@ -1013,7 +1013,7 @@ try {
   const dimmed = await count('.search-dim');
   await t.clickOn('#btn-present');
   t.check('sequence: entering Present closes and clears the search', dimmed > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   await t.press('Escape');
   t.check('sequence: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
@@ -1030,7 +1030,7 @@ try {
       && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
   }
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   const presentCollapsed = await count('.frame-summary');
   const badge = await t.ev(`document.getElementById('save-status').textContent`);
   await t.clickOn('.frame-summary');

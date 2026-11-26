@@ -278,6 +278,26 @@
           tpl.innerHTML = icon(name, o);
           return tpl.content.firstChild;
         }
+        // The collapse toggle every type uses (components/chevron.css): { expanded, label } -> <button class="chevron">. The rotation follows
+        // aria-expanded, so the caller only flips that attribute (and the title) when the state changes; it adds its own click handler.
+        function chevron(o) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chevron';
+          b.title = o.label;
+          b.setAttribute('aria-label', o.label);
+          b.setAttribute('aria-expanded', String(!!o.expanded));
+          b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+          return b;
+        }
+        // The connection handle every type uses (components/port.css): side = top | right | bottom | left, or end (a line's end handle, always shown).
+        // The caller positions it (a type's CSS sets left / top) and adds its own pointer handler; it is never exported.
+        function port(side) {
+          const p = document.createElement('span');
+          p.className = `port port-${side}`;
+          p.dataset.exportSkip = '';
+          return p;
+        }
         let confirmEl = null;
         function closeConfirm() {
           if (!confirmEl) return false;
@@ -521,7 +541,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---

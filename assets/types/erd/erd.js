@@ -29,7 +29,6 @@
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
       const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
       const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
-      const ERD_CHEVRON_ICON = ui.icon('chevron-down', { size: 'sm', bold: true });
       const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 
       // --- STATE ---
@@ -320,7 +319,7 @@
         } finally { erdInRender = false; }
         if (snap) erdPlay(snap, m);
         if (m && m.collapseId && motion.enabled()) {
-          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.erd-chevron svg');
+          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.chevron svg');
           if (ent && chev) {
             const on = ent.collapsed === true;
             motion.anim(chev, [{ transform: on ? 'rotate(0deg)' : 'rotate(-90deg)' }, { transform: on ? 'rotate(-90deg)' : 'none' }],
@@ -345,6 +344,7 @@
         const showTypes = chartData.showTypes !== false;
         const vis = erVisibleColumns(e, chartData);
         const el = erdHtmlEl('div', 'erd-entity');
+        el.dataset.item = '';
         if (asCard) {
           el.classList.add('erd-card-table');
           el.style.minWidth = `${box.w}px`;
@@ -367,13 +367,8 @@
         head.appendChild(name);
         if (!asCard) head.appendChild(buildPort(''));
         if (!asCard && (e.columns || []).length && detail !== 'names') {
-          const chev = erdHtmlEl('button', 'erd-chevron');
-          chev.type = 'button';
+          const chev = ui.chevron({ expanded: e.collapsed !== true, label: e.collapsed ? 'Expand this table' : 'Collapse this table to its header' });
           chev.dataset.exportSkip = '';
-          chev.title = e.collapsed ? 'Expand this table' : 'Collapse this table to its header';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(e.collapsed !== true));
-          chev.innerHTML = ERD_CHEVRON_ICON;
           chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
           chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(e.id); });
           head.appendChild(chev);
@@ -484,7 +479,7 @@
           const b = rel.labelBox;
           const text = rel.label === undefined || rel.label === null ? '' : String(rel.label);
           if (!b || !text) return;
-          const el = erdHtmlEl('div', 'edge-label');
+          const el = erdHtmlEl('div', 'edge-label edge-label--single');
           el.dataset.edgeId = rel.id;
           el.style.left = `${b.x}px`;
           el.style.top = `${b.y}px`;
@@ -655,17 +650,17 @@
       // there are no ports: a drag moves them all.
       function markTouchPorts() {
         const many = isMultiSelected();
-        erdCanvas.classList.toggle('erd-multi', many);
-        erdCanvas.querySelectorAll('.erd-port[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
+        erdCanvas.classList.toggle('is-multi', many);
+        erdCanvas.querySelectorAll('.port:not(.port-end)[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
         const id = !many && !erdPresenting() ? erdSelectedEntityId() : null;
         const el = id && entityEl(id);
-        if (el) el.querySelectorAll('.erd-port').forEach((p) => p.setAttribute('data-touch-drag', ''));
+        if (el) el.querySelectorAll('.port:not(.port-end)').forEach((p) => p.setAttribute('data-touch-drag', ''));
         el && el.classList.add('touch-ports');
         erdCanvas.querySelectorAll('.erd-entity.touch-ports').forEach((x) => { if (x !== el) x.classList.remove('touch-ports'); });
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';
       }
       const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
-      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);
+      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
 
       // Selecting changes classes and the tools drawn on the selection, never the tables themselves: the second click
       // of a double-click must land on the element the first one did
@@ -1408,7 +1403,7 @@
         if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
         if (!d.moved) {
           d.moved = true;
-          document.body.classList.add('erd-dragging');
+          document.body.classList.add('erd-dragging', 'is-dragging');
           hoverEntityId = null;
           hoverRelId = null;
           applyHighlight();
@@ -1421,7 +1416,7 @@
         window.removeEventListener('pointermove', onDragMove);
         window.removeEventListener('pointerup', onDragUp);
         window.removeEventListener('pointercancel', cancelDrag);
-        document.body.classList.remove('erd-dragging');
+        document.body.classList.remove('erd-dragging', 'is-dragging');
         erdRubber.style.display = 'none';
         erdDropLine.style.display = 'none';
         erdGuideV.style.display = 'none';
@@ -1449,9 +1444,8 @@
       // --- ACTION BAR, HANDLES, PORTS ---
       // =====================================================================================================
       function buildPort(col) {
-        const p = erdHtmlEl('span', 'erd-port');
+        const p = ui.port('right');
         p.dataset.col = col;
-        p.dataset.exportSkip = '';
         p.title = col ? 'Drag to another table or column to relate them' : 'Drag to another table to relate them';
         return p;
       }
@@ -1482,10 +1476,9 @@
         return at(0.5);   // a line shorter than the gap: the middle
       }
       function addHandle(role, id, x, y) {
-        const h = erdHtmlEl('div', 'erd-handle');
+        const h = ui.port('end');
         h.dataset.role = role;
         h.dataset.id = id;
-        h.dataset.exportSkip = '';
         h.setAttribute('data-touch-drag', '');   // a finger may drag it (the shell's touch rule)
         h.title = role === 'from' ? 'Drag to another table or column to move the child end' : 'Drag to another table or column to move the parent end';
         Object.assign(h.style, { left: erdPx(x), top: erdPx(y) });
@@ -1501,7 +1494,7 @@
         const sameBar = barKey !== null && barKey === lastBarKey;
         lastBarKey = barKey;
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
+        erdHtml.querySelectorAll('.port-end').forEach((el) => el.remove());
         if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
         if (erdSel.kind !== 'rel') lastHandleRelId = null;
         const bar = ui.actionBar('erd-actionbar');
@@ -1558,7 +1551,7 @@
           addHandle('from', rel.id, hFrom[0], hFrom[1]);
           addHandle('to', rel.id, hTo[0], hTo[1]);
           if (lastHandleRelId !== erdSel.id && motion.enabled()) {
-            erdHtml.querySelectorAll('.erd-handle').forEach((h) => {
+            erdHtml.querySelectorAll('.port-end').forEach((h) => {
               motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-spring-tactile') });
             });
           }
@@ -1718,18 +1711,18 @@
         if (!(t instanceof Element) || t.isContentEditable) return;
         const entEl = t.closest('.erd-entity');
         if (erdPresenting()) {   // read only: selecting a table is all a press does
-          if (entEl && !t.closest('.erd-chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
+          if (entEl && !t.closest('.chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
           return;
         }
-        if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
-        const handle = t.closest('.erd-handle');
+        if (t.closest('.erd-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
+        const handle = t.closest('.port-end');
         if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
         if (!entEl || t.closest('.note')) return;
         const id = entEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); const nr = t.closest('.erd-row'); giveNoteTo(id, nr ? nr.dataset.col : null); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
         // MULTI-SELECT: Ctrl/Cmd/Shift+click adds the table or takes it out; it never starts a drag
-        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port:not(.port-end)')) { e.preventDefault(); toggleEntity(id); return; }
         // A table of several selected: a press anywhere on it (ports are hidden) drags them all
         const group = isMultiSelected() && selectedEntityIds().includes(id) ? selectedEntityIds() : null;
         if (group) {
@@ -1737,7 +1730,7 @@
           beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
           return;
         }
-        const port = t.closest('.erd-port'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
+        const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
         if (port) {
           const from = { entity: id, col: port.dataset.col || null };
           beginDrag(e, connectDrag(from, () => (from.col ? selectCol(id, from.col) : selectEntity(id))));
@@ -2106,7 +2099,7 @@
         let box = labelEl(id);
         if (!box) {
           const mid = relMid(rel);
-          box = erdHtmlEl('div', 'edge-label');
+          box = erdHtmlEl('div', 'edge-label edge-label--single');
           box.dataset.edgeId = id;
           box.dataset.exportSkip = '';
           Object.assign(box.style, { left: erdPx(mid.x - 44), top: erdPx(mid.y - 11), width: '88px', height: '22px' });
@@ -2130,7 +2123,7 @@
       erdHtml.addEventListener('dblclick', (e) => {
         if (erdPresenting()) return;
         const t = e.target;
-        if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .erd-port, .erd-handle, .note')) return;
+        if (t.closest('.erd-actionbar, .chevron, .note-badge, .port, .note')) return;
         if (t.isContentEditable) return;
         const label = t.closest('.edge-label');
         if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }

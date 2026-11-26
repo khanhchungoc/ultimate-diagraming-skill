@@ -1,1 +1,19 @@
-    /* chevron: shared component, filled in by plan-review-fixes Phase 5 (stream B2). */
+    /* Chevron: the one collapse toggle (ui.chevron in shell.js). A <button class="chevron" aria-expanded> holding the chevron icon; it points
+       down open and turns to point right when aria-expanded="false". Types may only place or resize it (margin, position, flex), never restyle it.
+       The visible box is --chevron-size; an invisible ::before grows the hit area to --hit-min. */
+    .chevron {
+      position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: var(--chevron-size); height: var(--chevron-size); padding: 0; border: none; border-radius: var(--radius-md);
+      background: transparent; color: var(--text-soft); cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+    }
+    .chevron::before { content: ''; position: absolute; inset: min(0px, calc((var(--chevron-size) - var(--hit-min)) / 2)); }
+    .chevron:hover { background: var(--bg-hover); color: var(--text-main); }
+    .chevron:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
+    .chevron[aria-expanded="false"] svg { transform: rotate(-90deg); }
+    /* The gap that keeps a row without children level with its siblings that have a chevron */
+    .chevron-spacer { flex: none; width: var(--chevron-size); height: 1px; }
+    @media (prefers-reduced-motion: reduce) {
+      .chevron, .chevron svg { transition: none; }
+    }

@@ -368,17 +368,12 @@
         fs.forEach((f) => {
           if (f.x === undefined) return;
           const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
-          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
+          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box item-shape', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
           // The border selects the frame (an 8px hit stroke); the inside stays click-through
           seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
           const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
           tag.dataset.fragId = f.id;
-          const chev = htmlEl('button', 'frame-chev');
-          chev.type = 'button';
-          chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(!f.collapsed));
-          chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+          const chev = ui.chevron({ expanded: !f.collapsed, label: f.collapsed ? 'Expand this frame' : 'Collapse this frame' });
           tag.appendChild(chev);
           if (f.kind !== 'group') {
             const kind = htmlEl('span', 'seq-frag-kind');
@@ -401,7 +396,7 @@
           }
           seqHtml.appendChild(tag);
           (f.dividers || []).forEach((d) => {
-            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
+            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else item-shape', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
             seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
             if (d.label) {
               const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
@@ -443,7 +438,7 @@
           seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
           seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
-          if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
+          if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap item-shape', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
           const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
@@ -511,7 +506,7 @@
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
-          seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
+          seqMsgG.appendChild(svgEl('path', { class: `seq-line item-shape${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
           const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
           label.dataset.edgeId = m.id;
@@ -637,7 +632,7 @@
           // Frame chevron rotations, number badge unfolds, participant kind icon morphs, swatch colour tweens
           fs.forEach((f) => {
             if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
-            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
+            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .chevron svg`);
             if (chev) motion.anim(chev, [
               { transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
               { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
@@ -1188,7 +1183,7 @@
       function participantDrag(id, el) {
         return {
           move(pt, d) {
-            el.classList.add('dragging');
+            el.classList.add('is-dragging');
             el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
             const ps = chartData.participants, me = partById(id), L = chartData.layout;
             const others = ps.filter((p) => p.id !== id);
@@ -1262,7 +1257,7 @@
           move(pt, d) {
             const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
             if (el) {
-              el.classList.add('dragging');
+              el.classList.add('is-dragging');
               el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
             }
             const m = msgById(id);
@@ -1640,8 +1635,8 @@
       function onSeqPointerDown(e) {
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
-        const handle = e.target.closest('.seq-handle');
+        if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        const handle = e.target.closest('[data-handle]');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
         // DRAW FROM A LIFELINE: a drag from a lifeline or an activation bar draws a message from the nearest row gap
@@ -1683,7 +1678,10 @@
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
       const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
-        const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+        // A message's end is the shared end handle (ui.port); the other handles resize a bar, a frame or a note (.seq-grip)
+        const h = extraClass === 'seq-end' ? ui.port('end') : htmlEl('div', `seq-grip ${extraClass || ''}`.trim());
+        Object.assign(h.style, { left: px(x), top: px(y) });
+        h.dataset.handle = '';   // every handle drawn on the selection, whichever look it has
         h.dataset.role = role;
         h.dataset.id = id;
         h.dataset.exportSkip = '';
@@ -1701,11 +1699,11 @@
         lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
           if (oldBar) motion.hideBar(oldBar);
-          seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+          seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
           return;
         }
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+        seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
@@ -2106,7 +2104,7 @@
       }
       function onSeqDblClick(e) {
         if (isPresent()) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
+        if (e.target.closest('.chevron, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
         const kl = e.target.closest('.color-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
@@ -2234,8 +2232,8 @@
       seqHtml.addEventListener('click', (e) => {
         if (e.target.isContentEditable) return;
         const btn = e.target.closest(isPresent()
-          ? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
-          : '.frame-chev, .frame-summary, .seq-frag-focus');
+          ? '.chevron, .frame-summary, .seq-frag-focus, .frame-tag'
+          : '.chevron, .frame-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;

@@ -31,7 +31,7 @@ const SELECTORS = {
   frame: '.c4-group.is-frame',                        // an open group (data-group-id)
   tile: '.c4-group.is-tile',                          // a collapsed group
   tag: '.c4-group .frame-tag',                        // the title tag of a frame
-  chevron: '.frame-chev',                             // collapse / expand button (aria-expanded)
+  chevron: '.chevron',                             // collapse / expand button (aria-expanded)
   edge: '.c4-edge',                                   // an arrow (g, data-edge-id)
   edgeHit: '.c4-edge .edge-hit',                      // its hit path
   label: '.edge-label.c4-label',                      // a label pill (data-edge-id)
@@ -185,7 +185,7 @@ try {
     const r = await t.at(s);
     await t.mouse('mouseMoved', r.x, r.y);
     await sleep(160);
-    return t.at(`${s.split(',')[0]} .c4-port${side ? `[data-side="${side}"]` : ''}`);
+    return t.at(`${s.split(',')[0]} .port${side ? `[data-side="${side}"]` : ''}`);
   };
   const fit = async () => { await t.clickOn('#btn-zoom-reset'); await sleep(200); await t.settle(); };
   const connect = async (from, to) => {
@@ -248,13 +248,13 @@ try {
       !!readsPill && !!mailPill && !!ordersPill && readsPill.w < mailPill.w && readsPill.pt >= 3 && readsPill.pb >= 3 && ordersPill.h > readsPill.h && !readsPill.inlineW && !readsPill.inlineH,
       J(pillMetrics));
     // connector anchor circles match Flowchart: hidden at rest, visible on hover, 16px diameter centered on edge
-    const portRest = await t.ev(`(() => { const p = document.querySelector('.c4-node .c4-port[data-side="N"]'); const cs = getComputedStyle(p); return { op: cs.opacity, pe: cs.pointerEvents, w: cs.width, h: cs.height, bw: cs.borderTopWidth, bs: cs.boxSizing }; })()`);
+    const portRest = await t.ev(`(() => { const p = document.querySelector('.c4-node .port[data-side="N"]'); const cs = getComputedStyle(p); return { op: cs.opacity, pe: cs.pointerEvents, w: cs.width, h: cs.height, bw: cs.borderTopWidth, bs: cs.boxSizing }; })()`);
     t.check('connector ports are hidden at rest and use Flowchart 12px content-box + 2px border styling',
       portRest.op === '0' && portRest.pe === 'none' && portRest.w === '12px' && portRest.h === '12px' && portRest.bw === '2px' && portRest.bs === 'content-box', J(portRest));
     const custPt = await t.at(await sel('Customer'));
     await t.mouse('mouseMoved', custPt.x, custPt.y);
     await sleep(180);
-    const portHover = await t.ev(`(() => { const n = document.querySelector('.c4-node[data-kind="person"]'), p = n.querySelector('.c4-port[data-side="N"]'); const cs = getComputedStyle(p), nr = n.getBoundingClientRect(), pr = p.getBoundingClientRect(); return { op: cs.opacity, pe: cs.pointerEvents, cx: Math.abs((pr.left + pr.width / 2) - (nr.left + nr.width / 2)), cy: Math.abs((pr.top + pr.height / 2) - nr.top) }; })()`);
+    const portHover = await t.ev(`(() => { const n = document.querySelector('.c4-node[data-kind="person"]'), p = n.querySelector('.port[data-side="N"]'); const cs = getComputedStyle(p), nr = n.getBoundingClientRect(), pr = p.getBoundingClientRect(); return { op: cs.opacity, pe: cs.pointerEvents, cx: Math.abs((pr.left + pr.width / 2) - (nr.left + nr.width / 2)), cy: Math.abs((pr.top + pr.height / 2) - nr.top) }; })()`);
     t.check('hovering a card reveals edge-centered anchor circles',
       portHover.op === '1' && portHover.pe === 'auto' && portHover.cx < 1.5 && portHover.cy < 1.5, J(portHover));
     await t.mouse('mouseMoved', 5, 5);
@@ -548,7 +548,7 @@ try {
     const readsPt = await t.ev(`(() => { const el = [...document.querySelectorAll('.c4-label')].find((x) => x.textContent.includes('Reads')); const r = el.querySelector('.c4-label-text').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     await t.click(readsPt.x, readsPt.y, { count: 2 });
     await sleep(200);
-    t.check('double-click on connector label edits inline inside .c4-label-text', (await editing()) === 'Reads' && (await present('.c4-label.editing .c4-label-text.is-editing')), `${await editing()}`);
+    t.check('double-click on connector label edits inline inside .c4-label-text', (await editing()) === 'Reads' && (await present('.c4-label.is-editing .c4-label-text.is-editing')), `${await editing()}`);
     await t.press('a', { modifiers: 2 });
     await t.type('Queries');
     await t.press('Enter');
@@ -834,11 +834,11 @@ try {
     const startUndoOff = await undoOff();
     await fit();
     const hover = await portOf('Customer');
-    t.check('hovering a tile shows connect ports (.c4-port)', !!hover && (await count(`${await sel('Customer')} .c4-port`.replace(/, /, ' .c4-port, ') )) >= 1);
+    t.check('hovering a tile shows connect ports (.port)', !!hover && (await count(`${await sel('Customer')} .port`.replace(/, /, ' .port, ') )) >= 1);
     // Esc cancels the whole connection
     await connect('Customer', 'Order Store');
     t.check('a port drag onto another tile opens inline label editing inside .c4-label-text',
-      (await present('.c4-label.editing .c4-label-text.is-editing')) && (await t.ev(`document.activeElement && document.activeElement.matches('.c4-label-text.is-editing')`)) && !(await present(A.bar)),
+      (await present('.c4-label.is-editing .c4-label-text.is-editing')) && (await t.ev(`document.activeElement && document.activeElement.matches('.c4-label-text.is-editing')`)) && !(await present(A.bar)),
       `${await present('.c4-label-text.is-editing')}`);
     await t.press('Escape');
     await sleep(300); await t.settle(1500);
@@ -1248,7 +1248,7 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
   // --- present mode ------------------------------------------------------------------------------------------
   await section('present', async () => {
     await freshPage(page, '?present');
-    t.check('?present: no dock to add, no connect ports, no delete', !(await t.ev(`!!document.querySelector('#btn-add') && getComputedStyle(document.querySelector('.toolbar-center')).display !== 'none' && document.querySelector('#btn-add').getBoundingClientRect().width > 0`)) && (await t.ev(`[...document.querySelectorAll('.c4-port')].filter((e) => e.getBoundingClientRect().width > 0).length`)) === 0);
+    t.check('?present: no dock to add, no connect ports, no delete', !(await t.ev(`!!document.querySelector('#btn-add') && getComputedStyle(document.querySelector('.toolbar-center')).display !== 'none' && document.querySelector('#btn-add').getBoundingClientRect().width > 0`)) && (await t.ev(`[...document.querySelectorAll('.port')].filter((e) => e.getBoundingClientRect().width > 0).length`)) === 0);
     await clickName('Customer');
     t.check('?present: a click does not open the action bar', !(await present(A.bar)));
     await t.press('Delete');

@@ -331,52 +331,6 @@
   height: 100%;
 }
 
-.gt-chevron {
-  position: relative;
-  flex: none;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform var(--dur-micro) var(--curve-out),
-              background-color var(--dur-micro) var(--curve-out),
-              color var(--dur-micro) var(--curve-out);
-}
-
-.gt-chevron::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-}
-
-.gt-chevron:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
-}
-
-.gt-chevron.is-collapsed svg {
-  transform: rotate(-90deg);
-}
-
-.gt-chevron svg {
-  width: 12px;
-  height: 12px;
-  display: block;
-}
-
-.gt-chevron-spacer {
-  flex: none;
-  width: 12px;
-  height: 20px;
-}
-
 .gt-kind-dot {
   flex: none;
   width: 7px;

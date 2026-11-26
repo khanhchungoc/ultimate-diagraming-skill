@@ -222,7 +222,7 @@ try {
     const snapshot = () => cdp.ev(`(() => {
       const rows = [...document.querySelectorAll('#gantt-tree .gantt-tree-row')].map(r => r.dataset.itemId);
       const bars = [...document.querySelectorAll('#gantt-bars [data-item-id]')].map(b => b.dataset.itemId);
-      const chev = document.querySelector('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+      const chev = document.querySelector('.gantt-tree-row[data-item-id="plat"] .chevron');
       return {
         rowCount: rows.length,
         rows,
@@ -239,7 +239,7 @@ try {
       `rows=${before.rows.join(',')}`
     );
 
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const collapsed = await snapshot();
     cdp.check('collapse: plat aria-expanded becomes false', collapsed.expanded === 'false', `expanded=${collapsed.expanded}`);
@@ -254,7 +254,7 @@ try {
       `before=${before.rowCount} after=${collapsed.rowCount}`
     );
 
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const expanded = await snapshot();
     cdp.check('collapse: re-expanding sets aria-expanded="true"', expanded.expanded === 'true', `expanded=${expanded.expanded}`);
@@ -605,7 +605,7 @@ try {
         addVisible: visible('#btn-add'),
         addInlineVisible: visible('#btn-add-inline'),
         resizeHandles: document.querySelectorAll('.gantt-resize').length,
-        ports: document.querySelectorAll('.gantt-port').length,
+        ports: document.querySelectorAll('.port').length,
         zoomBefore: document.getElementById('gantt-root')?.getAttribute('data-zoom') || '',
         rowsBefore: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
       };
@@ -624,10 +624,10 @@ try {
     cdp.check('present: zoom works (#gantt-zoom-pills changes month -> week)', pres.zoomBefore === 'month' && zoomAfter === 'week', `${pres.zoomBefore}->${zoomAfter}`);
 
     // Collapse & expand still works in ?present mode
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const rowsCollapsed = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
-    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .gantt-chevron');
+    await cdp.clickOn('.gantt-tree-row[data-item-id="plat"] .chevron');
     await cdp.settle();
     const rowsRestored = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
     cdp.check(

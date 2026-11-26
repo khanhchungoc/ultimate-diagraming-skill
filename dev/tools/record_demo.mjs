@@ -489,7 +489,7 @@ async function runSequenceExample(t, d) {
 
   // 1. Collapse the "opt stock available" frame, pause, then expand it back
   const frameChev = await t.ev(`(() => {
-    const list = [...document.querySelectorAll('.frame-chev')].map(e => {
+    const list = [...document.querySelectorAll('.chevron')].map(e => {
       const r = e.getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     }).filter(p => p.y > 100 && p.y < 600).sort((a, b) => a.y - b.y);
@@ -622,7 +622,7 @@ async function runErdExample(t, d) {
   if (newTableHead) {
     await d.glideTo(newTableHead.x, newTableHead.y, { frames: 7, stepMs: 62 });
     await d.hold(180, 65);
-    const port = await t.at(`.erd-entity[data-node-id="${newTableHead.id}"] .erd-head .erd-port`);
+    const port = await t.at(`.erd-entity[data-node-id="${newTableHead.id}"] .erd-head .port:not(.port-end)`);
     const orderHead = await t.at('.erd-entity[data-node-id="order"] .erd-head');
     if (port && orderHead) {
       await d.glideTo(port.x, port.y, { frames: 5, stepMs: 60 });
@@ -714,13 +714,13 @@ async function runUsecaseExample(t, d) {
   }
 
   // 3. Collapse and expand the Library system subject frame
-  const chev = await t.at('.frame-chev');
+  const chev = await t.at('.chevron');
   if (chev) {
     await d.glideTo(chev.x, chev.y, { frames: 8, stepMs: 62 });
     await d.clickHere({ count: 1 });
     await d.hold(450, 70);
     await d.pause(650);
-    const chev2 = await t.at('.frame-chev');
+    const chev2 = await t.at('.chevron');
     if (chev2) {
       await d.glideTo(chev2.x, chev2.y, { frames: 6, stepMs: 60 });
       await d.clickHere({ count: 1 });
@@ -747,7 +747,7 @@ async function runC4Example(t, d) {
   await d.pause(600);
 
   // 1. Collapse "Order Platform" to one box, hold, then expand it back
-  const chevSel = '.frame-chev[aria-label*="Order Platform"]';
+  const chevSel = '.chevron[aria-label*="Order Platform"]';
   const chev1 = await t.at(chevSel);
   if (chev1) {
     d.camera(1.3, chev1.x + 70, chev1.y + 70, 0.28);

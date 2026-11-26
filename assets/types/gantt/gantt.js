@@ -847,12 +847,7 @@
 
       // Collapse/expand chevron
       if (it._hasChildren || it.kind === 'group') {
-        const chev = htmlEl('button', 'gantt-chevron');
-        chev.type = 'button';
-        chev.setAttribute('aria-expanded', String(!it.collapsed));
-        chev.setAttribute('aria-label', it.collapsed ? `Expand ${it.label || it.id}` : `Collapse ${it.label || it.id}`);
-        chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
-        if (it.collapsed) chev.classList.add('is-collapsed');
+        const chev = ui.chevron({ expanded: !it.collapsed, label: it.collapsed ? `Expand ${it.label || it.id}` : `Collapse ${it.label || it.id}` });
         chev.addEventListener('pointerdown', (e) => e.stopPropagation());
         chev.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -860,7 +855,7 @@
         });
         row.appendChild(chev);
       } else {
-        row.appendChild(htmlEl('span', 'gantt-chevron-spacer'));
+        row.appendChild(htmlEl('span', 'chevron-spacer'));
       }
 
       // Kind indicator dot / diamond
@@ -962,16 +957,14 @@
 
         if (edit) {
           ms.setAttribute('data-touch-drag', '1');
-          const portL = htmlEl('span', 'gantt-port gantt-port-l');
+          const portL = ui.port('left');
           portL.dataset.port = 'ss';
           portL.title = 'Drag to connect (Start-to-Start)';
-          portL.setAttribute('data-export-skip', '');
           portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
 
-          const portR = htmlEl('span', 'gantt-port gantt-port-r');
+          const portR = ui.port('right');
           portR.dataset.port = 'fs';
           portR.title = 'Drag to connect (Finish-to-Start)';
-          portR.setAttribute('data-export-skip', '');
           portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
 
           ms.append(portL, portR);
@@ -994,6 +987,7 @@
 
       // Task bar or Parent summary bar (never render task text inside bars; sidebar is frozen)
       const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
+      if (!isParent) bar.dataset.item = '';   // a summary bar is a bracket, not a box: it keeps its own states
       bar.dataset.itemId = it.id;
       bar.dataset.nodeId = it.id;
       bar.dataset.kind = isParent ? 'group' : 'task';
@@ -1043,16 +1037,14 @@
       }
 
       if (edit) {
-        const portL = htmlEl('span', 'gantt-port gantt-port-l');
+        const portL = ui.port('left');
         portL.dataset.port = 'ss';
         portL.title = 'Drag to connect (Start-to-Start)';
-        portL.setAttribute('data-export-skip', '');
         portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
 
-        const portR = htmlEl('span', 'gantt-port gantt-port-r');
+        const portR = ui.port('right');
         portR.dataset.port = 'fs';
         portR.title = 'Drag to connect (Finish-to-Start)';
-        portR.setAttribute('data-export-skip', '');
         portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
 
         bar.append(portL, portR);
@@ -4447,7 +4439,8 @@
         return sw.solid || sw.border || sw.fill;
       },
       toast: (msg) => ui.toast(msg),
-      icon: (name, opts) => ui.iconEl(name, opts)
+      icon: (name, opts) => ui.iconEl(name, opts),
+      chevron: (o) => ui.chevron(o)
     });
   }
 

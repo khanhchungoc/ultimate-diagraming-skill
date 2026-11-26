@@ -1731,11 +1731,8 @@
         taskWrap.style.paddingLeft = `${meta.depth * 14}px`;
 
         if (isParentWithKids) {
-          const chevBtn = el('button', 'gt-chevron' + (it.collapsed ? ' is-collapsed' : ''));
-          chevBtn.type = 'button';
-          chevBtn.title = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
-          chevBtn.setAttribute('aria-label', it.collapsed ? 'Expand subtasks' : 'Collapse subtasks');
-          chevBtn.appendChild(makeIcon(api, 'chevron-down', { size: 12 }, '▾'));
+          const chevLabel = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
+          const chevBtn = api.chevron({ expanded: !it.collapsed, label: chevLabel });
           chevBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             it.collapsed = !it.collapsed;
@@ -1743,7 +1740,7 @@
           });
           taskWrap.appendChild(chevBtn);
         } else {
-          taskWrap.appendChild(el('span', 'gt-chevron-spacer'));
+          taskWrap.appendChild(el('span', 'chevron-spacer'));
         }
 
         const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isGroup ? ' is-group' : ''));
