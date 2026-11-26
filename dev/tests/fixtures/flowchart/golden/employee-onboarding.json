@@ -215,7 +215,7 @@
       "type": "end",
       "label": "Offer Withdrawn",
       "x": 2509,
-      "y": 32
+      "y": 248
     },
     {
       "id": "record_exception",
@@ -223,7 +223,7 @@
       "type": "task",
       "label": "Record Exception",
       "x": 2509,
-      "y": 248
+      "y": 32
     },
     {
       "id": "clear_candidate",
