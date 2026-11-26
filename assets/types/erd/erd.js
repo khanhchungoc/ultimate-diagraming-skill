@@ -651,10 +651,10 @@
       function markTouchPorts() {
         const many = isMultiSelected();
         erdCanvas.classList.toggle('is-multi', many);
-        erdCanvas.querySelectorAll('.port[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
+        erdCanvas.querySelectorAll('.port:not(.port-end)[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
         const id = !many && !erdPresenting() ? erdSelectedEntityId() : null;
         const el = id && entityEl(id);
-        if (el) el.querySelectorAll('.port').forEach((p) => p.setAttribute('data-touch-drag', ''));
+        if (el) el.querySelectorAll('.port:not(.port-end)').forEach((p) => p.setAttribute('data-touch-drag', ''));
         el && el.classList.add('touch-ports');
         erdCanvas.querySelectorAll('.erd-entity.touch-ports').forEach((x) => { if (x !== el) x.classList.remove('touch-ports'); });
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';

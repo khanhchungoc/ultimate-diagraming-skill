@@ -100,6 +100,7 @@
       font-weight: var(--t-title-weight);
       line-height: var(--line-20);
     }
+    .erd-head .chevron { margin-right: 4px; }   /* clear of the note badge on the corner: their 24px hit areas must not overlap (WCAG 2.5.8) */
     .erd-row {
       position: relative;
       display: flex;
