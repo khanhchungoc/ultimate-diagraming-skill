@@ -101,8 +101,15 @@
   let selMarkerId = null;          // selected chart-wide vertical marker ID
   let selDepKey = null;            // selected dependency key `${from}|${to}|${type}`
   let selNoteId = null;            // selected note ID
-  let editingNoteId = null;        // note currently open for typing
-  let noteDraft = null;            // { id, isNew, wasOn, before }
+  const noteCtl = createNotes({    // the note currently open for typing
+    data: () => chartData,
+    cardOf: (id) => els.notes.get(id),
+    canEdit: () => !presenting(),
+    openCard: (n) => els.notes.get(n.id),
+    clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
+    render: ({ reason }) => { if (reason !== 'same') render(); },
+    onChange: () => updateStatus(true),
+  });
   let peekNoteItemId = null;       // item ID whose note is being peeked on hover/click
   let hoveredItemId = null;        // item ID currently hovered for dependency chain spotlight
   let hoveredRowId = null;         // item ID currently hovered for synchronized row highlight
@@ -1420,7 +1427,7 @@
     if (!n || !n.target) return false;
     const it = itemById(n.target);
     if (!it || it._hidden || !it._bar) return false;
-    if (n.id === editingNoteId) return true;
+    if (n.id === noteCtl.editingId()) return true;
     if (chartData.showNotes === true && n.text && n.text.trim()) return true;
     if (peekNoteItemId === n.target && n.text && n.text.trim()) return true;
     return false;
@@ -1531,62 +1538,15 @@
     if (!Array.isArray(chartData.notes)) chartData.notes = [];
     const note = { id: newId('n'), text: '', target: it.id };
     chartData.notes.push(note);
-    noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
-    editingNoteId = note.id;
+    noteCtl.begin(note, true);
     peekNoteItemId = it.id;
     render();
     editNote(note.id);
   }
 
-  function editNote(id) {
-    const n = noteById(id);
-    const card = els.notes.get(id);
-    if (!n || !card || presenting()) return;
-    if (editingNoteId !== id || !noteDraft) {
-      noteDraft = { id, isNew: false, wasOn: chartData.showNotes === true, before: (n.text || '').trim() };
-    }
-    editingNoteId = id;
-    const text = card.querySelector('.note-text');
-    if (!text) return;
-    text.contentEditable = 'true';
-    text.focus();
-    const range = document.createRange();
-    range.selectNodeContents(text);
-    range.collapse(false);
-    const s = window.getSelection();
-    s.removeAllRanges();
-    s.addRange(range);
-  }
-
-  function commitNote(n, textEl) {
-    textEl.contentEditable = 'false';
-    if (editingNoteId !== n.id) return;
-    const draft = noteDraft;
-    editingNoteId = null;
-    noteDraft = null;
-    const val = textEl.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-    if (!val) {
-      removeNote(n.id, !(draft && draft.isNew));
-      return;
-    }
-    if (val === (draft ? draft.before : (n.text || '').trim())) {
-      textEl.textContent = n.text;
-      return;
-    }
-    n.text = val;
-    textEl.textContent = val;
-    render();
-    updateStatus(true);
-  }
-
-  function removeNote(id, pushUndo = true) {
-    chartData.notes = notesList().filter((n) => n && n.id !== id);
-    if (!chartData.notes.length) delete chartData.notes;
-    if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
-    if (selNoteId === id) selNoteId = null;
-    render();
-    if (pushUndo) updateStatus(true);
-  }
+  function editNote(id) { noteCtl.edit(id); }
+  function commitNote(n, textEl) { noteCtl.commit(n, textEl); }
+  function removeNote(id, pushUndo = true) { noteCtl.remove(id, pushUndo); }
 
   function setHoveredRow(id) {
     const next = id || null;
@@ -1616,7 +1576,7 @@
     }
     syncDepSpotlight();
 
-    if (chartData.showNotes === true || editingNoteId) return;
+    if (chartData.showNotes === true || noteCtl.editingId()) return;
     if (entering && noteForTarget(itemId)) {
       if (peekNoteItemId !== itemId) {
         peekNoteItemId = itemId;
@@ -4086,14 +4046,6 @@
     }
     if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
       toggleLegendPop(false, false);
-    }
-    if (editingNoteId) {
-      const card = els.notes.get(editingNoteId);
-      if (card && !card.contains(e.target)) {
-        const textEl = card.querySelector('.note-text');
-        const n = noteById(editingNoteId);
-        if (textEl && n) { textEl.blur(); commitNote(n, textEl); }
-      }
     }
   }, true);
 
