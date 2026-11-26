@@ -2,9712 +2,8632 @@
       'use strict';
 
 const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"},"c4":{"cardW":156,"cardMaxW":240,"cardH":112,"cardLine":18,"pad":14,"tagH":44,"padB":14,"tagPad":72,"emptyW":200,"emptyH":96,"innerGap":20,"innerLinkX":120,"innerLinkY":64,"ringV":72,"ringH":130,"ringGap":34,"ringLinkX":150,"ringLinkY":90,"ringStagger":6,"ringStaggerCap":12,"centreGap":50,"rowMax":8,"margin":48,"sep":24,"flowAcross":56,"flowAlong":72,"flowPerEdge":10,"flowEdgeCap":8,"flowRowGap":40,"labelMaxW":140,"minStem":24}};
-const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/>","users":"<path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/><path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\"/>","briefcase":"<path d=\"M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9\"/><path d=\"M8 7v-2a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2\"/><path d=\"M12 12l0 .01\"/><path d=\"M3 13a20 20 0 0 0 18 0\"/>","building":"<path d=\"M3 21l18 0\"/><path d=\"M9 8l1 0\"/><path d=\"M9 12l1 0\"/><path d=\"M9 16l1 0\"/><path d=\"M14 8l1 0\"/><path d=\"M14 12l1 0\"/><path d=\"M14 16l1 0\"/><path d=\"M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16\"/>","headset":"<path d=\"M4 14v-3a8 8 0 1 1 16 0v3\"/><path d=\"M18 19c0 1.657 -2.686 3 -6 3\"/><path d=\"M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/><path d=\"M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/>","monitor":"<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10\"/><path d=\"M7 20h10\"/><path d=\"M9 16v4\"/><path d=\"M15 16v4\"/>","code":"<path d=\"M7 8l-4 4l4 4\"/><path d=\"M17 8l4 4l-4 4\"/><path d=\"M14 4l-4 16\"/>","server":"<path d=\"M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2\"/><path d=\"M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2\"/><path d=\"M7 8l0 .01\"/><path d=\"M7 16l0 .01\"/>","database":"<path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"/><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"/><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"/>","cloud":"<path d=\"M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878\"/>","cpu":"<path d=\"M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12\"/><path d=\"M9 9h6v6h-6l0 -6\"/><path d=\"M3 10h2\"/><path d=\"M3 14h2\"/><path d=\"M10 3v2\"/><path d=\"M14 3v2\"/><path d=\"M21 10h-2\"/><path d=\"M21 14h-2\"/><path d=\"M14 21v-2\"/><path d=\"M10 21v-2\"/>","cog":"<path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\"/><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/>","shield":"<path d=\"M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3\"/>","scale":"<path d=\"M7 20l10 0\"/><path d=\"M6 6l6 -1l6 1\"/><path d=\"M12 3l0 17\"/><path d=\"M9 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/><path d=\"M21 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/>","banknote":"<path d=\"M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3\"/><path d=\"M7 10a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8\"/><path d=\"M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/>","credit-card":"<path d=\"M3 8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8\"/><path d=\"M3 10l18 0\"/><path d=\"M7 15l.01 0\"/><path d=\"M11 15l2 0\"/>","mail":"<path d=\"M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10\"/><path d=\"M3 7l9 6l9 -6\"/>","package":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/><path d=\"M16 5.25l-8 4.5\"/>","truck":"<path d=\"M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5\"/>","cart":"<path d=\"M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M17 17h-11v-14h-2\"/><path d=\"M6 5l14 1l-1 7h-13\"/>","clipboard":"<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"/><path d=\"M9 12h6\"/><path d=\"M9 16h6\"/>","check":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/><path d=\"M9 12l2 2l4 -4\"/>","layers":"<path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"/><path d=\"M4 12l8 4l8 -4\"/><path d=\"M4 16l8 4l8 -4\"/>","globe":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M3.6 9h16.8\"/><path d=\"M3.6 15h16.8\"/><path d=\"M11.5 3a17 17 0 0 0 0 18\"/><path d=\"M12.5 3a17 17 0 0 1 0 18\"/>","flag":"<path d=\"M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9\"/><path d=\"M5 21v-7\"/>","undo":"<path d=\"M9 14l-4 -4l4 -4\"/><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"/>","redo":"<path d=\"M15 14l4 -4l-4 -4\"/><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"/>","export":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 9l5 -5l5 5\"/><path d=\"M12 4l0 12\"/>","save":"<path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"/><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M14 4l0 4l-6 0l0 -4\"/>","trash":"<path d=\"M4 7l16 0\"/><path d=\"M10 11l0 6\"/><path d=\"M14 11l0 6\"/><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"/><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"/>","tidy":"<path d=\"M6 21l15 -15l-3 -3l-15 15l3 3\"/><path d=\"M15 6l3 3\"/><path d=\"M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/><path d=\"M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/>","minus":"<path d=\"M5 12l14 0\"/>","plus":"<path d=\"M12 5l0 14\"/><path d=\"M5 12l14 0\"/>","close":"<path d=\"M18 6l-12 12\"/><path d=\"M6 6l12 12\"/>","more":"<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","help":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 16v.01\"/><path d=\"M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483\"/>","import":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 11l5 5l5 -5\"/><path d=\"M12 4l0 12\"/>","fit":"<path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"/><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"/><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"/>","sun":"<path d=\"M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7\"/>","moon":"<path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008\"/>","key":"<path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"/><path d=\"M15 9h.01\"/>","link":"<path d=\"M9 15l6 -6\"/><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"/><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"/>","chevron-down":"<path d=\"M6 9l6 6l6 -6\"/>","note-lines":"<path d=\"M4 6l16 0\"/><path d=\"M4 12l10 0\"/><path d=\"M4 18l14 0\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path class=\"note-paper\" d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z\"/><path class=\"note-fold\" d=\"M13 20v-6a1 1 0 0 1 1 -1h6\"/>","columns":"<path d=\"M13 5h8\"/><path d=\"M13 9h5\"/><path d=\"M13 15h8\"/><path d=\"M13 19h5\"/><path d=\"M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/><path d=\"M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","types":"<path d=\"M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2\"/><path d=\"M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2\"/>","notes":"<path d=\"M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14\"/><path d=\"M9 7l6 0\"/><path d=\"M9 11l6 0\"/><path d=\"M9 15l4 0\"/>","grip":"<path d=\"M8 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<path d=\"M12 3l-4 7h8l-4 -7\"/><path d=\"M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","chevron-up":"<path d=\"M6 15l6 -6l6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 5l0 14\"/><path d=\"M18 13l-6 6\"/><path d=\"M6 13l6 6\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0\"/><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"3\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"/>","direction-lr":"<path d=\"M5 12l14 0\"/><path d=\"M13 18l6 -6\"/><path d=\"M13 6l6 6\"/>","reverse":"<path d=\"M7 10h14l-4 -4\"/><path d=\"M17 14h-14l4 4\"/>","rename":"<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/><path d=\"M13.5 6.5l4 4\"/>","label":"<path d=\"M4 20l3 0\"/><path d=\"M14 20l7 0\"/><path d=\"M6.9 15l6.9 0\"/><path d=\"M10.2 6.3l5.8 13.7\"/><path d=\"M5 20l6 -16l2 0l7 16\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M18 18v-6a3 3 0 0 0 -3 -3h-10l4 -4m0 8l-4 -4\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","auto":"<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"/><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<rect x=\"2\" y=\"6.5\" width=\"20\" height=\"11\" rx=\"5.5\"/>","subject":"<rect class=\"uc-sub-frame\" x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"3\"/><rect class=\"uc-sub-case\" x=\"6.5\" y=\"10\" width=\"11\" height=\"6\" rx=\"3\"/>","clock":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 7v5l3 3\"/>","present":"<path d=\"M3 4l18 0\"/><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"/><path d=\"M12 16l0 4\"/><path d=\"M9 20l6 0\"/><path d=\"M8 12l3 -3l2 2l3 -3\"/>","search":"<path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"/><path d=\"M21 21l-6 -6\"/>","hash":"<path d=\"M5 9l14 0\"/><path d=\"M5 15l14 0\"/><path d=\"M11 4l-4 16\"/><path d=\"M17 4l-4 16\"/>","queue":"<rect x=\"2\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><rect x=\"9.5\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><path d=\"M17 12h5M19.5 9.5 22 12l-2.5 2.5\"/>","function":"<path d=\"M3 19a2 2 0 0 0 2 2c2 0 2 -4 3 -9s1 -9 3 -9a2 2 0 0 1 2 2\"/><path d=\"M5 12h6\"/><path d=\"M15 12l6 6\"/><path d=\"M15 18l6 -6\"/>","storage":"<path d=\"M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2\"/><path d=\"M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10\"/><path d=\"M10 12l4 0\"/>","cdn":"<path d=\"M10 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M10 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12h4\"/><path d=\"M14 12h4\"/><path d=\"M15 7l-2 3\"/><path d=\"M9 7l2 3\"/><path d=\"M11 14l-2 3\"/><path d=\"M13 14l2 3\"/>","gateway":"<path d=\"M21 17h-5.397a5 5 0 0 1 -4.096 -2.133l-.514 -.734a5 5 0 0 0 -4.096 -2.133h-3.897\"/><path d=\"M21 7h-5.395a5 5 0 0 0 -4.098 2.135l-.51 .73a5 5 0 0 1 -4.097 2.135h-3.9\"/><path d=\"M18 10l3 -3l-3 -3\"/><path d=\"M18 20l3 -3l-3 -3\"/>","container":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/>","cluster":"<path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"/><path d=\"M12 9l0 3\"/>","cache":"<path d=\"M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11\"/>","lock":"<path d=\"M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6\"/><path d=\"M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0\"/><path d=\"M8 11v-4a4 4 0 1 1 8 0v4\"/>","api":"<path d=\"M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5\"/><path d=\"M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5\"/><path d=\"M3 21l2.5 -2.5\"/><path d=\"M18.5 5.5l2.5 -2.5\"/><path d=\"M10 11l-2 2\"/><path d=\"M13 14l-2 2\"/>","mobile":"<path d=\"M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14\"/><path d=\"M11 4h2\"/><path d=\"M12 17v.01\"/>","browser":"<path d=\"M4 8h16\"/><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"/><path d=\"M8 4v4\"/>","bell":"<path d=\"M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6\"/><path d=\"M9 17v1a3 3 0 0 0 6 0v-1\"/>","type-c4":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" stroke-dasharray=\"3 2\"/><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1.5\"/><path d=\"M12 3v5M12 16v5\"/>","shape-c4-group":"<rect class=\"c4-grp-frame\" x=\"2.5\" y=\"4\" width=\"19\" height=\"16\" rx=\"3\" stroke-dasharray=\"3 2\"/><rect class=\"c4-grp-tag\" x=\"5\" y=\"6.5\" width=\"7\" height=\"3.5\" rx=\"1\"/>","stream":"<path d=\"M3 12h4l3 8l4 -16l3 8h4\"/>","brain":"<path d=\"M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8\"/><path d=\"M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8\"/><path d=\"M17.5 16a3.5 3.5 0 0 0 0 -7h-.5\"/><path d=\"M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0\"/><path d=\"M6.5 16a3.5 3.5 0 0 1 0 -7h.5\"/><path d=\"M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10\"/>","chart":"<path d=\"M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M4 20h14\"/>","sensor":"<path d=\"M18.364 19.364a9 9 0 1 0 -12.728 0\"/><path d=\"M15.536 16.536a5 5 0 1 0 -7.072 0\"/><path d=\"M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","workflow":"<rect x=\"4\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"17\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"14\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M7 7v3\"/><path d=\"M7 14v3\"/><path d=\"M10 12h4\"/>","type-gantt":"<rect x=\"3\" y=\"4\" width=\"10\" height=\"3.5\" rx=\"1.5\"/><rect x=\"8\" y=\"10.25\" width=\"11\" height=\"3.5\" rx=\"1.5\"/><rect x=\"12\" y=\"16.5\" width=\"8\" height=\"3.5\" rx=\"1.5\"/><path d=\"M6 16.5l2 2-2 2-2-2z\"/>","calendar":"<rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M4 11h16\"/>"};
-// --- PLUGIN INTERFACE ---
-      // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
-      // type internals; it only calls these members:
-      //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
-      //   render(), isBackground(el), clearSelection(),
-      //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
-      //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
-      //   optional: selectInRect(clientRect, mode, start) and selectAll(): multi-select, see SELECTION BOX
-      //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
-      //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
-      //             contentEl's edges, so Fit and screenshots frame it too
-      //   optional: fitPad(viewportWidth) -> px of margin Fit leaves around the content (default 80), e.g. less on a phone
-      //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
-      //             fields in a fixed order, positions moved out or dropped); must not mutate data
-      //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
-      //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
-      //             does the same in Python; a generated page saved without edits must come out byte-identical.
-      // Touch (see TOUCH): a plugin marks selected items with the class `selected` (and anything else a finger may
-      // drag right now with the attribute data-touch-drag). A one-finger touch reaches the plugin only when it lands
-      // inside such an element; any other touch pans, and a tap is replayed to the
-      // item as a synthetic pointerdown + pointerup, so selecting on pointerdown keeps working.
-      // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
-      // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
-      // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
-      // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
-      let plugin = null;
-      function registerDiagramPlugin(p) { plugin = p; if (typeof syncCopyMenu === 'function') syncCopyMenu(); }
-
-      // --- SWATCHES: the colours a flowchart lane, a sequence participant or frame, or an ERD table may carry ---
-      // Diagram data stores a palette slot ("1".."9", TOKENS.palette from assets/tokens/default.json) or a custom hex. A
-      // slot's shades are fixed tokens (--sw-<slot>-*, generated by scripts/tokens.py); setSwatch() points an element at
-      // its slot, and a custom hex is derived at run time (see shell.css). Older diagrams stored the slot's `hex` (and
-      // frames a colour name): colorSlot() maps those to the slot. Mirrors color_slot() in scripts/disk_format.py.
-      const PALETTE = TOKENS.palette;
-      const SWATCHES = PALETTE.filter((s) => s.hex); // the picker: slots 1-8; slot 9 is the neutral grey (frames)
-      const OLD_FRAME_COLORS = { blue: 'sky', green: 'emerald', yellow: 'amber', red: 'rose', purple: 'purple', gray: 'neutral' };
-      function colorSlot(v) {
-        const k = typeof v === 'string' ? v.toLowerCase() : v;
-        const w = PALETTE.find((q) => q.slot === k || q.hex === k || q.name === OLD_FRAME_COLORS[k]);
-        return w ? w.slot : v;
-      }
-      const paletteOf = (v) => PALETTE.find((w) => w.slot === colorSlot(v));
-      const swatchSlot = (v) => (paletteOf(v) || {}).slot;
-      // A colour key's keys as slots (an old hex key never replaces a slot key)
-      function colorKeySlots(key) {
-        const out = {};
-        Object.keys(key || {}).forEach((k) => { const s = colorSlot(k); if (!(s in out)) out[s] = key[k]; });
-        return out;
-      }
-      // In place: `color` of every object in the named lists of a diagram, and its colorKey, as slots (see slot_colors in disk_format.py)
-      function slotColors(d, ...lists) {
-        lists.forEach((n) => (d[n] || []).forEach((o) => { if (o && 'color' in o) o.color = colorSlot(o.color); }));
-        if (d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey)) d.colorKey = colorKeySlots(d.colorKey);
-      }
-      // Colour `el` with a slot or custom hex: a swatch-scope element reading its slot's shades, or the run-time derivation for a custom hex.
-      function setSwatch(el, v) {
-        const w = paletteOf(v);
-        el.classList.add('swatch-scope');
-        const hex = w ? w.hex : v;
-        if (hex) el.style.setProperty('--swatch-color', hex); else el.style.removeProperty('--swatch-color');
-        if (w) el.dataset.sw = w.slot; else delete el.dataset.sw;
-      }
-      // A row of colour buttons: "none", then each swatch. `current` is the slot or custom hex now in use (or empty); onPick(slot)
-      // gets the chosen slot, or '' for none (opts.white, a hex, makes that first button a real white instead). opts.btnClass adds a class to every button. Returns the row element.
-      function swatchRow(current, onPick, opts) {
-        const row = document.createElement('span');
-        row.className = 'swatch-row';
-        row.setAttribute('role', 'group');
-        row.setAttribute('aria-label', 'Colour');
-        const now = current ? colorSlot(current) : '';
-        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(PALETTE).forEach((sw) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
-          b.dataset.value = sw.slot;
-          b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-          b.setAttribute('aria-label', b.title);
-          b.setAttribute('aria-pressed', String(now === sw.slot));
-          const dot = document.createElement('span');
-          dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
-          if (sw.slot) setSwatch(dot, sw.slot);   // opts.white: the first button is a real white (a type whose default is a colour by position)
-          b.appendChild(dot);
-          b.addEventListener('click', (e) => {
-            e.stopPropagation();
-            row.querySelectorAll('.swatch-btn[aria-pressed="true"]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
-            b.setAttribute('aria-pressed', 'true');
-            onPick(sw.slot);
-          });
-          row.appendChild(b);
-        });
-        return row;
-      }
-      // A single colour-dot button that opens a popover with swatchRow() on click.
-      // opts: { btnClass, triggerClass, act, white }
-      function swatchPicker(current, onPick, opts) {
-        const o = opts || {};
-        const picker = document.createElement('span');
-        picker.className = 'swatch-picker';
-        const trig = document.createElement('button');
-        trig.type = 'button';
-        trig.className = `${o.triggerClass || 'ab-btn'} swatch-trigger`;
-        trig.setAttribute('aria-haspopup', 'true');
-        trig.setAttribute('aria-expanded', 'false');
-        const dot = document.createElement('span');
-        const syncTrigger = (val) => {
-          const slot = val ? colorSlot(val) : '';
-          const w = slot ? paletteOf(slot) : null;
-          dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
-          if (slot) setSwatch(dot, slot);
-          else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
-          const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-          trig.title = label;
-          trig.setAttribute('aria-label', label);
-        };
-        syncTrigger(current);
-        trig.appendChild(dot);
-        const caret = document.createElement('span');
-        caret.className = 'swatch-caret-wrap';
-        caret.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
-        const caretSvg = caret.querySelector('svg');
-        if (caretSvg) caretSvg.classList.add('swatch-caret');
-        trig.appendChild(caret);
-
-        const pop = document.createElement('div');
-        pop.className = 'swatch-popover';
-        pop.hidden = true;
-        let offDoc = null;
-        let closeTimer = null;
-        const cancelClose = () => { clearTimeout(closeTimer); closeTimer = null; };
-        const closeSoon = () => { cancelClose(); closeTimer = setTimeout(() => close(false), 160); };
-        const close = (restoreFocus) => {
-          cancelClose();
-          if (pop.hidden) return;
-          const above = pop.classList.contains('is-above');
-          if (typeof motion !== 'undefined' && motion.enabled()) {
-            motion.ghostExit(pop, {
-              duration: 100,
-              transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`,
-              clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 25% 0 round 8px)',
-              origin: above ? 'bottom center' : 'top center'
-            });
-          }
-          pop.hidden = true;
-          pop.classList.remove('is-above');
-          pop.style.removeProperty('--pop-shift');
-          trig.setAttribute('aria-expanded', 'false');
-          if (offDoc) { offDoc(); offDoc = null; }
-          if (restoreFocus && trig.isConnected) trig.focus();
-        };
-        const row = swatchRow(current, (slot) => {
-          syncTrigger(slot);
-          close(true);
-          onPick(slot);
-        }, o);
-        if (o.act) row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = o.act; });
-        pop.appendChild(row);
-        picker.append(trig, pop);
-
-        const open = (focusItem = true) => {
-          cancelClose();
-          if (!pop.hidden) return;
-          document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
-            if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
-          });
-          pop.hidden = false;
-          pop.classList.remove('is-above');
-          pop.style.removeProperty('--pop-shift');
-          trig.setAttribute('aria-expanded', 'true');
-          const bar = picker.closest('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar');
-          const preferAbove = !(bar && bar.classList.contains('is-below'));
-          const r = pop.getBoundingClientRect();
-          const tr = trig.getBoundingClientRect();
-          const pad = 8;
-          const hasRoomAbove = tr.top - r.height - 6 > ui.chromeTop() + pad;
-          const hasRoomBelow = r.bottom <= window.innerHeight - pad;
-          if ((preferAbove && hasRoomAbove) || (!preferAbove && !hasRoomBelow && hasRoomAbove)) {
-            pop.classList.add('is-above');
-          }
-          const r2 = pop.getBoundingClientRect();
-          let shift = 0;
-          if (r2.left < pad) shift = pad - r2.left;
-          else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
-          if (shift) {
-            const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
-            pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
-          }
-          const above = pop.classList.contains('is-above');
-          if (typeof motion !== 'undefined' && motion.enabled()) {
-            motion.anim(pop, [
-              { transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`, clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 100% 0 round 8px)' },
-              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
-            ], { duration: 130, easing: motion.curve('curve-out') });
-          }
-          if (focusItem) {
-            const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
-            if (active) active.focus();
-          }
-          const onDocPointer = (e) => {
-            if (!picker.isConnected) { close(false); return; }
-            if (!picker.contains(e.target)) close(false);
-          };
-          const onDocKey = (e) => {
-            if (!picker.isConnected) { close(false); return; }
-            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
-          };
-          document.addEventListener('pointerdown', onDocPointer, true);
-          document.addEventListener('keydown', onDocKey, true);
-          offDoc = () => {
-            document.removeEventListener('pointerdown', onDocPointer, true);
-            document.removeEventListener('keydown', onDocKey, true);
-          };
-        };
-        pop._closeSwatchPop = close;
-
-        let lastPointerType = '';
-        picker.addEventListener('pointerenter', (e) => {
-          if (e.pointerType === 'touch') return;
-          cancelClose();
-          if (pop.hidden) open(false);
-        });
-        picker.addEventListener('pointerleave', (e) => {
-          if (e.pointerType !== 'touch') closeSoon();
-        });
-        trig.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; e.stopPropagation(); });
-        trig.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const kind = e.detail === 0 ? '' : (e.pointerType || lastPointerType);
-          const isHover = kind === 'mouse' || kind === 'pen';
-          if (pop.hidden) open(!isHover);
-          else if (!isHover) close(false);
-        });
-        pop.addEventListener('pointerdown', (e) => e.stopPropagation());
-        pop.addEventListener('keydown', (e) => {
-          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? 5 : e.key === 'ArrowUp' ? -5 : 0;
-          if (step) {
-            const btns = [...row.querySelectorAll('.swatch-btn')];
-            const idx = btns.indexOf(document.activeElement);
-            if (idx === -1) return;
-            e.preventDefault();
-            e.stopPropagation();
-            btns[(idx + step + btns.length) % btns.length].focus();
-          } else if (e.key === 'Tab') {
-            close(false);
-          }
-        });
-        return picker;
-      }
-
-      // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
-      // A type calls these instead of building the same elements itself; it keeps only what is specific to it.
-      const ui = (() => {
-        // An icon by name from the registry (ICONS, assets/icons/default.json): the <svg> text, drawn with the icon tokens
-        // (TOKENS.icon). o: { size: a token name (xs sm md lg xl tile; default md) or a px number, fine: the thinner stroke for
-        // dense or large icons, bold: the heavier stroke for tiny ones, class }. Templates write the icon placeholder instead;
-        // scripts/tokens.py icon_svg() builds the same text. Colour is currentColor, so icons follow the text colour.
-        function icon(name, o) {
-          const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
-          if (inner === undefined) throw new Error(`unknown icon "${name}"`);
-          const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
-          const cls = opts.class ? ` class="${opts.class}"` : '';
-          if (inner && typeof inner === 'object') {
-            return `<svg${cls} width="${px}" height="${px}" viewBox="${inner.vb}" fill="currentColor" aria-hidden="true">${inner.body}</svg>`; // tokens-ok: this is the icon renderer
-          }
-          const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
-          return `<svg${cls} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
-        }
-        // A logo of a local icon pack (LOGOS, embedded by the build from icons/<pack>.json; name is "<pack>/<icon>"): the filled,
-        // multi-colour <svg> text. Colours and aspect ratio stay as the vendor drew them (the viewBox fits it in a square of
-        // the same sizes as icon(); no recolouring, no stretch). o: { size, class }. scripts/tokens.py logo_svg() builds the same text.
-        function logo(name, o) {
-          const e = typeof LOGOS === 'undefined' ? undefined : LOGOS[name], opts = o || {};
-          if (e === undefined) throw new Error(`unknown logo "${name}"`);
-          const px = typeof opts.size === 'number' ? opts.size : TOKENS.icon.size[opts.size || 'md'];
-          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="${e.vb}" aria-hidden="true">${e.body}</svg>`;
-        }
-        function iconEl(name, o) {
-          const tpl = document.createElement('template');
-          tpl.innerHTML = icon(name, o);
-          return tpl.content.firstChild;
-        }
-        let confirmEl = null;
-        function closeConfirm() {
-          if (!confirmEl) return false;
-          if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
-          confirmEl.remove();
-          confirmEl = null;
-          document.removeEventListener('pointerdown', onConfirmOutside, true);
-          return true;
-        }
-        function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
-        // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
-        // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
-        // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
-        function confirm(anchor, opts, onYes) {
-          closeConfirm();
-          const box = document.createElement('div');
-          box.className = 'confirm';
-          box.dataset.exportSkip = '';
-          box.setAttribute('role', 'alertdialog');
-          box.setAttribute('aria-label', opts.label);
-          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
-          if (opts.title) add('confirm-title', opts.title);
-          add('confirm-msg', opts.message);
-          if (opts.extra) box.appendChild(opts.extra);
-          const row = document.createElement('div');
-          row.className = 'confirm-actions';
-          const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
-          const cancel = button('btn confirm-cancel', 'Cancel');
-          cancel.addEventListener('click', () => closeConfirm());
-          const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
-          ok.addEventListener('click', () => { closeConfirm(); onYes(); });
-          row.append(cancel);
-          // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
-          if (opts.alt) {
-            box.classList.add('has-alt');   // three buttons: a wider bubble
-            const alt = button('btn confirm-alt', opts.alt.text);
-            alt.addEventListener('click', () => { closeConfirm(); opts.alt.onClick(); });
-            row.append(alt);
-          }
-          row.append(ok);
-          box.appendChild(row);
-          box.addEventListener('keydown', (e) => {
-            // Keys inside the bubble stay there (Delete/Backspace would open it again)
-            if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
-            if (e.key !== 'Tab') e.stopPropagation();
-          });
-          document.body.appendChild(box);
-          confirmEl = box;
-          const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-          const bw = box.offsetWidth, bh = box.offsetHeight;
-          const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-          box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-          box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-          if (typeof motion !== 'undefined' && motion.enabled()) {
-            const above = top < r.top;
-            motion.anim(box, [
-              { transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
-              { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
-            ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
-          }
-          cancel.focus();
-          document.addEventListener('pointerdown', onConfirmOutside, true);
-        }
-        // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
-        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, onCommit?(note text element)
-        // (Enter, Ctrl+Enter, Esc finish editing), onInput? }. Returns { card, text }; the caller adds its own pointer handlers.
-        function noteCard(note, o) {
-          const card = document.createElement('div');
-          card.className = 'note';
-          card.dataset.noteId = note.id;
-          const text = document.createElement('div');
-          text.className = 'note-text';
-          text.spellcheck = false;
-          text.dataset.placeholder = 'Add a note…';
-          text.textContent = note.text || '';
-          card.appendChild(text);
-          const tool = (cls, title, icon) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = cls;
-            b.title = title;
-            b.setAttribute('aria-label', title);
-            b.setAttribute('data-export-skip', '');
-            b.innerHTML = icon;
-            card.appendChild(b);
-            return b;
-          };
-          if (o.onDelete) {
-            const del = tool('note-del btn-danger-hover', 'Delete note', icon('close', { size: 'xs', bold: true }));
-            del.addEventListener('pointerdown', (e) => e.stopPropagation());
-            del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
-          }
-          if (o.onLink) {
-            const link = tool('note-link', o.linkTitle, icon('link', { size: 'sm', bold: true }));
-            link.addEventListener('pointerdown', (e) => o.onLink(e, card));
-            link.addEventListener('click', (e) => e.stopPropagation());
-          }
-          if (o.onCommit) {
-            // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
-            text.addEventListener('paste', (e) => {
-              e.preventDefault();
-              document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
-            });
-            text.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
-                e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
-                document.execCommand('insertLineBreak');
-              } else if (e.key === 'Escape' || e.key === 'Enter') {
-                // Commit directly too: blur() fires no blur event while the window itself is not focused
-                e.preventDefault(); e.stopPropagation(); text.blur(); o.onCommit(text);
-              }
-            });
-          }
-          if (o.onInput) text.addEventListener('input', o.onInput);
-          return { card, text };
-        }
-        // The action bar over a selection (never exported, never in ?present: the type hides it there). `cls` is the bar's own
-        // class and the button class `ab-btn` / `ab-sep` follow the type's naming when it passes them (the ERD and the sequence
-        // keep their `erd-` and `seq-` classes); the flowchart uses the shared `actionbar`, `ab-btn` and `ab-sep`
-        // (components/actionbar.css). abButton: act and value go in data-act / data-value; pressed (when not undefined) in aria-pressed.
-        function actionBar(cls, label) {
-          const bar = document.createElement('div');
-          bar.className = cls;
-          bar.dataset.exportSkip = '';
-          bar.setAttribute('role', 'toolbar');
-          if (label) bar.setAttribute('aria-label', label);
-          // The show / hide chevron, first in every bar: one switch for all bars (body.bars-collapsed hides all but the chevron)
-          const t = document.createElement('button');
-          t.type = 'button';
-          t.className = 'ab-toggle';
-          t.innerHTML = icon('chevron-down', { size: 'xs', bold: true });
-          t.addEventListener('pointerdown', (e) => e.stopPropagation());
-          t.addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => { if (el._closeSwatchPop) el._closeSwatchPop(false); });
-            // Every bar on the page morphs from its old box to its new one (motion kernel: ghostMorph)
-            const bars = [...document.querySelectorAll('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar')];
-            const was = bars.map((b) => b.getBoundingClientRect());
-            document.body.classList.toggle('bars-collapsed');
-            document.querySelectorAll('.ab-toggle').forEach(syncToggle);
-            bars.forEach((b, i) => { if (b.classList.contains('is-wrap')) fitBar(b); motion.ghostMorph(was[i], b, 170, 'curve-spring-settle'); });
-          });
-          syncToggle(t);
-          bar.appendChild(t);
-          return bar;
-        }
-        function syncToggle(t) {
-          const off = document.body.classList.contains('bars-collapsed');
-          t.title = off ? 'Show the action bar' : 'Hide the action bar';
-          t.setAttribute('aria-label', t.title);
-          t.setAttribute('aria-expanded', String(!off));
-        }
-        function abButton(cls, act, html, title, pressed, value, extra) {
-          const b = document.createElement('button');
-          b.className = extra ? `${cls} ${extra}` : cls;
-          b.type = 'button';
-          b.dataset.act = act;
-          if (value !== undefined) b.dataset.value = value;
-          b.title = title;
-          b.setAttribute('aria-label', title);
-          if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-          b.innerHTML = html;
-          return b;
-        }
-        const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
-        const abBreak = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-break'; return s; };
-        // The size a bar has when expanded, even while the bars are collapsed (a bar is placed for its full size, so showing the
-        // bars again never puts one over its anchor)
-        function barSize(bar) {
-          const off = document.body.classList.contains('bars-collapsed');
-          if (off) document.body.classList.remove('bars-collapsed');
-          const size = { w: bar.offsetWidth, h: bar.offsetHeight };
-          if (off) document.body.classList.add('bars-collapsed');
-          return size;
-        }
-        function chromeTop() {
-          if (document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return 0;
-          const vp = document.getElementById('viewport');
-          const vpTop = vp ? vp.getBoundingClientRect().top : 0;
-          let bottom = vpTop;
-          if (!document.body.classList.contains('presentation')) {
-            const hdr = document.querySelector('header');
-            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right').forEach((el) => {
-              const r = el.getBoundingClientRect();
-              if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
-            });
-          }
-          const tabs = document.querySelector('.flow-tabs');
-          if (tabs && getComputedStyle(tabs).display !== 'none' && !tabs.hidden) {
-            const r = tabs.getBoundingClientRect();
-            if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
-          }
-          return Math.max(0, bottom - vpTop);
-        }
-        // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
-        // under its element with this, by where the element is in the window, not in the diagram. A bar is not zoomed (--ui-scale).
-        function roomAbove(anchor, bar) {
-          const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
-          return top - (document.getElementById('viewport').getBoundingClientRect().top + chromeTop()) >= barSize(bar).h + 16;
-        }
-        // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
-        // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
-        function fitBar(bar) {
-          const kids = [...bar.children].filter((k) => !/(^|-)ab-break$|(^| )ab-toggle$/.test(k.className));   // not the corner chevron
-          if (!kids.length) return;
-          // measured expanded and unclamped, whatever the state: a bar built (or shown again) while the bars are collapsed must not be squeezed
-          const off = document.body.classList.contains('bars-collapsed');
-          if (off) document.body.classList.remove('bars-collapsed');
-          bar.style.maxWidth = '';
-          const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
-          const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
-          bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
-          if (off) document.body.classList.add('bars-collapsed');
-        }
-        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
-        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
-        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
-        // type's own edit. Returns the element, or null when no entry is drawn.
-        function colorKey(used, key, opts) {
-          const o = opts || {};
-          const items = used.filter((c) => o.prompts || (key && key[c]));
-          if (!items.length) return null;
-          const box = document.createElement('div');
-          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
-          items.forEach((color) => {
-            const label = (key && key[color]) || '';
-            const item = document.createElement('div');
-            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
-            const dot = document.createElement('span');
-            dot.className = 'color-key-dot';
-            setSwatch(dot, color);
-            item.appendChild(dot);
-            const text = document.createElement('span');
-            text.className = `color-key-label${label ? '' : ' is-empty'}`;
-            text.dataset.color = color;
-            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
-            text.textContent = label;
-            item.appendChild(text);
-            box.appendChild(item);
-          });
-          return box;
-        }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
-      })();
-
-      // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
-      // Captured synchronously while this script runs so both inline <script> and external <script src="app.js">
-      // work without plugins knowing how scripts or artifacts are packaged.
-      const currentScriptEl = document.currentScript;
-      function sliceEngineSource(text) {
-        const a = text.indexOf('//@engine' + '-begin');
-        if (a < 0) return '';
-        const b = text.indexOf('//@engine' + '-end', a);
-        return b < 0 ? '' : text.slice(a, b);
-      }
-      let cachedEngineSrc = currentScriptEl && currentScriptEl.textContent
-        ? sliceEngineSource(currentScriptEl.textContent)
-        : '';
-      const engineSrcPromise = !cachedEngineSrc && currentScriptEl && currentScriptEl.src
-        ? fetch(currentScriptEl.src)
-            .then((r) => (r.ok ? r.text() : ''))
-            .then((text) => { cachedEngineSrc = sliceEngineSource(text); }, () => '')
-        : null;
-      function loadEngineSource() { return cachedEngineSrc; }
-
-      // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
-      // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
-      // this skeleton, the page content, then the closing tags (nothing else in <head>, no whitespace between its
-      // tags). ARTIFACT_RESET_CSS / ARTIFACT_HEAD mirror ARTIFACT_RESET_CSS / ARTIFACT_HEAD in scripts/layout_engine.py;
-      // dev/check_artifact_shape.py fails if the two differ.
-      // The RESET text is copied byte for byte from a published artifact (verified 2026-11-14, runtime contract 0.2.96).
-      const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}'; // tokens-ok: the platform's own reset, copied byte for byte
-      const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
-      const ARTIFACT_TAIL = '</body></html>';
-      // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
-      const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
-
-      // An artifact page has <title> as a direct child of <body>; a plain file keeps it in <head>.
-      const artifactShaped = !!(document.body && document.body.querySelector(':scope > title'));
-      const hasInlineData = !!document.getElementById('diagram-data');
-      let capturedThemeJson = null;
-      let capturedFontLinks = '';
-      let pristineScaffoldHtml = null;
-      let pristineBody = null;
-
-      // Legacy fallback: pristine copy of an inline single-file artifact page, captured before first render.
-      function capturePristineBody() {
-        try {
-          const self = currentScriptEl;
-          const c = document.body.cloneNode(true);
-          c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
-          c.querySelectorAll('script').forEach(n => {
-            if ((n.id === 'diagram-data' || n.id === 'diagram-theme') && n.type === 'application/json') return;
-            if (self && !n.id && !n.src && n.textContent === self.textContent) return;
-            n.remove();
-          });
-          // An artifact page has <title> as the first element of <body>; a plain file keeps it in <head>
-          const title = c.querySelector(':scope > title');
-          if (!title) return null;
-          while (c.firstChild !== title) c.removeChild(c.firstChild);
-          const html = c.innerHTML;
-          const end = html.lastIndexOf('<\/script>');   // spelled <\/ so this inline script is not cut short
-          if (end < 0) return null;
-          return '\n' + html.slice(0, end + '<\/script>'.length) + '\n' + ARTIFACT_END_MARKER + '\n';
-        } catch (_) { return null; }
-      }
-
-      // Capture unrendered body markup, stored theme JSON, and Google Fonts links before plugin.render() mutates the DOM.
-      function captureArtifactScaffold() {
-        if (!artifactShaped) return;
-        if (hasInlineData) pristineBody = capturePristineBody();
-        try {
-          const c = document.body.cloneNode(true);
-          c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
-          const title = c.querySelector(':scope > title');
-          while (title && c.firstChild !== title) c.removeChild(c.firstChild);
-          const themeEl = c.querySelector('script#diagram-theme[type="application/json"]');
-          if (themeEl && themeEl.textContent.trim()) capturedThemeJson = themeEl.textContent;
-          c.querySelectorAll('script').forEach(n => n.remove());
-          const fontLinks = [];
-          c.querySelectorAll('link').forEach(n => {
-            const href = n.getAttribute('href') || '';
-            const rel = (n.getAttribute('rel') || '').toLowerCase();
-            if ((rel === 'preconnect' || rel === 'stylesheet') && /^https:\/\/fonts\.(googleapis|gstatic)\.com(\/|$)/.test(href)) {
-              fontLinks.push('  ' + n.outerHTML);
-            }
-            n.remove();
-          });
-          capturedFontLinks = fontLinks.join('\n');
-          if (title) title.remove();
-          const header = c.querySelector(':scope > header');
-          while (header && c.firstChild !== header) c.removeChild(c.firstChild);
-          const help = c.querySelector(':scope > #help-drawer');
-          while (help && help.nextSibling) help.nextSibling.remove();
-          pristineScaffoldHtml = (header ? '\n\n  ' : '') + c.innerHTML.trimEnd() + '\n';
-        } catch (_) {}
-      }
-      captureArtifactScaffold();
-      // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
-      // Playground pages (dev/build_playground.py): a <script id="playground"> in the body, {"type", "types": [{id, name}]}.
-      // Save downloads a standalone file and the header icon is a menu that goes to a blank page of another type.
-      const playground = (() => {
-        try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
-      })();
-      // Embedded in a host artifact (<iframe src="slug/index.html">, same origin): Save goes to the host artifact, into the
-      // folder the iframe's src names, and window.claude may only exist one frame up. A top-level page leaves both alone.
-      let embedDir = '', hostClaude = window.claude;
-      try {
-        const src = window.parent !== window && window.frameElement ? (window.frameElement.getAttribute('src') || '').split(/[?#]/)[0].replace(/^\/+/, '') : '';
-        embedDir = src.slice(0, src.lastIndexOf('/') + 1);
-        if (!hostClaude && embedDir) hostClaude = window.parent.claude;
-      } catch (_) { embedDir = ''; }
-      const claudeHost = artifactShaped && hostClaude && typeof hostClaude.use === 'function' ? hostClaude : null;
-      // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
-      // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
-      let artifactMode = claudeHost && !playground ? 'pending' : null;
-      let artifactApi = null;
-      let downloadsApi = null;
-      let publishing = false;
-      let publishedTitle = null;   // the name the artifact's own <title> (index.html) carries: set at load and after each Save
-      let reloadExpected = false;   // a publish (or a conflict) makes the platform reload this view
-
-      // --- STATE ---
-      let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
-      let fileHandle = null;
-      let helperSavedName = '';  // file name saved via the local direct-save helper
-      let helperPort = null;     // cached loopback port for the local direct-save helper
-      let everSaved = false;
-      let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
-      let downloadToldOnce = false;
-      let hasUnsavedChanges = false;
-
-      // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
-      const HISTORY_LIMIT = 100;
-      let undoStack = [];
-      let redoStack = [];
-      let committedJson = null;   // chartData as of the last commit (the state an undo returns to)
-      let savedJson = null;       // chartData as of the last load/save (decides the Unsaved badge after undo)
-      let pointerHeld = false;    // no undo mid-drag: plugins hold references into chartData while dragging
-
-      // Viewport Pan/Zoom state
-      let scale = 1.0;
-      let panX = 40;
-      let panY = 20;
-      let isPanning = false;
-      let panStartX = 0;
-      let panStartY = 0;
-
-
-// Elements
-      const viewport = document.getElementById('viewport');
-      const stage = document.getElementById('stage');
-      const headerEl = document.querySelector('header');
-      const leftBar = headerEl && headerEl.querySelector('.toolbar-left');
-      const rightBar = headerEl && headerEl.querySelector('.toolbar-right');
-      const chartTitleEl = document.getElementById('chart-title');
-      const saveStatus = document.getElementById('save-status');
-      const btnSave = document.getElementById('btn-save');
-      const btnMore = document.getElementById('btn-more');
-      const moreMenu = document.getElementById('more-menu');
-      const btnAutoTidy = document.getElementById('btn-auto-tidy');
-      const btnZoomIn = document.getElementById('btn-zoom-in');
-      const btnZoomOut = document.getElementById('btn-zoom-out');
-      const btnZoomReset = document.getElementById('btn-zoom-reset');
-      const zoomLevelEl = document.getElementById('zoom-level');
-      const btnUndo = document.getElementById('btn-undo');
-      const btnRedo = document.getElementById('btn-redo');
-      const btnHelp = document.getElementById('btn-help');
-      const helpDrawer = document.getElementById('help-drawer');
-
-      // Progressive top-pill compaction:
-      // 1) .is-compact: Present drops its label
-      // 2) .is-tight (or <= 900px): secondary utilities fold into the More (...) menu while Save stays labeled
-      // 3) .is-compact-save (or <= 560px): Save drops its label too
-      function syncHeaderCompact() {
-        if (!headerEl || document.body.classList.contains('presentation')) return;
-        headerEl.classList.remove('is-compact', 'is-tight', 'is-compact-save');
-        const overflows = () => headerEl.scrollWidth > headerEl.clientWidth + 1
-          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1)
-          || (leftBar && rightBar && rightBar.getBoundingClientRect().left - leftBar.getBoundingClientRect().right < 12);
-        if (overflows()) headerEl.classList.add('is-compact');
-        if (overflows() || window.innerWidth <= 900) headerEl.classList.add('is-tight');
-        if (overflows() || window.innerWidth <= 560) headerEl.classList.add('is-compact-save');
-        if (btnMore && !btnMore.getClientRects().length && moreMenu && !moreMenu.hidden) {
-          moreMenu.hidden = true;
-          btnMore.setAttribute('aria-expanded', 'false');
-        }
-      }
-      if (typeof ResizeObserver !== 'undefined' && headerEl) {
-        new ResizeObserver(syncHeaderCompact).observe(headerEl);
-      }
-
-      // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
-      const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
-      if (noAnimParam) document.documentElement.dataset.noanim = '1';
-      const reducedMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-      const motion = (() => {
-        const dur = (k, fb = 180) => {
-          const v = TOKENS.motion && TOKENS.motion[k];
-          const m = v && /^(\d+(?:\.\d+)?)(m?s)/.exec(v);
-          return m ? parseFloat(m[1]) * (m[2] === 's' ? 1000 : 1) : fb;
-        };
-        const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
-        const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
-          && document.documentElement.dataset.diagramSettled === '1'   // not while loading: the render after the web font arrives would FLIP from the fallback-font layout, and Fit would measure it mid-flight
-          && !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
-
-        let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;
-        const speedScale = () => {
-          const now = performance.now();
-          if (now - lastStampFrame <= 16) return cachedScale;
-          const dt = now - lastPlayAt;
-          return dt < 90 ? 0.55 : dt < 180 ? 0.75 : 1;
-        };
-        const markPlay = () => {
-          const now = performance.now();
-          if (now - lastStampFrame > 16) { cachedScale = speedScale(); lastStampFrame = now; }
-          lastPlayAt = now;
-          return cachedScale;
-        };
-
-        const easeCache = new Map();
-        const easeFn = (nameOrCurve) => {
-          const s = curve(nameOrCurve, nameOrCurve);
-          if (easeCache.has(s)) return easeCache.get(s);
-          let fn;
-          if (s.startsWith('linear(')) {
-            const pts = s.slice(7, -1).split(',').map((x) => parseFloat(x));
-            const n = pts.length - 1;
-            fn = (t) => {
-              if (t <= 0) return pts[0];
-              if (t >= 1) return pts[n];
-              const p = t * n, i = p | 0;
-              return pts[i] + (pts[i + 1] - pts[i]) * (p - i);
-            };
-          } else {
-            const m = /cubic-bezier\(([^)]+)\)/.exec(s);
-            if (m) {
-              const [x1, y1, x2, y2] = m[1].split(',').map(Number);
-              const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-              const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-              fn = (t) => {
-                let u = t;
-                for (let i = 0; i < 5; i++) {
-                  const x = ((ax * u + bx) * u + cx) * u - t;
-                  const dx = (3 * ax * u + 2 * bx) * u + cx;
-                  if (Math.abs(dx) < 1e-5) break;
-                  u = Math.max(0, Math.min(1, u - x / dx));
-                }
-                return ((ay * u + by) * u + cy) * u;
-              };
-            } else {
-              fn = (t) => 1 - (1 - t) * (1 - t) * (1 - t);
-            }
-          }
-          easeCache.set(s, fn);
-          return fn;
-        };
-
-        let svgJob = null;
-        const activeAnims = new Set();
-        const elemAnims = new WeakMap();
-        // Busy hook: <html data-motion-busy="1"> while any WAAPI animation, SVG tween or camera glide is in flight (tests wait on it).
-        let vpBusy = false;
-        const syncBusy = () => {
-          const busy = activeAnims.size > 0 || !!svgJob || vpBusy;
-          const ds = document.documentElement.dataset;
-          if (busy) { if (ds.motionBusy !== '1') ds.motionBusy = '1'; } else if ('motionBusy' in ds) delete ds.motionBusy;
-        };
-        const setViewportBusy = (b) => { vpBusy = b; syncBusy(); };
-        const trackAnim = (el, anim) => {
-          if (!anim) return anim;
-          activeAnims.add(anim);
-          syncBusy();
-          let list = elemAnims.get(el);
-          if (!list) { list = new Set(); elemAnims.set(el, list); }
-          list.add(anim);
-          const drop = () => { activeAnims.delete(anim); list.delete(anim); syncBusy(); };
-          anim.addEventListener('finish', drop, { once: true });
-          anim.addEventListener('cancel', drop, { once: true });
-          return anim;
-        };
-        const cancelEl = (el) => {
-          const list = elemAnims.get(el);
-          if (!list) return;
-          for (const a of list) { try { a.cancel(); } catch (_) {} }
-          list.clear();
-        };
-
-        let ghostLayer = null;
-        const ensureGhostLayer = () => {
-          if (ghostLayer && ghostLayer.isConnected) return ghostLayer;
-          ghostLayer = document.getElementById('motion-ghost-layer');
-          if (!ghostLayer) {
-            ghostLayer = document.createElement('div');
-            ghostLayer.id = 'motion-ghost-layer';
-            ghostLayer.setAttribute('data-export-skip', '');
-            ghostLayer.setAttribute('aria-hidden', 'true');
-            document.body.appendChild(ghostLayer);
-          }
-          return ghostLayer;
-        };
-
-        const GHOST_PROPS = [
-          'display', 'position', 'boxSizing', 'flexDirection', 'flexWrap', 'alignItems', 'justifyContent',
-          'gap', 'flex', 'width', 'height', 'minWidth', 'maxWidth',
-          'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-          'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
-          'borderTopWidth', 'borderTopStyle', 'borderTopColor',
-          'borderRightWidth', 'borderRightStyle', 'borderRightColor',
-          'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor',
-          'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor',
-          'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
-          'backgroundColor', 'backgroundImage', 'color', 'fontFamily', 'fontSize', 'fontWeight',
-          'lineHeight', 'letterSpacing', 'boxShadow', 'textAlign', 'whiteSpace', 'overflow', 'opacity'
-        ];
-        const freezeClone = (el, skipFn) => {
-          const build = (src, isRoot) => {
-            if (src.nodeType === 3) return document.createTextNode(src.nodeValue);
-            if (src.nodeType !== 1) return null;
-            if (!isRoot && skipFn && skipFn(src)) return null;
-            const cs = getComputedStyle(src);
-            if (!isRoot && cs.display === 'none') return null;
-            if (src.namespaceURI === 'http://www.w3.org/2000/svg') {
-              const svg = src.cloneNode(true);
-              svg.removeAttribute('id'); svg.removeAttribute('class');
-              svg.querySelectorAll('[id],[class]').forEach((n) => { n.removeAttribute('id'); n.removeAttribute('class'); });
-              return svg;
-            }
-            const tag = (cs.display === 'inline' || cs.display === 'inline-flex' || cs.display === 'inline-block') && !isRoot ? 'span' : 'div';
-            const dst = document.createElement(tag);
-            for (let j = 0; j < GHOST_PROPS.length; j++) {
-              const p = GHOST_PROPS[j];
-              if (cs[p]) dst.style[p] = cs[p];
-            }
-            if (src.tagName === 'INPUT' || src.tagName === 'TEXTAREA') dst.textContent = src.value;
-            else {
-              for (let c = src.firstChild; c; c = c.nextSibling) {
-                const child = build(c, false);
-                if (child) dst.appendChild(child);
-              }
-            }
-            return dst;
-          };
-          const clone = build(el, true);
-          clone.setAttribute('data-motion-ghost', '');
-          clone.setAttribute('data-export-skip', '');
-          clone.setAttribute('aria-hidden', 'true');
-          return clone;
-        };
-
-        const ghostExit = (el, opts) => {
-          if (!el || !enabled()) return null;
-          const o = opts || {};
-          const r = o.fromRect || el.getBoundingClientRect();
-          if (!r || r.width <= 0 || r.height <= 0) return null;
-          const clone = o.preCloned || freezeClone(el, o.skipChild);
-          const inStage = !o.preCloned && stage.contains(el);
-          const ow = o.baseW ?? (inStage && el.offsetWidth ? el.offsetWidth : r.width);
-          const oh = o.baseH ?? (inStage && el.offsetHeight ? el.offsetHeight : r.height);
-          const sx = ow ? r.width / ow : 1, sy = oh ? r.height / oh : 1;
-          const baseScale = (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01) ? ` scale(${sx}, ${sy})` : '';
-          clone.style.position = 'fixed';
-          clone.style.left = `${r.left}px`;
-          clone.style.top = `${r.top}px`;
-          clone.style.width = `${ow}px`;
-          clone.style.height = `${oh}px`;
-          clone.style.margin = '0';
-          clone.style.pointerEvents = 'none';
-          clone.style.transformOrigin = o.origin || (baseScale ? 'top left' : 'center');
-          clone.style.transform = baseScale.trim() || 'none';
-          ensureGhostLayer().appendChild(clone);
-          let toFrame;
-          if (o.toRect) {
-            const dx = o.toRect.left - r.left, dy = o.toRect.top - r.top;
-            const tx = (ow ? o.toRect.width / ow : 1), ty = (oh ? o.toRect.height / oh : 1);
-            clone.style.transformOrigin = 'top left';
-            toFrame = { transform: `translate(${dx}px, ${dy}px) scale(${tx}, ${ty})`, opacity: o.opacity ?? 0.15 };
-          } else {
-            toFrame = { transform: (baseScale ? baseScale + ' ' : '') + (o.transform || 'scale(0.92)'), opacity: o.opacity ?? 0 };
-            if (o.clipPath) toFrame.clipPath = o.clipPath;
-          }
-          const fromFrame = { transform: baseScale.trim() || 'none', opacity: 1 };
-          if (o.clipPath) fromFrame.clipPath = 'inset(0 0 0 0)';
-          const anim = clone.animate([fromFrame, toFrame], {
-            duration: Math.max(40, Math.round((o.duration ?? 110) * speedScale())),
-            easing: curve(o.easing || 'curve-in'),
-            fill: 'forwards'
-          });
-          const cleanup = () => clone.remove();
-          anim.addEventListener('finish', cleanup, { once: true });
-          anim.addEventListener('cancel', cleanup, { once: true });
-          return trackAnim(clone, anim);
-        };
-
-        const keyOf = (spec, el) => (typeof spec.key === 'function'
-          ? String(spec.key(el))
-          : (spec.key.startsWith('data-') ? el.getAttribute(spec.key) : el.dataset[spec.key]) || '');
-
-        const capture = (root, specs, opts) => {
-          if (!enabled() || !root) return null;
-          const list = Array.isArray(specs) ? specs : [specs];
-          const inStage = root === stage || stage.contains(root);
-          const st = inStage ? stage.getBoundingClientRect() : null;
-          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
-          const snap = new Map();
-          const raw = new Map();
-          const els = [];
-          for (let si = 0; si < list.length; si++) {
-            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
-            for (let i = 0; i < nodes.length; i++) {
-              const el = nodes[i], id = keyOf(spec, el);
-              if (!id) continue;
-              const vr = el.getBoundingClientRect();
-              if (!vr.width && !vr.height) continue;
-              const entry = {
-                id, si, mode: spec.mode || 'pos', vr, el,
-                x: inStage ? (vr.left - st.left) / k : vr.left,
-                y: inStage ? (vr.top - st.top) / k : vr.top,
-                w: vr.width / k, h: vr.height / k,
-                baseW: inStage && el.offsetWidth ? el.offsetWidth : vr.width / k,
-                baseH: inStage && el.offsetHeight ? el.offsetHeight : vr.height / k,
-                preCloned: opts && opts.ghosts ? freezeClone(el) : null
-              };
-              snap.set(si + ':' + id, entry);
-              raw.set(id, entry);
-              els.push(el);
-            }
-          }
-          for (let i = 0; i < els.length; i++) cancelEl(els[i]);
-          snap._raw = raw; snap._inStage = inStage;
-          return snap;
-        };
-
-        const play = (snap, root, specs, opts) => {
-          if (!snap || !enabled() || !root) return 0;
-          const o = opts || {};
-          const list = Array.isArray(specs) ? specs : [specs];
-          const inStage = snap._inStage;
-          const st = inStage ? stage.getBoundingClientRect() : null;
-          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
-          const vpW = window.innerWidth, vpH = window.innerHeight;
-          const items = [];
-          const newByKey = new Map();
-          const newRaw = new Map();
-          for (let si = 0; si < list.length; si++) {
-            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
-            for (let i = 0; i < nodes.length; i++) {
-              const el = nodes[i], id = keyOf(spec, el);
-              if (!id) continue;
-              if (o.skipKeys && o.skipKeys.has(id)) continue;
-              if (o.skipSelector && el.matches(o.skipSelector)) continue;
-              const vr = el.getBoundingClientRect();
-              if (!vr.width && !vr.height) continue;
-              const it = {
-                id, key: si + ':' + id, mode: spec.mode || 'pos', el, vr,
-                x: inStage ? (vr.left - st.left) / k : vr.left,
-                y: inStage ? (vr.top - st.top) / k : vr.top,
-                w: vr.width / k, h: vr.height / k
-              };
-              items.push(it);
-              newByKey.set(it.key, it);
-              newRaw.set(id, it);
-            }
-          }
-          const sf = markPlay();
-          const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
-          const easing = curve(o.easing || 'curve-spring-settle');
-          const cull = items.length > 60;
-          const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
-          const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
-          const ow = o.originRect ? o.originRect.width / k : 0;
-          const oh = o.originRect ? o.originRect.height / k : 0;
-          const lookup = (map, id) => !map ? null : (map instanceof Map ? map.get(id) : map[id]);
-
-          for (let i = 0; i < items.length; i++) {
-            const it = items[i];
-            if (cull && (it.vr.right < 0 || it.vr.left > vpW || it.vr.bottom < 0 || it.vr.top > vpH)) continue;
-            const prev = snap.get(it.key);
-            if (prev) {
-              const dx = prev.x - it.x, dy = prev.y - it.y;
-              const dw = Math.abs(prev.w - it.w), dh = Math.abs(prev.h - it.h);
-              const mode = cull ? 'pos' : it.mode;
-              const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
-              const resized = mode !== 'pos' && (dw > 1 || dh > 1);
-              if (!moved && !resized) continue;
-              if (resized && mode === 'size' && it.w > 0 && it.h > 0) {
-                const rw = prev.w / it.w, rh = prev.h / it.h;
-                if (rw >= 0.45 && rw <= 2.2 && rh >= 0.45 && rh <= 2.2) {
-                  it.el.style.transformOrigin = o.transformOrigin || 'top left';
-                  trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
-                  continue;
-                }
-              }
-              if (resized && (it.w > prev.w || it.h > prev.h)) {
-                const rClip = Math.max(0, it.w - prev.w), bClip = Math.max(0, it.h - prev.h);
-                trackAnim(it.el, it.el.animate([
-                  { transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 ${rClip}px ${bClip}px 0)` },
-                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
-                ], { duration: baseDur, easing }));
-              } else {
-                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: baseDur, easing }));
-              }
-            } else if (o.enter !== false) {
-              const fk = lookup(o.fromKey, it.id);
-              const src = fk ? snap._raw.get(fk) : (o.originRect ? { x: ox, y: oy, w: ow, h: oh } : null);
-              if (src && it.w > 0 && it.h > 0) {
-                const dx = src.x - it.x, dy = src.y - it.y;
-                const rw = Math.max(0.25, Math.min(2.5, src.w / it.w)), rh = Math.max(0.25, Math.min(2.5, src.h / it.h));
-                it.el.style.transformOrigin = 'top left';
-                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
-              } else {
-                const sc = o.enterScale ?? 0.88;
-                if (o.enterShift != null) {
-                  // calm entrance (tab switch): a short slide and a fade, no clip, no overshoot
-                  trackAnim(it.el, it.el.animate([
-                    { opacity: 0, transform: `translateY(${o.enterShift}px) scale(${sc})` },
-                    { opacity: 1, transform: 'none' }
-                  ], { duration: baseDur, easing: curve(o.enterEasing || 'curve-out') }));
-                  continue;
-                }
-                trackAnim(it.el, it.el.animate([
-                  { transform: `scale(${sc})`, clipPath: 'inset(6% 6% 6% 6%)' },
-                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
-                ], { duration: Math.round(baseDur * 0.82), easing: curve('curve-spring-tactile') }));
-              }
-            }
-          }
-          if (o.toKey || o.ghostExit) {
-            for (const [k2, prev] of snap) {
-              if (newByKey.has(k2)) continue;
-              const tk = lookup(o.toKey, prev.id);
-              const target = tk ? newRaw.get(tk) : null;
-              if (target && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, toRect: target.vr, baseW: prev.baseW, baseH: prev.baseH, duration: baseDur, easing });
-              else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: o.exitDuration ?? 110, transform: o.exitTransform, easing: o.exitEasing });
-            }
-          }
-          return baseDur;
-        };
-
-        const morphRect = (fromRect, toEl, opts) => {
-          if (!enabled() || !fromRect || !toEl) return null;
-          const o = opts || {};
-          cancelEl(toEl);
-          const toRect = toEl.getBoundingClientRect();
-          if (!toRect.width || !toRect.height) return null;
-          const inStage = stage.contains(toEl);
-          const k = inStage && stage.offsetWidth ? stage.getBoundingClientRect().width / stage.offsetWidth : 1;
-          const dx = (fromRect.left - toRect.left) / k, dy = (fromRect.top - toRect.top) / k;
-          const sx = fromRect.width / toRect.width, sy = fromRect.height / toRect.height;
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.02 && Math.abs(sy - 1) < 0.02) return null;
-          toEl.style.transformOrigin = o.origin || 'top left';
-          return trackAnim(toEl, toEl.animate(
-            [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: 'none' }],
-            { duration: Math.max(40, Math.round((o.duration ?? dur('dur-base', 180)) * speedScale())), easing: curve(o.easing || 'curve-spring-settle') }
-          ));
-        };
-
-        const drawPath = (pathEl, opts) => {
-          if (!enabled() || !pathEl || typeof pathEl.getTotalLength !== 'function') return null;
-          const o = opts || {};
-          const len = pathEl.getTotalLength();
-          if (!len) return null;
-          cancelEl(pathEl);
-          // Preserve an existing CSS dash pattern (e.g. .connector-guide) by repeating it up to `len`
-          // followed by a `len`-long gap, so the line draws on dashed instead of flashing solid.
-          const cs = getComputedStyle(pathEl);
-          const rawDash = (cs.strokeDasharray || '').trim();
-          const nums = rawDash && rawDash !== 'none'
-            ? rawDash.split(/[\s,]+/).map(v => parseFloat(v)).filter(v => Number.isFinite(v) && v > 0)
-            : [];
-          let dashArray = `${len} ${len}`;
-          let startOffset = len;
-          if (nums.length) {
-            const pat = nums.length % 2 === 1 ? nums.concat(nums) : nums;
-            const period = pat.reduce((a, b) => a + b, 0);
-            if (period > 0 && len / period <= 2000) {
-              const reps = Math.ceil(len / period);
-              const seq = [];
-              for (let i = 0; i < reps; i++) seq.push(...pat);
-              const pad = Math.ceil(parseFloat(cs.strokeWidth) || 2);
-              startOffset = reps * period;
-              seq[seq.length - 1] += Math.ceil(len) + pad;
-              dashArray = seq.join(' ');
-            }
-          }
-          pathEl.style.strokeDasharray = dashArray;
-          pathEl.style.strokeDashoffset = `${startOffset}`;
-          const anim = pathEl.animate([{ strokeDashoffset: startOffset }, { strokeDashoffset: 0 }], {
-            duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
-            easing: curve(o.easing || 'curve-out')
-          });
-          const clear = () => { pathEl.style.strokeDasharray = ''; pathEl.style.strokeDashoffset = ''; };
-          anim.addEventListener('finish', clear, { once: true });
-          anim.addEventListener('cancel', clear, { once: true });
-          return trackAnim(pathEl, anim);
-        };
-
-        const normPoly = (a, b) => {
-          const out = a.slice();
-          while (out.length < b.length) {
-            let best = 0, bestLen = -1;
-            for (let i = 0; i < out.length - 2; i += 2) {
-              const l = Math.hypot(out[i + 2] - out[i], out[i + 3] - out[i + 1]);
-              if (l > bestLen) { bestLen = l; best = i; }
-            }
-            out.splice(best + 2, 0, (out[best] + out[best + 2]) / 2, (out[best + 1] + out[best + 3]) / 2);
-          }
-          return out;
-        };
-
-        const applySvgJob = (job, p) => {
-          const { n, els, kinds, offs, cnts, fromBuf, toBuf } = job;
-          for (let i = 0; i < n; i++) {
-            const o = offs[i], k = kinds[i], el = els[i];
-            if (k === 0) {
-              el.setAttribute('d',
-                'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
-                ' C ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p) +
-                ', ' + (fromBuf[o + 4] + (toBuf[o + 4] - fromBuf[o + 4]) * p) + ' ' + (fromBuf[o + 5] + (toBuf[o + 5] - fromBuf[o + 5]) * p) +
-                ', ' + (fromBuf[o + 6] + (toBuf[o + 6] - fromBuf[o + 6]) * p) + ' ' + (fromBuf[o + 7] + (toBuf[o + 7] - fromBuf[o + 7]) * p));
-            } else if (k === 1) {
-              if (el.tagName === 'path') {
-                el.setAttribute('d', 'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
-                  ' L ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
-              } else {
-                el.setAttribute('x1', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
-                el.setAttribute('y1', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
-                el.setAttribute('x2', fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p);
-                el.setAttribute('y2', fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p);
-              }
-            } else if (k === 2) {
-              el.setAttribute('x', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
-              el.setAttribute('y', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
-              el.setAttribute('width', Math.max(0, fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p));
-              el.setAttribute('height', Math.max(0, fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
-            } else {
-              const cnt = cnts[i], isPoly = k === 4;
-              let s = (isPoly ? '' : 'M ') + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
-              for (let j = 2; j < cnt; j += 2) {
-                s += (isPoly ? ' ' : ' L ') + (fromBuf[o + j] + (toBuf[o + j] - fromBuf[o + j]) * p) + ' ' + (fromBuf[o + j + 1] + (toBuf[o + j + 1] - fromBuf[o + j + 1]) * p);
-              }
-              el.setAttribute(isPoly ? 'points' : 'd', s);
-            }
-          }
-        };
-
-        const tweenSvg = (tracks, opts) => {
-          if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
-          if (!enabled() || !tracks || !tracks.length) return;
-          const o = opts || {};
-          const polyCap = tracks.length > 35;
-          const active = [];
-          let total = 0;
-          for (let i = 0; i < tracks.length; i++) {
-            const tr = tracks[i];
-            if (!tr || !tr.el || !tr.from || !tr.to) continue;
-            if (tr.type === 'polyline') {
-              if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
-                if (!polyCap && tr.el.tagName === 'path') drawPath(tr.el, o);
-                continue;
-              }
-              const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
-              const t = tr.to.length < tr.from.length ? normPoly(tr.to, tr.from) : tr.to;
-              active.push({ kind: tr.el.tagName === 'polyline' ? 4 : 3, el: tr.el, f, t });
-              total += f.length;
-            } else {
-              const kind = tr.type === 'bezier' ? 0 : tr.type === 'rect' ? 2 : 1;
-              const len = kind === 0 ? 8 : 4;
-              if (tr.from.length < len || tr.to.length < len) continue;
-              active.push({ kind, el: tr.el, f: tr.from, t: tr.to });
-              total += len;
-            }
-          }
-          const n = active.length;
-          if (!n) return;
-          const els = new Array(n), kinds = new Uint8Array(n), offs = new Int32Array(n), cnts = new Int32Array(n);
-          const fromBuf = new Float64Array(total), toBuf = new Float64Array(total);
-          let pos = 0;
-          for (let i = 0; i < n; i++) {
-            const tr = active[i], len = tr.f.length;
-            els[i] = tr.el; kinds[i] = tr.kind; offs[i] = pos; cnts[i] = len;
-            for (let j = 0; j < len; j++) { fromBuf[pos + j] = tr.f[j]; toBuf[pos + j] = tr.t[j]; }
-            pos += len;
-          }
-          const d = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * markPlay()));
-          const ease = easeFn(o.easing || 'curve-spring-settle');
-          const start = performance.now();
-          const job = { n, els, kinds, offs, cnts, fromBuf, toBuf, raf: 0 };
-          svgJob = job;
-          syncBusy();
-          const tick = (now) => {
-            if (svgJob !== job) return;
-            const u = Math.min(1, (now - start) / d);
-            applySvgJob(job, u >= 1 ? 1 : ease(u));
-            if (u < 1) job.raf = requestAnimationFrame(tick);
-            else { svgJob = null; syncBusy(); if (o.onComplete) o.onComplete(); }
-          };
-          applySvgJob(job, 0);
-          job.raf = requestAnimationFrame(tick);
-        };
-
-        let lastBar = null, barTimer = false;
-        const hideBar = (barOrSel) => {
-          const el = typeof barOrSel === 'string' ? document.querySelector(barOrSel) : barOrSel;
-          if (!el) return;
-          if (enabled()) {
-            const r = el.getBoundingClientRect();
-            if (r.width > 0 && r.height > 0) {
-              const pre = freezeClone(el);
-              const inSt = stage.contains(el);
-              lastBar = {
-                rect: r, at: performance.now(), pre, el, claimed: false,
-                baseW: inSt && el.offsetWidth ? el.offsetWidth : r.width,
-                baseH: inSt && el.offsetHeight ? el.offsetHeight : r.height
-              };
-              if (!barTimer) {
-                barTimer = true;
-                queueMicrotask(() => {
-                  barTimer = false;
-                  if (lastBar && !lastBar.claimed) ghostExit(lastBar.el, { preCloned: lastBar.pre, fromRect: lastBar.rect, baseW: lastBar.baseW, baseH: lastBar.baseH, duration: 100 });
-                });
-              }
-            }
-          }
-          el.remove();
-        };
-        const showBar = (barEl, opts) => {
-          if (!barEl || !enabled()) return;
-          const o = opts || {};
-          // A bar that closed an instant ago (another element was picked) fades out first; this one then opens in its own place.
-          // It never travels from the old bar to the new one.
-          const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
-          // Transform only (morph, not fade): animating opacity creates a Chromium opacity group that suppresses ::before backdrop-filter until the animation finishes.
-          const slide = o.clipRight || barEl.classList.contains('edge-bar');
-          trackAnim(barEl, barEl.animate(
-            [{ transform: slide ? 'translateX(-8px) scale(0.94)' : 'scale(0.92) translateY(4px)' }, { transform: 'none' }],
-            { duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
-          ));
-        };
-
-        const unfoldNote = (cardEl, badgeEl, leaderEl, opts) => {
-          if (!cardEl || !enabled()) return;
-          const o = opts || {};
-          const br = badgeEl && badgeEl.getBoundingClientRect();
-          if (br && br.width > 0) {
-            morphRect(br, cardEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-tactile' });
-          } else {
-            trackAnim(cardEl, cardEl.animate([{ transform: 'scale(0.88)' }, { transform: 'none' }], {
-              duration: o.duration ?? 170, easing: curve(o.easing || 'curve-spring-tactile')
-            }));
-          }
-          if (leaderEl) drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
-        };
-        const foldNote = (cardEl, badgeEl, opts) => {
-          if (!cardEl || !enabled()) return;
-          const br = badgeEl && badgeEl.getBoundingClientRect();
-          ghostExit(cardEl, { toRect: br && br.width > 0 ? br : null, duration: (opts && opts.duration) ?? 120, easing: 'curve-in' });
-        };
-        const hideHint = (el) => {
-          if (!el) return;
-          ghostExit(el, { duration: 110, transform: 'translateY(10px) scale(0.96)' });
-          el.remove();
-        };
-
-        const anim = (el, frames, opts) => {
-          if (!el || !enabled()) return null;
-          cancelEl(el);
-          return trackAnim(el, el.animate(frames, opts));
-        };
-        const hiddenWhile = new Set();
-        const ghostMorph = (fromRect, toEl, duration, easing) => {
-          if (!enabled() || !fromRect || !toEl) return null;
-          const tr = toEl.getBoundingClientRect();
-          if (!tr.width || !tr.height) return null;
-          const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
-          const ghost = freezeClone(toEl);
-          ghost.style.position = 'fixed';
-          ghost.style.left = `${tr.left}px`;
-          ghost.style.top = `${tr.top}px`;
-          ghost.style.width = `${tr.width}px`;
-          ghost.style.height = `${tr.height}px`;
-          ghost.style.margin = '0';
-          ghost.style.transformOrigin = 'top left';
-          ensureGhostLayer().appendChild(ghost);
-          toEl.style.opacity = '0';
-          hiddenWhile.add(toEl);
-          const a = ghost.animate([
-            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
-            { transform: 'none' }
-          ], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
-          const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
-          a.addEventListener('finish', done, { once: true });
-          a.addEventListener('cancel', done, { once: true });
-          return trackAnim(ghost, a);
-        };
-        const cancelAll = () => {
-          for (const a of [...activeAnims]) { try { a.cancel(); } catch (_) {} }
-          activeAnims.clear();
-          for (const el of hiddenWhile) el.style.opacity = '';
-          hiddenWhile.clear();
-          if (svgJob) { cancelAnimationFrame(svgJob.raf); applySvgJob(svgJob, 1); svgJob = null; }
-          if (ghostLayer) ghostLayer.textContent = '';
-          syncBusy();
-        };
-        const pulseEl = (el, transform = 'scale(1.15)', duration = 180) => {
-          if (el && enabled()) trackAnim(el, el.animate([{ transform: 'none' }, { transform }, { transform: 'none' }], {
-            duration, easing: curve('curve-spring-tactile')
-          }));
-        };
-        const morphRing = (fromRect, toEl) => {
-          if (!enabled() || !fromRect || !toEl) return;
-          const tr = toEl.getBoundingClientRect();
-          if (!tr.width || !tr.height || fromRect.right < 0 || fromRect.left > innerWidth || tr.right < 0 || tr.left > innerWidth) return;
-          const ring = document.createElement('div');
-          ring.setAttribute('data-motion-ghost', '');
-          ring.setAttribute('data-export-skip', '');
-          ring.setAttribute('aria-hidden', 'true');
-          ring.style.cssText = `position:fixed;left:${tr.left - 2}px;top:${tr.top - 2}px;width:${tr.width + 4}px;height:${tr.height + 4}px;border:2px solid var(--focus-ring);border-radius:var(--radius-md);pointer-events:none;transform-origin:top left;`;
-          ensureGhostLayer().appendChild(ring);
-          const anim = ring.animate([
-            { transform: `translate(${fromRect.left - tr.left}px, ${fromRect.top - tr.top}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
-            { transform: 'none' }
-          ], { duration: 160, easing: curve('curve-inout') });
-          const drop = () => ring.remove();
-          anim.addEventListener('finish', drop, { once: true });
-          anim.addEventListener('cancel', drop, { once: true });
-          trackAnim(ring, anim);
-        };
-
-        const flipDock = (mutateFn) => {
-          const dock = document.querySelector('.toolbar-center');
-          if (!dock || !enabled()) { mutateFn(); return; }
-          const kids = [...dock.children];
-          const prev = new Map();
-          for (let i = 0; i < kids.length; i++) {
-            const r = kids[i].getBoundingClientRect();
-            if (r.width > 0) prev.set(kids[i], r);
-          }
-          mutateFn();
-          const durMs = Math.round(dur('dur-base', 180) * speedScale());
-          const eas = curve('curve-spring-settle');
-          for (let i = 0; i < kids.length; i++) {
-            const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
-            if (!newR.width) continue;
-            if (oldR) {
-              const dx = oldR.left - newR.left;
-              if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
-            } else {
-              trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
-            }
-          }
-        };
-
-        return {
-          enabled, dur, curve, speedScale, easeFn, anim, ghostMorph, capture, play, morphRect,
-          ghostExit, setViewportBusy, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
-        };
-      })();
-
-      let vpAnim = null;
-      function cancelViewportAnim() {
-        if (!vpAnim) return;
-        cancelAnimationFrame(vpAnim.raf);
-        vpAnim = null;
-        motion.setViewportBusy(false);
-        viewport.classList.remove('gesturing');
-      }
-      const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
-      function animateViewport(targetPanX, targetPanY, targetScale, opts) {
-        const o = opts || {};
-        if (!motion.enabled() || o.duration === 0) {
-          cancelViewportAnim();
-          panX = targetPanX; panY = targetPanY; scale = targetScale;
-          updateTransform();
-          if (o.onComplete) o.onComplete();
-          return;
-        }
-        const sx = panX, sy = panY, sk = scale;
-        if (Math.abs(targetPanX - sx) < 0.5 && Math.abs(targetPanY - sy) < 0.5 && Math.abs(targetScale - sk) < 0.002) {
-          cancelViewportAnim();
-          panX = targetPanX; panY = targetPanY; scale = targetScale;
-          updateTransform();
-          if (o.onComplete) o.onComplete();
-          return;
-        }
-        if (vpAnim) cancelAnimationFrame(vpAnim.raf);
-        const d = Math.max(40, Math.round((o.duration ?? motion.dur('dur-camera', 240)) * motion.speedScale()));
-        const ease = motion.easeFn(o.easing || 'curve-out');
-        const start = performance.now();
-        viewport.classList.add('gesturing');
-        const job = { targetPanX, targetPanY, targetScale, raf: 0 };
-        vpAnim = job;
-        motion.setViewportBusy(true);
-        showZoom();
-        const tick = (now) => {
-          if (vpAnim !== job) return;
-          const u = Math.min(1, (now - start) / d);
-          const p = u >= 1 ? 1 : ease(u);
-          panX = sx + (targetPanX - sx) * p;
-          panY = sy + (targetPanY - sy) * p;
-          scale = sk + (targetScale - sk) * p;
-          updateTransform();
-          if (u < 1) { job.raf = requestAnimationFrame(tick); }
-          else { vpAnim = null; motion.setViewportBusy(false); viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
-        };
-        job.raf = requestAnimationFrame(tick);
-      }
-
-      let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
-      let initialDataText = null;   // raw inline #diagram-data text at load, used to verify linked-folder file matches
-
-      async function loadInitialData() {
-        try {
-          const dataEl = document.getElementById('diagram-data');
-          let raw = '';
-          if (dataEl) {
-            // Read inline JSON synchronously before any await so --target file boots synchronously.
-            raw = dataEl.textContent.trim();
-            initialDataText = raw.replace(/\r\n?/g, '\n');
-          } else {
-            const [text] = await Promise.all([
-              fetch('diagram.json').then((r) => {
-                if (!r.ok) throw new Error(`HTTP ${r.status} loading diagram.json`);
-                return r.text();
-              }),
-              engineSrcPromise || Promise.resolve()
-            ]);
-            raw = text.trim();
-          }
-          if (raw) {
-            const disk = JSON.parse(raw);
-            // "_readme" is for readers of the file, not the model: keep it aside and write it back first on Save
-            if (typeof disk._readme === 'string') dataReadme = disk._readme;
-            delete disk._readme;
-            chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
-          }
-        } catch (err) {
-          console.error("Failed to parse diagram-data JSON:", err);
-        }
-        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
-        document.title = chartTitleEl.textContent;
-        publishedTitle = document.title;
-
-        chartTitleEl.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          chartTitleEl.contentEditable = 'true';
-          chartTitleEl.focus();
-          const range = document.createRange();
-          range.selectNodeContents(chartTitleEl);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        });
-        chartTitleEl.addEventListener('blur', () => {
-          chartTitleEl.contentEditable = 'false';
-          const val = chartTitleEl.textContent.trim();
-          if (val && chartData.title !== val) {
-            const sr = saveStatus.getBoundingClientRect();
-            chartData.title = val;
-            document.title = val;
-            updateStatus(true);
-            motion.morphRect(sr, saveStatus, { duration: 140, easing: 'curve-out' });
-          }
-        });
-        chartTitleEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            chartTitleEl.blur();
-          }
-        });
-
-        const urlParams = new URLSearchParams(window.location.search);
-        // window.name is how an embedding page asks for it: <iframe name="present" srcdoc=...> has no query string to carry ?present
-        if (urlParams.has('present') || urlParams.has('capture') || window.name === 'present') {
-          document.body.classList.add('presentation');
-          document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
-        }
-        if (urlParams.has('capture')) document.body.classList.add('capture');
-        initTheme();
-        initSearch();
-
-        const interactive = !urlParams.has('report') && !urlParams.has('capture');
-        const applyInitialView = () => {
-          fitView();
-          if (!interactive || !plugin || plugin.id !== 'sequence' || scale >= 0.85) return;
-          const { vpRect, frame, scaleX, minPan } = fitMetrics();
-          if (vpRect.width < 600) return;
-          scale = Math.min(1.0, Math.max(scaleX, 0.85));
-          panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 : minPan) - frame.x * scale;
-          panY = minPan - frame.y * scale;
-          updateTransform();
-        };
-
-        try {
-          plugin.render();
-          applyInitialView();
-          updateStatus(false);
-          committedJson = savedJson = JSON.stringify(chartData);
-          updateHistoryButtons();
-        } finally {
-          document.documentElement.classList.remove('is-loading');
-          document.documentElement.dataset.diagramReady = '1';
-        }
-
-        requestAnimationFrame(() => {
-          applyInitialView();
-          // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
-          // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
-          syncHeaderCompact();
-          const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
-            : Promise.resolve();
-          fontsIn.then(() => {
-            document.documentElement.dataset.diagramSettled = '1';
-            if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
-            if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
-          });
-        });
-      }
-
-      // Present mode (body.presentation): read-only view, toggled in place by the Present button and Esc, or on at load by ?present
-      const btnPresent = document.getElementById('btn-present');
-      let presentEntry = null;
-      const presentOn = () => document.body.classList.contains('presentation');
-      function setPresent(on) {
-        if (on === presentOn()) return;
-        const canAnim = motion.enabled();
-        const presentRect = canAnim ? btnPresent.getBoundingClientRect() : null;
-        const hdr = canAnim ? document.querySelector('header') : null;
-        const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
-        if (canAnim) motion.cancelAll();
-        if (on && canAnim) {
-          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(-100% - 20px))', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
-          if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
-        }
-        if (on) {
-          plugin.cancelInteraction(); plugin.clearSelection();
-          setHelpOpen(false, false);
-          setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
-          if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
-          presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
-        }
-        document.body.classList.toggle('presentation', on);
-        btnPresent.setAttribute('aria-pressed', String(on));
-        if (!on) syncHeaderCompact();
-        if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
-          const e = presentEntry;
-          undoStack = e.undo; redoStack = e.redo;
-          restoreSnapshot(e.json);
-          committedJson = e.committed; presentEntry = null;
-        } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
-        if (canAnim) {
-          if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
-          if (!on) {
-            const eas = motion.curve('curve-inout');
-            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-64px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
-            if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
-          }
-          fitView(true);
-        }
-        if (on) showToast('Esc or the Present button to exit');
-      }
-      btnPresent.addEventListener('click', () => setPresent(!presentOn()));
-      // No edit gets through in present mode: double-click (rename), context menu, file drop
-      for (const type of ['dblclick', 'contextmenu', 'dragover', 'drop']) {
-        window.addEventListener(type, (e) => { if (presentOn()) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
-      }
-
-      function updateStatus(unsaved) {
-        if (unsaved) recordHistory();
-        setStatusBadge(unsaved);
-        if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
-      }
-
-      function setStatusBadgeText(text, cls, title) {
-        const changed = saveStatus.textContent !== text;
-        const prevRect = changed && motion.enabled() ? saveStatus.getBoundingClientRect() : null;
-        saveStatus.textContent = text;
-        if (cls !== undefined) saveStatus.className = cls;
-        if (title !== undefined) saveStatus.title = title;
-        syncHeaderCompact();
-        if (prevRect && prevRect.width > 0) {
-          motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
-          const roll = document.createElement('span');
-          roll.style.display = 'inline-block';
-          roll.textContent = text;
-          saveStatus.textContent = '';
-          saveStatus.appendChild(roll);
-          const a = motion.anim(roll, [{ transform: 'translateY(4px)' }, { transform: 'none' }], { duration: 180, easing: motion.curve('curve-inout') });
-          if (a) a.addEventListener('finish', () => { if (roll.parentNode === saveStatus) saveStatus.textContent = text; }, { once: true });
-        }
-      }
-
-      // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
-      function setStatusBadge(unsaved) {
-        hasUnsavedChanges = unsaved;
-        if (unsaved) reloadExpected = false;
-        if (artifactMode === 'view-only') {
-          setStatusBadgeText("View only", "badge badge-status", unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.');
-          return;
-        }
-        if (artifactMode === 'publish' && !unsaved) {
-          setStatusBadgeText("Saved to artifact", "badge badge-status saved");
-          return;
-        }
-        // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
-        const target = fileHandle ? fileHandle.name : (helperSavedName || storedName);
-        if (unsaved) {
-          setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
-        } else if (helperSavedName && !fileHandle) {
-          setStatusBadgeText(`Saved to ${helperSavedName}`, "badge badge-status saved", `Saved straight to ${helperSavedName} via local helper`);
-        } else if (fileHandle) {
-          setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
-        } else if (everSaved) {
-          setStatusBadgeText("Downloaded a copy", "badge badge-status saved", location.protocol === 'file:'
-            ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
-            : 'The edited diagram went to your downloads folder.');
-        } else if (target) {
-          setStatusBadgeText(`Saves to ${target}`, "badge badge-status", `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`);
-        } else {
-          setStatusBadgeText("Ready", "badge badge-status", '');
-        }
-      }
-
-      // --- UNDO / REDO ---
-      function recordHistory() {
-        if (committedJson === null) return;          // still loading
-        const now = JSON.stringify(chartData);
-        if (now === committedJson) return;           // nothing actually changed
-        undoStack.push(committedJson);
-        if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
-        redoStack = [];
-        committedJson = now;
-        updateHistoryButtons();
-      }
-
-      function restoreSnapshot(json) {
-        plugin.cancelInteraction();
-        plugin.clearSelection();
-        chartData = JSON.parse(json);
-        committedJson = json;
-        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
-        document.title = chartTitleEl.textContent;
-        plugin.render();
-        setStatusBadge(json !== savedJson);
-        updateHistoryButtons();
-      }
-
-      function nudgeHistoryIcon(btn, deg) {
-        if (!motion.enabled()) return;
-        const svg = btn && btn.querySelector('svg');
-        if (svg) motion.anim(svg, [{ transform: 'none' }, { transform: `rotate(${deg}deg)` }, { transform: 'none' }], {
-          duration: 140, easing: motion.curve('curve-spring-tactile')
-        });
-      }
-      function undo() {
-        if (!undoStack.length || pointerHeld) return;
-        nudgeHistoryIcon(btnUndo, -12);
-        redoStack.push(committedJson);
-        restoreSnapshot(undoStack.pop());
-      }
-
-      function redo() {
-        if (!redoStack.length || pointerHeld) return;
-        nudgeHistoryIcon(btnRedo, 12);
-        undoStack.push(committedJson);
-        restoreSnapshot(redoStack.pop());
-      }
-
-      function updateHistoryButtons() {
-        btnUndo.disabled = !undoStack.length;
-        btnRedo.disabled = !redoStack.length;
-      }
-
-      btnUndo.addEventListener('click', undo);
-      btnRedo.addEventListener('click', redo);
-      window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
-      window.addEventListener('pointerup', () => { pointerHeld = false; }, true);
-      window.addEventListener('pointercancel', () => { pointerHeld = false; }, true);
-
-      // --- AUTO-TIDY (the type's engine does the layout) ---
-      // ?tidy: run the engine on load and publish the laid-out data (used by scripts/engine_runner.py)
-      function publishTidyResult() {
-        layoutDiagram(chartData);
-        const el = document.createElement('script');
-        el.id = 'tidy-result';
-        el.type = 'application/json';
-        el.textContent = JSON.stringify(chartData);
-        document.body.appendChild(el);
-      }
-
-      // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
-      btnAutoTidy.addEventListener('click', () => {
-        if (plugin.tidy) { plugin.tidy(); return; }
-        layoutDiagram(chartData);
-        plugin.render();
-        updateStatus(true);
-      });
-
-      // --- THEME (light / dark) ---
-      // Priority (script in shell.html's <head>): ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const btnTheme = document.getElementById('btn-theme');
-      function currentTheme() {
-        return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-      }
-      let themeTimer = 0;
-      function applyTheme(theme, persist, fromClick) {
-        const flip = () => {
-          document.documentElement.setAttribute('data-theme', theme);
-          btnTheme.setAttribute('aria-pressed', String(theme === 'dark'));
-          btnTheme.title = btnTheme.ariaLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
-          if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
-          if (plugin) plugin.render();   // type colors may depend on the theme
-        };
-        if (!persist || !motion.enabled()) { flip(); return; }
-        // the ripple only for a real click on the button; a programmatic click expects a sync data-theme update
-        if (document.startViewTransition && fromClick) {
-          const anchor = btnTheme.getClientRects().length ? btnTheme : (btnMore && btnMore.getClientRects().length ? btnMore : btnTheme);
-          const r = anchor.getBoundingClientRect();
-          const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
-          const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
-          const vt = document.startViewTransition(flip);
-          vt.ready.then(() => {
-            document.documentElement.animate(
-              { clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
-              { duration: 260, easing: motion.curve('curve-inout'), pseudoElement: '::view-transition-new(root)' }
-            );
-          }).catch(() => {});
-          return;
-        }
-        document.body.classList.add('theme-animating');
-        clearTimeout(themeTimer);
-        themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
-        flip();
-      }
-      // The theme was chosen by the script at the top of <head> (shell.html), before the first paint: read it back
-      function initTheme() { applyTheme(currentTheme(), false); }
-      btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
-
-      // --- VIEWPORT PAN & ZOOM & FIT ---
-      let lastAppliedScale = null;
-      function showZoom() {
-        const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
-          ? plugin.zoomController.getLabel()
-          : `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
-        viewport.dataset.zoom = label;
-        if (zoomLevelEl) zoomLevelEl.textContent = label;
-      }   // a glide in flight shows where it lands
-      function updateTransform() {
-        if (plugin && plugin.customViewport) {
-          stage.style.transform = '';
-          stage.style.setProperty('--ui-scale', '1');
-          showZoom();
-          if (plugin.onViewChange) plugin.onViewChange();
-          return;
-        }
-        stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        if (scale !== lastAppliedScale) {
-          lastAppliedScale = scale;
-          stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
-          showZoom();
-        }
-        if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
-      }
-
-      // --- HOVER TEXT: an element's data-tip, or the full text of a label cut off with "...", as the native tooltip ---
-      const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
-      const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
-      document.addEventListener('pointerover', (e) => {
-        for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
-          if (el.dataset.noTip !== undefined) return;
-          if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
-          const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
-          if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
-        }
-      });
-
-      // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
-      function publishRenderReport() {
-        const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
-        const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
-        const nodes = [...document.querySelectorAll(plugin.report.node)].map(el => ({ id: el.dataset.nodeId, box: box(el) }));
-        const labels = [...document.querySelectorAll(plugin.report.label)]
-          .map(el => ({ id: el.dataset.edgeId, text: (el.querySelector(plugin.report.labelText)?.textContent || '').trim(), box: box(el) }))
-          .filter(l => l.text);
-        const errors = [], warnings = [];
-        for (let i = 0; i < labels.length; i++) {
-          for (let j = i + 1; j < labels.length; j++) {
-            if (hit(labels[i].box, labels[j].box)) errors.push(`Edge labels overlap: "${labels[i].text}" (${labels[i].id}) and "${labels[j].text}" (${labels[j].id})`);
-          }
-          nodes.forEach(n => {
-            if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
-          });
-        }
-        if (plugin.report.nodeText) {
-          document.querySelectorAll(plugin.report.nodeText).forEach(el => {
-            if (isCut(el)) {
-              const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              // A label that shows its full text on hover (see HOVER TEXT) is a layout note, not a data problem
-              warnings.push(el.dataset.tip || el.title || isClamped(el)
-                ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
-                : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
-            }
-          });
-        }
-        document.querySelectorAll('.lane-title').forEach(el => {
-          if (isCut(el)) {
-            warnings.push(isClamped(el)
-              ? `Lane title truncated ("..."): "${el.textContent.trim()}"; the full text shows on hover`
-              : `Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
-          }
-        });
-        const effPx = (sel) => {
-          // data-base-px: the designed size of a label a plugin shrank to fit its shape (judged at that size)
-          const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(el.dataset.basePx || getComputedStyle(el).fontSize) * scale);
-          return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
-        };
-        const minNodeFontPx = effPx(plugin.report.nodeText);
-        const minEdgeFontPx = effPx(plugin.report.labelText);
-        const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
-        const legibility = [];
-        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum.`);
-        if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
-        const report = {
-          viewport: { w: window.innerWidth, h: window.innerHeight },
-          fitScale: Math.round(scale * 100) / 100,
-          nodeCount: nodes.length, labelCount: labels.length,
-          minNodeFontPx, minEdgeFontPx, minTextPx: MIN_PX, errors, legibility, warnings,
-          natural: (() => { const f = contentFrame(); return { w: f.w, h: f.h }; })()
-        };
-        const el = document.createElement('script');
-        el.id = 'render-report';
-        el.type = 'application/json';
-        el.textContent = JSON.stringify(report);
-        document.body.appendChild(el);
-      }
-
-      // What Fit and screenshots frame: contentEl, grown by whatever the plugin says reaches past its edges
-      // (plugin.contentOverflow, e.g. flowchart notes in the margin). Unscaled px; x/y <= 0 is the left/top reach.
-      function contentFrame() {
-        const o = (plugin.contentOverflow && plugin.contentOverflow()) || {};
-        const l = o.left || 0, t = o.top || 0;
-        return {
-          x: -l, y: -t,
-          w: (plugin.contentEl.offsetWidth || 1400) + l + (o.right || 0),
-          h: (plugin.contentEl.offsetHeight || 800) + t + (o.bottom || 0)
-        };
-      }
-
-      function fitMetrics() {
-        const vpRect = viewport.getBoundingClientRect();
-        const frame = contentFrame();
-        const capture = document.body.classList.contains('capture');
-        const pad = capture ? 0 : (plugin.fitPad && plugin.fitPad(vpRect.width)) || 80;
-        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
-        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
-        const dock = document.querySelector('.dock-area');
-        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
-        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
-        // Chrome floating over the top of the viewport (a type's [data-overlay-top], e.g. the flowchart's tab box): fit below it
-        let topBand = 0;
-        if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
-          if (el.hidden || getComputedStyle(el).display === 'none') return;
-          const r = el.getBoundingClientRect();
-          if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
-        });
-        const scaleX = (vpRect.width - pad) / frame.w;
-        const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
-        return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
-      }
-
-      function fitView(animate) {
-        if (plugin && plugin.zoomController && plugin.zoomController.reset) {
-          plugin.zoomController.reset(animate);
-          showZoom();
-          return;
-        }
-        const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
-
-        // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
-        // so the screenshot is the diagram only and does not depend on browser viewport quirks.
-        if (capture) {
-          const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
-          if (reqW > 0) {
-            cancelViewportAnim();
-            scale = Math.min(1, reqW / frame.w);
-            panX = -frame.x * scale;
-            panY = -frame.y * scale;
-            updateTransform();
-            return;
-          }
-        }
-
-        const nextScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        const nextPanX = Math.max(minPan, (vpRect.width - frame.w * nextScale) / 2) - frame.x * nextScale;
-        const nextPanY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * nextScale) / 2) - frame.y * nextScale;
-
-        if (animate && motion.enabled()) {
-          animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
-        } else {
-          cancelViewportAnim();
-          scale = nextScale; panX = nextPanX; panY = nextPanY;
-          updateTransform();
-        }
-      }
-
-      // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
-      // Holding Space does the same with the primary button, and makes nodes, edges and lanes unclickable
-      let spaceHeld = false;
-      const typingInField = () => {
-        const a = document.activeElement;
-        return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
-      };
-      const setSpaceHeld = (on) => {
-        spaceHeld = on;
-        document.body.classList.toggle('space-pan', on);
-      };
-      window.addEventListener('keydown', (e) => {
-        if (e.code !== 'Space' || typingInField()) return;
-        e.preventDefault();
-        if (!e.repeat) setSpaceHeld(true);
-      }, true);
-      window.addEventListener('keyup', (e) => {
-        if (e.code !== 'Space') return;
-        if (spaceHeld) e.preventDefault();
-        setSpaceHeld(false);
-      }, true);
-      window.addEventListener('blur', () => setSpaceHeld(false));
-      // Swallow the click that ends a Space-drag so nothing underneath activates
-      viewport.addEventListener('click', (e) => {
-        if (spaceHeld) { e.preventDefault(); e.stopImmediatePropagation(); }
-      }, true);
-
-      viewport.addEventListener('pointerdown', (e) => {
-        if (plugin && plugin.customViewport) return;
-        if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        cancelViewportAnim();
-        isPanning = true;
-        panStartX = e.clientX - panX;
-        panStartY = e.clientY - panY;
-        viewport.classList.add('panning', 'gesturing');
-      }, true);
-      viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
-      viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
-
-      viewport.addEventListener('pointerdown', (e) => {
-        if (plugin && plugin.customViewport) return;
-        if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
-          if (plugin.cancelInteraction()) return;
-          if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
-          cancelViewportAnim();
-          isPanning = true;
-          panStartX = e.clientX - panX;
-          panStartY = e.clientY - panY;
-          viewport.classList.add('panning', 'gesturing');
-          plugin.clearSelection();
-        }
-      });
-
-      // --- TOUCH: one finger pans, two fingers pinch-zoom ---
-      // The viewport sets touch-action: none, so the browser never takes a gesture over (no page zoom, no
-      // pointercancel halfway through a pan). The shell owns every touch except one that lands on an item that is
-      // already selected, which goes to the plugin so it can be dragged. A finger that lands on any other item pans
-      // like blank canvas, so brushing past a step while panning moves nothing; a tap (no movement) is replayed to
-      // the item as a pointerdown/pointerup pair, so it selects exactly as a click does. A tap on blank canvas clears
-      // the selection; a pan does not. A second finger turns the gesture into a pinch anchored at the midpoint, and
-      // freezes any drag the plugin started. Moves are applied once per animation frame.
-      const touches = new Map();     // pointerId -> { x, y }
-      let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
-      let replayingTap = false;
-      const TAP_SLOP = 8;            // px a finger may wander and still be a tap
-      let transformRaf = 0;
-      function scheduleTransform() {
-        if (transformRaf) return;
-        transformRaf = requestAnimationFrame(() => { transformRaf = 0; updateTransform(); });
-      }
-      function flushTransform() {
-        if (!transformRaf) return;
-        cancelAnimationFrame(transformRaf);
-        transformRaf = 0;
-        updateTransform();
-      }
-      const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
-      function startPinch() {
-        const [a, b] = [...touches.values()];
-        touchGesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
-          mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale, panX, panY };
-      }
-      viewport.addEventListener('pointerdown', (e) => {
-        if (plugin && plugin.customViewport) return;
-        if (e.pointerType !== 'touch' || replayingTap) return;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (touches.size >= 2) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          if (touches.size > 2) return;
-          endMarquee();
-          cancelViewportAnim();
-          isPanning = false;
-          plugin.cancelInteraction();
-          viewport.classList.add('panning', 'gesturing');
-          startPinch();
-          return;
-        }
-        // The browser's touch adjustment snaps a touch's target to the nearest small interactive element (a step's
-        // connect port, say), which is how a tap near a step starts an arrow. Use what is really under the finger.
-        const hit = document.elementFromPoint(e.clientX, e.clientY);
-        const target = hit && viewport.contains(hit) ? hit : e.target;
-        const bg = isBlankCanvas(target);
-        if (!bg && target.closest && target.closest('.selected, [data-touch-drag]')) {   // the plugin drags it
-          touchGesture = null;
-          if (target !== e.target) { e.stopImmediatePropagation(); replayPress(target, e, false); }
-          return;
-        }
-        e.stopImmediatePropagation();
-        touchGesture = { kind: 'pan', sx: e.clientX, sy: e.clientY, panX, panY, moved: false, bg, target, init: e };
-      }, true);
-      // Hand a target a press it never saw (and, for a tap, the release): plugins select and drag on pointerdown
-      function replayPress(target, init, withUp) {
-        const opts = { bubbles: true, cancelable: true, composed: true, pointerId: init.pointerId, pointerType: 'touch',
-          isPrimary: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1,
-          shiftKey: init.shiftKey, ctrlKey: init.ctrlKey, metaKey: init.metaKey, altKey: init.altKey };
-        replayingTap = true;
-        try {
-          target.dispatchEvent(new PointerEvent('pointerdown', opts));
-          if (withUp) target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, opts, { buttons: 0 })));
-        } finally { replayingTap = false; }
-      }
-      window.addEventListener('pointermove', (e) => {
-        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        const g = touchGesture;
-        if (!g) return;                       // a plugin drag of a selected item
-        e.stopPropagation();                  // nothing else follows a finger the shell owns (or a frozen drag)
-        if (g.kind === 'pinch') {
-          if (touches.size < 2) return;
-          const [a, b] = [...touches.values()];
-          const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-          const ns = Math.min(Math.max(g.scale * d / g.dist, 0.2), 2.5);
-          const vp = viewport.getBoundingClientRect();
-          // The canvas point that was under the starting midpoint stays under the current midpoint
-          panX = (mx - vp.left) - (g.mx - vp.left - g.panX) * (ns / g.scale);
-          panY = (my - vp.top) - (g.my - vp.top - g.panY) * (ns / g.scale);
-          scale = ns;
-          scheduleTransform();
-          return;
-        }
-        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
-        if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
-        if (!g.moved) { cancelViewportAnim(); g.moved = true; viewport.classList.add('panning', 'gesturing'); }
-        panX = g.panX + dx;
-        panY = g.panY + dy;
-        scheduleTransform();
-      }, true);
-      function endTouch(e) {
-        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
-        touches.delete(e.pointerId);
-        const g = touchGesture;
-        if (!g) return;
-        if (g.kind === 'pinch') {
-          if (touches.size === 1) {           // one finger left: carry on panning with it
-            const [rest] = [...touches.values()];
-            touchGesture = { kind: 'pan', sx: rest.x, sy: rest.y, panX, panY, moved: true };
-          } else if (touches.size === 0) {
-            touchGesture = null;
-            viewport.classList.remove('panning', 'gesturing');
-          }
-          return;
-        }
-        touchGesture = null;
-        viewport.classList.remove('panning', 'gesturing');
-        if (g.moved || e.type !== 'pointerup' || touches.size) return;
-        if (g.bg) {                           // a tap on blank canvas
-          if (!plugin.cancelInteraction()) plugin.clearSelection();
-          return;
-        }
-        // A tap on an item: hand it the press it never saw, after this pointerup has finished its own dispatch
-        const { target, init } = g;
-        setTimeout(() => { if (target.isConnected) replayPress(target, init, true); }, 0);
-      }
-      window.addEventListener('pointerup', endTouch, true);
-      window.addEventListener('pointercancel', endTouch, true);
-
-      // --- SELECTION BOX (opt-in: only for a plugin that defines selectInRect / selectAll) ---
-      // Shift + drag on blank canvas draws a box; Ctrl/Cmd + Shift + drag makes it a toggle box. On every move the
-      // plugin's selectInRect(rect, mode, start) selects what the box touches, so the selection previews live:
-      // rect is in client coordinates, mode is 'replace' or 'toggle', start is true on a box's first call. The
-      // selection is not cleared when a box starts. Ctrl/Cmd + A calls selectAll(). Without these members
-      // Shift + drag pans and Ctrl/Cmd + A is the browser's own. Both are off in present mode.
-      let marquee = null;   // { el, x, y, mode }
-      const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
-      function startMarquee(e) {
-        if (!e.shiftKey || !plugin.selectInRect || document.body.classList.contains('presentation')) return false;
-        e.preventDefault();
-        if (isTyping()) document.activeElement.blur();   // commit a label being edited, as any click on the canvas does
-        const el = document.createElement('div');
-        el.className = 'marquee';
-        document.body.appendChild(el);
-        marquee = { el, x: e.clientX, y: e.clientY, mode: (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace' };
-        moveMarquee(e, true);
-        return true;
-      }
-      function moveMarquee(e, start = false) {
-        const left = Math.min(marquee.x, e.clientX), top = Math.min(marquee.y, e.clientY);
-        const width = Math.abs(e.clientX - marquee.x), height = Math.abs(e.clientY - marquee.y);
-        Object.assign(marquee.el.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
-        plugin.selectInRect({ left, top, right: left + width, bottom: top + height, width, height }, marquee.mode, start);
-      }
-      function endMarquee() {
-        if (!marquee) return;
-        if (marquee.el.offsetWidth > 4 || marquee.el.offsetHeight > 4) {
-          motion.ghostExit(marquee.el, { duration: 90, transform: 'scale(0.92)' });
-        }
-        marquee.el.remove();
-        marquee = null;
-      }
-      window.addEventListener('pointermove', (e) => { if (marquee) moveMarquee(e); });
-      window.addEventListener('pointerup', endMarquee);
-      window.addEventListener('pointercancel', endMarquee);
-      window.addEventListener('keydown', (e) => {
-        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a' || !plugin.selectAll) return;
-        if (isTyping() || document.body.classList.contains('presentation')) return;
-        e.preventDefault();
-        plugin.selectAll();
-      });
-
-      window.addEventListener('pointermove', (e) => {
-        if (!isPanning) return;
-        panX = e.clientX - panStartX;
-        panY = e.clientY - panStartY;
-        scheduleTransform();
-      });
-
-      function endMousePan() {
-        if (!isPanning) return;
-        flushTransform();
-        isPanning = false;
-        viewport.classList.remove('panning');
-        if (!touchGesture && !vpAnim) viewport.classList.remove('gesturing');
-      }
-      window.addEventListener('pointerup', endMousePan);
-      window.addEventListener('pointercancel', endMousePan);
-
-      const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
-      let wheelGestureTimer = 0;
-      function bumpWheelGesture() {
-        viewport.classList.add('gesturing');
-        clearTimeout(wheelGestureTimer);
-        wheelGestureTimer = setTimeout(() => {
-          wheelGestureTimer = 0;
-          if (!isPanning && !touchGesture && !vpAnim) viewport.classList.remove('gesturing');
-        }, 140);
-      }
-      viewport.addEventListener('wheel', (e) => {
-        if (plugin && plugin.customViewport) {
-          if ((e.ctrlKey || e.metaKey) && plugin.zoomController) {
-            e.preventDefault();
-            if (e.deltaY < 0 && plugin.zoomController.zoomIn) plugin.zoomController.zoomIn(e);
-            else if (e.deltaY > 0 && plugin.zoomController.zoomOut) plugin.zoomController.zoomOut(e);
-            showZoom();
-          }
-          return;
-        }
-        e.preventDefault();
-        cancelViewportAnim();
-        const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
-        const dX = e.deltaX * unit, dY = e.deltaY * unit;
-        const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
-        if (!isZoom) {
-          // The wheel scrolls the canvas: vertically, or sideways with Shift (or a trackpad's horizontal swipe)
-          // A mouse wheel notch reports ~100px (or a line/page unit), which moves the canvas too far: scroll it 40%
-          // of that. A trackpad sends many small deltas, which stay 1:1 so the canvas follows the fingers.
-          const notch = e.deltaMode !== 0 || Math.max(Math.abs(dX), Math.abs(dY)) >= 50;
-          const k = notch ? WHEEL_SCROLL : 1;
-          const sideways = e.shiftKey && !dX;
-          panX -= (sideways ? dY : dX) * k;
-          panY -= (sideways ? 0 : dY) * k;
-          bumpWheelGesture();
-          updateTransform();
-          return;
-        }
-        // Zoom anchored at the cursor. A mouse wheel notch reports ~100px, a pinch a few px per event: the step is
-        // proportional to the gesture but capped at 15% per event, so one notch is one gentle step, not a jump to
-        // the zoom limit
-        const step = Math.sign(dY) * Math.min(Math.abs(dY) * 0.01, 0.14);
-        const newScale = Math.min(Math.max(scale * Math.exp(-step), 0.2), 2.5);
-        const vp = viewport.getBoundingClientRect();
-        const cx = e.clientX - vp.left, cy = e.clientY - vp.top;
-        panX = cx - (cx - panX) * (newScale / scale);
-        panY = cy - (cy - panY) * (newScale / scale);
-        scale = newScale;
-        bumpWheelGesture();
-        updateTransform();
-      }, { passive: false });
-
-      function zoomIn() {
-        if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
-          plugin.zoomController.zoomIn();
-          showZoom();
-          return;
-        }
-        const base = vpAnim ? vpAnim.targetScale : scale;
-        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
-        animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
-      }
-      function zoomOut() {
-        if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
-          plugin.zoomController.zoomOut();
-          showZoom();
-          return;
-        }
-        const base = vpAnim ? vpAnim.targetScale : scale;
-        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
-        animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
-      }
-      if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
-      if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
-      if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
-
-      function setHelpOpen(open, restoreFocus) {
-        const wasOpen = helpDrawer.classList.contains('open');
-        if (open === wasOpen) return;
-        if (!open) {
-          motion.ghostExit(helpDrawer, {
-            duration: 110,
-            transform: 'scale(0.92, 0.86) translateY(-4px)',
-            clipPath: 'inset(0 0 25% 0 round 8px)',
-            origin: 'top right'
-          });
-        }
-        helpDrawer.classList.toggle('open', open);
-        btnHelp.setAttribute('aria-expanded', String(open));
-        if (open) {
-          if (motion.enabled()) {
-            helpDrawer.style.transformOrigin = 'top right';
-            motion.anim(helpDrawer, [
-              { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
-              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
-            ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
-          }
-          document.getElementById('help-close').focus();
-        } else if (restoreFocus) {
-          (btnHelp.getClientRects().length ? btnHelp : (btnMore || btnHelp)).focus();
-        }
-      }
-      btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open'), false); });
-      document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false, true));
-      document.addEventListener('pointerdown', (e) => {
-        if (helpDrawer.classList.contains('open') && !helpDrawer.contains(e.target) && !btnHelp.contains(e.target)) {
-          setHelpOpen(false, false);
-        }
-      }, true);
-
-      // --- SEARCH (spec: dev/plans/search.md) ---
-      // Contract: a plugin may define searchItems() -> [{ id, text, el }] in reading order; id is stable across
-      // renders, text is what the reader sees, el is what gets dimmed, ringed and centred. Without it, no search button.
-      // The shell calls it on every query and after every render, so it reads the live DOM and stays cheap.
-      // Search is view-only: never in chartData, undo, Save, exports or Mermaid.
-      window.__searchItems = () => (plugin && plugin.searchItems ? plugin.searchItems() : []);
-
-      const btnSearch = document.getElementById('btn-search');
-      const searchBar = document.getElementById('search-bar');
-      const searchInput = document.getElementById('search-input');
-      const searchCount = document.getElementById('search-count');
-      const searchPrev = document.getElementById('search-prev');
-      const searchNext = document.getElementById('search-next');
-      const SEARCH_MIN_SCALE = 0.6;   // below this zoom a centred match is too small to read, so zoom in on it
-      let searchMatches = [];         // [{ id, text, el }] matching the query, one per element, in plugin order
-      let searchIndex = 0;
-
-      const searchFold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-      const searchOpen = () => !searchBar.hidden;
-
-      // Marks the stage for the current query and keeps the current match when its id still matches.
-      function applySearch() {
-        const prevCur = stage.querySelector('.search-current');
-        const prevRect = prevCur && motion.enabled() ? prevCur.getBoundingClientRect() : null;
-        stage.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
-        const q = searchFold(searchInput.value.trim());
-        const keep = searchMatches[searchIndex] && searchMatches[searchIndex].id;
-        searchMatches = [];
-        if (q && searchOpen()) {
-          const items = window.__searchItems();
-          const seen = new Set();
-          items.forEach(it => { if (searchFold(it.text).includes(q) && !seen.has(it.el)) { seen.add(it.el); searchMatches.push(it); } });
-          items.forEach(it => { if (!seen.has(it.el)) it.el.classList.add('search-dim'); });
-          const kept = searchMatches.findIndex(m => m.id === keep);
-          searchIndex = kept >= 0 ? kept : Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
-          if (searchMatches[searchIndex]) {
-            const nextEl = searchMatches[searchIndex].el;
-            nextEl.classList.add('search-current');
-            if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
-          }
-        } else searchIndex = 0;
-        searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
-        searchPrev.disabled = searchNext.disabled = !searchMatches.length;
-      }
-
-      // Centres the current match using the same scale/pan transform as fitView, zooming in only when it would be too small.
-      function centreSearchMatch() {
-        const m = searchMatches[searchIndex];
-        if (!m) return;
-        // Positions are read relative to the stage as it is drawn now (a glide may still be running), not from scale/pan.
-        const vp = viewport.getBoundingClientRect(), r = m.el.getBoundingClientRect(), st = stage.getBoundingClientRect();
-        const k = (stage.offsetWidth ? st.width / stage.offsetWidth : 0) || scale;
-        let s = scale;
-        if (s < SEARCH_MIN_SCALE && r.width && r.height) {
-          const fit = Math.min((vp.width - 160) / (r.width / k), (vp.height - 160) / (r.height / k), 1);
-          s = Math.max(s, Math.min(Math.max(fit, 0.25), 1));
-        }
-        const cx = (r.left + r.width / 2 - st.left) / k, cy = (r.top + r.height / 2 - st.top) / k;
-        animateViewport(vp.width / 2 - cx * s, vp.height / 2 - cy * s, s, { duration: 220, easing: 'curve-out' });
-      }
-
-      function stepSearch(dir) {
-        if (!searchMatches.length) return;
-        searchIndex = (searchIndex + dir + searchMatches.length) % searchMatches.length;
-        applySearch();
-        centreSearchMatch();
-      }
-
-      function setSearchOpen(on) {
-        const wasOpen = !searchBar.hidden;
-        if (on === wasOpen) {
-          if (!on) { searchInput.value = ''; applySearch(); }
-          return;
-        }
-        if (!on) {
-          motion.ghostExit(searchBar, { duration: 110, transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)', origin: 'top right' });
-        }
-        searchBar.hidden = !on;
-        btnSearch.setAttribute('aria-expanded', String(on));
-        if (on) {
-          if (motion.enabled()) {
-            searchBar.style.transformOrigin = 'top right';
-            motion.anim(searchBar, [
-              { transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)' },   // drops from the pill's search button
-              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
-            ], { duration: 160, easing: motion.curve('curve-out') });
-          }
-          searchInput.focus(); searchInput.select();
-        } else {
-          searchInput.value = '';
-          searchInput.blur();
-        }
-        applySearch();
-      }
-
-      // Plugins that re-render on their own (edit, undo, theme) replace stage children; the query is applied again then.
-      new MutationObserver(() => { if (searchOpen() && searchInput.value) applySearch(); }).observe(stage, { childList: true, subtree: true });
-
-      function initSearch() {
-        btnSearch.hidden = !(plugin && plugin.searchItems);
-        if (btnSearch.hidden) return;
-        btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
-        searchPrev.addEventListener('click', () => stepSearch(-1));
-        searchNext.addEventListener('click', () => stepSearch(1));
-        searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
-        searchInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }
-          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSearchOpen(false); }
-        });
-        // A click elsewhere closes an empty search bar (one with text stays, its dimming is the result)
-        document.addEventListener('pointerdown', (e) => {
-          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock, #btn-search')) setSearchOpen(false);
-        }, true);
-        window.addEventListener('keydown', (e) => {
-          const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
-          const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
-          if ((mod || slash) && !typingInField() && !presentOn()) { e.preventDefault(); setSearchOpen(true); }
-          else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
-        });
-      }
-
-      // --- EXPORT (SVG / PNG) ---
-      // The stage is HTML plus SVG, so the export inlines every computed style into a clone and wraps it in a
-      // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
-      const btnExport = document.getElementById('btn-export');
-      const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
-      const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
-      const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
-      let defaultStyleCache = null;
-
-      function defaultStyleFor(el) {
-        if (!defaultStyleCache) {
-          const frame = document.createElement('iframe');
-          frame.style.cssText = 'position:fixed;left:-9999px;width:10px;height:10px;visibility:hidden';
-          document.body.appendChild(frame);
-          defaultStyleCache = { frame, doc: frame.contentDocument, map: {} };
-          defaultStyleCache.doc.body.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
-        }
-        const c = defaultStyleCache, key = el.namespaceURI + '|' + el.localName;
-        if (!c.map[key]) {
-          const probe = c.doc.createElementNS(el.namespaceURI, el.localName);
-          (el.namespaceURI === EXPORT_SVG_NS ? c.doc.body.firstChild : c.doc.body).appendChild(probe);
-          const cs = c.frame.contentWindow.getComputedStyle(probe), o = {};
-          for (let i = 0; i < cs.length; i++) o[cs[i]] = cs.getPropertyValue(cs[i]);
-          c.map[key] = o;
-        }
-        return c.map[key];
-      }
-
-      function inlineStyles(src, dst) {
-        const cs = getComputedStyle(src), def = defaultStyleFor(src);
-        let css = '';
-        for (let i = 0; i < cs.length; i++) {
-          const prop = cs[i], v = cs.getPropertyValue(prop);
-          if (def[prop] !== v) css += prop + ':' + v + ';';
-        }
-        css = css.replace(/url\("?#arrowhead-(selected|in|out)"?\)/g, 'url("#arrowhead")');
-        dst.setAttribute('style', css);
-        dst.removeAttribute('class');
-        const sk = Array.from(src.children), dk = Array.from(dst.children);
-        for (let i = 0; i < sk.length; i++) {
-          if (sk[i].matches(SKIP_SELECTOR) || (sk[i].namespaceURI !== EXPORT_SVG_NS && getComputedStyle(sk[i]).display === 'none')) { dk[i].remove(); continue; }
-          inlineStyles(sk[i], dk[i]);
-        }
-      }
-
-      function buildExportSvg() {
-        const root = stage.firstElementChild;
-        if (!root) throw new Error('Nothing to export');
-        motion.cancelAll();
-        // Freeze transitions and drop selection/hover state while computed styles are read
-        const frozen = document.createElement('style');
-        frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
-        document.head.appendChild(frozen);
-        document.body.classList.add('exporting');   // view-dependent styles (frozen headers) reset for the export
-        const touched = [];
-        TRANSIENT_CLASSES.forEach(cls => stage.querySelectorAll('.' + cls).forEach(el => { el.classList.remove(cls); touched.push([el, cls]); }));
-        try {
-          const rr = root.getBoundingClientRect(), pad = 24;
-          let minX = 0, minY = 0, maxX = rr.width / scale, maxY = rr.height / scale;
-          root.querySelectorAll('*').forEach(el => {
-            if (el.matches(SKIP_SELECTOR) || el.closest('defs')) return;
-            const r = el.getBoundingClientRect();
-            if (!r.width && !r.height) return;
-            minX = Math.min(minX, (r.left - rr.left) / scale); minY = Math.min(minY, (r.top - rr.top) / scale);
-            maxX = Math.max(maxX, (r.right - rr.left) / scale); maxY = Math.max(maxY, (r.bottom - rr.top) / scale);
-          });
-          const w = Math.ceil(maxX - minX + pad * 2), h = Math.ceil(maxY - minY + pad * 2);
-          const clone = root.cloneNode(true);
-          inlineStyles(root, clone);
-          clone.style.transform = 'none';
-          clone.style.position = 'absolute';
-          clone.style.left = (pad - minX) + 'px';
-          clone.style.top = (pad - minY) + 'px';
-          const wrap = document.createElement('div');
-          wrap.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-          wrap.setAttribute('style', 'position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;background:' + getComputedStyle(viewport).backgroundColor);
-          wrap.appendChild(clone);
-          const xml = new XMLSerializer().serializeToString(wrap);
-          const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-            '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + xml + '</foreignObject></svg>';
-          return { svg, w, h };
-        } finally {
-          touched.forEach(([el, cls]) => el.classList.add(cls));
-          frozen.remove();
-          document.body.classList.remove('exporting');
-        }
-      }
-
-      function exportFileName(ext, part) {
-        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
-        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
-      }
-
-      // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
-      // capability. Anywhere else (or when it was not granted) this is the usual <a download>.
-      async function deliverFile(filename, blob) {
-        if (downloadsApi) {
-          try { await downloadsApi.save({ filename, data: blob }); } catch (err) {
-            showToast('Download did not complete: ' + (err && err.message || err));
-          }
-          return;
-        }
-        const url = URL.createObjectURL(blob), a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      }
-
-      function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
-
-      // A short message that slides in and retracts; used for save and download problems inside an artifact
-      function showToast(message) {
-        const t = document.createElement('div');
-        t.className = 'toast';
-        t.setAttribute('role', 'status');
-        t.textContent = message;
-        document.body.appendChild(t);
-        setTimeout(() => {
-          if (!t.isConnected) return;
-          motion.ghostExit(t, { duration: 120, transform: 'translateY(12px) scale(0.95)' });
-          t.remove();
-        }, 6000);
-      }
-
-      function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
-
-      // Rasterise the export SVG at up to 1.5x. The SVG is built synchronously (styles are read now);
-      // only the image decode and canvas encode are async. Rejects if the image cannot be produced.
-      function exportPngBlob() {
-        const { svg, w, h } = buildExportSvg();
-        const k = Math.min(1.5, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
-            const ctx = canvas.getContext('2d');
-            ctx.scale(k, k);
-            ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(b => b ? resolve(b) : reject(new Error('image too large')), 'image/png');
-          };
-          img.onerror = () => reject(new Error('the diagram could not be drawn as an image'));
-          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
-          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgDocument(svg));
-        });
-      }
-
-      function exportDiagram(format) {
-        try {
-          if (format === 'html') { downloadHtmlFile(); return; }
-          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
-          if (format === 'svg-all') {
-            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
-            return;
-          }
-          if (format === 'svg') {
-            downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
-            return;
-          }
-          exportPngBlob().then(b => downloadBlob(b, 'png'), err => alert('PNG export failed: ' + err.message));
-        } catch (err) {
-          alert('Export failed: ' + err.message);
-        }
-      }
-
-      // --- COPY TO CLIPBOARD ---
-      const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
-      let copyFlashTimer = null;
-
-      function flashCopied(what) { flashStatus('Copied as ' + what); }
-      function flashStatus(text) {
-        setStatusBadgeText(text, 'badge badge-status saved');
-        clearTimeout(copyFlashTimer);
-        copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
-      }
-
-      // What the Mermaid writer reads: the saved form of the diagram (what Save writes) without the `layout` map. A lane's
-      // colour travels in that map, so it is put back on its lane.
-      function mermaidData() {
-        const d = plugin.toDisk ? plugin.toDisk(chartData) : JSON.parse(JSON.stringify(chartData));
-        const layout = d.layout || {};
-        delete d.layout;
-        (d.lanes || []).forEach((l) => { if (layout[l.id] && layout[l.id].color) l.color = layout[l.id].color; });
-        return d;
-      }
-
-      // Must be called straight from the click: the clipboard write has to start inside the user gesture,
-      // so the PNG is handed to ClipboardItem as a Promise rather than awaited first (Safari, Chromium).
-      function copyDiagram(format) {
-        let job;
-        try {
-          if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
-          if (format === 'svg') {
-            job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
-          } else if (format === 'mermaid') {
-            if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex), stock: true }));
-          } else if (format === 'png') {
-            if (!canCopyPng) throw new Error('this browser cannot copy images');
-            job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
-          } else {
-            throw new Error('unknown format ' + format);
-          }
-        } catch (err) {
-          job = Promise.reject(err);
-        }
-        job.then(() => flashCopied(format === 'mermaid' ? 'Mermaid' : format.toUpperCase()),
-                 err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
-      }
-      document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
-      document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
-      // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const btnImportMermaid = document.getElementById('btn-import-mermaid');
-      btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
-      function syncCopyMenu() {
-        document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
-        // Drop the "Copy" heading when this browser has no copy items to offer
-        document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
-      }
-      syncCopyMenu();
-
-      function animateMenuToggle(menu, open, leftOrigin) {
-        const origin = leftOrigin ? 'top left' : 'top right';
-        if (!open) {
-          if (!menu.hidden) motion.ghostExit(menu, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)', origin });
-          menu.hidden = true;
-          return;
-        }
-        const wasHidden = menu.hidden;
-        menu.hidden = false;
-        if (wasHidden && motion.enabled()) {
-          menu.style.transformOrigin = origin;
-          motion.anim(menu, [
-            { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
-            { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
-          ], { duration: 120, easing: motion.curve('curve-out') });   // short and without overshoot: items settle before a click lands
-        }
-      }
-      function setExportOpen(open) {
-        animateMenuToggle(exportMenu, open, false);
-        btnExport.setAttribute('aria-expanded', String(open));
-      }
-      function syncMoreMenu() {
-        if (!moreMenu) return;
-        moreMenu.replaceChildren();
-        const addItem = (label, iconName, onClick, attr) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.setAttribute('role', 'menuitem');
-          if (attr) b.dataset[attr[0]] = attr[1];
-          if (iconName) b.appendChild(ui.iconEl(iconName, { size: 'sm' }));
-          b.appendChild(document.createTextNode(label));
-          b.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); onClick(); });
-          moreMenu.appendChild(b);
-          return b;
-        };
-        const isDark = currentTheme() === 'dark';
-        addItem(isDark ? 'Light mode' : 'Dark mode', isDark ? 'sun' : 'moon', () => btnTheme.click(), ['more', 'theme']);
-        addItem('Shortcuts', 'help', () => btnHelp.click(), ['more', 'help']);
-        if (btnImportMermaid && !btnImportMermaid.hidden) {
-          addItem('Import Mermaid', 'import', () => openMermaidImport(), ['more', 'import']);
-        }
-        [...exportMenu.children].forEach((node) => {
-          if (node.hidden) return;
-          if (node.classList.contains('menu-label')) {
-            const lbl = document.createElement('div');
-            lbl.className = 'menu-label';
-            lbl.setAttribute('role', 'presentation');
-            lbl.textContent = node.textContent;
-            moreMenu.appendChild(lbl);
-          } else if (node.matches('button[role="menuitem"]')) {
-            const iconName = node.dataset.export ? 'export' : null;
-            addItem(node.textContent, iconName, () => node.click());
-          }
-        });
-      }
-      function setMoreOpen(open) {
-        if (!moreMenu || !btnMore) return;
-        if (open) syncMoreMenu();
-        animateMenuToggle(moreMenu, open, false);
-        btnMore.setAttribute('aria-expanded', String(open));
-      }
-      // Arrow keys, Home/End, Escape and Tab navigation for popup menus
-      function menuArrowKeys(menu, btn, setOpen) {
-        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden && getComputedStyle(el).display !== 'none');
-        menu.addEventListener('keydown', (e) => {
-          if (menu.hidden) return;
-          if (e.key === 'Tab') { setOpen && setOpen(false); return; }
-          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen && setOpen(false); btn.focus(); return; }
-          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
-          const list = items();
-          if (!list.length) return;
-          e.preventDefault();
-          const i = list.indexOf(document.activeElement);
-          const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
-            : i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
-            : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
-          list[next].focus();
-        });
-        btn.addEventListener('keydown', (e) => {
-          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-          e.preventDefault();
-          if (menu.hidden && setOpen) setOpen(true);
-          const list = items();
-          if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
-        });
-      }
-      menuArrowKeys(exportMenu, btnExport, setExportOpen);
-      if (moreMenu && btnMore) menuArrowKeys(moreMenu, btnMore, setMoreOpen);
-      btnExport.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMermaidImport();
-        setMoreOpen(false);
-        const opening = exportMenu.hidden;
-        setExportOpen(opening);
-        if (opening && e.detail === 0) {
-          const first = exportMenu.querySelector('[role^="menuitem"]:not([hidden])');
-          if (first) first.focus();
-        }
-      });
-      if (btnMore) btnMore.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMermaidImport();
-        setExportOpen(false);
-        const opening = moreMenu.hidden;
-        setMoreOpen(opening);
-        if (opening && e.detail === 0) {
-          const first = moreMenu.querySelector('[role^="menuitem"]:not([hidden])');
-          if (first) first.focus();
-        }
-      });
-      exportMenu.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-export], [data-copy]');
-        if (!b) return;
-        setExportOpen(false);
-        if (b.dataset.copy) copyDiagram(b.dataset.copy);
-        else exportDiagram(b.dataset.export);
-      });
-      document.addEventListener('click', (e) => {
-        setExportOpen(false);
-        setMoreOpen(false);
-        if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
-      });
-      window.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        setExportOpen(false);
-        setMoreOpen(false);
-        closeMermaidImport();
-      });
-
-      // --- IMPORT MERMAID ---
-      // The header's Import button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
-      // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
-      // could not map exactly is listed afterwards, and text of another diagram type is refused.
-      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
-      function mermaidTypeOf(text) {
-        const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
-        const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
-        if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
-        if (head.startsWith('sequencediagram')) return 'sequence';
-        if (head.startsWith('erdiagram')) return 'erd';
-        if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
-        return '';
-      }
-
-      // Replaces the diagram with the Mermaid text; returns the reader's notes. Throws an Error with a plain message.
-      function importMermaid(text) {
-        if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
-        const kind = mermaidTypeOf(text);
-        if (kind && kind !== plugin.id) {
-          throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
-        }
-        let res;
-        try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
-        const next = res.data;
-        if (!next.title && chartData.title) next.title = chartData.title;
-        plugin.cancelInteraction();
-        plugin.clearSelection();
-        chartData = plugin.fromDisk ? plugin.fromDisk(next) : next;
-        if (plugin.placeImported) plugin.placeImported();
-        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
-        document.title = chartTitleEl.textContent;
-        plugin.render();
-        updateStatus(true);
-        fitView(true);
-        const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
-        return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
-      }
-
-      let importEl = null;
-      function closeMermaidImport() {
-        if (!importEl) return false;
-        motion.ghostExit(importEl, { duration: 110, transform: 'scale(0.94) translateY(-6px)', origin: 'top right' });
-        importEl.remove();
-        importEl = null;
-        return true;
-      }
-      function positionImportBox(box) {
-        const anchorEl = btnImportMermaid.getClientRects().length ? btnImportMermaid : (btnMore || btnExport);
-        const anchor = anchorEl.getBoundingClientRect();
-        const bw = box.offsetWidth;
-        box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
-        box.style.top = `${anchor.bottom + 8}px`;
-      }
-      function showImportNotesBox(box, notes) {
-        box.textContent = '';
-        const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
-        add('div', 'confirm-title', 'Imported, with notes');
-        const list = add('ul', 'confirm-list');
-        notes.forEach((n) => { const li = document.createElement('li'); li.textContent = n; list.appendChild(li); });
-        const done = add('div', 'confirm-actions');
-        const close = document.createElement('button');
-        close.type = 'button';
-        close.className = 'btn btn-primary confirm-ok';
-        close.textContent = 'Close';
-        close.addEventListener('click', closeMermaidImport);
-        done.append(close);
-        close.focus();
-      }
-      function openMermaidImport() {
-        ui.closeConfirm();
-        closeMermaidImport();
-        const box = document.createElement('div');
-        box.className = 'confirm confirm-wide';
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Paste Mermaid');
-        const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
-        const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
-        add('div', 'confirm-title', 'Paste Mermaid');
-        add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
-        const field = add('textarea', 'confirm-field');
-        field.spellcheck = false;
-        field.setAttribute('aria-label', 'Mermaid text');
-        const error = add('div', 'confirm-msg confirm-error');
-        error.setAttribute('role', 'alert');
-        error.hidden = true;
-        const row = add('div', 'confirm-actions');
-        const cancel = button('btn confirm-cancel', 'Cancel');
-        cancel.addEventListener('click', closeMermaidImport);
-        const ok = button('btn btn-primary confirm-ok', 'Import');
-        row.append(cancel, ok);
-        const run = () => {
-          let notes;
-          try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
-          if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
-          showImportNotesBox(box, notes);
-        };
-        ok.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); setMoreOpen(false); run(); });
-        box.addEventListener('click', (e) => { setExportOpen(false); setMoreOpen(false); e.stopPropagation(); });
-        box.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
-          else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
-          if (e.key !== 'Tab') e.stopPropagation();   // keys typed here must not reach the diagram's shortcuts
-        });
-        document.body.appendChild(box);
-        importEl = box;
-        positionImportBox(box);
-        if (motion.enabled()) {
-          box.style.transformOrigin = 'top right';
-          motion.anim(box, [
-            { transform: 'scale(0.94) translateY(-6px)', clipPath: 'inset(0 0 25% 0 round 10px)' },
-            { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
-          ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-out') });
-        }
-        field.focus();
-      }
-      window.addEventListener('paste', (e) => {
-        if (document.body.classList.contains('presentation') || !(plugin && typeof plugin.fromMermaid === 'function')) return;
-        const t = e.target;
-        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-        const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-        if (!text.trim() || !mermaidTypeOf(text)) return;
-        e.preventDefault();
-        let notes;
-        try { notes = importMermaid(text); } catch (err) { showToast(err.message); return; }
-        if (!notes.length) { flashStatus('Imported Mermaid'); return; }
-        ui.closeConfirm();
-        closeMermaidImport();
-        const box = document.createElement('div');
-        box.className = 'confirm confirm-wide';
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Imported, with notes');
-        box.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
-          if (ev.key !== 'Tab') ev.stopPropagation();
-        });
-        document.body.appendChild(box);
-        importEl = box;
-        showImportNotesBox(box, notes);
-        positionImportBox(box);
-      });
-
-      // --- DOCK: layout group, popovers, delete ---
-      // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
-      // (type buttons marked data-dock-group="layout", then Tidy).
-      document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
-
-      // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.
-      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows). The bubble
-      // may hold one .dock-pop-grid, or several in labelled .dock-pop-section blocks: every grid then takes the
-      // column count of the largest, so the sections line up.
-      const DOCK_POP_MAX_COLS = 6;
-      document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
-        const trigger = wrap.querySelector('.dock-pop-trigger');
-        const pop = wrap.querySelector('.dock-pop');
-        if (!trigger || !pop) return;
-        const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
-        const grids = [...pop.querySelectorAll('.dock-pop-grid')];
-        const largest = Math.max(1, ...grids.map(g => g.children.length));
-        const cols = Math.max(1, Math.min(largest, DOCK_POP_MAX_COLS));
-        pop.style.setProperty('--pop-cols', cols);
-        // Scroll only past 5 rows (60px tiles + 6px gaps ~ the grid's max height)
-        grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
-        items.forEach((el, i) => el.style.setProperty('--i', i));
-        let closeTimer = null;
-        let pointerInside = false;
-        const isOpen = () => wrap.classList.contains('open');
-        // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
-        function clampToWindow() {
-          const t = trigger.getBoundingClientRect(), w = pop.offsetWidth, m = 8;
-          const left = t.left + t.width / 2 - w / 2;
-          const shift = Math.max(m - left, 0) + Math.min(innerWidth - m - (left + w), 0);
-          pop.style.setProperty('--pop-shift', `${Math.round(shift)}px`);
-        }
-        function setOpen(open) {
-          clearTimeout(closeTimer);
-          if (open && trigger.disabled) return;
-          if (open === isOpen()) return;
-          if (open) clampToWindow();
-          wrap.classList.toggle('open', open);
-          trigger.setAttribute('aria-expanded', String(open));
-        }
-        const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
-        wrap.addEventListener('pointerenter', (e) => {
-          if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
-          pointerInside = true;
-          setOpen(true);
-        });
-        wrap.addEventListener('pointerleave', (e) => {
-          if (e.pointerType === 'touch') return;
-          pointerInside = false;
-          closeSoon();
-        });
-        // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
-        let lastPointerType = '';
-        wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
-        const clickKind = (e) => (e.detail === 0 ? '' : (e.pointerType || lastPointerType));
-        const isHoverPointer = (k) => k === 'mouse' || k === 'pen';
-        // Mouse clicks keep it open (hover already opened it); taps and Enter/Space toggle it
-        trigger.addEventListener('click', (e) => setOpen(isHoverPointer(clickKind(e)) ? true : !isOpen()));
-        // A mouse user may add several shapes in a row; tap and keyboard picks close the bubble
-        pop.addEventListener('click', (e) => {
-          const kind = clickKind(e);
-          if (!e.target.closest('.dock-pop-grid > *') || isHoverPointer(kind)) return;
-          setOpen(false);
-          if (!kind) trigger.focus();
-        });
-        wrap.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
-        });
-        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
-        document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
-        window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
-      });
-
-      // Delete: visible only while the plugin reports a deletable selection. Selection lives in the plugin, so
-      // re-check after every input event (cheap) and every committed edit (undo/redo, add, delete).
-      const btnDelete = document.getElementById('btn-delete-selection');
-      let deleteCheckQueued = false;
-      function refreshDeleteButton() {
-        deleteCheckQueued = false;
-        if (!btnDelete || !plugin) return;
-        const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
-        if (on === btnDelete.classList.contains('show')) return;
-        if (!on) motion.ghostExit(btnDelete, { duration: 110, transform: 'scale(0.85)' });
-        motion.flipDock(() => {
-          btnDelete.classList.toggle('show', on);
-          btnDelete.setAttribute('aria-hidden', String(!on));
-          btnDelete.tabIndex = on ? 0 : -1;
-        });
-      }
-      function queueDeleteRefresh() {
-        if (deleteCheckQueued) return;
-        deleteCheckQueued = true;
-        requestAnimationFrame(refreshDeleteButton);
-      }
-      ['pointerup', 'click', 'keyup'].forEach(type => window.addEventListener(type, queueDeleteRefresh));
-      if (btnDelete) btnDelete.addEventListener('click', () => {
-        if (!btnDelete.classList.contains('show')) return;
-        plugin.deleteSelection(btnDelete);
-        queueDeleteRefresh();
-      });
-
-      // --- SAVE MECHANISM (Direct to HTML File) ---
-      // Remember per-file handles and linked top-level workspace folders (IndexedDB) so reopened or
-      // newly created diagrams inside a linked folder save straight back to disk without a file dialog.
-      const FOLDER_STORE_LIMIT = 20;
-      let dirPickerBlocked = false;   // flipped if the host rejects showDirectoryPicker as unsupported here
-      function isEmbeddedFrame() {
-        try { return window.self !== window.top; } catch (_) { return true; }
-      }
-      function isElectronHost() {
-        return typeof window.acquireVsCodeApi === 'function' || /\b(Electron|Code)\b/i.test(navigator.userAgent || '');
-      }
-      function canPickSaveFile() {
-        return 'showSaveFilePicker' in window && !isElectronHost();
-      }
-      function canPickDirectory() {
-        if (dirPickerBlocked || !('showDirectoryPicker' in window)) return false;
-        if (isEmbeddedFrame() || isElectronHost()) return false;
-        return true;
-      }
-      function handleStorageKey() { return location.href.split(/[?#]/)[0]; }
-      function handleDb() {
-        return new Promise((resolve, reject) => {
-          const req = indexedDB.open('ultimate-diagram', 2);
-          req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
-            if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { autoIncrement: true });
-          };
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error);
-        });
-      }
-      function readHandleByKey(db, key) {
-        return new Promise((resolve, reject) => {
-          const r = db.transaction('handles').objectStore('handles').get(key);
-          r.onsuccess = () => resolve(r.result || null);
-          r.onerror = () => reject(r.error);
-        });
-      }
-      async function readStoredHandle() {
-        try {
-          const db = await handleDb();
-          const key = handleStorageKey();
-          const h = await readHandleByKey(db, key);
-          if (h || key === location.href) return h;
-          return await readHandleByKey(db, location.href);
-        } catch (_) { return null; }
-      }
-      async function loadStoredHandle() {
-        try {
-          const h = await readStoredHandle();
-          if (!h) return null;
-          const opts = { mode: 'readwrite' };
-          if ((await h.queryPermission(opts)) === 'granted') return h;
-          // The browser forgets the permission when it closes: say why it asks before its prompt shows
-          showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
-          if ((await h.requestPermission(opts)) === 'granted') return h;
-        } catch (_) {}
-        return null;
-      }
-      async function storeHandle(h) {
-        try {
-          const db = await handleDb();
-          db.transaction('handles', 'readwrite').objectStore('handles').put(h, handleStorageKey());
-        } catch (_) {}
-      }
-      async function readStoredFolders() {
-        try {
-          const db = await handleDb();
-          if (!db.objectStoreNames.contains('folders')) return [];
-          return await new Promise((resolve, reject) => {
-            const out = [];
-            const r = db.transaction('folders').objectStore('folders').openCursor(null, 'prev');
-            r.onsuccess = () => {
-              const cur = r.result;
-              if (!cur) { resolve(out); return; }
-              if (cur.value) out.push({ key: cur.key, handle: cur.value });
-              cur.continue();
-            };
-            r.onerror = () => reject(r.error);
-          });
-        } catch (_) { return []; }
-      }
-      async function storeFolderHandle(dir) {
-        try {
-          const existing = await readStoredFolders();
-          for (const item of existing) {
-            if (item.handle && typeof item.handle.isSameEntry === 'function') {
-              try { if (await item.handle.isSameEntry(dir)) return; } catch (_) {}
-            }
-          }
-          const db = await handleDb();
-          const tx = db.transaction('folders', 'readwrite');
-          const store = tx.objectStore('folders');
-          store.add(dir);
-          // Trim oldest entries beyond the cap (existing is newest-first)
-          for (const stale of existing.slice(FOLDER_STORE_LIMIT - 1)) store.delete(stale.key);
-        } catch (_) {}
-      }
-      function extractDataBlockText(htmlText) {
-        const openTag = '<script id="diagram-data" type="application/' + 'json">';
-        const closeTag = '<' + '/script>';
-        const start = htmlText.indexOf(openTag);
-        if (start < 0) return null;
-        const bodyStart = start + openTag.length;
-        const end = htmlText.indexOf(closeTag, bodyStart);
-        if (end < 0) return null;
-        return htmlText.slice(bodyStart, end).trim().replace(/\r\n?/g, '\n');
-      }
-      function localPathSegments(loc) {
-        const raw = loc.file.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
-        return raw.split('/').filter(Boolean);
-      }
-      function sameSegment(a, b, win) {
-        return win ? a.toLowerCase() === b.toLowerCase() : a === b;
-      }
-      async function resolveFileInFolder(dir, loc, { askPermission = false } = {}) {
-        if (!dir || !dir.name || !loc) return null;
-        const segs = localPathSegments(loc);
-        const matches = [];
-        for (let i = 0; i < segs.length - 1; i++) {
-          if (sameSegment(segs[i], dir.name, loc.win)) matches.push(i);
-        }
-        if (!matches.length) return null;
-        const opts = { mode: 'readwrite' };
-        try {
-          const curPerm = typeof dir.queryPermission === 'function' ? await dir.queryPermission(opts) : 'granted';
-          if (curPerm !== 'granted') {
-            if (!askPermission || typeof dir.requestPermission !== 'function') return null;
-            showToast(`Your browser asks once per session to edit files in ${dir.name}.`);
-            if ((await dir.requestPermission(opts)) !== 'granted') return null;
-          }
-        } catch (_) { return null; }
-
-        for (const idx of matches) {
-          try {
-            let cur = dir;
-            for (let j = idx + 1; j < segs.length - 1; j++) {
-              cur = await cur.getDirectoryHandle(segs[j]);
-            }
-            const fh = await cur.getFileHandle(segs[segs.length - 1]);
-            // Verify on-disk diagram-data matches what this page originally loaded, so same-named folders can never collide
-            if (initialDataText !== null && typeof fh.getFile === 'function') {
-              const diskText = await (await fh.getFile()).text();
-              const diskData = extractDataBlockText(diskText);
-              if (diskData !== initialDataText) continue;
-            }
-            return fh;
-          } catch (_) { /* try next candidate segment */ }
-        }
-        return null;
-      }
-      async function loadFromLinkedFolders(loc, { askPermission = true } = {}) {
-        if (!loc) return null;
-        const folders = await readStoredFolders();
-        for (const item of folders) {
-          const fh = await resolveFileInFolder(item.handle, loc, { askPermission });
-          if (fh) return fh;
-        }
-        return null;
-      }
-
-      // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
-      // list. A container is flat when its values are scalars or arrays of scalars; the top level always expands.
-      // scripts/disk_format.py format_json() writes the same text.
-      function formatJson(v, indent = '') {
-        const scalar = (x) => x === null || typeof x !== 'object';
-        if (scalar(v)) return JSON.stringify(v);
-        const isObj = !Array.isArray(v);
-        const items = isObj ? Object.entries(v).filter(([, x]) => x !== undefined) : v.map(x => [null, x]);
-        if (!items.length) return isObj ? '{}' : '[]';
-        const key = (k) => (k === null ? '' : JSON.stringify(k) + ': ');
-        const flat = items.every(([, x]) => scalar(x) || (Array.isArray(x) && x.every(scalar)));
-        if (indent && flat) {
-          const inline = (x) => (scalar(x) ? JSON.stringify(x) : `[${x.map(y => JSON.stringify(y)).join(', ')}]`);
-          const body = items.map(([k, x]) => key(k) + inline(x)).join(', ');
-          return isObj ? `{ ${body} }` : `[${body}]`;
-        }
-        const inner = indent + '  ';
-        const body = items.map(([k, x]) => inner + key(k) + formatJson(x, inner)).join(',\n');
-        return (isObj ? '{' : '[') + '\n' + body + '\n' + indent + (isObj ? '}' : ']');
-      }
-
-      // Text for HTML element content (same escaping as Python's html.escape(s, quote=False))
-      function escapeHtml(text) {
-        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      }
-
-      // The reading guide on line 2 names the data block's line range ("on lines S-E of this file", "Read lines
-      // 1-E", "limit E", "after line E"); recompute it from the text being saved. Only the guide line is
-      // rewritten, so this code's own text is never touched. Mirrors stamp_reading_guide() in disk_format.py.
-      function stampReadingGuide(html) {
-        const g = html.indexOf('<!-- For agents:');
-        const o = html.indexOf('<script id="diagram-data" type="application\/json">');
-        const e = html.indexOf('<!-- end diagram-' + 'data -->');
-        if (g < 0 || o < 0 || e < 0) return html;
-        let gEnd = html.indexOf('\n', g);
-        if (gEnd < 0) gEnd = html.length;
-        const lineOf = (i) => html.slice(0, i).split('\n').length;
-        const start = lineOf(o), end = lineOf(e);
-        const line = html.slice(g, gEnd)
-          .replace(/on lines \d+-\d+ of this file/, `on lines ${start}-${end} of this file`)
-          .replace(/(Read lines 1-|limit |after line )\d+/g, (_, p) => p + end);
-        return html.slice(0, g) + line + html.slice(gEnd);
-      }
-
-      // The text of this page as it was loaded: the file itself where the browser lets us fetch it, else the live document
-      // The live document as text, without the view-only search classes.
-      function withoutSearchMarks(n) {
-        if (!n.outerHTML) return '';
-        const c = n.cloneNode(true);
-        c.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
-        return c.outerHTML;
-      }
-
-      async function loadSourceText() {
-        let fullHtml = "";
-        try {
-          const res = await fetch(window.location.href);
-          if (res.ok) {
-            fullHtml = await res.text();
-          }
-        } catch (_) {}
-
-        if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
-          // Rebuild from the live document, keeping the top-level comments (the reading guide on line 2)
-          fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
-            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : withoutSearchMarks(n)).join('\n');
-        }
-        return fullHtml;
-      }
-
-      function buildDiskData() {
-        chartData.title = chartTitleEl.textContent.trim();
-        const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
-        delete disk._readme;
-        return dataReadme === null ? disk : { _readme: dataReadme, ...disk };
-      }
-
-      function serializeDiagramJson() {
-        return formatJson(buildDiskData());
-      }
-
-      // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
-      // Shared by the file and artifact writers; only the source text differs.
-      function buildSavedHtml(sourceText) {
-        const updatedJson = serializeDiagramJson();
-
-        // Both patterns spell the full tag with type="application\/json": this file's own source contains
-        // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
-        // as <script id="render-report"[\s\S]*?<\/script> matches this code itself and deletes the rest of
-        // the page's main script, so the saved file opens with nothing working.
-        const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
-
-        // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
-        // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
-        // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
-        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
-        const replacedHtml = stampReadingGuide(fullHtml
-          .replace(
-            /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
-            (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
-          )
-          .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
-          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
-
-        const dataEl = document.getElementById('diagram-data');
-        if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
-        return replacedHtml;
-      }
-
-      // The artifact-shaped document for the current state, built from the pristine copy of the page
-      function buildArtifactHtml() {
-        return buildSavedHtml(ARTIFACT_HEAD + pristineBody + ARTIFACT_TAIL);
-      }
-
-      // File shape of an artifact document (for Export > HTML file fallback on legacy inline artifacts): the title,
-      // reading guide, data block and styles go back into <head> in the order shell.html has them.
-      function artifactToFileHtml(doc) {
-        const body = doc.slice(ARTIFACT_HEAD.length, doc.length - ARTIFACT_TAIL.length);
-        const m = /^\s*(<title>[\s\S]*?<\/title>)\n(<!--[\s\S]*?-->)\n([\s\S]*?<\/style>)([\s\S]*)$/.exec(body);
-        if (!m) return doc;
-        return stampReadingGuide('<!DOCTYPE html>\n' + m[2] + '\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n' +
-          '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  ' + m[1] + '\n' + m[3] +
-          '\n</head>\n<body>' + m[4].replace(ARTIFACT_END_MARKER + '\n', '') + '</body>\n</html>\n');
-      }
-
-      // Assemble a self-contained --target file HTML document from split artifact assets and live diagram data.
-      async function buildExportHtmlFile() {
-        const [cssText, jsText] = await Promise.all([
-          fetch('app.css').then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.css`);
-            return r.text();
-          }),
-          fetch('app.js').then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.js`);
-            return r.text();
-          })
-        ]);
-        const jsonText = serializeDiagramJson();
-        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
-        const guide =
-          '<!-- For agents' + ': the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 0-0 of this file. Read lines 1-0 only (offset 1, limit 0); everything after line 0 is editor code (CSS, JS, icons) and says nothing about the diagram.\n' +
-          '     The model\'s first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:\n' +
-          '     sed -n \'/<script id="diagram-data" type="application\\/json">/,/<\\/script>/p\' FILE\n' +
-          '     python -c "import re,sys;print(re.search(r\'<script id=\\"diagram-data\\" type=\\"application\\/json\\">(.*?)<\\/script>\',open(sys.argv[1],encoding=\'utf8\').read(),re.S)[1])" FILE -->';
-        const closeScript = '<' + '/script>';
-        const dataOpen = '<script id="diagram-data" type="application/' + 'json">';
-        const dataEnd = '<!-- end diagram-' + 'data -->';
-        const themeBlock = capturedThemeJson
-          ? `\n  <script id="diagram-theme" type="application/${'json'}">${capturedThemeJson.replace(/</g, '\\u003c')}${closeScript}`
-          : '';
-        const fontBlock = capturedFontLinks ? `\n${capturedFontLinks}` : '';
-        const bodyMarkup = (pristineScaffoldHtml || '\n')
-          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
-        const html = '<!DOCTYPE html>\n' + guide + '\n<html lang="en">\n' +
-          '<head>\n' +
-          '  <meta charset="UTF-8">\n' +
-          '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-          `  <title>${pageTitle}</title>\n` +
-          '  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->\n' +
-          `  ${dataOpen}\n${jsonText}\n  ${closeScript}\n` +
-          `  ${dataEnd}${themeBlock}${fontBlock}\n` +
-          '  <style>\n' + cssText.trimEnd() + '\n  </style>\n' +
-          '</head>\n' +
-          '<body>' + bodyMarkup +
-          '\n  <script>\n' + jsText.trimEnd() + `\n  ${closeScript}\n` +
-          '</body>\n</html>\n';
-        return stampReadingGuide(html);
-      }
-
-      async function downloadHtmlFile() {
-        if (!artifactMode) return;
-        try {
-          const html = document.getElementById('diagram-data')
-            ? artifactToFileHtml(buildArtifactHtml())
-            : await buildExportHtmlFile();
-          await deliverFile(exportFileName('html'), new Blob([html], { type: 'text/html' }));
-        } catch (err) {
-          showToast('Download failed: ' + (err && err.message || err));
-        }
-      }
-
-      async function publishToArtifact() {
-        if (publishing || !artifactApi) return;
-        publishing = true;   // held until the whole attempt, including the one retry and its delay, is over
-        let skipIndex = false;
-        btnSave.disabled = true;
-        try {
-          for (let attempt = 0; ; attempt++) {
-            let diagramJson, snapshot;
-            const files = {};
-            try {
-              diagramJson = serializeDiagramJson() + '\n';
-              snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
-              files[embedDir + 'diagram.json'] = diagramJson;
-              // The artifact's own title (listing, tab) is the <title> of index.html: when the diagram was renamed, carry the
-              // new name there too. The copy this view loaded is what it fetches, so only the title can differ from the live page.
-              const title = chartData.title || plugin.defaultTitle;
-              if (title !== publishedTitle && !skipIndex && !embedDir) {   // an embed leaves the host's title alone
-                try {
-                  const r = await fetch('index.html');
-                  if (r.ok) {
-                    const page = await r.text();
-                    const next = page.replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => open + escapeHtml(title) + close);
-                    if (next !== page) files['index.html'] = next;
-                  }
-                } catch (_) { /* the data still saves; the artifact keeps its old title */ }
-              }
-              // No per-file ifMatch on purpose: a files publish without it keeps the whole-version check, so a save over
-              // someone else's newer version is a `conflict` (nothing published, the view reloads) and never a silent overwrite.
-              // ifMatch needs a sha256 the host reported, and the host only reports one on a call that already sent an ifMatch.
-              await artifactApi.publish(files);
-              document.title = title;
-              publishedTitle = title;
-              savedJson = snapshot;
-              everSaved = true;
-              updateStatus(false);
-              motion.pulseEl(btnSave.querySelector('svg'));
-              if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
-              return;
-            } catch (err) {
-              // Branch on err.code only (runtime contract: the message is not stable). Unknown codes count as upstream_error.
-              const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
-                             'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
-              const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
-              if (files['index.html'] && (code === 'invalid_content' || code === 'read_only_path')) { skipIndex = true; continue; }   // keep the data save; leave the title
-              if (code === 'conflict') {
-                // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
-                reloadExpected = true;
-                showToast('Someone else saved first. Showing their version.');
-              } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
-                          'capability_removed', 'read_only_path'].includes(code)) {
-                // Read-only for this view, permanently: hide Save, point to Export > HTML file
-                artifactMode = 'view-only';
-                applyArtifactUi();
-                showToast('Saving is not available here. Use Export > HTML file.');
-              } else if (code === 'rate_limited') {
-                showToast('Saving too often. Wait a moment, then save again.');
-              } else if (code === 'too_large') {
-                showToast('This diagram is too large to save to the artifact. Use Export > HTML file instead.');
-              } else if (code === 'upstream_error' && attempt === 0) {
-                // The one retryable failure: once more, after a short random delay
-                await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
-                continue;
-              } else {
-                showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
-              }
-              return;
-            }
-          }
-        } finally {
-          publishing = false;
-          if (artifactMode === 'publish') btnSave.disabled = false;
-        }
-      }
-
-      // The opened file's own location, when the page was opened from disk (file://): { file, folder, name, win }.
-      // Windows paths (file:///C:/... and UNC file://server/share/...) come back with backslashes.
-      function localFilePath() {
-        if (location.protocol !== 'file:') return null;
-        let p;
-        try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
-        const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
-        if (location.host) p = '//' + location.host + p;
-        if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
-        const sep = win ? '\\' : '/';
-        const i = p.lastIndexOf(sep);
-        if (i < 0 || !/\.html?$/i.test(p)) return null;
-        return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
-      }
-
-      // Copy text from inside a click. Try the async clipboard first, falling back to execCommand when missing or rejected.
-      function copyText(text) {
-        const legacyCopy = () => {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.setAttribute('readonly', '');
-          ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-          document.body.appendChild(ta);
-          ta.select();
-          let ok = false;
-          try { ok = document.execCommand('copy'); } catch (_) {}
-          ta.remove();
-          return ok;
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
-        }
-        return Promise.resolve(legacyCopy());
-      }
-
-      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
-      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
-      // Where directory picking is available, offer Link folder as the primary one-time setup (and copy the parent folder
-      // when clicked so the user can paste it straight into the folder picker).
-      async function askSaveLocation(loc, choose, linkFolder) {
-        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
-        const mac = !loc.win && /mac/.test(plat);
-        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
-        const text = mac ? loc.folder : loc.file;
-        const copied = await copyText(text);
-        const where = loc.win
-          ? 'paste in File name (Ctrl+A, Ctrl+V), Save, and overwrite.'
-          : mac
-            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
-            : 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
-        const extra = document.createDocumentFragment();
-        const path = document.createElement('code');
-        path.className = 'save-where';
-        path.textContent = text;
-        extra.appendChild(path);
-        if (linkFolder) {
-          const addTip = (lead, body) => {
-            const p = document.createElement('div');
-            p.className = 'save-folder-tip';
-            const b = document.createElement('strong');
-            b.textContent = lead;
-            p.append(b, body);
-            extra.appendChild(p);
-          };
-          addTip('Link folder: ', 'copies this file\u2019s folder to paste. Pick it (or a higher project folder) once so diagrams inside save in one click.');
-          addTip('Choose file: ', copied ? 'path copied \u2014 ' + where : 'copy path, ' + where);
-          ui.confirm(btnSave, {
-            label: 'Save over the file you opened',
-            title: 'Save to disk',
-            message: 'Link a project folder once, or pick just this file.',
-            extra,
-            alt: { text: 'Choose file\u2026', onClick: choose },
-            ok: 'Link folder\u2026',
-            okClass: 'btn-primary'
-          }, linkFolder);
-          return;
-        }
-        ui.confirm(btnSave, {
-          label: 'Save over the file you opened',
-          title: copied ? 'Path copied' : 'Save over this file',
-          message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
-          extra,
-          ok: 'Choose\u2026',
-          okClass: 'btn-primary'
-        }, choose);
-      }
-
-      async function writeToHandle(handle, replacedHtml) {
-        const writable = await handle.createWritable();
-        await writable.write(replacedHtml);
-        await writable.close();
-
-        savedJson = JSON.stringify(chartData);
-        everSaved = true;
-        updateStatus(false);
-        motion.pulseEl(btnSave.querySelector('svg'));
-      }
-
-      async function linkFolderAndSave(loc, replacedHtml) {
-        // Copy this diagram's parent folder so the user can paste it straight into the folder picker
-        await copyText(loc.folder);
-        let dir;
-        try {
-          dir = await window.showDirectoryPicker({ id: 'ultimate-diagram-root', mode: 'readwrite' });
-        } catch (err) {
-          if (!err || err.name === 'AbortError') return;
-          const msg = err.message || '';
-          if (/system files|sensitive/i.test(msg)) {
-            showToast('Your browser blocks system folders (like Downloads or C:\\). Pick a project subfolder instead.');
-          } else if (err.name === 'SecurityError') {
-            dirPickerBlocked = true;
-            showToast('Folder linking is not supported in this browser window. Open the diagram in Chrome or Edge to link a folder.');
-          } else {
-            showToast('Could not link folder: ' + (msg || err.name));
-          }
-          return;
-        }
-        const fh = await resolveFileInFolder(dir, loc, { askPermission: true });
-        if (!fh) {
-          showToast(`${dir.name} does not contain ${loc.name}. Pick a folder that contains this file.`);
-          return;
-        }
-        await storeFolderHandle(dir);
-        fileHandle = fh;
-        storeHandle(fh);
-        try {
-          await writeToHandle(fh, replacedHtml);
-          showToast(`Linked ${dir.name} \u2014 diagrams in it and its subfolders will save directly.`);
-        } catch (err) {
-          if (err && err.name === 'AbortError') return;
-          showToast('Save failed: ' + ((err && err.message) || err));
-        }
-      }
-
-      async function pickSaveFile() {
-        // Browsers cannot read a page's own folder, so reuse the current file name
-        // (saving over it) and a stable picker id so the dialog reopens in the
-        // last folder used for diagrams.
-        let currentName = '';
-        try {
-          currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
-        } catch (_) {}
-        const suggested = /\.html?$/i.test(currentName)
-          ? currentName
-          : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-        return window.showSaveFilePicker({
-          id: 'ultimate-diagram-save',
-          suggestedName: suggested,
-          types: [{
-            description: 'HTML Diagram File',
-            accept: { 'text/html': ['.html'] }
-          }]
-        });
-      }
-
-      async function writeFile(replacedHtml, picked) {
-        if (canPickSaveFile()) {
-          let pickedNow = false;
-          try {
-            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-            const loc = !fileHandle && !picked ? localFilePath() : null;
-            if (!fileHandle && loc && canPickDirectory()) {
-              fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
-              if (fileHandle) storeHandle(fileHandle);
-            }
-            if (!fileHandle) {
-              if (loc) {
-                // The dialog has to open from a fresh click: the bubble's buttons call back here
-                const linkFolder = canPickDirectory()
-                  ? () => linkFolderAndSave(loc, replacedHtml)
-                  : null;
-                askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
-                return;
-              }
-              fileHandle = await pickSaveFile();
-              pickedNow = true;
-            }
-
-            await writeToHandle(fileHandle, replacedHtml);
-            if (pickedNow) storeHandle(fileHandle);
-            return;
-          } catch (err) {
-            if (err && err.name === 'AbortError') return;
-            if (pickedNow) {
-              fileHandle = null;
-              showToast('Could not overwrite file directly: ' + ((err && err.message) || err));
-              return;
-            }
-          }
-        }
-
-        try {
-          const blob = new Blob([replacedHtml], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          savedJson = JSON.stringify(chartData);
-          everSaved = true;
-          updateStatus(false);
-          if (!downloadToldOnce) {
-            // The download is a copy: say so once, so nobody reopens the old file expecting their edits
-            downloadToldOnce = true;
-            showToast(location.protocol === 'file:'
-              ? 'Saved a copy to your downloads folder. The file you opened was not changed.'
-              : 'Saved a copy to your downloads folder.');
-          }
-        } catch (err) {
-          alert("Save failed: " + err.message);
-        }
-      }
-
-      const HELPER_PORTS = [19847, 19848, 19849, 19850, 19851];
-
-      function getDiagramSaveId() {
-        const meta = document.querySelector('meta[name="diagram-save-id"]');
-        const val = meta ? (meta.getAttribute('content') || '').trim() : '';
-        return /^[0-9a-f]{32}$/.test(val) ? val : '';
-      }
-
-      function isLoopbackPreviewOrigin() {
-        return location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
-      }
-
-      function helperPortsToProbe() {
-        const override = Array.isArray(window.__ULTIMATE_DIAGRAM_HELPER_PORTS__)
-          ? window.__ULTIMATE_DIAGRAM_HELPER_PORTS__
-          : null;
-        return override && override.length ? override : HELPER_PORTS;
-      }
-
-      async function fetchWithTimeout(url, opts, ms) {
-        const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-        const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
-        try {
-          return await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts);
-        } finally {
-          if (timer) clearTimeout(timer);
-        }
-      }
-
-      async function findHelperPort() {
-        const ports = helperPortsToProbe();
-        for (const port of ports) {
-          try {
-            const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
-            if (!resp.ok) continue;
-            const info = await resp.json();
-            if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
-          } catch (_) {}
-        }
-        return null;
-      }
-
-      async function postSaveToHelper(port, payload) {
-        const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/save`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Ultimate-Diagram-Save': '1'
-          },
-          body: JSON.stringify(payload)
-        }, 3000);
-        if (!resp.ok) return null;
-        const body = await resp.json();
-        return body && body.ok ? body : null;
-      }
-
-      async function saveViaLocalHelper() {
-        if (playground || claudeHost) return false;
-        const isLocalFile = location.protocol === 'file:';
-        if (!isLocalFile && !isLoopbackPreviewOrigin()) return false;
-        const saveId = getDiagramSaveId();
-        if (!saveId) return false;
-
-        const loc = isLocalFile ? localFilePath() : null;
-        const diskData = buildDiskData();
-        const title = chartData.title || plugin.defaultTitle;
-        const payload = { path: loc ? loc.file : null, saveId, data: diskData, title };
-
-        let result = null;
-        if (helperPort !== null) {
-          try { result = await postSaveToHelper(helperPort, payload); } catch (_) { result = null; }
-          if (!result) helperPort = null;
-        }
-        if (!result) {
-          const port = await findHelperPort();
-          if (port === null) return false;
-          try { result = await postSaveToHelper(port, payload); } catch (_) { result = null; }
-          if (!result) return false;
-          helperPort = port;
-        }
-
-        const updatedJson = formatJson(diskData);
-        const dataEl = document.getElementById('diagram-data');
-        if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
-        if (title) document.title = title;
-        helperSavedName = result.name || (loc && loc.name) || 'diagram.html';
-        savedJson = JSON.stringify(chartData);
-        everSaved = true;
-        updateStatus(false);
-        motion.pulseEl(btnSave.querySelector('svg'));
-        return true;
-      }
-
-      async function saveToFile() {
-        if (playground) {
-          try {
-            await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
-            savedJson = JSON.stringify(chartData);
-            everSaved = true;
-            updateStatus(false);
-          } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
-          return;
-        }
-        if (artifactMode === 'publish') return publishToArtifact();
-        if (artifactMode === 'view-only') return downloadHtmlFile();
-        if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
-        if (await saveViaLocalHelper()) return;
-        const html = document.getElementById('diagram-data')
-          ? buildSavedHtml(await loadSourceText())
-          : await buildExportHtmlFile();
-        await writeFile(html);
-      }
-
-      // --- CLAUDE.AI ARTIFACT: which Save this page has ---
-      // use() resolves later (never during this first run) and gives null when this is not claude.ai, the capability
-      // was not granted, or the viewer cannot write. The page renders without it and switches over when it answers.
-      function applyArtifactUi() {
-        btnSave.hidden = artifactMode === 'view-only';
-        btnSave.disabled = artifactMode === 'pending' || publishing;
-        btnSave.title = artifactMode === 'pending' ? 'Connecting to claude.ai...' : 'Save a new version of this artifact (Ctrl+S)';
-        if (!exportMenu.querySelector('[data-export="html"]')) {
-          const item = document.createElement('button');
-          item.type = 'button'; item.setAttribute('role', 'menuitem'); item.dataset.export = 'html';
-          item.textContent = 'HTML file (editable)';
-          exportMenu.querySelector('[data-export="png"]').after(item);
-        }
-        setStatusBadge(hasUnsavedChanges);
-      }
-
-      if (claudeHost && playground) {
-        Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
-      } else if (claudeHost) {
-        const useNamespace = (name) => {
-          try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
-          catch (_) { return Promise.resolve(null); }
-        };
-        applyArtifactUi();
-        useNamespace('artifact').then(a => {
-          artifactApi = a;
-          artifactMode = a ? 'publish' : 'view-only';
-          applyArtifactUi();
-        });
-        useNamespace('downloads').then(d => { downloadsApi = d; });
-        window.addEventListener('beforeunload', (e) => {
-          if (artifactMode === 'publish' && hasUnsavedChanges && !reloadExpected) { e.preventDefault(); e.returnValue = ''; }
-        });
-      }
-
-      btnSave.addEventListener('click', saveToFile);
-      // A file opened from disk that was saved before (or sits inside a linked workspace folder): show which file Save writes to
-      if (!claudeHost && location.protocol === 'file:' && canPickSaveFile()) {
-        readStoredHandle().then(async (h) => {
-          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
-          if (!fileHandle && canPickDirectory()) {
-            const loc = localFilePath();
-            const fh = loc ? await loadFromLinkedFolders(loc, { askPermission: false }) : null;
-            if (fh && fh.name && !fileHandle) { storedName = fh.name; setStatusBadge(hasUnsavedChanges); }
-          }
-        });
-      }
-
-      // --- PLAYGROUND: the header icon becomes a type menu ---
-      if (playground) {
-        const catchVt = (e) => { if (e.viewTransition) { e.viewTransition.finished.catch(() => {}); e.viewTransition.ready.catch(() => {}); } };
-        window.addEventListener('pageswap', catchVt);
-        window.addEventListener('pagereveal', catchVt);
-        window.addEventListener('unhandledrejection', (e) => {
-          if (e.reason && e.reason.name === 'AbortError' && /Transition was skipped/.test(e.reason.message || '')) e.preventDefault();
-        });
-        btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
-        const icon = document.querySelector('.toolbar-left > svg');
-        const wrap = document.createElement('div');
-        wrap.className = 'menu-wrap type-switch';
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn type-btn';
-        btn.title = 'Switch diagram type'; btn.setAttribute('aria-label', 'Diagram type');
-        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
-        const menu = document.createElement('div');
-        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
-        icon.replaceWith(wrap);
-        const cur = playground.types.find((x) => x.id === playground.type);
-        const curLabel = document.createElement('span'); curLabel.className = 'btn-label'; curLabel.textContent = cur.name;
-        icon.remove();
-        btn.append(ui.iconEl('type-' + cur.id, { size: 'sm' }), curLabel, ui.iconEl('chevron-down', { size: 'sm' }));
-        wrap.append(btn, menu);
-        const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
-        // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
-        const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
-        window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
-        for (const t of playground.types) {
-          const item = document.createElement('button');
-          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
-          const here = t.id === playground.type;
-          item.setAttribute('aria-checked', String(here));
-          item.append(ui.iconEl('type-' + t.id, { size: 'sm' }), t.name);
-          if (here) item.appendChild(ui.iconEl('check', { size: 'sm', class: 'menu-check' }));
-          item.addEventListener('click', () => {
-            setOpen(false);
-            if (here) return;
-            if (!hasUnsavedChanges) { goTo(t.id); return; }
-            const mine = playground.types.find((x) => x.id === playground.type).name;
-            ui.confirm(btn, {
-              label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
-              message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
-              alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
-            }, () => goTo(t.id));
-          });
-          menu.appendChild(item);
-        }
-        menuArrowKeys(menu, btn, setOpen);
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const opening = menu.hidden;
-          setOpen(opening);
-          if (opening && e.detail === 0) {
-            const first = menu.querySelector('[role^="menuitem"]:not([hidden])');
-            if (first) first.focus();
-          }
-        });
-        document.addEventListener('click', () => setOpen(false));
-        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
-      }
-
-      window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-          e.preventDefault();
-          if (!presentOn()) saveToFile();
-        } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
-          // Leave text editing (title, labels) to the browser's own undo
-          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
-          if (document.body.classList.contains('presentation')) return;
-          e.preventDefault();
-          if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
-        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
-          e.preventDefault();
-          zoomIn();
-        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
-          e.preventDefault();
-          zoomOut();
-        } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
-          e.preventDefault();
-          fitView(true);
-        } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
-          e.preventDefault();
-          fitView(true);
-        } else if (e.key === 'Escape') {
-          if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
-          if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }
-          plugin.cancelInteraction();
-        } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
-          e.preventDefault();
-          setHelpOpen(!helpDrawer.classList.contains('open'), true);
-        } else if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (document.body.classList.contains('presentation')) return;
-          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
-            return;
-          }
-          plugin.deleteSelection();
-        }
-      });
-//@engine-begin
-      // --- SHARED ORTHOGONAL ROUTER ---
-      // Pure JS, no DOM: the flowchart's arrow router, for every type that draws orthogonal arrows. A plain script
-      // (globals only, no imports), joined into the page ahead of engine.js (ENGINE_JS in layout_engine.py) and loaded
-      // ahead of it by scripts/run_engine.mjs and scripts/engine_runner.py. TOKENS is defined by the page or by those scripts.
-      //
-      // routeEdgesOrthogonal({ chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW }) -> routes
-      //   chartData     { nodes: [{ id, type, laneId? }], edges: [{ id, from, to, label?, feedback? }] }
-      //   tb            true when the flow runs top to bottom: boxes are transposed before the search, polylines back after
-      //   boxes         { nodeId: { x, y, w, h } } in screen px (a node without a box is skipped, and so are its arrows)
-      //   laneDividers  screen offsets (along the flow axis) of the lane borders: a horizontal run on one costs more; [] for none
-      //   loopSide      (edge) -> 'far' | 'near': the side a same-lane loop-back U-turns on (flowchart: loopSides())
-      //   outlineInset  optional (node, box, side, along) -> px a shaped outline sits inside its box (0 for a plain box)
-      //   labelMaxW     widest a wrapped edge label may be
-      // Returns { edgeId: { path, points, midX, midY, fromRect, toRect } }; midX/midY is where the label pill goes.
-      // Text widths come from TOKENS.font.metrics. Deterministic: the same input gives the same routes.
-      // --- PLANAR ORTHOGONAL ROUTING & CHANNEL STAGGERING ENGINE ---
-      // Top-to-bottom diagrams are routed in flow terms too: node boxes are transposed (x <-> y) before the route
-      // search, so every rule written for a left-to-right flow applies unchanged, and the finished polylines are
-      // transposed back before hops and labels are placed on screen (step 6).
-      function routeEdgesOrthogonal(model) {
-        const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
-        const FONT_M = TOKENS.font.metrics;
-        const rects = {};
-        const nodeMap = {};
-
-        chartData.nodes.forEach(n => {
-          nodeMap[n.id] = n;
-          const r = boxes[n.id];
-          if (!r) return;
-          const { x, y, w, h } = r;
-          rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
-        });
-
-        // True when an axis-aligned segment keeps 6px clear of every node except `ignore`
-        // (route search calls this hundreds of thousands of times per render, so it is a plain loop)
-        const rectList = Object.keys(rects).map(id => [id, rects[id]]);
-        const segmentClear = (x1, y1, x2, y2, ignore) => {
-          const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
-          const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
-          for (let k = 0; k < rectList.length; k++) {
-            const r = rectList[k][1];
-            if (r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY && !ignore.includes(rectList[k][0])) return false;
-          }
-          return true;
-        };
-
-        const verticalEntryUsed = {};
-        const outEdges = {};
-        const inEdges = {};
-        chartData.nodes.forEach(n => { outEdges[n.id] = []; inEdges[n.id] = []; });
-
-        const validEdges = chartData.edges.filter(e => rects[e.from] && rects[e.to]);
-        validEdges.forEach(e => {
-          outEdges[e.from].push(e);
-          inEdges[e.to].push(e);
-        });
-
-        // 0. Backward arrows (target left of source): pick the exit/entry sides that give the
-        // fewest bends over a route that stays clear of every other node. When no candidate is
-        // clear, the legacy fixed rule below (left exit + bypass corridor / bottom U-turn) applies.
-        const backPorts = {};
-        const backRoute = (f, t, fp, tp, ids) => {
-          let pts;
-          if (fp === 'left' && tp === 'right') {
-            const sx = f.x, sy = f.cy, ex = t.x + t.w, ey = t.cy;
-            if (ex > sx - 12) return null;
-            if (Math.abs(sy - ey) < 6) pts = [[sx, sy], [ex, sy]];
-            else { const mx = (sx + ex) / 2; pts = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]]; }
-          } else if (fp === 'left' && tp === 'left') {  // left exit, wrap upstream into target's flow-entry port: two bends
-            const sx = f.x, sy = f.cy, ex = t.x, ey = t.cy;
-            for (const pad of [24, 14, 10]) {
-              const gx = Math.min(sx, ex) - pad;
-              if (gx < 8) continue;
-              const cand = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
-              if (cand.slice(0, -1).every((p, i) => segmentClear(p[0], p[1], cand[i + 1][0], cand[i + 1][1], ids))) return 2;
-            }
-            return null;
-          } else if (fp === 'left') {            // left exit, vertical entry into top/bottom: one bend
-            const sx = f.x, sy = f.cy, ex = t.cx;
-            const ey = tp === 'top' ? t.y : t.y + t.h;
-            if (ex > sx - 20 || (tp === 'top' ? sy >= ey - 8 : sy <= ey + 8)) return null;
-            pts = [[sx, sy], [ex, sy], [ex, ey]];
-          } else if (tp === 'right') {           // vertical exit, side entry: one bend
-            const sx = f.cx, sy = fp === 'top' ? f.y : f.y + f.h, ex = t.x + t.w, ey = t.cy;
-            if (ex > sx - 20 || (fp === 'top' ? ey >= sy - 8 : ey <= sy + 8)) return null;
-            pts = [[sx, sy], [sx, ey], [ex, ey]];
-          } else if (fp === 'bottom' && tp === 'bottom') { // U-turn below both nodes: two bends
-            const sx = f.cx, sy = f.y + f.h, ex = t.cx, ey = t.y + t.h;
-            const g = Math.max(sy, ey) + 36;
-            pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
-          } else if (fp === 'top' && tp === 'top') {       // U-turn above both nodes (a near-side loop, see loopSides)
-            const sx = f.cx, sy = f.y, ex = t.cx, ey = t.y;
-            const g = Math.min(sy, ey) - 36;
-            pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
-          } else {
-            return null;
-          }
-          for (let i = 0; i < pts.length - 1; i++) {
-            if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return null;
-          }
-          return pts.length - 2; // bends
-        };
-        // A same-lane loop-back U-turns on the side its lane reserved for it (the layout's loopSides rule)
-        validEdges.forEach(e => {
-          const f = rects[e.from], t = rects[e.to];
-          if (!(t.cx < f.cx - 30)) return;
-          const dy = t.cy - f.cy;
-          const uTurn = nodeMap[e.from].laneId === nodeMap[e.to].laneId && loopSide(e) === 'near' ? 'top' : 'bottom';
-          const legacy = dy > 30 ? { fromPort: 'left', toPort: 'top' }
-            : dy < -30 ? { fromPort: 'left', toPort: 'bottom' }
-            : { fromPort: uTurn, toPort: uTurn };
-          // A side port is only reused when it is not already an exit/entry for a different role
-          const leftExitFree = !inEdges[e.from].some(ie => ie !== e && rects[ie.from].cx < f.cx - 30 && Math.abs(rects[ie.from].cy - f.cy) <= 30);
-          const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
-          const cands = [];
-          const sameRow = Math.abs(dy) <= 30;
-          // If the target is a decision that sends a forward branch back toward this loopback's side, avoid
-          // stealing that side vertex so the outgoing branch does not wrap around the back of the diamond.
-          const decisionBranchOnSide = !sameRow && nodeMap[e.to] && nodeMap[e.to].type === 'decision'
-            && (outEdges[e.to] || []).some(o => rects[o.to] && rects[o.to].cx >= t.cx - 30
-              && (dy > 30 ? rects[o.to].cy < t.cy - 30 : rects[o.to].cy > t.cy + 30));
-          if (rightEntryFree) {
-            if (leftExitFree) cands.push(['left', 'right']);
-            if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
-          }
-          if (!sameRow && leftExitFree) {
-            if (decisionBranchOnSide) cands.push(['left', 'left']);
-            else cands.push(['left', dy < 0 ? 'bottom' : 'top']);
-          }
-          cands.push([uTurn, uTurn]);
-          let best = null;
-          cands.forEach(([fp, tp]) => {
-            const bends = backRoute(f, t, fp, tp, [e.from, e.to]);
-            if (bends === null) return;
-            const isLegacy = fp === legacy.fromPort && tp === legacy.toPort;
-            // Fewest bends wins; on a tie keep the legacy choice
-            if (!best || bends < best.bends || (bends === best.bends && isLegacy)) best = { fromPort: fp, toPort: tp, bends };
-          });
-          backPorts[e.id] = best ? { fromPort: best.fromPort, toPort: best.toPort } : legacy;
-        });
-
-        // 1. Identify nodes that have a leftward loopback leaving their 'left' port
-        const hasLeftLoopback = new Set();
-        validEdges.forEach(e => {
-          const bp = backPorts[e.id];
-          if (bp && bp.fromPort === 'left' && Math.abs(rects[e.to].cy - rects[e.from].cy) > 30) {
-            hasLeftLoopback.add(e.from);
-          }
-        });
-
-        // 2. Assign departure and arrival ports per edge
-        const edgePorts = {};
-        Object.keys(outEdges).forEach(uId => {
-          const uOuts = outEdges[uId];
-          if (!uOuts.length) return;
-          const f = rects[uId];
-          const uNode = nodeMap[uId];
-          const fwdOuts = [];
-
-          uOuts.forEach(e => {
-            const t = rects[e.to];
-            if (t.cx < f.cx - 30) {
-              edgePorts[e.id] = backPorts[e.id];
-            } else {
-              fwdOuts.push(e);
-            }
-          });
-
-          const isMultiOrDecision = (uNode && uNode.type === 'decision') || fwdOuts.length > 1;
-          const upCands = fwdOuts.filter(e => rects[e.to].cy < f.cy - 30).sort((a, b) => rects[a.to].cy - rects[b.to].cy);
-          const downCands = fwdOuts.filter(e => rects[e.to].cy > f.cy + 30).sort((a, b) => rects[b.to].cy - rects[a.to].cy);
-          // A target directly above/below gets the top/bottom exit (straight line); others leave via the side
-          const alignedFirst = (list) => list.sort((a, b) => (Math.abs(rects[a.to].cx - f.cx) < 30 ? 0 : 1) - (Math.abs(rects[b.to].cx - f.cx) < 30 ? 0 : 1));
-          alignedFirst(upCands);
-          alignedFirst(downCands);
-
-          // Unlabelled same-side parallel fork from a non-decision step keeps all branches on the flow exit/entry sides
-          // so they share one orthogonal fork bus instead of splitting the furthest branch onto a side port.
-          const isParallelFork = (cands) => (!uNode || uNode.type !== 'decision')
-            && cands.length >= 2
-            && cands.every(e => !(e.label || '').trim() && rects[e.to].x > f.x + f.w + 20);
-          const upFork = isParallelFork(upCands);
-          const downFork = isParallelFork(downCands);
-
-          // A decision gives each branch its own vertex: a vertex already taken by a loop-back branch
-          // is not reused for a forward one (it would leave the diamond's slanted sides, off the vertex)
-          const backTaken = new Set(uNode && uNode.type === 'decision'
-            ? uOuts.filter(e => !fwdOuts.includes(e)).map(e => edgePorts[e.id] && edgePorts[e.id].fromPort)
-            : []);
-          let topEdgeId = (!upFork && isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
-          let bottomEdgeId = (!downFork && isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
-          if (!upFork && !topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
-            topEdgeId = upCands[0].id;
-          }
-          if (!downFork && !bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
-            bottomEdgeId = downCands[0].id;
-          }
-
-          fwdOuts.forEach(e => {
-            const t = rects[e.to];
-            const inFork = (upFork && upCands.includes(e)) || (downFork && downCands.includes(e));
-            let fromPort = 'right';
-            if (e.id === topEdgeId) {
-              fromPort = 'top';
-            } else if (e.id === bottomEdgeId) {
-              fromPort = 'bottom';
-            }
-
-            let toPort = 'left';
-            if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
-              toPort = (t.cy < f.cy) ? 'bottom' : 'top';
-            } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
-              // One step into another lane: leave via top/bottom for a single bend instead of a Z,
-              // unless an incoming arrow already enters from that same side and a flow-side exit can single-bend
-              const dy = t.cy - f.cy;
-              const incomingSameSide = t.cx > f.x + f.w + 24 && (inEdges[uId] || []).some(o => {
-                const s = rects[o.from];
-                return s && (dy > 0 ? s.cy > f.cy + 30 : s.cy < f.cy - 30);
-              });
-              if (!incomingSameSide && Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
-                const sy = dy > 0 ? f.y + f.h : f.y;
-                if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
-                  fromPort = dy > 0 ? 'bottom' : 'top';
-                }
-              }
-            }
-            if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs(t.cx - f.cx) < 30) {
-              // Target sits directly above/below: straight vertical line
-              toPort = (t.cy < f.cy) ? 'bottom' : 'top';
-            } else if (!inFork && fromPort === 'right' && toPort === 'left' && Math.abs(t.cy - f.cy) > 30 && t.cx > f.x + f.w + 24) {
-              // Side exit into a node in another lane that lies clearly to the right:
-              // run along the source row, then enter the target from its bottom/top (one bend instead of two)
-              const enterSide = t.cy < f.cy ? 'bottom' : 'top';
-              const ey = enterSide === 'bottom' ? t.y + t.h : t.y;
-              const sideKey = e.to + ':' + enterSide;
-              // The run along the source row must not cut across the vertical trunk of a sibling fan-in
-              // arrow: a source in a farther lane (same side) whose column lies between this source and
-              // the target climbs straight up to the target's left port, so crossing it is unavoidable
-              // here. Enter the left port instead (the sibling trunk then nests inside this route).
-              // A sibling in the target's own column (|dx| < 30) climbs straight into the same
-              // top/bottom port, so the row run would cut across it just the same.
-              const cutsSiblingTrunk = (inEdges[e.to] || []).some(o => {
-                if (o === e || !rects[o.from]) return false;
-                const s = rects[o.from];
-                const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
-                return farther && s.cx > f.x + f.w && s.cx < t.cx + 30;
-              });
-              const decisionBranchOnEnter = nodeMap[e.to] && nodeMap[e.to].type === 'decision'
-                && (outEdges[e.to] || []).some(o => rects[o.to]
-                  && (enterSide === 'bottom' ? rects[o.to].cy > t.cy + 30 : rects[o.to].cy < t.cy - 30));
-              if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk && !decisionBranchOnEnter
-                  && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
-                  && segmentClear(t.cx, f.cy, t.cx, ey, [uId, e.to])) {
-                toPort = enterSide;
-                verticalEntryUsed[sideKey] = true;
-              }
-            }
-            edgePorts[e.id] = { fromPort, toPort };
-          });
-        });
-
-        // 2b. Port roles: a top/bottom port must not serve as both an entry and an exit.
-        // When it does, split it into two slots (entries one side, exits the other) so the
-        // arrowhead of an incoming edge never sits on the departure point of an outgoing one.
-        const PORT_SLOT = 10;
-        const fromOffX = {};
-        const toOffX = {};
-        const fromOffY = {};
-        const toOffY = {};
-        const splitPortAxis = (nid, sides, fromMap, toMap, axis) => {
-          // Keep decision arrowheads/tails on the exact diamond vertices in the initial pass;
-          // step 5a separates colliding entries/exits onto free vertices, and 5a2 only offsets if they still collide.
-          if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
-          sides.forEach(side => {
-            const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
-            const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
-            if (!outs.length || !ins.length) return;
-
-            const aligned = (a, b) => Math.abs(rects[a][axis] - rects[b][axis]) < 30;
-            const opp = axis === 'cx' ? ['top', 'bottom'] : ['left', 'right'];
-            const isStraightOut = outs.some(e => aligned(e.to, nid) && opp.includes(edgePorts[e.id].toPort));
-            const isStraightIn = ins.some(e => aligned(e.from, nid) && opp.includes(edgePorts[e.id].fromPort));
-
-            const isDecision = nodeMap[nid] && nodeMap[nid].type === 'decision';
-            if ((isStraightOut || isDecision) && !isStraightIn) {
-              outs.forEach(e => { fromMap[e.id] = 0; });
-              const insMean = ins.reduce((s, e) => s + rects[e.from][axis], 0) / ins.length;
-              const slotDir = insMean >= rects[nid][axis] ? 1 : -1;
-              ins.forEach(e => { toMap[e.id] = slotDir * PORT_SLOT; });
-              return;
-            } else if (isStraightIn && !isStraightOut) {
-              ins.forEach(e => { toMap[e.id] = 0; });
-              const outsMean = outs.reduce((s, e) => s + rects[e.to][axis], 0) / outs.length;
-              const slotDir = outsMean >= rects[nid][axis] ? 1 : -1;
-              outs.forEach(e => { fromMap[e.id] = slotDir * PORT_SLOT; });
-              return;
-            }
-
-            const mean = (list, key) => list.reduce((s, e) => s + rects[e[key]][axis], 0) / list.length;
-            // Put each group on the side facing where its other ends are, to avoid new crossings
-            const insFirst = mean(ins, 'from') <= mean(outs, 'to');
-            ins.forEach(e => { toMap[e.id] = insFirst ? -PORT_SLOT : PORT_SLOT; });
-            outs.forEach(e => { fromMap[e.id] = insFirst ? PORT_SLOT : -PORT_SLOT; });
-          });
-        };
-        Object.keys(rects).forEach(nid => {
-          splitPortAxis(nid, ['top', 'bottom'], fromOffX, toOffX, 'cx');
-          splitPortAxis(nid, ['left', 'right'], fromOffY, toOffY, 'cy');
-        });
-
-        // Arrow-end rule (references/types/flowchart.md, checklist item 7): short left/right sides MERGE
-        // same-role ends (one arrowhead / one fork point); long top/bottom sides SPREAD them 24px apart
-        // (5a1, 5a3); entries and exits never share a point on any side (2b, 5a2).
-        // 3. Stagger vertical arrival offsets on shared 'left' ports
-        const toPortOffsetY = {};
-        Object.keys(inEdges).forEach(vId => {
-          const leftIns = inEdges[vId].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === 'left');
-          if (leftIns.length > 1) {
-            leftIns.sort((a, b) => rects[a.from].cy - rects[b.from].cy);
-            // Arrows entering the same port converge on one entry point (single arrowhead)
-            leftIns.forEach(e => { toPortOffsetY[e.id] = 0; });
-          } else if (leftIns.length === 1) {
-            toPortOffsetY[leftIns[0].id] = 0;
-          }
-        });
-
-        // 4. Stagger vertical channel X for right->left elbow edges sharing the same column gap
-        const channelXMap = {};
-        const rlElbows = validEdges.filter(e => {
-          const p = edgePorts[e.id];
-          if (!p || p.fromPort !== 'right' || p.toPort !== 'left') return false;
-          const sy = rects[e.from].cy;
-          const ey = rects[e.to].cy + (toPortOffsetY[e.id] || 0);
-          return Math.abs(sy - ey) >= 6;
-        });
-
-        // Group rlElbows by target column bucket
-        const gapGroups = {};
-        rlElbows.forEach(e => {
-          const tx = Math.round(rects[e.to].x / 100) * 100;
-          if (!gapGroups[tx]) gapGroups[tx] = [];
-          gapGroups[tx].push(e);
-        });
-
-        Object.values(gapGroups).forEach(group => {
-          if (group.length === 1) {
-            const e = group[0];
-            const sx = rects[e.from].x + rects[e.from].w;
-            const ex = rects[e.to].x;
-            channelXMap[e.id] = sx + (ex - sx) * 0.5;
-          } else {
-            // Sort upward edges by startY ascending, downward edges by startY descending for planar nesting
-            const goingUp = group.filter(e => rects[e.to].cy < rects[e.from].cy).sort((a, b) => rects[a.from].cy - rects[b.from].cy);
-            const goingDown = group.filter(e => rects[e.to].cy >= rects[e.from].cy).sort((a, b) => rects[b.from].cy - rects[a.from].cy);
-            const ordered = [...goingUp, ...goingDown];
-
-            // Unlabelled same-source same-direction fork branches share one channel slot so they form a single fork bus
-            const forkCounts = new Map();
-            const forkKeyOf = (e) => `${e.from}\0${rects[e.to].cy < rects[e.from].cy ? 'u' : 'd'}`;
-            ordered.forEach(e => {
-              if (!(e.label || '').trim()) forkCounts.set(forkKeyOf(e), (forkCounts.get(forkKeyOf(e)) || 0) + 1);
-            });
-            const slots = [];
-            const forkSlot = new Map();
-            ordered.forEach(e => {
-              const fk = forkKeyOf(e);
-              if (!(e.label || '').trim() && (forkCounts.get(fk) || 0) >= 2) {
-                if (!forkSlot.has(fk)) { const s = []; forkSlot.set(fk, s); slots.push(s); }
-                forkSlot.get(fk).push(e);
-              } else {
-                slots.push([e]);
-              }
-            });
-
-            slots.forEach((slot, idx) => {
-              const sx = rects[slot[0].from].x + rects[slot[0].from].w;
-              const ex = Math.min(...slot.map(e => rects[e.to].x));
-              const gap = ex - sx;
-              const frac = (idx + 1) / (slots.length + 1);
-              const cx = sx + Math.max(24, Math.min(gap - 24, gap * frac));
-              slot.forEach(e => { channelXMap[e.id] = cx; });
-            });
-          }
-        });
-
-        // 5. First pass: build polylines for all edges
-        const edgePolylines = {};
-        validEdges.forEach(e => {
-          const p = edgePorts[e.id];
-          const f = rects[e.from];
-          const t = rects[e.to];
-          const offsetY = (toPortOffsetY[e.id] || 0) + (toOffY[e.id] || 0);
-          const srcOffY = fromOffY[e.id] || 0;
-          let points = [];
-
-          if (p.toPort === 'right') {
-            // Backward arrow entering the target's right side
-            const ex = t.x + t.w, ey = t.cy + offsetY;
-            if (p.fromPort === 'left') {
-              const sx = f.x, sy = f.cy + srcOffY;
-              if (Math.abs(sy - ey) < 6) {
-                points = [[sx, sy], [ex, sy]];
-              } else {
-                const mx = (sx + ex) / 2;
-                points = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]];
-              }
-            } else {
-              const sx = f.cx + (fromOffX[e.id] || 0);
-              const sy = p.fromPort === 'top' ? f.y : f.y + f.h;
-              points = [[sx, sy], [sx, ey], [ex, ey]];
-            }
-          } else if (p.fromPort === 'left' && p.toPort === 'left') {
-            const sx = f.x, sy = f.cy + srcOffY, ex = t.x, ey = t.cy + offsetY;
-            let gx = Math.min(sx, ex) - 24;
-            for (const pad of [24, 14, 10]) {
-              const cand = Math.min(sx, ex) - pad;
-              if (cand >= 8 && segmentClear(sx, sy, cand, sy, [e.from, e.to]) && segmentClear(cand, sy, cand, ey, [e.from, e.to]) && segmentClear(cand, ey, ex, ey, [e.from, e.to])) {
-                gx = cand;
-                break;
-              }
-            }
-            points = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
-          } else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
-            const sx = f.x;
-            const sy = f.cy + srcOffY;
-            const ex = t.cx + (toOffX[e.id] || 0);
-            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
-            const xExit = sx - 24;
-            const sourceAbove = (p.toPort === 'top') ? (sy < ey - 8) : (sy > ey + 8);
-            if (sourceAbove && ex < sx - 20 && segmentClear(ex, sy, sx, sy, [e.from, e.to]) && segmentClear(ex, sy, ex, ey, [e.from, e.to])) {
-              // Direct one-bend loop-back
-              points = [[sx, sy], [ex, sy], [ex, ey]];
-            } else {
-              // Dedicated Outer Bypass Corridor: route outside node rows
-              let bypassY = (p.toPort === 'top') ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
-              bypassY = Math.max(20, bypassY);
-              points = [[sx, sy], [xExit, sy], [xExit, bypassY], [ex, bypassY], [ex, ey]];
-            }
-          } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && (p.toPort === 'top' || p.toPort === 'bottom')) {
-            const sx = f.cx + (fromOffX[e.id] || 0);
-            const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
-            const ex = t.cx + (toOffX[e.id] || 0);
-            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
-            if (e.to === e.from || t.cx < f.cx - 30) {
-              // U-turn: below both nodes, or above them when it leaves and enters through their tops
-              const gutterY = p.fromPort === 'top' && p.toPort === 'top' ? Math.min(sy, ey) - 36 : Math.max(sy, ey) + 36;
-              points = [[sx, sy], [sx, gutterY], [ex, gutterY], [ex, ey]];
-            } else if (Math.abs(sx - ex) < 1) {
-              points = [[sx, sy], [ex, ey]];
-            } else {
-              const midY = sy + (ey - sy) * 0.5;
-              points = [[sx, sy], [sx, midY], [ex, midY], [ex, ey]];
-            }
-          } else if (p.fromPort === 'right' && (p.toPort === 'top' || p.toPort === 'bottom')) {
-            // Side exit, then straight into the target's top/bottom: a single bend
-            const sx = f.x + f.w;
-            const sy = f.cy + srcOffY;
-            const ex = t.cx + (toOffX[e.id] || 0);
-            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
-            points = [[sx, sy], [ex, sy], [ex, ey]];
-          } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && p.toPort === 'left') {
-            const sx = f.cx + (fromOffX[e.id] || 0);
-            const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
-            const ex = t.x;
-            const ey = t.cy + offsetY;
-            points = [[sx, sy], [sx, ey], [ex, ey]];
-          } else {
-            const sx = f.x + f.w;
-            const sy = f.cy + srcOffY;
-            const ex = t.x;
-            const ey = t.cy + offsetY;
-
-            if (Math.abs(sy - ey) < 6) {
-              points = [[sx, sy], [ex, sy]];
-            } else {
-              const midX = channelXMap[e.id] !== undefined ? channelXMap[e.id] : (sx + (ex - sx) * 0.5);
-              points = [[sx, sy], [midX, sy], [midX, ey], [ex, ey]];
-            }
-          }
-          edgePolylines[e.id] = points;
-        });
-
-        // 4b. U-turn loop-backs that share a gutter and overlap horizontally would draw on top of each other:
-        // give each its own gutter row, shortest spans nearest the nodes (further down below the nodes, further up
-        // above them).
-        [1, -1].forEach(dir => {
-          const isU = pts => pts && pts.length === 4 && Math.abs(pts[1][1] - pts[2][1]) < 1 &&
-            Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 &&
-            (pts[1][1] - pts[0][1]) * dir > 0 && (pts[2][1] - pts[3][1]) * dir > 0;
-          const us = validEdges.filter(e => isU(edgePolylines[e.id])).map(e => {
-            const pts = edgePolylines[e.id];
-            return { e, y: pts[1][1], lo: Math.min(pts[0][0], pts[3][0]), hi: Math.max(pts[0][0], pts[3][0]) };
-          }).sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo));
-          const placed = [];
-          us.forEach(u => {
-            let k = 0;
-            while (placed.some(q => Math.abs(q.y - (u.y + dir * k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
-            const pts = edgePolylines[u.e.id];
-            if (k) { pts[1][1] += dir * k * 14; pts[2][1] += dir * k * 14; }
-            placed.push({ y: pts[1][1], lo: u.lo, hi: u.hi });
-          });
-        });
-
-        // 5a. Obstructed routes: when the standard route runs through another node, search every
-        // exit/entry side pair (L, Z and U shapes) for a route that stays clear, preferring the
-        // fewest bends and the least overlap with other arrows. Unobstructed routes are untouched.
-        const polyClear = (pts, ids) => {
-          for (let i = 0; i < pts.length - 1; i++) {
-            if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return false;
-          }
-          return true;
-        };
-        // How a route relates to another arrow: collinear overlap, near-parallel run (<18px) and
-        // perpendicular crossings. Arrows that share a node (forks/merges) are exempt by the caller.
-        const bboxCache = new WeakMap();
-        const bboxOf = (pts) => {
-          let b = bboxCache.get(pts);
-          if (b) return b;
-          b = [Infinity, Infinity, -Infinity, -Infinity];
-          for (const [x, y] of pts) { b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
-          bboxCache.set(pts, b);
-          return b;
-        };
-        const NONE = { overlap: 0, near: 0, cross: 0 };
-        const relate = (pts, otherPts, skipFirst = false, skipLast = false, skipFirstTrunk = false) => {
-          // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
-          // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
-          const a = bboxOf(otherPts);
-          let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-          for (const [x, y] of pts) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
-          if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
-          let overlap = 0, near = 0, cross = 0;
-          const lastI = pts.length - 2, lastJ = otherPts.length - 2;
-          for (let i = 0; i < pts.length - 1; i++) {
-            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
-            const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
-            for (let j = 0; j < otherPts.length - 1; j++) {
-              if ((skipFirst && i === 0 && j === 0)
-                || (skipFirstTrunk && lastI >= 2 && lastJ >= 2 && i === 1 && j === 1)
-                || (skipLast && ((i === lastI && j === lastJ) || (lastI >= 2 && lastJ >= 2 && i === lastI - 1 && j === lastJ - 1)))) continue;
-              const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
-              const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
-              if (aV && cV) {
-                const run = Math.min(Math.max(ay, by), Math.max(cy, dy)) - Math.max(Math.min(ay, by), Math.min(cy, dy));
-                if (run > 1) { const gap = Math.abs(ax - cx); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
-              } else if (aH && cH) {
-                const run = Math.min(Math.max(ax, bx), Math.max(cx, dx)) - Math.max(Math.min(ax, bx), Math.min(cx, dx));
-                if (run > 1) { const gap = Math.abs(ay - cy); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
-              } else if ((aV && cH) || (aH && cV)) {
-                const [vx, vy1, vy2, hy, hx1, hx2] = aV
-                  ? [ax, Math.min(ay, by), Math.max(ay, by), cy, Math.min(cx, dx), Math.max(cx, dx)]
-                  : [cx, Math.min(cy, dy), Math.max(cy, dy), ay, Math.min(ax, bx), Math.max(ax, bx)];
-                if (hx1 + 1 < vx && vx < hx2 - 1 && vy1 + 1 < hy && hy < vy2 - 1) cross += 1;
-              }
-            }
-          }
-          return { overlap, near, cross };
-        };
-        // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
-        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200, entryShare: 2600, backwardExit: 3500, upstreamDetour: 4500, sideOvershoot: 1800 };
-        const routeDefects = (pts, ids) => {
-          // Penalties independent of other arrows: hugging a lane divider, crowding a node
-          let d = 0;
-          for (let i = 0; i < pts.length - 1; i++) {
-            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
-            if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
-            const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
-            let tight = false;
-            for (let k = 0; k < rectList.length && !tight; k++) {
-              const r = rectList[k][1];
-              tight = r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1 && !ids.includes(rectList[k][0]);
-            }
-            if (tight) d += COST.nearNode;
-          }
-          return d;
-        };
-        // Entries and exits on any side get separate slots in 2b, so portClashes is 0
-        const portClashes = () => 0;
-        // Two branches of one decision that carry different labels should leave from different vertices.
-        // Not a hard rule (a diamond has only four): it is a cost, so a branch moves to another side only
-        // when that side has less overlap/crossing, and shares a vertex when every alternative is worse.
-        const sharedBranchVertex = (edge, fp) => {
-          const src = nodeMap[edge.from];
-          if (!src || src.type !== 'decision') return 0;
-          return outEdges[edge.from].filter(o => o !== edge && edgePorts[o.id] && edgePorts[o.id].fromPort === fp
-            && (o.label || '').trim().toLowerCase() !== (edge.label || '').trim().toLowerCase()).length;
-        };
-        const ownBodyClear = (pts, edge) => {
-          for (const id of [edge.from, edge.to]) {
-            const r = rects[id];
-            if (!r) continue;
-            const x1 = r.x + 3, x2 = r.x + r.w - 3, y1 = r.y + 3, y2 = r.y + r.h - 3;
-            for (let i = 0; i < pts.length - 1; i++) {
-              const ax = Math.min(pts[i][0], pts[i + 1][0]), bx = Math.max(pts[i][0], pts[i + 1][0]);
-              const ay = Math.min(pts[i][1], pts[i + 1][1]), by = Math.max(pts[i][1], pts[i + 1][1]);
-              if (ax < x2 && bx > x1 && ay < y2 && by > y1) return false;
-            }
-          }
-          return true;
-        };
-        const routeCost = (pts, edge, others, fp, tp, limit = Infinity) => {
-          const ids = [edge.from, edge.to];
-          let len = 0;
-          for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
-          if ((pts.length - 2) * COST.bend + len >= limit) return Infinity;   // cannot beat the best so far
-          if (!polyClear(pts, ids)) return Infinity;
-          // A route must not run back through the body of its own source or target node
-          if (!ownBodyClear(pts, edge)) return Infinity;
-          // Every penalty is non-negative, so once the running cost reaches `limit` this route cannot win: stop
-          const fixed = (pts.length - 2) * COST.bend + len;
-          let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
-          const f = rects[edge.from], t = rects[edge.to];
-          if (t.cx >= f.cx - 30) {
-            if (nodeMap[edge.from] && nodeMap[edge.from].type === 'decision' && fp === 'left') {
-              defect += COST.backwardExit;
-            }
-            let minX = Infinity;
-            for (let i = 0; i < pts.length; i++) if (pts[i][0] < minX) minX = pts[i][0];
-            const upLimit = Math.min(f.x, t.x) - 16;
-            if (minX < upLimit) defect += COST.upstreamDetour + (upLimit - minX) * 4;
-          }
-          if (fp !== tp) {
-            let minY = Infinity, maxY = -Infinity;
-            for (let i = 0; i < pts.length; i++) {
-              if (pts[i][1] < minY) minY = pts[i][1];
-              if (pts[i][1] > maxY) maxY = pts[i][1];
-            }
-            const loY = Math.min(f.y, t.y) - 16, hiY = Math.max(f.y + f.h, t.y + t.h) + 16;
-            const overY = Math.max(0, loY - minY) + Math.max(0, maxY - hiY);
-            if (overY > 0) defect += COST.sideOvershoot + overY * 4;
-          }
-          if (fixed + defect >= limit) return Infinity;
-          for (let k = 0; k < others.length; k++) {
-            const o = others[k], op = edgePorts[o.id];
-            const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
-            const skipFirst = o.from === edge.from && op && op.fromPort === fp;
-            const skipLast = o.to === edge.to && op && op.toPort === tp;
-            const skipFirstTrunk = skipFirst && !(edge.label || '').trim() && !(o.label || '').trim();
-            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast, skipFirstTrunk);
-            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
-            if (fixed + defect >= limit) return Infinity;
-          }
-          defect += routeDefects(pts, ids);
-          if (fixed + defect >= limit) return Infinity;
-          return { cost: fixed + defect, defect };
-        };
-        const anchor = (r, side) => side === 'top' ? [r.cx, r.y] : side === 'bottom' ? [r.cx, r.y + r.h]
-          : side === 'left' ? [r.x, r.cy] : [r.x + r.w, r.cy];
-        // Whole-diagram bounds, for corridor routes that run around everything
-        const bounds = Object.values(rects).reduce((b, r) => ({
-          minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
-          minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
-        }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-        // Gap centers (+/-22px) between node bands and node clearance edges so tight corridors are never skipped
-        const buildCorridors = (loKey, sizeKey, minBound, maxBound) => {
-          const ivs = rectList.map(([, r]) => [r[loKey], r[loKey] + r[sizeKey]]).sort((a, b) => a[0] - b[0]);
-          const seen = new Set();
-          const out = [];
-          const push = (v) => {
-            const q = Math.round(v / 8);
-            if (seen.has(q)) return;
-            seen.add(q);
-            out.push(v);
-          };
-          let hi = -Infinity;
-          for (const [a, b] of ivs) {
-            if (a > hi + 28 && hi > -Infinity) {
-              const mid = (hi + a) / 2;
-              push(mid); push(mid - 22); push(mid + 22);
-            }
-            if (b > hi) hi = b;
-          }
-          for (let k = 0; k < rectList.length; k++) {
-            const r = rectList[k][1];
-            push(r[loKey] - 16);
-            push(r[loKey] + r[sizeKey] + 16);
-          }
-          push(minBound - 24);
-          push(maxBound + 24);
-          return out;
-        };
-        const corridorXs = buildCorridors('x', 'w', bounds.minX, bounds.maxX);
-        const corridorYs = buildCorridors('y', 'h', bounds.minY, bounds.maxY);
-        const altRoutes = (f, t, deep) => {
-          const out = [];
-          const SIDES = ['top', 'bottom', 'left', 'right'];
-          const horiz = s => s === 'left' || s === 'right';
-          SIDES.forEach(fp => SIDES.forEach(tp => {
-            const [sx, sy] = anchor(f, fp), [ex, ey] = anchor(t, tp);
-            const add = (pts, dev = 0) => out.push({ fp, tp, pts, dev });
-            if (horiz(fp) && horiz(tp)) {
-              if (fp === tp) return;
-              const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
-              if (!dirOk) return;
-              if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
-              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14, mid = (sx + ex) / 2;
-              let hasMid = false;
-              for (let x = lo; x <= hi; x += 16) {
-                if (Math.abs(x - mid) < 4) hasMid = true;
-                add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - mid));
-              }
-              if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [mid, sy], [mid, ey], [ex, ey]], 0);
-            } else if (!horiz(fp) && !horiz(tp)) {
-              if (fp !== tp) {
-                const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
-                if (!dirOk) return;
-                if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
-                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14, mid = (sy + ey) / 2;
-                let hasMid = false;
-                for (let y = lo; y <= hi; y += 16) {
-                  if (Math.abs(y - mid) < 4) hasMid = true;
-                  add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - mid));
-                }
-                if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
-              } else {
-                const seenG = new Set();
-                const tryU = g => {
-                  if (fp === 'top' ? g > Math.min(sy, ey) - 12 : g < Math.max(sy, ey) + 12) return;
-                  const q = Math.round(g / 8);
-                  if (seenG.has(q)) return;
-                  seenG.add(q);
-                  add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
-                };
-                [28, 36, 48, 72].forEach(d => tryU(fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d));
-                if (deep) corridorYs.forEach(tryU);
-              }
-            } else if (horiz(fp)) {
-              // horizontal exit, vertical entry: one bend
-              if (!(fp === 'right' ? ex <= sx + 20 : ex >= sx - 20) && !(tp === 'top' ? ey <= sy + 8 : ey >= sy - 8)) {
-                add([[sx, sy], [ex, sy], [ex, ey]]);
-              }
-            } else {
-              // vertical exit, horizontal entry: one bend
-              if (!(fp === 'top' ? sy <= ey + 8 : sy >= ey - 8) && !(tp === 'left' ? ex <= sx + 20 : ex >= sx - 20)) {
-                add([[sx, sy], [sx, ey], [ex, ey]]);
-              }
-            }
-            if (deep && horiz(fp) !== horiz(tp)) {
-              // Three bends through a corridor: leave, run along a corridor, drop/rise, then enter
-              const STEP = 64;
-              if (!horiz(fp)) {
-                // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
-                [16, 20, 36, 56].forEach(d => {
-                  const g = fp === 'top' ? sy - d : sy + d;
-                  const seenX = new Set();
-                  const tryX = x => {
-                    const q = Math.round(x / 8);
-                    if (seenX.has(q)) return;
-                    seenX.add(q);
-                    if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
-                    if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
-                    add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
-                  };
-                  corridorXs.forEach(tryX);
-                  const xLo = Math.min(sx, ex) - 64, xHi = Math.max(sx, ex) + 64;
-                  for (let x = xLo; x <= xHi; x += STEP) tryX(x);
-                });
-              } else {
-                // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
-                [16, 20, 36, 56].forEach(d => {
-                  const x = fp === 'right' ? sx + d : sx - d;
-                  const seenG = new Set();
-                  const tryG = g => {
-                    const q = Math.round(g / 8);
-                    if (seenG.has(q)) return;
-                    seenG.add(q);
-                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) return;
-                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) return;
-                    add([[sx, sy], [x, sy], [x, g], [ex, g], [ex, ey]], 0);
-                  };
-                  corridorYs.forEach(tryG);
-                  const gLo = Math.min(sy, ey) - 64, gHi = Math.max(sy, ey) + 64;
-                  for (let g = gLo; g <= gHi; g += STEP) tryG(g);
-                });
-              }
-            }
-          }));
-          return out;
-        };
-        // Longest arrows first: they are the most constrained, shorter ones then route around them.
-        // Exclude currently obstructed placeholder polylines from `others` so clean edges do not swerve
-        // around lines that cut through nodes and are about to be rerouted.
-        const edgeClear = {};
-        validEdges.forEach(o => {
-          const pts = edgePolylines[o.id];
-          edgeClear[o.id] = Boolean(pts && polyClear(pts, [o.from, o.to]));
-        });
-        const manhattan = e => Math.abs(rects[e.from].cx - rects[e.to].cx) + Math.abs(rects[e.from].cy - rects[e.to].cy);
-        [...validEdges].sort((a2, b2) => manhattan(b2) - manhattan(a2)).forEach(e => {
-          if (e.to === e.from) return;
-          const cur = edgePolylines[e.id];
-          if (!cur) return;
-          const others = validEdges.filter(o => o !== e && edgePolylines[o.id] && edgeClear[o.id]);
-          // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
-          // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
-          // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
-          const srcIsDecision = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
-          const dstIsDecision = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
-          const entryVertex = s => srcIsDecision && (s === 'top' || s === 'bottom')
-            && (inEdges[e.from] || []).some(o => edgePorts[o.id] && edgePorts[o.id].toPort === s);
-          const branchVertex = s => dstIsDecision && (s === 'top' || s === 'bottom' || s === 'right')
-            && (outEdges[e.to] || []).some(o => edgePorts[o.id] && edgePorts[o.id].fromPort === s);
-          const entryShare = (fp, tp) => (entryVertex(fp) ? COST.entryShare : 0) + (branchVertex(tp) ? COST.entryShare : 0);
-          const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
-          const baseEntryShare = entryShare(edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
-          // Already clean (clear of nodes, no overlap/crossing/crowding, on its own vertex): keep it
-          if (base !== Infinity && base.defect === 0 && baseEntryShare === 0) return;
-          const baseCost = base === Infinity ? Infinity : base.cost + baseEntryShare;
-          let best = null;
-          // 3-bend corridor routes are only worth searching when the standard route is in real trouble
-          const deep = base === Infinity || base.defect + baseEntryShare >= COST.cross;
-          altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
-            const r = routeCost(c.pts, e, others, c.fp, c.tp, best ? best.cost : baseCost - 250);
-            if (r === Infinity) return;
-            // Changing sides is a bigger visual change than sliding a channel, so it must earn it
-            const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
-            const cost = r.cost + c.dev * 0.3 + sideChange + entryShare(c.fp, c.tp);
-            if (!best || cost < best.cost) best = { cost, c };
-          });
-          // Hysteresis: only switch for a clear win, so near-ties keep the standard route
-          if (best && best.cost < baseCost - 250) {
-            edgePolylines[e.id] = best.c.pts;
-            edgePorts[e.id] = { fromPort: best.c.fp, toPort: best.c.tp };
-            edgeClear[e.id] = true;
-          }
-        });
-
-        // 5a1. Spread arrows that share one contact point on a top/bottom side: several entries from
-        // different sources, or several exits to different targets, would otherwise merge into a single
-        // line. They get 24px apart (a straight, aligned arrow keeps the centre and the others move away).
-        const SPREAD = 24;
-        // Order of arrow ends along a top/bottom side: by where their other end lies. On a tie (targets in one
-        // column), the arrow whose vertical run is longer goes on the inside of the turn, so the shorter one,
-        // turning first, never has its horizontal run cut by the longer one's vertical.
-        const farOrder = (far1, far2, cx, pts1, a1, b1, pts2, a2, b2) => {
-          const run1 = Math.abs(pts1[b1][1] - pts1[a1][1]), run2 = Math.abs(pts2[b2][1] - pts2[a2][1]);
-          // Both heading the same way with different-depth turns: the deeper run goes on the inside, so the
-          // shallower one's horizontal never crosses it (ordering by target x alone made them cross)
-          if (Math.abs(run1 - run2) >= 1 && (far1 > cx) === (far2 > cx) && pts1.length === 3 && pts2.length === 3) {
-            return far1 > cx ? run2 - run1 : run1 - run2;
-          }
-          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
-          return far1 > cx ? run2 - run1 : run1 - run2;
-        };
-        Object.keys(rects).forEach(nid => {
-          const r = rects[nid];
-          [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
-            ['out', 'in'].forEach(role => {
-              // A decision's outgoing branches each get their own vertex in step 2; incoming fan-in arrows still merge onto one shared arrowhead
-              if (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
-              const ends = [];
-              validEdges.forEach(e => {
-                const pts = edgePolylines[e.id];
-                if (!pts) return;
-                const n = pts.length;
-                if (role === 'out' && e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1)
-                  ends.push({ e, a: 0, b: 1, x: pts[0][0], fixed: n < 3, peer: e.to, far: pts[n - 1][0] });
-                if (role === 'in' && e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1)
-                  ends.push({ e, a: n - 1, b: n - 2, x: pts[n - 1][0], fixed: n < 3, peer: e.from, far: pts[0][0] });
-              });
-              ends.sort((p1, p2) => p1.x - p2.x);
-              const clusterGap = role === 'in' ? SPREAD : 10;
-              const hasOutOnSide = role === 'in' && validEdges.some(o => {
-                const op = edgePolylines[o.id];
-                return op && o.from === nid && Math.abs(op[0][1] - edgeY) < 1 && Math.abs(op[0][0] - op[1][0]) < 1;
-              });
-              let i = 0;
-              while (i < ends.length) {
-                let j = i + 1;
-                while (j < ends.length && ends[j].x - ends[j - 1].x < clusterGap) j++;
-                const cluster = ends.slice(i, j);
-                i = j;
-                if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
-                const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) =>
-                  farOrder(p1.far, p2.far, r.cx, edgePolylines[p1.e.id], p1.a, p1.b, edgePolylines[p2.e.id], p2.a, p2.b));
-                // Nested U-turn loop-backs (each deeper than the last): the one whose source is furthest away
-                // sits in the deepest gutter, so it must land first/left or its rising leg cuts the shallower loop
-                if (movable.length > 1 && movable.every(c => edgePolylines[c.e.id].length === 4)) movable.reverse();
-                if (!movable.length) continue;
-                const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
-                const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
-                if (role === 'in') {
-                  // Fan-in: arrows entering one side of one step share a single trunk (and one arrowhead) and
-                  // join where their runs meet it, like a merge on a hand-drawn flowchart. Spreading them 24px
-                  // apart drew a doubled line. A straight arrow keeps its line; otherwise centre when the side has no exits.
-                  const lo = r.x + 14, hi = r.x + r.w - 14;
-                  const cands = fixed.length ? [fixed[0].x]
-                    : !hasOutOnSide ? [r.cx, ...cluster.map(c => c.x), base0]
-                    : [...cluster.map(c => c.x), base0];
-                  const canJoinAt = (jx) => jx >= lo && jx <= hi && movable.every(c => {
-                    const pts = edgePolylines[c.e.id];
-                    const ids = [c.e.from, c.e.to];
-                    return segmentClear(jx, pts[c.a][1], jx, pts[c.b][1], ids)
-                      && segmentClear(jx, pts[c.b][1], pts[c.b - 1][0], pts[c.b - 1][1], ids);
-                  });
-                  const jx = cands.find(canJoinAt);
-                  if (jx !== undefined) movable.forEach(c => shiftEnd(c, jx));
-                } else if (fixed.length) {
-                  const fx = fixed[0].x;
-                  // Each moved end slides toward the side its other end lies on, so it never has to cross
-                  // the straight arrow (movable is sorted by `far`, so the nearest-to-centre ends sit closest)
-                  const sideCount = { '-1': 0, '1': 0 };
-                  const ordered = [...movable].sort((p1, p2) => Math.abs(p1.far - fx) - Math.abs(p2.far - fx));
-                  ordered.forEach(c => {
-                    const dir = c.far < fx - 1 ? -1 : c.far > fx + 1 ? 1 : (sideCount['1'] <= sideCount['-1'] ? 1 : -1);
-                    sideCount[dir] += 1;
-                    shiftEnd(c, fx + dir * SPREAD * sideCount[dir]);
-                  });
-                } else {
-                  const m = movable.length;
-                  movable.forEach((c, k) => shiftEnd(c, base0 + (k - (m - 1) / 2) * SPREAD));
-                }
-              }
-            });
-          });
-        });
-
-        // 5a2. Port separation: where an arrow enters and another leaves the same side of a node,
-        // keep their contact points at least 16px apart so an arrowhead never sits on a departure.
-        const SEP = 16, SHIFT = 9;
-        Object.keys(rects).forEach(nid => {
-          const r = rects[nid];
-          [['top', 0, r.y], ['bottom', 0, r.y + r.h], ['left', 1, r.x], ['right', 1, r.x + r.w]].forEach(([side, ai, edgeCoord]) => {
-            const fi = 1 - ai; // ai: coordinate that slides along the side, fi: the fixed one
-            const ends = [];
-            validEdges.forEach(e => {
-              const pts = edgePolylines[e.id];
-              if (!pts || pts.length < 3) return;       // straight lines stay aligned
-              const n = pts.length;
-              if (e.from === nid && Math.abs(pts[0][fi] - edgeCoord) < 1 && Math.abs(pts[0][ai] - pts[1][ai]) < 1) ends.push({ e, role: 'out', a: 0, b: 1, other: pts[n - 1][ai] });
-              if (e.to === nid && Math.abs(pts[n - 1][fi] - edgeCoord) < 1 && Math.abs(pts[n - 1][ai] - pts[n - 2][ai]) < 1) ends.push({ e, role: 'in', a: n - 1, b: n - 2, other: pts[0][ai] });
-            });
-            const outs = ends.filter(x => x.role === 'out'), ins = ends.filter(x => x.role === 'in');
-            if (!outs.length || !ins.length) return;
-            const at = x => edgePolylines[x.e.id][x.a][ai];
-            const minGap = Math.min(...ins.flatMap(i => outs.map(o => Math.abs(at(i) - at(o)))));
-            if (minGap >= SEP) return;
-            const mean = l => l.reduce((s2, x) => s2 + x.other, 0) / l.length;
-            const insLow = mean(ins) <= mean(outs);
-            const shift = (x, d) => { edgePolylines[x.e.id][x.a][ai] += d; edgePolylines[x.e.id][x.b][ai] += d; };
-            if (nodeMap[nid] && nodeMap[nid].type === 'decision') {
-              ins.forEach(x => shift(x, insLow ? -SEP : SEP));
-            } else {
-              ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
-              outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
-            }
-          });
-        });
-
-        // 5a3. Arrowhead clearance on top/bottom sides. Every contact point (entry or exit) on one side
-        // must be at least CLEAR px from the next one. 5a1/5a2 leave gaps they cannot see: a straight,
-        // aligned arrow keeps the side's centre and was exempt, so a neighbouring arrowhead could land
-        // 3px from it. Straight arrows stay where they are; the others slide to the side their other end
-        // lies on. Edges that merge on purpose (same role, same other node, same spot) move together.
-        const CLEAR = 24;
-        Object.keys(rects).forEach(nid => {
-          const r = rects[nid];
-          [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
-            const units = new Map();
-            validEdges.forEach(e => {
-              const pts = edgePolylines[e.id];
-              if (!pts) return;
-              const n = pts.length;
-              const add = (role, a, b, peer, far) => {
-                const mergeIn = role === 'in';   // fan-in: one trunk per side (5a1)
-                const key = role + '|' + (mergeIn ? '*' : peer) + '|' + Math.round(pts[a][0]);
-                if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
-                const u = units.get(key);
-                u.ends.push({ pts, a, b });
-                // Straight arrows and decision outgoing branches stay at their vertex (never slide onto a slanted side)
-                if (n < 3 || (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision')) u.fixed = true;
-              };
-              if (e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1) add('out', 0, 1, e.to, pts[n - 1][0]);
-              if (e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1) add('in', n - 1, n - 2, e.from, pts[0][0]);
-            });
-            const sorted = [...units.values()].sort((u1, u2) => u1.x - u2.x);
-            const lo = r.x + 14, hi = r.x + r.w - 14;
-            const place = (u, nx) => {
-              const x = Math.max(lo, Math.min(hi, nx));
-              u.ends.forEach(en => { en.pts[en.a][0] = x; en.pts[en.b][0] = x; });
-              u.x = x;
-            };
-            let i = 0;
-            while (i < sorted.length) {
-              let j = i + 1;
-              while (j < sorted.length && sorted[j].x - sorted[j - 1].x < CLEAR - 0.5) j++;
-              const cluster = sorted.slice(i, j);
-              i = j;
-              const fixed = cluster.filter(u => u.fixed);
-              const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => farOrder(u1.far, u2.far, r.cx,
-                u1.ends[0].pts, u1.ends[0].a, u1.ends[0].b, u2.ends[0].pts, u2.ends[0].a, u2.ends[0].b));
-              if (cluster.length < 2 || !movable.length) continue;
-              // Nested U-turn loop-backs: the arrow with the furthest source runs in the deepest gutter, so it
-              // must take the slot nearest the fixed/centre line (or the outermost on the other side), never
-              // the reverse, or its rising leg cuts through the shallower loop
-              const nested = movable.length > 1 && movable.every(u => u.ends.every(en => en.pts.length === 4));
-              if (nested) movable.reverse();
-              if (!fixed.length) {
-                const mean = cluster.reduce((s2, u) => s2 + u.x, 0) / cluster.length;
-                movable.forEach((u, k) => place(u, mean + (k - (movable.length - 1) / 2) * CLEAR));
-              } else {
-                const fMin = Math.min(...fixed.map(u => u.x)), fMax = Math.max(...fixed.map(u => u.x));
-                const anchor = (fMin + fMax) / 2;
-                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => nested ? u1.far - u2.far : u2.far - u1.far);
-                const right = movable.filter(u => !(u.far < anchor - 1));
-                left.forEach((u, k) => place(u, fMin - CLEAR * (k + 1)));
-                right.forEach((u, k) => place(u, fMax + CLEAR * (k + 1)));
-              }
-            }
-          });
-        });
-
-        // 5a4. Arrows into one side of one step that run side by side a few px apart (e.g. a Z-shaped channel
-        // beside another arrow's straight leg) are one fan-in: snap the movable run onto the other so they share
-        // a single trunk and join, instead of reading as a doubled line. Port-attached first/last legs stay put.
-        {
-          const NEAR = 18;
-          const runs = [];
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id], p = edgePorts[e.id];
-            if (!pts || pts.length < 3 || !p) return;
-            for (let i = 0; i < pts.length - 2; i++) {          // the last leg (into the target) is shared already
-              const a = pts[i], b = pts[i + 1];
-              const k = Math.abs(a[0] - b[0]) < 1 ? 0 : Math.abs(a[1] - b[1]) < 1 ? 1 : -1;
-              if (k < 0) continue;
-              runs.push({ e, i, k, pos: a[k], lo: Math.min(a[1 - k], b[1 - k]), hi: Math.max(a[1 - k], b[1 - k]), first: i === 0, to: p.toPort });
-            }
-          });
-          runs.forEach(m => {
-            if (m.first) return;                                  // attached to its source: it is the one others join
-            const pts = edgePolylines[m.e.id];
-            const t = runs.find(o => o.e.to === m.e.to && o.e.id !== m.e.id && o.to === m.to && o.k === m.k &&
-              Math.abs(o.pos - m.pos) >= 1 && Math.abs(o.pos - m.pos) < NEAR && Math.min(o.hi, m.hi) - Math.max(o.lo, m.lo) > 24 &&
-              (o.first || o.e.id < m.e.id));
-            if (!t) return;
-            const k = m.k, old = m.pos, ids = [m.e.from, m.e.to];
-            pts[m.i][k] = pts[m.i + 1][k] = t.pos;
-            // the legs either side must stay clear of other steps and keep their direction
-            const legOk = (j) => segmentClear(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1], ids);
-            const ok = legOk(m.i - 1) && legOk(m.i) && legOk(m.i + 1) &&
-              Math.sign(t.pos - pts[m.i - 1][k]) === Math.sign(old - pts[m.i - 1][k]) &&
-              Math.sign(pts[m.i + 2][k] - t.pos) === Math.sign(pts[m.i + 2][k] - old);
-            if (!ok) pts[m.i][k] = pts[m.i + 1][k] = old;
-          });
-        }
-
-        // 5a5. Two arrows into one step that leave facing each other along one line (a bottom exit and a top
-        // exit of steps stacked in a column, both turning into the same run) read as one straight line between
-        // the two sources. Slide the later exit sideways, toward the run it joins, so it meets the other
-        // arrow's run at a clear T.
-        {
-          const SLIDE = 24;
-          const ends = [];
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id];
-            if (!pts || pts.length < 3) return;
-            [0, 1].forEach(k => {
-              if (Math.abs(pts[0][k] - pts[1][k]) < 1 && Math.abs(pts[1][1 - k] - pts[0][1 - k]) > 1) ends.push({ e, pts, k });
-            });
-          });
-          ends.forEach((b, bi) => ends.slice(0, bi).forEach(a => {
-            if (a.k !== b.k || a.e.to !== b.e.to || a.e.from === b.e.from) return;
-            const k = a.k, m = 1 - k;
-            if (Math.abs(a.pts[0][k] - b.pts[0][k]) >= 1) return;
-            const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
-            if (da * db >= 0) return;                              // not facing
-            const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
-            if (gap < 0 || gap > 40 || Math.abs(a.pts[0][m] - b.pts[0][m]) >= 120) return;  // far apart, or overlapping (not this case)
-            const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
-            const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
-            const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
-            if (!dir || Math.abs(b.pts[2][k] - b.pts[1][k]) < SLIDE + 12 || nx < lo || nx > hi) return;
-            b.pts[0][k] = b.pts[1][k] = nx;
-          }));
-        }
-
-        // 5a6. Fork bends: arrows that leave one point sideways and turn at different x (a Z next to a corridor route)
-        // snap to one shared turn, so the fork bends in one place. Skipped when both turn the same way and one is
-        // labelled (they would share a trunk and the label could not tell them apart), or when the snap would
-        // reverse a leg or cross a step.
-        {
-          const forks = {};
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id];
-            if (pts && pts.length >= 4 && Math.abs(pts[0][1] - pts[1][1]) < 1 && Math.abs(pts[1][0] - pts[2][0]) < 1 && Math.abs(pts[1][0] - pts[0][0]) > 1) {
-              (forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] = forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] || []).push(e);
-            }
-          });
-          Object.values(forks).forEach(group => {
-            if (group.length < 2) return;
-            group.sort((a, b) => edgePolylines[a.id].length - edgePolylines[b.id].length || (a.id < b.id ? -1 : 1));
-            const lead = edgePolylines[group[0].id], x = lead[1][0], dirY = Math.sign(lead[2][1] - lead[1][1]);
-            group.slice(1).forEach(e => {
-              const pts = edgePolylines[e.id], old = pts[1][0];
-              if (Math.abs(old - x) < 1) return;
-              const sameWay = Math.sign(pts[2][1] - pts[1][1]) === dirY;
-              if (sameWay && ((e.label || '').trim() || (group[0].label || '').trim())) return;
-              if (Math.sign(x - pts[0][0]) !== Math.sign(old - pts[0][0])) return;
-              if (Math.sign(pts[3][0] - x) !== Math.sign(pts[3][0] - old)) return;
-              pts[1][0] = pts[2][0] = x;
-              if (!polyClear(pts, [e.from, e.to])) pts[1][0] = pts[2][0] = old;
-            });
-          });
-        }
-
-        // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
-        // segments (never the port-attached first/last ones) onto parallel tracks.
-        // Edges sharing a source or a target may still merge/fork on purpose.
-        const TRACK_GAP = 14;
-        ['v', 'h'].forEach(orient => {
-          const segs = [];
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id];
-            if (!pts) return;
-            for (let i = 1; i < pts.length - 2; i++) {
-              const a = pts[i], b = pts[i + 1];
-              const isV = Math.abs(a[0] - b[0]) < 1;
-              const isH = Math.abs(a[1] - b[1]) < 1;
-              if (orient === 'v' ? !isV : !isH) continue;
-              const k = orient === 'v' ? 0 : 1; // fixed axis
-              const m = 1 - k;                  // running axis
-              segs.push({ e, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]) });
-            }
-          });
-          const parent = segs.map((_, i) => i);
-          const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
-          for (let a = 0; a < segs.length; a++) {
-            for (let b = a + 1; b < segs.length; b++) {
-              const A = segs[a], B = segs[b];
-              if (A.e.id === B.e.id || A.e.from === B.e.from || A.e.to === B.e.to) continue;
-              if (Math.abs(A.pos - B.pos) >= 1) continue;
-              if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
-              parent[find(a)] = find(b);
-            }
-          }
-          const clusters = {};
-          segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
-          Object.values(clusters).forEach(cl => {
-            if (cl.length < 2) return;
-            // Order tracks by where each edge heads next so nesting stays planar
-            cl.sort((p, q) => (orient === 'v' ? rects[p.e.to].cx - rects[q.e.to].cx : rects[p.e.to].cy - rects[q.e.to].cy));
-            const k = orient === 'v' ? 0 : 1;
-            const applyGap = (gap) => {
-              const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
-              cl.forEach((s, idx) => {
-                const shift = (idx - (cl.length - 1) / 2) * gap;
-                const pts = edgePolylines[s.e.id];
-                pts[s.i][k] += shift;
-                pts[s.i + 1][k] += shift;
-              });
-              if (!cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]))) {
-                cl.forEach((s, idx) => {
-                  const pts = edgePolylines[s.e.id];
-                  pts[s.i][k] = saved[idx][0];
-                  pts[s.i + 1][k] = saved[idx][1];
-                });
-                return false;
-              }
-              return true;
-            };
-            if (!applyGap(TRACK_GAP)) {
-              cl.forEach((s, idx) => {
-                const shift = (idx - (cl.length - 1) / 2) * 8;
-                const pts = edgePolylines[s.e.id];
-                pts[s.i][k] += shift;
-                pts[s.i + 1][k] += shift;
-              });
-            }
-          });
-        });
-
-        // 5b2. Decision parallel fan spacing: when multiple arrows leave or enter the same side of a
-        // decision node and share parallel interior segments within 20px, spread those interior legs
-        // apart by 20px (after clearing the vertex stub) so multi-branch fans read cleanly.
-        const DECISION_TRACK_GAP = 20;
-        ['v', 'h'].forEach(orient => {
-          const k = orient === 'v' ? 0 : 1; // fixed axis
-          const m = 1 - k;                  // running axis
-          const segs = [];
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id];
-            const p = edgePorts[e.id];
-            if (!pts || !p) return;
-            const srcDec = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
-            const dstDec = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
-            if (!srcDec && !dstDec) return;
-            for (let i = 1; i < pts.length - 2; i++) {
-              const a = pts[i], b = pts[i + 1];
-              const isV = Math.abs(a[0] - b[0]) < 1;
-              const isH = Math.abs(a[1] - b[1]) < 1;
-              if (orient === 'v' ? !isV : !isH) continue;
-              segs.push({ e, p, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]), srcDec, dstDec });
-            }
-          });
-          const sameDecisionSide = (A, B) =>
-            (A.srcDec && A.e.from === B.e.from && A.p.fromPort === B.p.fromPort) ||
-            (A.dstDec && A.e.to === B.e.to && A.p.toPort === B.p.toPort);
-          const parent = segs.map((_, i) => i);
-          const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
-          for (let a = 0; a < segs.length; a++) {
-            for (let b = a + 1; b < segs.length; b++) {
-              const A = segs[a], B = segs[b];
-              if (A.e.id === B.e.id || !sameDecisionSide(A, B)) continue;
-              if (Math.abs(A.pos - B.pos) >= DECISION_TRACK_GAP - 0.5) continue;
-              if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
-              parent[find(a)] = find(b);
-            }
-          }
-          const clusters = {};
-          segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
-          Object.values(clusters).forEach(cl => {
-            if (cl.length < 2) return;
-            cl.sort((p, q) => {
-              if (Math.abs(p.pos - q.pos) >= 1) return p.pos - q.pos;
-              const sharedFrom = p.e.from === q.e.from;
-              const nodeP = sharedFrom ? rects[p.e.to] : rects[p.e.from];
-              const nodeQ = sharedFrom ? rects[q.e.to] : rects[q.e.from];
-              return orient === 'v' ? nodeP.cx - nodeQ.cx : nodeP.cy - nodeQ.cy;
-            });
-            const meanPos = cl.reduce((sum, s) => sum + s.pos, 0) / cl.length;
-            let minBase = -Infinity, maxBase = Infinity;
-            cl.forEach((s, idx) => {
-              const pts = edgePolylines[s.e.id];
-              const off = (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
-              const prev = pts[s.i - 1][k], next = pts[s.i + 2][k];
-              const old = s.pos;
-              const dPrev = Math.sign(old - prev);
-              if (dPrev > 0) minBase = Math.max(minBase, prev + 8 - off);
-              else if (dPrev < 0) maxBase = Math.min(maxBase, prev - 8 - off);
-              const dNext = Math.sign(next - old);
-              if (dNext > 0) maxBase = Math.min(maxBase, next - 8 - off);
-              else if (dNext < 0) minBase = Math.max(minBase, next + 8 - off);
-            });
-            const basePos = minBase <= maxBase ? Math.max(minBase, Math.min(maxBase, meanPos)) : meanPos;
-            const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
-            let allValid = true;
-            cl.forEach((s, idx) => {
-              const pts = edgePolylines[s.e.id];
-              const target = basePos + (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
-              const prev = pts[s.i - 1][k], next = pts[s.i + 2][k], old = saved[idx][0];
-              if ((old !== prev && (Math.sign(target - prev) !== Math.sign(old - prev) || Math.abs(target - prev) < 8)) ||
-                  (next !== old && (Math.sign(next - target) !== Math.sign(next - old) || Math.abs(next - target) < 8))) {
-                allValid = false;
-              }
-              pts[s.i][k] = target;
-              pts[s.i + 1][k] = target;
-            });
-            if (!allValid || !cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]) && ownBodyClear(edgePolylines[s.e.id], s.e))) {
-              cl.forEach((s, idx) => {
-                const pts = edgePolylines[s.e.id];
-                pts[s.i][k] = saved[idx][0];
-                pts[s.i + 1][k] = saved[idx][1];
-              });
-            }
-          });
-        });
-
-        // 5c. Two-way connections (A->B plus B->A) between vertically stacked nodes: draw them as two
-        // straight parallel arrows, side by side, instead of two lines that swap sides and have to hop.
-        {
-          const PAIR_GAP = 20;
-          const done = new Set();
-          validEdges.forEach(a => {
-            if (done.has(a.id)) return;
-            const b = validEdges.find(o => o !== a && o.from === a.to && o.to === a.from && !done.has(o.id));
-            if (!b) return;
-            const pa = edgePolylines[a.id], pb = edgePolylines[b.id];
-            const f = rects[a.from], t = rects[a.to];
-            if (!pa || !pb || !f || !t) return;
-            const vertEnds = pts => pts.length >= 2 && Math.abs(pts[0][0] - pts[1][0]) < 1 &&
-              Math.abs(pts[pts.length - 1][0] - pts[pts.length - 2][0]) < 1;
-            if (!vertEnds(pa) || !vertEnds(pb)) return;
-            const lo = Math.max(f.x, t.x) + 14, hi = Math.min(f.x + f.w, t.x + t.w) - 14;
-            if (hi - lo < PAIR_GAP) {
-              // Nodes offset sideways: two nested S-shapes. The downward arrow takes the inner side at both
-              // ends and the lower crossbar; the upward arrow the outer side and the upper crossbar.
-              const aDown = f.y < t.y;
-              const U = aDown ? f : t, L = aDown ? t : f;
-              const y0 = U.y + U.h, y1 = L.y;
-              if (y1 - y0 < 48 || Math.abs(L.cx - U.cx) < 30) return;
-              const sgn = L.cx > U.cx ? 1 : -1, h = PAIR_GAP / 2;
-              const midY = (y0 + y1) / 2;
-              // Centre of the pair on one node side: nearest to the node centre where neither line sits
-              // within 14px of another arrow's contact point on that side
-              const pickCentre = (nodeId, node, edgeY) => {
-                const others = [];
-                validEdges.forEach(o => {
-                  if (o === a || o === b) return;
-                  const q = edgePolylines[o.id];
-                  if (!q) return;
-                  if (o.from === nodeId && Math.abs(q[0][1] - edgeY) < 1) others.push(q[0][0]);
-                  if (o.to === nodeId && Math.abs(q[q.length - 1][1] - edgeY) < 1) others.push(q[q.length - 1][0]);
-                });
-                const lo2 = node.x + 14 + h, hi2 = node.x + node.w - 14 - h;
-                for (let d = 0; d <= 60; d += 4) {
-                  for (const c of d ? [node.cx - d, node.cx + d] : [node.cx]) {
-                    if (c < lo2 || c > hi2) continue;
-                    if (others.every(ox => Math.abs(ox - (c - h)) >= 14 && Math.abs(ox - (c + h)) >= 14)) return c;
-                  }
-                }
-                return node.cx;
-              };
-              const uId = aDown ? a.from : a.to, lId = aDown ? a.to : a.from;
-              const cU = pickCentre(uId, U, y0), cL = pickCentre(lId, L, y1);
-              const down = [[cU - h * sgn, y0], [cU - h * sgn, midY + 6], [cL - h * sgn, midY + 6], [cL - h * sgn, y1]];
-              const up = [[cL + h * sgn, y1], [cL + h * sgn, midY - 6], [cU + h * sgn, midY - 6], [cU + h * sgn, y0]];
-              const [sa2, sb2] = aDown ? [down, up] : [up, down];
-              if (!polyClear(sa2, [a.from, a.to]) || !polyClear(sb2, [b.from, b.to])) return;
-              edgePolylines[a.id] = sa2;
-              edgePolylines[b.id] = sb2;
-              done.add(a.id); done.add(b.id);
-              return;
-            }
-            const c = Math.max(lo + PAIR_GAP / 2, Math.min(hi - PAIR_GAP / 2, (f.cx + t.cx) / 2));
-            const xa = c - PAIR_GAP / 2, xb = c + PAIR_GAP / 2;
-            const sa = [[xa, pa[0][1]], [xa, pa[pa.length - 1][1]]];
-            const sb = [[xb, pb[0][1]], [xb, pb[pb.length - 1][1]]];
-            if (!polyClear(sa, [a.from, a.to]) || !polyClear(sb, [b.from, b.to])) return;
-            edgePolylines[a.id] = sa;
-            edgePolylines[b.id] = sb;
-            done.add(a.id); done.add(b.id);
-          });
-        }
-
-        // 5c2. Tiny jogs: an end leg offset from the leg before it by less than two corner radii draws a cramped
-        // S-bend whose corners cannot take the normal radius (nodes a few px apart, or a contact point spread
-        // a few px off centre). Slide the end along its node's flat side to line up with the leg instead, when
-        // that spot is on the side, is not a diamond vertex, and keeps CLEAR from other arrows' contact points.
-        {
-          const JOG = 16, CLEAR_PT = 24;
-          const ends = (nid, skipId) => {
-            const out = [];
-            validEdges.forEach(o => {
-              if (o.id === skipId) return;
-              const op = edgePolylines[o.id];
-              if (!op) return;
-              if (o.from === nid) out.push(op[0]);
-              if (o.to === nid) out.push(op[op.length - 1]);
-            });
-            return out;
-          };
-          validEdges.forEach(e => {
-            const pts = edgePolylines[e.id];
-            if (!pts || pts.length < 4) return;
-            // [end, leg, jog, rest]: indices for the source end, then for the target end
-            [[e.from, 0, 1, 2, 3], [e.to, pts.length - 1, pts.length - 2, pts.length - 3, pts.length - 4]].forEach(([nid, a, b, c, d]) => {
-              const node = nodeMap[nid], r = rects[nid];
-              if (!node || !r || node.type === 'decision') return;
-              const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1 && Math.abs(pts[c][0] - pts[d][0]) < 1 && Math.abs(pts[b][1] - pts[c][1]) < 1;
-              const horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1 && Math.abs(pts[c][1] - pts[d][1]) < 1 && Math.abs(pts[b][0] - pts[c][0]) < 1;
-              const ax = vertLeg ? 0 : horizLeg ? 1 : -1;      // the coordinate that slides along the node's side
-              if (ax < 0) return;
-              const target = pts[c][ax];
-              const off = Math.abs(target - pts[a][ax]);
-              if (off < 0.5 || off >= JOG) return;
-              const lo = ax === 0 ? r.x + 14 : r.y + 14, hi = ax === 0 ? r.x + r.w - 14 : r.y + r.h - 14;
-              if (target < lo || target > hi) return;
-              const side = pts[a][1 - ax];
-              const crowded = ends(nid, e.id).some(p => Math.abs(p[1 - ax] - side) < 1 &&
-                Math.abs(p[ax] - target) >= 1 && Math.abs(p[ax] - target) < CLEAR_PT);
-              if (crowded) return;
-              pts[a][ax] = target;
-              pts[b][ax] = target;
-            });
-          });
-        }
-
-        // 5e. Top-to-bottom: back to screen coordinates (flow x -> screen y). A port named in flow terms maps to the
-        // screen side it faces: along the flow ('right') is down, against it ('left') up, across the lanes sideways.
-        if (tb) {
-          const SIDE = { right: 'bottom', left: 'top', bottom: 'right', top: 'left' };
-          Object.keys(edgePolylines).forEach(id => { edgePolylines[id] = edgePolylines[id].map(([a, b]) => [b, a]); });
-          Object.keys(edgePorts).forEach(id => {
-            const p = edgePorts[id];
-            if (p) edgePorts[id] = { ...p, fromPort: SIDE[p.fromPort] || p.fromPort, toPort: SIDE[p.toPort] || p.toPort };
-          });
-          Object.values(rects).forEach(r => {
-            [r.x, r.y, r.w, r.h, r.cx, r.cy] = [r.y, r.x, r.h, r.w, r.cy, r.cx];
-          });
-        }
-
-        // 5f. Arrow ends on the outline. The router ends arrows on the node's box; a shaped node's outline runs inside
-        // it in places (a diamond's sides away from the vertices, the io's slant, the cylinder's ellipses, the delay's
-        // arc, the document's wave), so an end there would stop in mid-air. Slide each such end along its end leg
-        // onto the outline (outlineInset). Runs in screen coordinates (after 5e): shapes keep their screen orientation
-        // in a top-to-bottom diagram, so the side that matters is the screen side.
-        validEdges.forEach(e => {
-          const pts = edgePolylines[e.id];
-          if (!pts || pts.length < 2) return;
-          const snap = (nid, a, b) => {
-            const node = nodeMap[nid], r = rects[nid];
-            if (!node || !r || !outlineInset) return;
-            const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1, horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1;
-            let side = null;
-            if (vertLeg && Math.abs(pts[a][1] - r.y) < 1) side = 'top';
-            else if (vertLeg && Math.abs(pts[a][1] - (r.y + r.h)) < 1) side = 'bottom';
-            else if (horizLeg && Math.abs(pts[a][0] - r.x) < 1) side = 'left';
-            else if (horizLeg && Math.abs(pts[a][0] - (r.x + r.w)) < 1) side = 'right';
-            if (!side) return;
-            const ax = (side === 'top' || side === 'bottom') ? 1 : 0;   // the coordinate that moves
-            const inset = outlineInset(node, r, side, pts[a][1 - ax]);
-            if (inset < 0.5) return;
-            const nv = (side === 'top' || side === 'left') ? pts[a][ax] + inset : pts[a][ax] - inset;
-            // keep the leg pointing the same way and at least 4px long
-            if (Math.abs(pts[b][ax] - nv) >= 4 && Math.sign(pts[b][ax] - nv) === Math.sign(pts[b][ax] - pts[a][ax])) pts[a][ax] = nv;
-          };
-          snap(e.from, 0, 1);
-          snap(e.to, pts.length - 1, pts.length - 2);
-        });
-
-        // 5z. A Z with a small jog (out of one side, a short step, into the opposite side) between two steps that nearly line up:
-        // one end slides along its own straight edge so the arrow runs level. The end that moves is a plain box, and the other end's
-        // height (a diamond's vertex, say) must lie inside it.
-        const SLIDES = new Set(['task', 'subprocess', 'document']);
-        validEdges.forEach(e => {
-          const pts = edgePolylines[e.id];
-          if (!pts || pts.length !== 4) return;
-          const [a, b, c, d] = pts;
-          if (Math.abs(a[1] - b[1]) > 0.5 || Math.abs(b[0] - c[0]) > 0.5 || Math.abs(c[1] - d[1]) > 0.5) return;
-          const dy = d[1] - a[1];
-          if (Math.abs(dy) < 0.5 || Math.abs(dy) > 28 || Math.abs(d[0] - a[0]) < 30) return;
-          const fits = (id, y) => {
-            const n = nodeMap[id], r = rects[id];
-            if (!n || !r || !SLIDES.has(n.type)) return false;
-            const m = n.type === 'document' ? 10 : 6;
-            return y > r.y + m && y < r.y + r.h - m;
-          };
-          if (fits(e.from, d[1])) edgePolylines[e.id] = [[a[0], d[1]], d];
-          else if (fits(e.to, a[1])) edgePolylines[e.id] = [a, [d[0], a[1]]];
-        });
-
-        // 6. Collect vertical segments from edges for planar bridge/hop overpasses
-        const verticalSegments = [];
-        validEdges.forEach(other => {
-          const pts = edgePolylines[other.id];
-          if (!pts) return;
-          for (let i = 0; i < pts.length - 1; i++) {
-            if (Math.abs(pts[i][0] - pts[i + 1][0]) < 1) {
-              const vx = pts[i][0];
-              const yMin = Math.min(pts[i][1], pts[i + 1][1]);
-              const yMax = Math.max(pts[i][1], pts[i + 1][1]);
-              verticalSegments.push({ edgeId: other.id, x: vx, yMin, yMax });
-            }
-          }
-        });
-
-        // 7. Second pass: choose collision-free label coordinates and generate curved/hop path
-        const placedLabels = [];
-        const allNodeBoxes = Object.values(rects);
-        const routes = {};
-
-        validEdges.forEach(e => {
-          const p = edgePorts[e.id];
-          const points = edgePolylines[e.id];
-
-          const otherObstacles = verticalSegments.filter(obs => {
-            if (obs.edgeId === e.id) return false;
-            const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
-            // Forks (same source) and true merges (same target, same entry side) meet on purpose. Two arrows
-            // into one node through different sides are separate lines, so where they cross, one hops.
-            // Only exempt them when they really share the contact point: arrows entering one side at
-            // different x positions are separate lines, so a crossing between them must still hop.
-            const oPts = edgePolylines[obs.edgeId];
-            if (otherE && otherE.from === e.from && oPts && Math.abs(oPts[0][0] - points[0][0]) < 2 && Math.abs(oPts[0][1] - points[0][1]) < 2) return false;
-            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort &&
-                oPts && Math.abs(oPts[oPts.length - 1][0] - points[points.length - 1][0]) < 2 && Math.abs(oPts[oPts.length - 1][1] - points[points.length - 1][1]) < 2) return false;
-            return true;
-          });
-
-          const d = buildCurvedPathWithHops(points, otherObstacles, 8);
-
-          const otherPolylines = [];
-          validEdges.forEach(other => {
-            if (other.id !== e.id && edgePolylines[other.id]) {
-              otherPolylines.push(edgePolylines[other.id]);
-            }
-          });
-
-          const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, allNodeBoxes, placedLabels, otherPolylines, labelMaxW);
-          if (e.label && e.label.trim()) {
-            // Reserve the box the label is drawn in: one line is estimated generously; a wrapped label is as wide
-            // as its wrap width and as tall as its lines (a 28px box let the next label sit on its second line)
-            const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * FONT_M.edgeLabel + 20);
-            const lh = Math.max(28, labelPos.h);
-            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - lh / 2, w: lw, h: lh });
-          }
-
-          routes[e.id] = {
-            path: d,
-            points,   // final polyline (container coords): used to find the arrow under a dragged node
-            midX: labelPos.x,
-            midY: labelPos.y,
-            fromRect: rects[e.from],
-            toRect: rects[e.to],
-          };
-        });
-
-        return routes;
-      }
-
-      function buildCurvedPathWithHops(points, verticalObstacles, r = 8) {
-        if (!points || points.length === 0) return '';
-        if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
-
-        // Drop repeated and collinear points: a zero-length segment or a straight "corner" would otherwise
-        // leave the real bend next to it unrounded
-        points = points.filter((p, i) => i === 0 || Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) > 0.5);
-        points = points.filter((p, i) => {
-          if (i === 0 || i === points.length - 1) return true;
-          const a = points[i - 1], b = points[i + 1];
-          return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.5;
-        });
-
-        // Insert bridge hop markers along horizontal segments that cross other vertical edges
-        const expanded = [points[0]];
-        for (let i = 0; i < points.length - 1; i++) {
-          const p1 = points[i];
-          const p2 = points[i + 1];
-          const isHorizontal = Math.abs(p1[1] - p2[1]) < 1;
-
-          if (isHorizontal && verticalObstacles && verticalObstacles.length > 0) {
-            const y = p1[1];
-            const minX = Math.min(p1[0], p2[0]);
-            const maxX = Math.max(p1[0], p2[0]);
-            const goingRight = p2[0] > p1[0];
-            // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
-            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (about 14px).
-            // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
-            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
-            const lo1 = endRoom(i), lo2 = endRoom(i + 1);
-            const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
-
-            const hops = [];
-            verticalObstacles.forEach(obs => {
-              const vx = obs.x;
-              if (vx > minX + minRoom && vx < maxX - maxRoom && y > obs.yMin + 8 && y < obs.yMax - 8) {
-                hops.push(vx);
-              }
-            });
-
-            hops.sort((a, b) => goingRight ? a - b : b - a);
-            hops.forEach(vx => {
-              expanded.push({ isHop: true, x: vx, y: y, dir: goingRight ? 1 : -1 });
-            });
-          }
-          expanded.push(p2);
-        }
-
-        // Render rounded quarter-arc corners (r=8) and semicircular hops (r=6). Every bend gets the same radius r;
-        // it shrinks only when a segment is too short to hold it (a segment shared by two bends gives each half).
-        const hopR = 6;
-        const hopEdge = (h, side) => [h.x + side * hopR * h.dir, h.y];   // side -1: where the hop starts, +1: ends
-        let d = `M ${expanded[0][0]} ${expanded[0][1]}`;
-        for (let i = 1; i < expanded.length; i++) {
-          const item = expanded[i];
-          if (item.isHop) {
-            const hx = item.x;
-            const hy = item.y;
-            const dir = item.dir;
-            d += ` L ${(hx - hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
-            d += ` A ${hopR} ${hopR} 0 0 1 ${(hx + hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
-            continue;
-          }
-
-          const prev = expanded[i - 1];
-          const next = i < expanded.length - 1 ? expanded[i + 1] : null;
-
-          if (next) {
-            // A hop next to the bend bounds that segment like an end point does (its arc needs the rest)
-            const pPrev = prev.isHop ? hopEdge(prev, 1) : prev;
-            const pCurr = item;
-            const pNext = next.isHop ? hopEdge(next, -1) : next;
-
-            const vIn = [pCurr[0] - pPrev[0], pCurr[1] - pPrev[1]];
-            const vOut = [pNext[0] - pCurr[0], pNext[1] - pCurr[1]];
-            const lenIn = Math.hypot(vIn[0], vIn[1]);
-            const lenOut = Math.hypot(vOut[0], vOut[1]);
-
-            if (lenIn > 0.5 && lenOut > 0.5) {
-              // The first segment and hop-bounded segments belong to this bend alone; others are shared
-              const roomIn = (i - 1 === 0 || prev.isHop) ? lenIn : lenIn / 2;
-              const roomOut = next.isHop ? lenOut : lenOut / 2;
-              const curR = Math.min(r, roomIn, roomOut);
-              const startX = pCurr[0] - (vIn[0] / lenIn) * curR;
-              const startY = pCurr[1] - (vIn[1] / lenIn) * curR;
-              const endX = pCurr[0] + (vOut[0] / lenOut) * curR;
-              const endY = pCurr[1] + (vOut[1] / lenOut) * curR;
-
-              d += ` L ${startX.toFixed(1)} ${startY.toFixed(1)}`;
-              d += ` Q ${pCurr[0].toFixed(1)} ${pCurr[1].toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
-              continue;
-            }
-          }
-          d += ` L ${item[0]} ${item[1]}`;
-        }
-        return d;
-      }
-
-      const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
-
-      function pickClearLabelPosition(points, fromPort, labelText, nodeBoxes, placedLabels, otherPolylines, labelMaxW) {
-        const FONT_M = TOKENS.font.metrics;
-        const candidates = [];
-
-        if (points.length === 2) {
-          // Centred on the part of the line the arrowhead leaves free, plus staggered spots if a neighbour label sits at mid
-          const [a, b] = points, len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-          const free = Math.max(0, len - ARROWHEAD_LEN);
-          for (const frac of [0.5, 0.25, 0.78]) {
-            const t = (free * frac) / len;
-            candidates.push({ x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t });
-          }
-        } else if (points.length === 3) {
-          const p0 = points[0], p1 = points[1], p2 = points[2];
-          const seg1Len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1;
-          const free1 = Math.max(0, seg1Len - ARROWHEAD_LEN);
-          const seg1Cand = { x: p1[0] + (p2[0] - p1[0]) * (free1 * 0.5 / seg1Len), y: p1[1] + (p2[1] - p1[1]) * (free1 * 0.5 / seg1Len) };
-          if (fromPort === 'top' || fromPort === 'bottom') {
-            const sign = p1[1] > p0[1] ? 1 : -1;
-            const distY = Math.abs(p1[1] - p0[1]);
-            candidates.push({
-              x: p0[0],
-              y: p0[1] + sign * Math.min(34, distY * 0.45)
-            });
-            candidates.push(seg1Cand);
-          } else {
-            candidates.push({
-              x: (p0[0] + p1[0]) / 2,
-              y: p0[1]
-            });
-            // The second leg too: a short first leg (an arrow into a connector beside its step) has no room
-            candidates.push(seg1Cand);
-          }
-          if (free1 >= 36) {
-            for (const frac of [0.24, 0.78]) {
-              const t1 = (free1 * frac) / seg1Len;
-              candidates.push({ x: p1[0] + (p2[0] - p1[0]) * t1, y: p1[1] + (p2[1] - p1[1]) * t1 });
-            }
-          }
-        } else if (points.length >= 4) {
-          const p0 = points[0];
-          const p1 = points[1];
-          const p2 = points[2];
-          const p3 = points[3];
-
-          if (Math.abs(p1[0] - p2[0]) < 2) {
-            for (const t of [0.5, 0.22, 0.78, 0.35, 0.65]) {
-              candidates.push({
-                x: p1[0],
-                y: p1[1] + (p2[1] - p1[1]) * t
-              });
-            }
-          } else {
-            candidates.push({
-              x: (p1[0] + p2[0]) / 2,
-              y: (p1[1] + p2[1]) / 2
-            });
-          }
-          candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
-          candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
-          if (points.length >= 5) {
-            const p4 = points[4];
-            candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
-          }
-        }
-
-        // Fallback spots along every long segment, tried after the preferred ones above (middle outwards,
-        // 22px clear of corners and clear of the arrowhead on the final leg). Without them a label whose
-        // preferred spot sits on a crossing, junction, or node box had nowhere else to go.
-        for (let i = 0; i < points.length - 1; i++) {
-          const p = points[i], q = points[i + 1];
-          const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
-          const isLast = i === points.length - 2;
-          const endClear = isLast ? Math.max(22, ARROWHEAD_LEN + 8) : 22;
-          if (len >= 56) {
-            for (const t of [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85]) {
-              if (len * t < 22 || len * (1 - t) < endClear) continue;
-              candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
-            }
-          } else if (len >= 34) {
-            const t = isLast ? Math.max(0.15, (len - ARROWHEAD_LEN) / 2 / len) : 0.5;
-            candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
-          }
-        }
-
-        // Stretches of this arrow that another arrow runs along (collinear overlap): a label there could
-        // belong to either arrow, so it must sit on a part of its own line that only it occupies.
-        const sharedStretches = [];
-        if (otherPolylines) {
-          for (let i = 0; i < points.length - 1; i++) {
-            const p = points[i], q = points[i + 1];
-            const isV = Math.abs(p[0] - q[0]) < 1, isH = Math.abs(p[1] - q[1]) < 1;
-            if (!isV && !isH) continue;
-            const k = isV ? 0 : 1, m = 1 - k;                       // k: fixed axis, m: running axis
-            const lo = Math.min(p[m], q[m]), hi = Math.max(p[m], q[m]);
-            for (const poly of otherPolylines) {
-              for (let j = 0; j < poly.length - 1; j++) {
-                const c = poly[j], d = poly[j + 1];
-                if (Math.abs(c[k] - d[k]) >= 1 || Math.abs(c[k] - p[k]) >= 2) continue;
-                const a0 = Math.max(lo, Math.min(c[m], d[m])), a1 = Math.min(hi, Math.max(c[m], d[m]));
-                if (a1 - a0 > 2) sharedStretches.push(isV ? { x: p[0], y: a0, w: 0, h: a1 - a0 } : { x: a0, y: p[1], w: a1 - a0, h: 0 });
-              }
-            }
-          }
-        }
-        // Dense spots along every long segment, so a short clear stretch (e.g. next to the source) is found
-        if (sharedStretches.length) {
-          for (let i = 0; i < points.length - 1; i++) {
-            const p = points[i], q = points[i + 1];
-            const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
-            if (len < 56) continue;
-            for (let d = 22; d <= len - 22; d += 14) {
-              const t = d / len;
-              candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
-            }
-          }
-        }
-
-        // Where every long stretch is shared, a short leg only this arrow uses (about a label tall) is the one
-        // place the label belongs to it alone: try its middle, touching the node box (a diamond tip sits inside its box).
-        if (sharedStretches.length) {
-          for (let i = 0; i < points.length - 1; i++) {
-            const p = points[i], q = points[i + 1];
-            const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
-            if (len >= 26 && len < 56) candidates.push({ x: (p[0] + q[0]) / 2, y: (p[1] + q[1]) / 2, pad: -2 });
-          }
-        }
-
-        const textLen = labelText ? labelText.trim().length : 0;
-        const singleLineWidth = Math.max(40, textLen * FONT_M.edgeWrap + 18);
-        let lw = singleLineWidth;
-        let lh = 24;
-
-        // Check horizontal span of edge points to determine available gap
-        let horizClearance = null;
-        if (points.length >= 2) {
-          const minX = Math.min(...points.map(p => p[0]));
-          const maxX = Math.max(...points.map(p => p[0]));
-          if (maxX - minX > 50) {
-            horizClearance = maxX - minX - 16;
-          }
-        }
-
-        // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
-        // Labels also never grow past LABEL_MAX_W (matches the CSS max-width); longer text wraps
-        const wrapAt = Math.min(horizClearance || Infinity, labelMaxW);
-        if (singleLineWidth > wrapAt) {
-          // Never narrower than the longest word, so words are not split mid-word
-          const longestWord = Math.max(0, ...String(labelText || '').trim().split(/\s+/).map(w => w.length));
-          const minWordW = Math.max(40, longestWord * FONT_M.label + 20);
-          lw = Math.max(minWordW, Math.min(singleLineWidth, wrapAt));
-          const lines = Math.ceil(singleLineWidth / lw);
-          lh = Math.max(24, lines * 15 + 8);
-        }
-
-        function BoxOverlap(bx, by, bw, bh, ox, oy, ow, oh, pad) {
-          return (
-            bx < ox + ow + pad &&
-            bx + bw > ox - pad &&
-            by < oy + oh + pad &&
-            by + bh > oy - pad
-          );
-        }
-
-        // The first spot that touches nothing wins. When every spot touches something, take the least bad one
-        // (a node or another label is far worse than sitting on another arrow) instead of the first.
-        let fallback = null;
-        for (const cand of candidates) {
-          const bx = cand.x - lw / 2;
-          const by = cand.y - lh / 2;
-          let penalty = 0;
-
-          const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
-          const softPad = cand.pad ?? 8;
-          for (const nb of nodeBoxes) {
-            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, hardPad)) {
-              const ox = Math.min(bx + lw, nb.x + nb.w + hardPad) - Math.max(bx, nb.x - hardPad);
-              const oy = Math.min(by + lh, nb.y + nb.h + hardPad) - Math.max(by, nb.y - hardPad);
-              penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
-            } else if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, softPad)) {
-              penalty += 200;
-            }
-          }
-          for (const pl of placedLabels) {
-            if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 0)) {
-              const ox = Math.min(bx + lw, pl.x + pl.w) - Math.max(bx, pl.x);
-              const oy = Math.min(by + lh, pl.y + pl.h) - Math.max(by, pl.y);
-              penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
-            } else if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) {
-              penalty += 200;
-            }
-          }
-          if (otherPolylines) {
-            for (const poly of otherPolylines) {
-              for (let i = 0; i < poly.length - 1; i++) {
-                const sx = Math.min(poly[i][0], poly[i + 1][0]);
-                const sy = Math.min(poly[i][1], poly[i + 1][1]);
-                const sw = Math.abs(poly[i + 1][0] - poly[i][0]);
-                const sh = Math.abs(poly[i + 1][1] - poly[i][1]);
-                if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
-              }
-            }
-          }
-          for (const st of sharedStretches) {
-            if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 600; break; }
-          }
-          if (penalty === 0) return { x: cand.x, y: cand.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
-          if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
-        }
-
-        // The size checked here comes back with the spot, so the caller reserves the box the label really takes
-        // (a wrapped label is narrower but taller than one line)
-        const spot = fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
-        return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
-      }
-      // --- SEQUENCE LAYOUT ENGINE ---
-      // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
-      // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
-      // mirrors SQ.NUM_W and the geometry below; the text widths (SQ.*CHAR_W) come from TOKENS.font.metrics, which scripts/run_engine.mjs and the page define.
-      //
-      // Input:  numbered?, showDetails?,
-      //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
-      //         fragments[{id,kind,label,from,to,elseAt?|branches?[{at,label}],color?,collapsed?}]
-      //           (from/to/elseAt/at are message ids),
-      //         notes?[{id,text,over|place,after?|before?}] (over: a participant id, or two ids to span between them; place: a
-      //         free note's position along the lifelines, 0 = the first, 1.5 = halfway between the second and third),
-      //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail),
-      //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
-      //           may carry start?/end? message ids that widen it, and column?: the id of an earlier participant whose
-      //           column it reuses, for participants whose lifespans never overlap)
-      // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame), messages[].lab / det (lines of the wrapped label / detail),
-      //         participants[].rail (true on a rail), participants[].top/bottom (with lifespans: the box's top and where the
-      //         lifeline ends), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
-      //         layout {width,height}.
-      //         A frame or note inside a collapsed frame gets no box. None of this is saved (see toDisk).
-      // A file that uses none of the optional fields is laid out exactly as before they existed.
-      const SQ = {
-        BOX_W: 168, BOX_H: 64, TOP: 24, MARGIN: 56, MIN_GAP: 220,
-        FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
-        FRAG_TOP: 44, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
-        CHAR_W: Math.round(TOKENS.font.metrics.label * (14 / 13) * 10) / 10, LABEL_PAD: 40, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
-        NUM_W: 28,                              // room for the step number before a label ("numbered")
-        DETAIL_CHAR_W: Math.round(TOKENS.font.metrics.detail * (12 / 11) * 10) / 10, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
-        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
-        NOTE_CLEAR: 24, NOTE_MAX_W: 360,        // clearance before the next lifeline, and max auto-width on the rightmost lifeline
-        SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
-        RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
-        GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
-        LABEL_MAX_W: 288, LABEL_LINE: 22, DETAIL_LINE: 16,   // a label or detail wider than this wraps to more lines, each adding a line of row height
-        SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
-      };
-      const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
-      // A text wrapped at maxW: its lines (words kept whole, breaking after a space, "/" or "-"; "\n" a forced break; a piece longer than a line split).
-      // The page draws exactly these lines, so the rows the engine reserves are the rows that show.
-      function sqWrapText(t, charW, maxW) {
-        const cpl = Math.max(1, Math.floor(maxW / charW)), out = [];
-        String(t == null ? '' : t).split('\n').forEach((seg) => {
-          let line = '';
-          // Break after a space, "/" or "-", so a path wraps at its separators
-          seg.split(/(?<=[ /-])/).forEach((w) => {
-            if (line.length + w.replace(/ $/, '').length <= cpl) { line += w; return; }
-            if (line) out.push(line.replace(/ $/, ''));
-            line = '';
-            while (w.length > cpl) { out.push(w.slice(0, cpl)); w = w.slice(cpl); }
-            line = w;
-          });
-          out.push(line.replace(/ $/, ''));
-        });
-        return out;
-      }
-      const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
-      // A fragment's further branches as [{at, label}]: "branches", or the short form "elseAt" (one unlabelled branch)
-      const sqBranches = (f) => (Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }]);
-      // The participant ids a note sits over: one, or two to span between
-      const sqNoteOver = (n) => (Array.isArray(n.over) ? n.over : n.over === undefined ? [] : [n.over]).slice(0, 2);
-      // Note text wrapped by character count: explicit line breaks kept, words kept whole unless longer than a line
-      function sqWrap(text, maxChars) {
-        const lines = [];
-        String(text == null ? '' : text).split('\n').forEach((para) => {
-          let line = '';
-          para.split(/\s+/).filter(Boolean).forEach((word) => {
-            while (word.length > maxChars) {
-              if (line) { lines.push(line); line = ''; }
-              lines.push(word.slice(0, maxChars));
-              word = word.slice(maxChars);
-            }
-            if (!line) line = word;
-            else if (line.length + 1 + word.length <= maxChars) line += ' ' + word;
-            else { lines.push(line); line = word; }
-          });
-          lines.push(line);
-        });
-        return lines;
-      }
-      // Width for a single-lifeline or free note: starts at NOTE_W and expands rightward into open space
-      // up to the next lifeline (leaving NOTE_CLEAR), or NOTE_MAX_W when there is no lifeline to the right.
-      function sqNoteSingleW(text, leftX, nextX) {
-        const maxLen = String(text == null ? '' : text).split('\n').reduce((m, s) => Math.max(m, s.length), 0);
-        const want = sqGrid(Math.ceil(maxLen * SQ.NOTE_CHAR_W) + 2 * SQ.NOTE_PAD);
-        const avail = nextX !== undefined ? Math.floor(nextX - SQ.NOTE_CLEAR - leftX) : SQ.NOTE_MAX_W;
-        return Math.max(SQ.NOTE_W, Math.min(want, avail));
-      }
-
-      function layoutDiagram(data) {
-        const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [], ns = data.notes || [];
-        const pIdx = {};
-        ps.forEach((p, i) => { pIdx[p.id] = i; });
-        const mIdx = {};
-        ms.forEach((m, i) => { mIdx[m.id] = i; });
-        const showDetails = data.showDetails !== false;
-        const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
-        // What a message needs sideways: the longer of its label (plus the step number) and its detail
-        // Both are capped at LABEL_MAX_W: past it the text wraps instead of pushing the lifelines apart
-        const numW = data.numbered ? SQ.NUM_W : 0;
-        const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
-        const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
-        const msgW = (m) => Math.max(labelW(m), detailW(m));
-        const msgMaxW = (m) => {
-          const a = ps[pIdx[m.from]], b = ps[pIdx[m.to]];
-          return !a || !b || a === b ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
-        };
-        const labelLines = (m) => sqWrapText(m.label, SQ.CHAR_W, msgMaxW(m)).length;
-        const detailLines = (m) => (detailOf(m) ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, msgMaxW(m)).length : 0);
-
-        // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
-        //    collapsed frame hides decides which participants are rails, and so the horizontal layout.
-        const frs = fs
-          .map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], divs: [] }))
-          .filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
-        fs.forEach((f) => { delete f.x; delete f.y; delete f.w; delete f.h; delete f.elseY; delete f.dividers; });
-        ns.forEach((n) => { delete n.x; delete n.y; delete n.w; delete n.h; });
-        const span = (r) => r.b - r.a;
-        const outer = (o, i) => o !== i && o.a <= i.a && i.b <= o.b &&
-          (span(o) > span(i) || (span(o) === span(i) && frs.indexOf(o) < frs.indexOf(i)));
-        const levelOf = (r) => frs.reduce((lv, i) => (outer(r, i) ? Math.max(lv, levelOf(i) + 1) : lv), 0);
-        frs.forEach((r) => { r.level = levelOf(r); });
-        // A further branch starts at message index e, after the frame's first message and no later than its last
-        frs.forEach((r) => {
-          const seen = {};
-          r.branches = sqBranches(r.f)
-            .map((br) => ({ at: br.at, label: br.label || '', e: mIdx[br.at] }))
-            .filter((br) => br.e !== undefined && br.e > r.a && br.e <= r.b && !seen[br.e] && (seen[br.e] = true));
-        });
-        // Collapsed frames: the outermost collapsed frame around a message owns it; frames inside it are not drawn
-        const collapsed = frs.filter((r) => r.f.collapsed);
-        collapsed.forEach((c) => { c.own = !collapsed.some((o) => outer(o, c)); });
-        frs.forEach((r) => { r.hidden = collapsed.some((c) => outer(c, r)); });
-        const ownerOf = (k) => collapsed.find((c) => c.own && c.a <= k && k <= c.b);
-
-        // 2. Rails: a participant that has something in the collapsed parts of the diagram and nothing in the rest is
-        //    drawn as a thin rail, so collapsing (or focusing on) a phase makes the diagram narrower. A note counts as
-        //    drawn when it is placed (see below): before a collapsed frame's first message it is, on any other message
-        //    inside the frame it is not. With every frame expanded nothing is hidden, so there are no rails. Only with
-        //    "rails": true (Focus sets it): a page saved before rails existed keeps its collapsed frames as they were.
-        const lifespans = data.lifespans === true;
-        const noteShown = (n) => {
-          const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
-          if (!key) return true;
-          const k = mIdx[n[key]];
-          if (k === undefined) return false;
-          const C = ownerOf(k);
-          return !C || (key === 'before' && k === C.a);
-        };
-        const seen = ps.map(() => false), folded = ps.map(() => false);
-        ms.forEach((m, k) => {
-          const into = ownerOf(k) ? folded : seen;
-          [pIdx[m.from], pIdx[m.to]].forEach((i) => { if (i !== undefined) into[i] = true; });
-        });
-        ns.forEach((n) => sqNoteOver(n).forEach((id) => {
-          if (pIdx[id] !== undefined) (noteShown(n) ? seen : folded)[pIdx[id]] = true;
-        }));
-        const rail = ps.map((p, i) => data.rails === true && folded[i] && !seen[i]);
-        // Columns: one per participant, except that with lifespans a participant with "column" takes the column of the
-        // earlier participant it names (a chain is followed to its first). A column is a rail only if all of them are.
-        const colOf = [], cols = [];
-        ps.forEach((p, i) => {
-          let h = i;
-          while (lifespans && ps[h].column !== undefined && pIdx[ps[h].column] !== undefined && pIdx[ps[h].column] < h) h = pIdx[ps[h].column];
-          if (h === i) { colOf[i] = cols.length; cols.push([i]); } else { colOf[i] = colOf[h]; cols[colOf[h]].push(i); }
-        });
-        const colRail = cols.map((c) => c.every((i) => rail[i]));
-        if (colRail.every(Boolean)) colRail.fill(false);   // nothing at all would be left to read
-        ps.forEach((p, i) => { rail[i] = colRail[colOf[i]]; });
-        const anyRail = rail.some(Boolean);
-        ps.forEach((p, i) => { if (rail[i]) p.rail = true; else delete p.rail; });
-        const half = (i) => (rail[i] ? SQ.RAIL_W : SQ.BOX_W) / 2;
-        const colHalf = (c) => (colRail[c] ? SQ.RAIL_W : SQ.BOX_W) / 2;
-
-        // 3. Horizontal gaps: every message label must fit between its two lifelines. Without rails, messages hidden in
-        //    a collapsed frame still count, so collapsing a frame never moves a lifeline; with rails the diagram is
-        //    narrower on purpose, so they do not. A shared column adds no width of its own: only the messages of the
-        //    participants alive in it are measured.
-        const gaps = cols.slice(1).map((c, i) => colHalf(i) + colHalf(i + 1) + (colRail[i] || colRail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
-        const need = [];
-        ms.forEach((m, k) => {
-          const a = colOf[pIdx[m.from]], b = colOf[pIdx[m.to]];
-          if (a === undefined || b === undefined || (anyRail && ownerOf(k))) return;
-          if (a === b) {
-            if (m.from === m.to && a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
-          } else {
-            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
-          }
-        });
-        need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
-        need.forEach((n) => {
-          let sum = 0;
-          for (let i = n.lo; i < n.hi; i++) sum += gaps[i];
-          if (sum < n.w) {
-            const add = (n.w - sum) / (n.hi - n.lo);
-            for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
-          }
-        });
-        const colX = [];
-        let x = SQ.MARGIN + colHalf(0) + SQ.FRAG_PAD_STEP * 2;
-        cols.forEach((c, i) => {
-          if (i) x += sqGrid(gaps[i - 1]);
-          colX[i] = Math.round(x);
-        });
-        ps.forEach((p, i) => { p.x = colX[colOf[i]]; });
-
-        // 4. Lifespans (only with "lifespans": true): the rows of a participant's first and last message or note, widened
-        //    by "start" and "end". A message hidden in a collapsed frame counts as the frame's summary row.
-        const rowOf = (k) => { const C = ownerOf(k); return C ? C.a : k; };
-        const life = ps.map(() => null);   // [first row, last row] (message indices) or null: no events at all
-        const live = (i, k) => {
-          if (i === undefined || k === undefined) return;
-          const r = rowOf(k);
-          life[i] = life[i] ? [Math.min(life[i][0], r), Math.max(life[i][1], r)] : [r, r];
-        };
-        ps.forEach((p) => { delete p.top; delete p.bottom; });
-        if (lifespans) {
-          ms.forEach((m, k) => { live(pIdx[m.from], k); live(pIdx[m.to], k); });
-          ns.forEach((n) => {
-            const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
-            const k = key ? mIdx[n[key]] : ms.length ? 0 : undefined;   // a free note sits above the first message
-            sqNoteOver(n).forEach((id) => live(pIdx[id], k));
-          });
-          ps.forEach((p, i) => {
-            if (!life[i]) return;
-            if (mIdx[p.start] !== undefined) life[i][0] = Math.min(life[i][0], rowOf(mIdx[p.start]));
-            if (mIdx[p.end] !== undefined) life[i][1] = Math.max(life[i][1], rowOf(mIdx[p.end]));
-          });
-        }
-        // Boxes that begin below the top row get a header slot above their first row (a participant that starts in the
-        // first row, or has nothing at all to show, stays in the top row)
-        const startAt = {};
-        if (lifespans) life.forEach((l, i) => { if (l && l[0] > 0) (startAt[l[0]] = startAt[l[0]] || []).push(i); });
-        const boxH = (i) => (rail[i] ? SQ.RAIL_H : SQ.BOX_H);
-        const topRows = ps.map((p, i) => i).filter((i) => !(life[i] && life[i][0] > 0));
-        const topH = Math.max(SQ.BOX_H, ...topRows.map((i) => (rail[i] ? SQ.RAIL_H : 0)));
-
-        // Notes: where each one hangs, and its box (width from what it sits over, height from the wrapped text)
-        const floating = [], beforeOf = {}, afterOf = {};
-        // A note with a "place" instead of "over" sits at that position along the lifelines: 0 is the first
-        // lifeline, 1.5 halfway between the second and the third
-        const placeX = (place) => {
-          const k = Math.max(0, Math.min(ps.length - 1, place)), i = Math.min(ps.length - 2, Math.floor(k));
-          return ps.length < 2 ? ps[0].x : ps[i].x + (k - i) * (ps[i + 1].x - ps[i].x);
-        };
-        const noteBox = (n) => {
-          if (n.over === undefined && typeof n.place === 'number' && ps.length) {
-            const cx = placeX(n.place);
-            const x = Math.max(SQ.GRID, Math.round(cx - SQ.NOTE_W / 2));
-            const nextX = colX.find((lx) => lx > cx + 1);
-            const w = sqNoteSingleW(n.text, x, nextX);
-            const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
-            return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
-          }
-          const over = sqNoteOver(n).map((id) => ps[pIdx[id]]);
-          if (!over.length || over.some((p) => !p)) return null;
-          const xs = over.map((p) => p.x);
-          const lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
-          let x, w;
-          if (hi > lo) {
-            w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
-            x = Math.round((lo + hi) / 2 - w / 2);
-          } else {
-            x = Math.round(lo - SQ.NOTE_W / 2);
-            const nextX = colX[colOf[pIdx[over[0].id]] + 1];
-            w = sqNoteSingleW(n.text, x, nextX);
-          }
-          const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
-          return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
-        };
-        ns.forEach((n) => {
-          const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
-          if (!key) { floating.push(n); return; }
-          const k = mIdx[n[key]];
-          if (k === undefined) return;   // unknown message: not drawn (the audit reports it)
-          const map = key === 'after' ? afterOf : beforeOf;
-          (map[k] = map[k] || []).push(n);
-        });
-
-        // 3. Vertical positions, inserting space where fragments open, split (a further branch) and close, and a
-        //    row for every note.
-        let y = SQ.TOP + topH + SQ.FIRST_GAP;
-        const rowEnd = {};
-        const placeNotes = (list) => (list || []).forEach((n) => {
-          const box = noteBox(n);
-          if (!box) return;
-          n.x = box.x; n.w = box.w; n.h = box.h; n.y = Math.round(y);
-          y += box.h + SQ.NOTE_GAP;
-        });
-        placeNotes(floating);
-        ms.forEach((m, k) => {
-          const C = ownerOf(k);
-          if (!C || k === C.a) {
-            // This message opens a row (its own, or the summary row of the collapsed frame it starts)
-            frs.filter((r) => !r.hidden && r !== C).forEach((r) => r.branches.filter((br) => br.e === k).forEach((br) => {
-              r.divs.push({ at: br.at, y: Math.round(y + 6), label: br.label });
-              y += SQ.ELSE_GAP;
-            }));
-            if (startAt[k]) {
-              startAt[k].forEach((i) => { ps[i].top = Math.round(y); });
-              y += Math.max.apply(null, startAt[k].map(boxH)) + SQ.NOTE_GAP;
-            }
-            placeNotes(beforeOf[k]);
-            const starting = frs.filter((r) => !r.hidden && r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
-            const y0 = y;
-            starting.forEach((r, s) => { r.top = y0 + SQ.FRAG_TOP * s + 8; });
-            y += SQ.FRAG_TOP * starting.length;
-            if (C) {
-              C.rowY = y + SQ.SUMMARY_ROW / 2;
-              y += SQ.SUMMARY_ROW;
-              C.rowBottom = y - 4;
-            } else {
-              const lab = labelLines(m), det = detailLines(m);   // kept on the message only when wrapped
-              if (lab > 1) m.lab = lab; else delete m.lab;
-              if (det > 1) m.det = det; else delete m.det;
-              const labX = (lab - 1) * SQ.LABEL_LINE;
-              m.y = y + SQ.ARROW_AT + (m.from === m.to ? 0 : labX);
-              y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + labX + (det ? SQ.DETAIL_ROW + (det - 1) * SQ.DETAIL_LINE : 0);
-              placeNotes(afterOf[k]);   // inside every frame the message is in: before any of them closes
-            }
-            rowEnd[k] = y - SQ.ROW_BOTTOM_PAD;
-          }
-          if (C) { m.y = C.rowY; m.hidden = true; } else delete m.hidden;
-          if (C) { delete m.lab; delete m.det; }
-          const rowBottom = C ? C.rowBottom : y - SQ.ROW_BOTTOM_PAD;
-          const ending = frs.filter((r) => !r.hidden && r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
-          ending.forEach((r, e) => { r.bottom = rowBottom + SQ.FRAG_STEP_BOTTOM * e; });
-          y += SQ.FRAG_STEP_BOTTOM * ending.length;
-        });
-
-        // 4. Fragment boxes: wide enough for every message and note they contain, their tag and their branch
-        //    labels, padded by nesting level.
-        let maxRight = cols.length ? colX[cols.length - 1] + colHalf(cols.length - 1) : SQ.MARGIN;
-        const noteIn = (n, r) => {
-          if (n.x === undefined) return false;
-          const k = n.after !== undefined ? mIdx[n.after] : n.before !== undefined ? mIdx[n.before] : undefined;
-          return k !== undefined && k <= r.b && (n.after !== undefined ? k >= r.a : k > r.a);
-        };
-        frs.forEach((r) => {
-          if (r.hidden || r.top === undefined || r.bottom === undefined) return;
-          let lo = Infinity, hi = -Infinity;
-          for (let k = r.a; k <= r.b; k++) {
-            const m = ms[k], pa = ps[pIdx[m.from]], pb = ps[pIdx[m.to]];
-            if (!pa || !pb) continue;
-            lo = Math.min(lo, pa.x, pb.x);
-            hi = Math.max(hi, pa.x, pb.x);
-            if (m.from === m.to && !(anyRail && ownerOf(k))) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + msgW(m) + 12);
-          }
-          if (lo === Infinity) { lo = hi = SQ.MARGIN; }
-          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * (anyRail && r.f.collapsed ? 0 : r.level);   // a folded frame draws nothing inside
-          let left = lo - pad, right = hi + pad;
-          const notePad = 8 + SQ.FRAG_PAD_STEP * r.level;
-          ns.forEach((n) => {
-            if (!noteIn(n, r)) return;
-            left = Math.min(left, n.x - notePad);
-            right = Math.max(right, n.x + n.w + notePad);
-          });
-          // A box that begins inside the frame (its header slot) is wider than the frame's own padding
-          ps.forEach((p, i) => {
-            if (life[i] && life[i][0] > r.a && life[i][0] <= r.b) {
-              left = Math.min(left, p.x - half(i) - 8);
-              right = Math.max(right, p.x + half(i) + 8);
-            }
-          });
-          // The tag of a group shows its label only
-          const tagW = (r.f.kind === 'group' ? 0 : sqTextW(r.f.kind)) + sqTextW(r.f.label) + 56;
-          const branchW = r.branches.reduce((w, br) => Math.max(w, sqTextW(br.label) + 40), 0);
-          r.f.x = Math.round(left);
-          r.f.w = Math.round(Math.max(right - left, tagW, branchW, anyRail && r.f.collapsed ? SQ.SUMMARY_W : 0));
-          r.f.y = Math.round(r.top);
-          r.f.h = Math.round(r.bottom - r.top);
-          if (r.divs.length) r.f.dividers = r.divs;
-          maxRight = Math.max(maxRight, r.f.x + r.f.w);
-        });
-        ns.forEach((n) => { if (n.x !== undefined) maxRight = Math.max(maxRight, n.x + n.w); });
-
-        ms.forEach((m) => { m.y = Math.round(m.y); });
-        if (lifespans) {
-          ps.forEach((p, i) => {
-            if (p.top === undefined) p.top = SQ.TOP;
-            p.bottom = Math.round(life[i] ? rowEnd[life[i][1]] + 12 : y + SQ.TAIL - 24);
-          });
-        }
-        data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
-      }
-//@engine-end
-// Mermaid flowchart-family tokenizer, shared by the flowchart and use case importers (plan: dev/plans/plan-mermaid-input.md).
-// Plain script: globals only, no DOM, no imports (it is concatenated with the type's mermaid.js).
-//
-// mmdParseFlow(text) returns the AST described in the plan ("mmdParseFlow(text) result"), with one additive field:
-//   dirRaw: the direction word as written in the header ('TD', 'RL', ...) or null, so a caller can say that RL/BT were mapped.
-// `ignored` entries are { line, text } with text starting with the statement keyword (style, classDef, click, ...).
-// `shape` names: the bracket forms give rect, round, stadium, subroutine, cylinder, circle, dbl-circ, odd, diamond, hex,
-// lean-r, lean-l, trap-b, trap-t. `@{ shape: x }` gives the canonical v11 name, with these exceptions where the plan
-// gives no name: rectangle aliases -> rect, rounded -> round, pill/terminal -> stadium, hexagon/prepare -> hex,
-// decision/question -> diamond, db/database/cylinder -> cyl, framed-rectangle/subprocess/fr-rect -> subproc; any other name
-// is passed through lower-cased.
-// A node that is only referenced gets shape 'rect' with label = id. The circ shapes (sm-circ, fr-circ, f-circ, dbl-circ)
-// get an empty label when none is written.
-
-const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
-  'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
-  // sequenceDiagram keywords: Mermaid cannot parse them as participant ids, and every type shares one id rule
-  'alt', 'else', 'opt', 'loop', 'par', 'and', 'rect', 'box', 'note', 'participant', 'actor', 'create', 'destroy', 'activate',
-  'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break', 'as', 'over', 'left',
-  'right', 'of', 'off', 'sequencediagram'];
-
-// Unescape label text: <br> to newline, then entities (#quot; #35; #59; #NNN;). One pass for the entities, so #35;quot; stays text.
-function mmdText(s) {
-  let t = String(s == null ? '' : s).trim();
-  if (/^`[\s\S]*`$/.test(t)) t = t.slice(1, -1);
-  t = t.replace(/<br\s*\/?>/gi, '\n');
-  const named = { quot: '"', amp: '&', lt: '<', gt: '>', nbsp: ' ' };
-  t = t.replace(/#(quot|amp|lt|gt|nbsp|\d+);/g, (m, k) => (k in named ? named[k] : String.fromCodePoint(+k)));
-  return t.trim();
+const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/>","users":"<path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/><path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\"/>","briefcase":"<path d=\"M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -9\"/><path d=\"M8 7v-2a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2\"/><path d=\"M12 12l0 .01\"/><path d=\"M3 13a20 20 0 0 0 18 0\"/>","building":"<path d=\"M3 21l18 0\"/><path d=\"M9 8l1 0\"/><path d=\"M9 12l1 0\"/><path d=\"M9 16l1 0\"/><path d=\"M14 8l1 0\"/><path d=\"M14 12l1 0\"/><path d=\"M14 16l1 0\"/><path d=\"M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16\"/>","headset":"<path d=\"M4 14v-3a8 8 0 1 1 16 0v3\"/><path d=\"M18 19c0 1.657 -2.686 3 -6 3\"/><path d=\"M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/><path d=\"M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3\"/>","monitor":"<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10\"/><path d=\"M7 20h10\"/><path d=\"M9 16v4\"/><path d=\"M15 16v4\"/>","code":"<path d=\"M7 8l-4 4l4 4\"/><path d=\"M17 8l4 4l-4 4\"/><path d=\"M14 4l-4 16\"/>","server":"<path d=\"M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2\"/><path d=\"M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2\"/><path d=\"M7 8l0 .01\"/><path d=\"M7 16l0 .01\"/>","database":"<path d=\"M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0\"/><path d=\"M4 6v6a8 3 0 0 0 16 0v-6\"/><path d=\"M4 12v6a8 3 0 0 0 16 0v-6\"/>","cloud":"<path d=\"M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878\"/>","cpu":"<path d=\"M5 6a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -12\"/><path d=\"M9 9h6v6h-6l0 -6\"/><path d=\"M3 10h2\"/><path d=\"M3 14h2\"/><path d=\"M10 3v2\"/><path d=\"M14 3v2\"/><path d=\"M21 10h-2\"/><path d=\"M21 14h-2\"/><path d=\"M14 21v-2\"/><path d=\"M10 21v-2\"/>","cog":"<path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065\"/><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/>","shield":"<path d=\"M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3\"/>","scale":"<path d=\"M7 20l10 0\"/><path d=\"M6 6l6 -1l6 1\"/><path d=\"M12 3l0 17\"/><path d=\"M9 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/><path d=\"M21 12l-3 -6l-3 6a3 3 0 0 0 6 0\"/>","banknote":"<path d=\"M7 15h-3a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v3\"/><path d=\"M7 10a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8\"/><path d=\"M12 14a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/>","credit-card":"<path d=\"M3 8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8\"/><path d=\"M3 10l18 0\"/><path d=\"M7 15l.01 0\"/><path d=\"M11 15l2 0\"/>","mail":"<path d=\"M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10\"/><path d=\"M3 7l9 6l9 -6\"/>","package":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/><path d=\"M16 5.25l-8 4.5\"/>","truck":"<path d=\"M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5\"/>","cart":"<path d=\"M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M17 17h-11v-14h-2\"/><path d=\"M6 5l14 1l-1 7h-13\"/>","clipboard":"<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"/><path d=\"M9 12h6\"/><path d=\"M9 16h6\"/>","check":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/><path d=\"M9 12l2 2l4 -4\"/>","layers":"<path d=\"M12 4l-8 4l8 4l8 -4l-8 -4\"/><path d=\"M4 12l8 4l8 -4\"/><path d=\"M4 16l8 4l8 -4\"/>","globe":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M3.6 9h16.8\"/><path d=\"M3.6 15h16.8\"/><path d=\"M11.5 3a17 17 0 0 0 0 18\"/><path d=\"M12.5 3a17 17 0 0 1 0 18\"/>","flag":"<path d=\"M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9\"/><path d=\"M5 21v-7\"/>","undo":"<path d=\"M9 14l-4 -4l4 -4\"/><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\"/>","redo":"<path d=\"M15 14l4 -4l-4 -4\"/><path d=\"M19 10h-11a4 4 0 1 0 0 8h1\"/>","export":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 9l5 -5l5 5\"/><path d=\"M12 4l0 12\"/>","save":"<path d=\"M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2\"/><path d=\"M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M14 4l0 4l-6 0l0 -4\"/>","trash":"<path d=\"M4 7l16 0\"/><path d=\"M10 11l0 6\"/><path d=\"M14 11l0 6\"/><path d=\"M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12\"/><path d=\"M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3\"/>","tidy":"<path d=\"M6 21l15 -15l-3 -3l-15 15l3 3\"/><path d=\"M15 6l3 3\"/><path d=\"M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/><path d=\"M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2\"/>","minus":"<path d=\"M5 12l14 0\"/>","plus":"<path d=\"M12 5l0 14\"/><path d=\"M5 12l14 0\"/>","close":"<path d=\"M18 6l-12 12\"/><path d=\"M6 6l12 12\"/>","more":"<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","help":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 16v.01\"/><path d=\"M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483\"/>","import":"<path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\"/><path d=\"M7 11l5 5l5 -5\"/><path d=\"M12 4l0 12\"/>","fit":"<path d=\"M4 8v-2a2 2 0 0 1 2 -2h2\"/><path d=\"M4 16v2a2 2 0 0 0 2 2h2\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v2\"/><path d=\"M16 20h2a2 2 0 0 0 2 -2v-2\"/>","sun":"<path d=\"M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\"/><path d=\"M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7\"/>","moon":"<path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008\"/>","key":"<path d=\"M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0\"/><path d=\"M15 9h.01\"/>","arrow-right":"<path d=\"M5 12l14 0\"/><path d=\"M13 18l6 -6\"/><path d=\"M13 6l6 6\"/>","link":"<path d=\"M9 15l6 -6\"/><path d=\"M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464\"/><path d=\"M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463\"/>","chevron-down":"<path d=\"M6 9l6 6l6 -6\"/>","note-lines":"<path d=\"M4 6l16 0\"/><path d=\"M4 12l10 0\"/><path d=\"M4 18l14 0\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path class=\"note-paper\" d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z\"/><path class=\"note-fold\" d=\"M13 20v-6a1 1 0 0 1 1 -1h6\"/>","columns":"<path d=\"M13 5h8\"/><path d=\"M13 9h5\"/><path d=\"M13 15h8\"/><path d=\"M13 19h5\"/><path d=\"M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/><path d=\"M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","types":"<path d=\"M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2\"/><path d=\"M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2\"/>","notes":"<path d=\"M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14\"/><path d=\"M9 7l6 0\"/><path d=\"M9 11l6 0\"/><path d=\"M9 15l4 0\"/>","grip":"<path d=\"M8 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M8 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M14 19a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<path d=\"M12 3l-4 7h8l-4 -7\"/><path d=\"M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4\"/>","chevron-up":"<path d=\"M6 15l6 -6l6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 5l0 14\"/><path d=\"M18 13l-6 6\"/><path d=\"M6 13l6 6\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/><path d=\"M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0\"/><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"3\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0\"/><path d=\"M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6\"/>","direction-lr":"<path d=\"M5 12l14 0\"/><path d=\"M13 18l6 -6\"/><path d=\"M13 6l6 6\"/>","reverse":"<path d=\"M7 10h14l-4 -4\"/><path d=\"M17 14h-14l4 4\"/>","rename":"<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/><path d=\"M13.5 6.5l4 4\"/>","label":"<path d=\"M4 20l3 0\"/><path d=\"M14 20l7 0\"/><path d=\"M6.9 15l6.9 0\"/><path d=\"M10.2 6.3l5.8 13.7\"/><path d=\"M5 20l6 -16l2 0l7 16\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M18 18v-6a3 3 0 0 0 -3 -3h-10l4 -4m0 8l-4 -4\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","auto":"<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\"/><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<rect x=\"2\" y=\"6.5\" width=\"20\" height=\"11\" rx=\"5.5\"/>","subject":"<rect class=\"uc-sub-frame\" x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"3\"/><rect class=\"uc-sub-case\" x=\"6.5\" y=\"10\" width=\"11\" height=\"6\" rx=\"3\"/>","clock":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\"/><path d=\"M12 7v5l3 3\"/>","present":"<path d=\"M3 4l18 0\"/><path d=\"M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10\"/><path d=\"M12 16l0 4\"/><path d=\"M9 20l6 0\"/><path d=\"M8 12l3 -3l2 2l3 -3\"/>","search":"<path d=\"M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0\"/><path d=\"M21 21l-6 -6\"/>","hash":"<path d=\"M5 9l14 0\"/><path d=\"M5 15l14 0\"/><path d=\"M11 4l-4 16\"/><path d=\"M17 4l-4 16\"/>","queue":"<rect x=\"2\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><rect x=\"9.5\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><path d=\"M17 12h5M19.5 9.5 22 12l-2.5 2.5\"/>","function":"<path d=\"M3 19a2 2 0 0 0 2 2c2 0 2 -4 3 -9s1 -9 3 -9a2 2 0 0 1 2 2\"/><path d=\"M5 12h6\"/><path d=\"M15 12l6 6\"/><path d=\"M15 18l6 -6\"/>","storage":"<path d=\"M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2\"/><path d=\"M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10\"/><path d=\"M10 12l4 0\"/>","cdn":"<path d=\"M10 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M10 5a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M18 19a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0\"/><path d=\"M6 12h4\"/><path d=\"M14 12h4\"/><path d=\"M15 7l-2 3\"/><path d=\"M9 7l2 3\"/><path d=\"M11 14l-2 3\"/><path d=\"M13 14l2 3\"/>","gateway":"<path d=\"M21 17h-5.397a5 5 0 0 1 -4.096 -2.133l-.514 -.734a5 5 0 0 0 -4.096 -2.133h-3.897\"/><path d=\"M21 7h-5.395a5 5 0 0 0 -4.098 2.135l-.51 .73a5 5 0 0 1 -4.097 2.135h-3.9\"/><path d=\"M18 10l3 -3l-3 -3\"/><path d=\"M18 20l3 -3l-3 -3\"/>","container":"<path d=\"M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5\"/><path d=\"M12 12l8 -4.5\"/><path d=\"M12 12l0 9\"/><path d=\"M12 12l-8 -4.5\"/>","cluster":"<path d=\"M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2l0 -2\"/><path d=\"M6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1\"/><path d=\"M12 9l0 3\"/>","cache":"<path d=\"M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11\"/>","lock":"<path d=\"M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6\"/><path d=\"M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0\"/><path d=\"M8 11v-4a4 4 0 1 1 8 0v4\"/>","api":"<path d=\"M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5\"/><path d=\"M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5\"/><path d=\"M3 21l2.5 -2.5\"/><path d=\"M18.5 5.5l2.5 -2.5\"/><path d=\"M10 11l-2 2\"/><path d=\"M13 14l-2 2\"/>","mobile":"<path d=\"M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14\"/><path d=\"M11 4h2\"/><path d=\"M12 17v.01\"/>","browser":"<path d=\"M4 8h16\"/><path d=\"M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12\"/><path d=\"M8 4v4\"/>","bell":"<path d=\"M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6\"/><path d=\"M9 17v1a3 3 0 0 0 6 0v-1\"/>","type-c4":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" stroke-dasharray=\"3 2\"/><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1.5\"/><path d=\"M12 3v5M12 16v5\"/>","shape-c4-group":"<rect class=\"c4-grp-frame\" x=\"2.5\" y=\"4\" width=\"19\" height=\"16\" rx=\"3\" stroke-dasharray=\"3 2\"/><rect class=\"c4-grp-tag\" x=\"5\" y=\"6.5\" width=\"7\" height=\"3.5\" rx=\"1\"/>","stream":"<path d=\"M3 12h4l3 8l4 -16l3 8h4\"/>","brain":"<path d=\"M15.5 13a3.5 3.5 0 0 0 -3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8\"/><path d=\"M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1 -7 0v-1.8\"/><path d=\"M17.5 16a3.5 3.5 0 0 0 0 -7h-.5\"/><path d=\"M19 9.3v-2.8a3.5 3.5 0 0 0 -7 0\"/><path d=\"M6.5 16a3.5 3.5 0 0 1 0 -7h.5\"/><path d=\"M5 9.3v-2.8a3.5 3.5 0 0 1 7 0v10\"/>","chart":"<path d=\"M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\"/><path d=\"M4 20h14\"/>","sensor":"<path d=\"M18.364 19.364a9 9 0 1 0 -12.728 0\"/><path d=\"M15.536 16.536a5 5 0 1 0 -7.072 0\"/><path d=\"M11 13a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>","workflow":"<rect x=\"4\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"4\" y=\"17\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"14\" y=\"10\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M7 7v3\"/><path d=\"M7 14v3\"/><path d=\"M10 12h4\"/>","type-gantt":"<rect x=\"3\" y=\"4\" width=\"10\" height=\"3.5\" rx=\"1.5\"/><rect x=\"8\" y=\"10.25\" width=\"11\" height=\"3.5\" rx=\"1.5\"/><rect x=\"12\" y=\"16.5\" width=\"8\" height=\"3.5\" rx=\"1.5\"/><path d=\"M6 16.5l2 2-2 2-2-2z\"/>","calendar":"<rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M4 11h16\"/>"};
+let plugin = null;
+function registerDiagramPlugin(p) { plugin = p; if (typeof syncCopyMenu === 'function') syncCopyMenu(); }
+const PALETTE = TOKENS.palette;
+const SWATCHES = PALETTE.filter((s) => s.hex); // the picker: slots 1-8; slot 9 is the neutral grey (frames)
+const OLD_FRAME_COLORS = { blue: 'sky', green: 'emerald', yellow: 'amber', red: 'rose', purple: 'purple', gray: 'neutral' };
+function colorSlot(v) {
+const k = typeof v === 'string' ? v.toLowerCase() : v;
+const w = PALETTE.find((q) => q.slot === k || q.hex === k || q.name === OLD_FRAME_COLORS[k]);
+return w ? w.slot : v;
 }
-
-// Escape and quote a label for Mermaid. An empty label becomes a space, because Mermaid rejects "".
-function mmdQuote(s) {
-  const map = { '#': '#35;', '"': '#quot;', ';': '#59;', '`': '#96;' };
-  const t = String(s == null ? '' : s).replace(/\r\n?/g, '\n').replace(/[#";`]/g, (c) => map[c]).replace(/\n/g, '<br>');
-  return '"' + (t === '' ? ' ' : t) + '"';
+const paletteOf = (v) => PALETTE.find((w) => w.slot === colorSlot(v));
+const swatchSlot = (v) => (paletteOf(v) || {}).slot;
+function colorKeySlots(key) {
+const out = {};
+Object.keys(key || {}).forEach((k) => { const s = colorSlot(k); if (!(s in out)) out[s] = key[k]; });
+return out;
 }
-
-// A Mermaid-safe id. `used` (a Set, optional) makes the result unique and records it.
-function mmdSafeId(id, used) {
-  let s = String(id == null ? '' : id).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
-  if (/^[0-9]/.test(s)) s = 'n_' + s;
-  while (MMD_RESERVED.includes(s.toLowerCase())) s += '_';
-  if (used) {
-    let u = s, k = 2;
-    while (used.has(u)) u = s + '_' + k++;
-    used.add(u);
-    s = u;
-  }
-  return s;
+function slotColors(d, ...lists) {
+lists.forEach((n) => (d[n] || []).forEach((o) => { if (o && 'color' in o) o.color = colorSlot(o.color); }));
+if (d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey)) d.colorKey = colorKeySlots(d.colorKey);
 }
-
-const MMD_SHAPE_ALIASES = {
-  rect: 'rect', rectangle: 'rect', proc: 'rect', process: 'rect', task: 'rect',
-  rounded: 'round', event: 'round', stadium: 'stadium', pill: 'stadium', terminal: 'stadium',
-  diamond: 'diamond', decision: 'diamond', question: 'diamond',
-  doc: 'doc', document: 'doc', delay: 'delay',
-  'sm-circ': 'sm-circ', 'small-circle': 'sm-circ', start: 'sm-circ',
-  'fr-circ': 'fr-circ', 'framed-circle': 'fr-circ', stop: 'fr-circ',
-  'f-circ': 'f-circ', 'filled-circle': 'f-circ', 'dbl-circ': 'dbl-circ', 'double-circle': 'dbl-circ',
-  subproc: 'subproc', subprocess: 'subproc', 'fr-rect': 'subproc', 'framed-rectangle': 'subproc',
-  cyl: 'cyl', cylinder: 'cyl', db: 'cyl', database: 'cyl', circle: 'circle', circ: 'circle',
-  hex: 'hex', hexagon: 'hex', prepare: 'hex', 'lean-r': 'lean-r', 'lean-right': 'lean-r', 'in-out': 'lean-r',
-  'lean-l': 'lean-l', 'lean-left': 'lean-l', 'out-in': 'lean-l', 'trap-b': 'trap-b', 'trapezoid-bottom': 'trap-b',
-  priority: 'trap-b', 'trap-t': 'trap-t', 'trapezoid-top': 'trap-t', manual: 'trap-t',
+function setSwatch(el, v) {
+const w = paletteOf(v);
+el.classList.add('swatch-scope');
+const hex = w ? w.hex : v;
+if (hex) el.style.setProperty('--swatch-color', hex); else el.style.removeProperty('--swatch-color');
+if (w) el.dataset.sw = w.slot; else delete el.dataset.sw;
+}
+function swatchRow(current, onPick, opts) {
+const row = document.createElement('span');
+row.className = 'swatch-row';
+row.setAttribute('role', 'group');
+row.setAttribute('aria-label', 'Colour');
+const now = current ? colorSlot(current) : '';
+[{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(PALETTE).forEach((sw) => {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
+b.dataset.value = sw.slot;
+b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', b.title);
+b.setAttribute('aria-pressed', String(now === sw.slot));
+const dot = document.createElement('span');
+dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
+if (sw.slot) setSwatch(dot, sw.slot);   // opts.white: the first button is a real white (a type whose default is a colour by position)
+b.appendChild(dot);
+b.addEventListener('click', (e) => {
+e.stopPropagation();
+row.querySelectorAll('.swatch-btn[aria-pressed="true"]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+b.setAttribute('aria-pressed', 'true');
+onPick(sw.slot);
+});
+row.appendChild(b);
+});
+return row;
+}
+function swatchPicker(current, onPick, opts) {
+const o = opts || {};
+const picker = document.createElement('span');
+picker.className = 'swatch-picker';
+const trig = document.createElement('button');
+trig.type = 'button';
+trig.className = `${o.triggerClass || 'ab-btn'} swatch-trigger`;
+trig.setAttribute('aria-haspopup', 'true');
+trig.setAttribute('aria-expanded', 'false');
+const dot = document.createElement('span');
+const syncTrigger = (val) => {
+const slot = val ? colorSlot(val) : '';
+const w = slot ? paletteOf(slot) : null;
+dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
+if (slot) setSwatch(dot, slot);
+else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
+const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
+trig.title = label;
+trig.setAttribute('aria-label', label);
 };
-
-// Bracket openers, longest first: [opener, family, closers [[closer, shape], ...]]. family = the bracket counted for nesting.
+syncTrigger(current);
+trig.appendChild(dot);
+const caret = document.createElement('span');
+caret.className = 'swatch-caret-wrap';
+caret.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+const caretSvg = caret.querySelector('svg');
+if (caretSvg) caretSvg.classList.add('swatch-caret');
+trig.appendChild(caret);
+const pop = document.createElement('div');
+pop.className = 'swatch-popover';
+pop.hidden = true;
+let offDoc = null;
+let closeTimer = null;
+const cancelClose = () => { clearTimeout(closeTimer); closeTimer = null; };
+const closeSoon = () => { cancelClose(); closeTimer = setTimeout(() => close(false), 160); };
+const close = (restoreFocus) => {
+cancelClose();
+if (pop.hidden) return;
+const above = pop.classList.contains('is-above');
+if (typeof motion !== 'undefined' && motion.enabled()) {
+motion.ghostExit(pop, {
+duration: 100,
+transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`,
+clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 25% 0 round 8px)',
+origin: above ? 'bottom center' : 'top center'
+});
+}
+pop.hidden = true;
+pop.classList.remove('is-above');
+pop.style.removeProperty('--pop-shift');
+trig.setAttribute('aria-expanded', 'false');
+if (offDoc) { offDoc(); offDoc = null; }
+if (restoreFocus && trig.isConnected) trig.focus();
+};
+const row = swatchRow(current, (slot) => {
+syncTrigger(slot);
+close(true);
+onPick(slot);
+}, o);
+if (o.act) row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = o.act; });
+pop.appendChild(row);
+picker.append(trig, pop);
+const open = (focusItem = true) => {
+cancelClose();
+if (!pop.hidden) return;
+document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
+if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
+});
+pop.hidden = false;
+pop.classList.remove('is-above');
+pop.style.removeProperty('--pop-shift');
+trig.setAttribute('aria-expanded', 'true');
+const bar = picker.closest('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar');
+const preferAbove = !(bar && bar.classList.contains('is-below'));
+const r = pop.getBoundingClientRect();
+const tr = trig.getBoundingClientRect();
+const pad = 8;
+const hasRoomAbove = tr.top - r.height - 6 > ui.chromeTop() + pad;
+const hasRoomBelow = r.bottom <= window.innerHeight - pad;
+if ((preferAbove && hasRoomAbove) || (!preferAbove && !hasRoomBelow && hasRoomAbove)) {
+pop.classList.add('is-above');
+}
+const r2 = pop.getBoundingClientRect();
+let shift = 0;
+if (r2.left < pad) shift = pad - r2.left;
+else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
+if (shift) {
+const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
+}
+const above = pop.classList.contains('is-above');
+if (typeof motion !== 'undefined' && motion.enabled()) {
+motion.anim(pop, [
+{ transform: `scale(0.92, 0.86) translateY(${above ? 4 : -4}px)`, clipPath: above ? 'inset(25% 0 0 0 round 8px)' : 'inset(0 0 100% 0 round 8px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: 130, easing: motion.curve('curve-out') });
+}
+if (focusItem) {
+const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
+if (active) active.focus();
+}
+const onDocPointer = (e) => {
+if (!picker.isConnected) { close(false); return; }
+if (!picker.contains(e.target)) close(false);
+};
+const onDocKey = (e) => {
+if (!picker.isConnected) { close(false); return; }
+if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+};
+document.addEventListener('pointerdown', onDocPointer, true);
+document.addEventListener('keydown', onDocKey, true);
+offDoc = () => {
+document.removeEventListener('pointerdown', onDocPointer, true);
+document.removeEventListener('keydown', onDocKey, true);
+};
+};
+pop._closeSwatchPop = close;
+let lastPointerType = '';
+picker.addEventListener('pointerenter', (e) => {
+if (e.pointerType === 'touch') return;
+cancelClose();
+if (pop.hidden) open(false);
+});
+picker.addEventListener('pointerleave', (e) => {
+if (e.pointerType !== 'touch') closeSoon();
+});
+trig.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; e.stopPropagation(); });
+trig.addEventListener('click', (e) => {
+e.stopPropagation();
+const kind = e.detail === 0 ? '' : (e.pointerType || lastPointerType);
+const isHover = kind === 'mouse' || kind === 'pen';
+if (pop.hidden) open(!isHover);
+else if (!isHover) close(false);
+});
+pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+pop.addEventListener('keydown', (e) => {
+const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? 5 : e.key === 'ArrowUp' ? -5 : 0;
+if (step) {
+const btns = [...row.querySelectorAll('.swatch-btn')];
+const idx = btns.indexOf(document.activeElement);
+if (idx === -1) return;
+e.preventDefault();
+e.stopPropagation();
+btns[(idx + step + btns.length) % btns.length].focus();
+} else if (e.key === 'Tab') {
+close(false);
+}
+});
+return picker;
+}
+const ui = (() => {
+function icon(name, o) {
+const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
+if (inner === undefined) throw new Error(`unknown icon "${name}"`);
+const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
+const cls = opts.class ? ` class="${opts.class}"` : '';
+if (inner && typeof inner === 'object') {
+return `<svg${cls} width="${px}" height="${px}" viewBox="${inner.vb}" fill="currentColor" aria-hidden="true">${inner.body}</svg>`; // tokens-ok: this is the icon renderer
+}
+const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
+return `<svg${cls} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+}
+function logo(name, o) {
+const e = typeof LOGOS === 'undefined' ? undefined : LOGOS[name], opts = o || {};
+if (e === undefined) throw new Error(`unknown logo "${name}"`);
+const px = typeof opts.size === 'number' ? opts.size : TOKENS.icon.size[opts.size || 'md'];
+return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="${e.vb}" aria-hidden="true">${e.body}</svg>`;
+}
+function iconEl(name, o) {
+const tpl = document.createElement('template');
+tpl.innerHTML = icon(name, o);
+return tpl.content.firstChild;
+}
+let confirmEl = null;
+function closeConfirm() {
+if (!confirmEl) return false;
+if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
+confirmEl.remove();
+confirmEl = null;
+document.removeEventListener('pointerdown', onConfirmOutside, true);
+return true;
+}
+function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
+function confirm(anchor, opts, onYes) {
+closeConfirm();
+const box = document.createElement('div');
+box.className = 'confirm';
+box.dataset.exportSkip = '';
+box.setAttribute('role', 'alertdialog');
+box.setAttribute('aria-label', opts.label);
+const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
+if (opts.title) add('confirm-title', opts.title);
+add('confirm-msg', opts.message);
+if (opts.extra) box.appendChild(opts.extra);
+const row = document.createElement('div');
+row.className = 'confirm-actions';
+const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+const cancel = button('btn confirm-cancel', 'Cancel');
+cancel.addEventListener('click', () => closeConfirm());
+const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
+ok.addEventListener('click', () => { closeConfirm(); onYes(); });
+row.append(cancel);
+if (opts.alt) {
+box.classList.add('has-alt');   // three buttons: a wider bubble
+const alt = button('btn confirm-alt', opts.alt.text);
+alt.addEventListener('click', () => { closeConfirm(); opts.alt.onClick(); });
+row.append(alt);
+}
+row.append(ok);
+box.appendChild(row);
+box.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+if (e.key !== 'Tab') e.stopPropagation();
+});
+document.body.appendChild(box);
+confirmEl = box;
+const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+const bw = box.offsetWidth, bh = box.offsetHeight;
+const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
+box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+if (typeof motion !== 'undefined' && motion.enabled()) {
+const above = top < r.top;
+motion.anim(box, [
+{ transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+}
+cancel.focus();
+document.addEventListener('pointerdown', onConfirmOutside, true);
+}
+function noteCard(note, o) {
+const card = document.createElement('div');
+card.className = 'note';
+card.dataset.noteId = note.id;
+const text = document.createElement('div');
+text.className = 'note-text';
+text.spellcheck = false;
+text.dataset.placeholder = 'Add a note…';
+text.textContent = note.text || '';
+card.appendChild(text);
+const tool = (cls, title, icon) => {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = cls;
+b.title = title;
+b.setAttribute('aria-label', title);
+b.setAttribute('data-export-skip', '');
+b.innerHTML = icon;
+card.appendChild(b);
+return b;
+};
+if (o.onDelete) {
+const del = tool('note-del btn-danger-hover', 'Delete note', icon('close', { size: 'xs', bold: true }));
+del.addEventListener('pointerdown', (e) => e.stopPropagation());
+del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
+}
+if (o.onLink) {
+const link = tool('note-link', o.linkTitle, icon('link', { size: 'sm', bold: true }));
+link.addEventListener('pointerdown', (e) => o.onLink(e, card));
+link.addEventListener('click', (e) => e.stopPropagation());
+}
+if (o.onCommit) {
+text.addEventListener('paste', (e) => {
+e.preventDefault();
+document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+});
+text.addEventListener('keydown', (e) => {
+if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
+e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
+document.execCommand('insertLineBreak');
+} else if (e.key === 'Escape' || e.key === 'Enter') {
+e.preventDefault(); e.stopPropagation(); text.blur(); o.onCommit(text);
+}
+});
+}
+if (o.onInput) text.addEventListener('input', o.onInput);
+return { card, text };
+}
+function actionBar(cls, label) {
+const bar = document.createElement('div');
+bar.className = cls;
+bar.dataset.exportSkip = '';
+bar.setAttribute('role', 'toolbar');
+if (label) bar.setAttribute('aria-label', label);
+const t = document.createElement('button');
+t.type = 'button';
+t.className = 'ab-toggle';
+t.innerHTML = icon('chevron-down', { size: 'xs', bold: true });
+t.addEventListener('pointerdown', (e) => e.stopPropagation());
+t.addEventListener('click', (e) => {
+e.stopPropagation();
+document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => { if (el._closeSwatchPop) el._closeSwatchPop(false); });
+const bars = [...document.querySelectorAll('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar')];
+const was = bars.map((b) => b.getBoundingClientRect());
+document.body.classList.toggle('bars-collapsed');
+document.querySelectorAll('.ab-toggle').forEach(syncToggle);
+bars.forEach((b, i) => { if (b.classList.contains('is-wrap')) fitBar(b); motion.ghostMorph(was[i], b, 170, 'curve-spring-settle'); });
+});
+syncToggle(t);
+bar.appendChild(t);
+return bar;
+}
+function syncToggle(t) {
+const off = document.body.classList.contains('bars-collapsed');
+t.title = off ? 'Show the action bar' : 'Hide the action bar';
+t.setAttribute('aria-label', t.title);
+t.setAttribute('aria-expanded', String(!off));
+}
+function abButton(cls, act, html, title, pressed, value, extra) {
+const b = document.createElement('button');
+b.className = extra ? `${cls} ${extra}` : cls;
+b.type = 'button';
+b.dataset.act = act;
+if (value !== undefined) b.dataset.value = value;
+b.title = title;
+b.setAttribute('aria-label', title);
+if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+b.innerHTML = html;
+return b;
+}
+const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+const abBreak = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-break'; return s; };
+function barSize(bar) {
+const off = document.body.classList.contains('bars-collapsed');
+if (off) document.body.classList.remove('bars-collapsed');
+const size = { w: bar.offsetWidth, h: bar.offsetHeight };
+if (off) document.body.classList.add('bars-collapsed');
+return size;
+}
+function chromeTop() {
+if (document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return 0;
+const vp = document.getElementById('viewport');
+const vpTop = vp ? vp.getBoundingClientRect().top : 0;
+let bottom = vpTop;
+if (!document.body.classList.contains('presentation')) {
+const hdr = document.querySelector('header');
+if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right').forEach((el) => {
+const r = el.getBoundingClientRect();
+if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+});
+}
+const tabs = document.querySelector('.flow-tabs');
+if (tabs && getComputedStyle(tabs).display !== 'none' && !tabs.hidden) {
+const r = tabs.getBoundingClientRect();
+if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+}
+return Math.max(0, bottom - vpTop);
+}
+function roomAbove(anchor, bar) {
+const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
+return top - (document.getElementById('viewport').getBoundingClientRect().top + chromeTop()) >= barSize(bar).h + 16;
+}
+function fitBar(bar) {
+const kids = [...bar.children].filter((k) => !/(^|-)ab-break$|(^| )ab-toggle$/.test(k.className));   // not the corner chevron
+if (!kids.length) return;
+const off = document.body.classList.contains('bars-collapsed');
+if (off) document.body.classList.remove('bars-collapsed');
+bar.style.maxWidth = '';
+const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
+const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
+if (off) document.body.classList.add('bars-collapsed');
+}
+function colorKey(used, key, opts) {
+const o = opts || {};
+const items = used.filter((c) => o.prompts || (key && key[c]));
+if (!items.length) return null;
+const box = document.createElement('div');
+box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+items.forEach((color) => {
+const label = (key && key[color]) || '';
+const item = document.createElement('div');
+item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+const dot = document.createElement('span');
+dot.className = 'color-key-dot';
+setSwatch(dot, color);
+item.appendChild(dot);
+const text = document.createElement('span');
+text.className = `color-key-label${label ? '' : ' is-empty'}`;
+text.dataset.color = color;
+if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+text.textContent = label;
+item.appendChild(text);
+box.appendChild(item);
+});
+return box;
+}
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+})();
+const currentScriptEl = document.currentScript;
+function sliceEngineSource(text) {
+const a = text.indexOf('//@engine' + '-begin');
+if (a < 0) return '';
+const b = text.indexOf('//@engine' + '-end', a);
+return b < 0 ? '' : text.slice(a, b);
+}
+let cachedEngineSrc = currentScriptEl && currentScriptEl.textContent
+? sliceEngineSource(currentScriptEl.textContent)
+: '';
+const engineSrcPromise = !cachedEngineSrc && currentScriptEl && currentScriptEl.src
+? fetch(currentScriptEl.src)
+.then((r) => (r.ok ? r.text() : ''))
+.then((text) => { cachedEngineSrc = sliceEngineSource(text); }, () => '')
+: null;
+function loadEngineSource() { return cachedEngineSrc; }
+const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}'; // tokens-ok: the platform's own reset, copied byte for byte
+const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
+const ARTIFACT_TAIL = '</body></html>';
+const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
+const artifactShaped = !!(document.body && document.body.querySelector(':scope > title'));
+const hasInlineData = !!document.getElementById('diagram-data');
+let capturedThemeJson = null;
+let capturedFontLinks = '';
+let pristineScaffoldHtml = null;
+let pristineBody = null;
+function capturePristineBody() {
+try {
+const self = currentScriptEl;
+const c = document.body.cloneNode(true);
+c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
+c.querySelectorAll('script').forEach(n => {
+if ((n.id === 'diagram-data' || n.id === 'diagram-theme') && n.type === 'application/json') return;
+if (self && !n.id && !n.src && n.textContent === self.textContent) return;
+n.remove();
+});
+const title = c.querySelector(':scope > title');
+if (!title) return null;
+while (c.firstChild !== title) c.removeChild(c.firstChild);
+const html = c.innerHTML;
+const end = html.lastIndexOf('<\/script>');   // spelled <\/ so this inline script is not cut short
+if (end < 0) return null;
+return '\n' + html.slice(0, end + '<\/script>'.length) + '\n' + ARTIFACT_END_MARKER + '\n';
+} catch (_) { return null; }
+}
+function captureArtifactScaffold() {
+if (!artifactShaped) return;
+if (hasInlineData) pristineBody = capturePristineBody();
+try {
+const c = document.body.cloneNode(true);
+c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
+const title = c.querySelector(':scope > title');
+while (title && c.firstChild !== title) c.removeChild(c.firstChild);
+const themeEl = c.querySelector('script#diagram-theme[type="application/json"]');
+if (themeEl && themeEl.textContent.trim()) capturedThemeJson = themeEl.textContent;
+c.querySelectorAll('script').forEach(n => n.remove());
+const fontLinks = [];
+c.querySelectorAll('link').forEach(n => {
+const href = n.getAttribute('href') || '';
+const rel = (n.getAttribute('rel') || '').toLowerCase();
+if ((rel === 'preconnect' || rel === 'stylesheet') && /^https:\/\/fonts\.(googleapis|gstatic)\.com(\/|$)/.test(href)) {
+fontLinks.push('  ' + n.outerHTML);
+}
+n.remove();
+});
+capturedFontLinks = fontLinks.join('\n');
+if (title) title.remove();
+const header = c.querySelector(':scope > header');
+while (header && c.firstChild !== header) c.removeChild(c.firstChild);
+const help = c.querySelector(':scope > #help-drawer');
+while (help && help.nextSibling) help.nextSibling.remove();
+pristineScaffoldHtml = (header ? '\n\n  ' : '') + c.innerHTML.trimEnd() + '\n';
+} catch (_) {}
+}
+captureArtifactScaffold();
+const playground = (() => {
+try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
+})();
+let embedDir = '', hostClaude = window.claude;
+try {
+const src = window.parent !== window && window.frameElement ? (window.frameElement.getAttribute('src') || '').split(/[?#]/)[0].replace(/^\/+/, '') : '';
+embedDir = src.slice(0, src.lastIndexOf('/') + 1);
+if (!hostClaude && embedDir) hostClaude = window.parent.claude;
+} catch (_) { embedDir = ''; }
+const claudeHost = artifactShaped && hostClaude && typeof hostClaude.use === 'function' ? hostClaude : null;
+let artifactMode = claudeHost && !playground ? 'pending' : null;
+let artifactApi = null;
+let downloadsApi = null;
+let publishing = false;
+let publishedTitle = null;   // the name the artifact's own <title> (index.html) carries: set at load and after each Save
+let reloadExpected = false;   // a publish (or a conflict) makes the platform reload this view
+let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
+let fileHandle = null;
+let helperSavedName = '';  // file name saved via the local direct-save helper
+let helperPort = null;     // cached loopback port for the local direct-save helper
+let everSaved = false;
+let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
+let downloadToldOnce = false;
+let hasUnsavedChanges = false;
+const HISTORY_LIMIT = 100;
+let undoStack = [];
+let redoStack = [];
+let committedJson = null;   // chartData as of the last commit (the state an undo returns to)
+let savedJson = null;       // chartData as of the last load/save (decides the Unsaved badge after undo)
+let pointerHeld = false;    // no undo mid-drag: plugins hold references into chartData while dragging
+let scale = 1.0;
+let panX = 40;
+let panY = 20;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+const viewport = document.getElementById('viewport');
+const stage = document.getElementById('stage');
+const headerEl = document.querySelector('header');
+const leftBar = headerEl && headerEl.querySelector('.toolbar-left');
+const rightBar = headerEl && headerEl.querySelector('.toolbar-right');
+const chartTitleEl = document.getElementById('chart-title');
+const saveStatus = document.getElementById('save-status');
+const btnSave = document.getElementById('btn-save');
+const btnMore = document.getElementById('btn-more');
+const moreMenu = document.getElementById('more-menu');
+const btnAutoTidy = document.getElementById('btn-auto-tidy');
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+const btnZoomReset = document.getElementById('btn-zoom-reset');
+const zoomLevelEl = document.getElementById('zoom-level');
+const btnUndo = document.getElementById('btn-undo');
+const btnRedo = document.getElementById('btn-redo');
+const btnHelp = document.getElementById('btn-help');
+const helpDrawer = document.getElementById('help-drawer');
+function syncHeaderCompact() {
+if (!headerEl || document.body.classList.contains('presentation')) return;
+headerEl.classList.remove('is-compact', 'is-tight', 'is-compact-save');
+const overflows = () => headerEl.scrollWidth > headerEl.clientWidth + 1
+|| (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1)
+|| (leftBar && rightBar && rightBar.getBoundingClientRect().left - leftBar.getBoundingClientRect().right < 12);
+if (overflows()) headerEl.classList.add('is-compact');
+if (overflows() || window.innerWidth <= 900) headerEl.classList.add('is-tight');
+if (overflows() || window.innerWidth <= 560) headerEl.classList.add('is-compact-save');
+if (btnMore && !btnMore.getClientRects().length && moreMenu && !moreMenu.hidden) {
+moreMenu.hidden = true;
+btnMore.setAttribute('aria-expanded', 'false');
+}
+}
+if (typeof ResizeObserver !== 'undefined' && headerEl) {
+new ResizeObserver(syncHeaderCompact).observe(headerEl);
+}
+const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
+if (noAnimParam) document.documentElement.dataset.noanim = '1';
+const reducedMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+const motion = (() => {
+const dur = (k, fb = 180) => {
+const v = TOKENS.motion && TOKENS.motion[k];
+const m = v && /^(\d+(?:\.\d+)?)(m?s)/.exec(v);
+return m ? parseFloat(m[1]) * (m[2] === 's' ? 1000 : 1) : fb;
+};
+const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
+const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
+&& document.documentElement.dataset.diagramSettled === '1'   // not while loading: the render after the web font arrives would FLIP from the fallback-font layout, and Fit would measure it mid-flight
+&& !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
+let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;
+const speedScale = () => {
+const now = performance.now();
+if (now - lastStampFrame <= 16) return cachedScale;
+const dt = now - lastPlayAt;
+return dt < 90 ? 0.55 : dt < 180 ? 0.75 : 1;
+};
+const markPlay = () => {
+const now = performance.now();
+if (now - lastStampFrame > 16) { cachedScale = speedScale(); lastStampFrame = now; }
+lastPlayAt = now;
+return cachedScale;
+};
+const easeCache = new Map();
+const easeFn = (nameOrCurve) => {
+const s = curve(nameOrCurve, nameOrCurve);
+if (easeCache.has(s)) return easeCache.get(s);
+let fn;
+if (s.startsWith('linear(')) {
+const pts = s.slice(7, -1).split(',').map((x) => parseFloat(x));
+const n = pts.length - 1;
+fn = (t) => {
+if (t <= 0) return pts[0];
+if (t >= 1) return pts[n];
+const p = t * n, i = p | 0;
+return pts[i] + (pts[i + 1] - pts[i]) * (p - i);
+};
+} else {
+const m = /cubic-bezier\(([^)]+)\)/.exec(s);
+if (m) {
+const [x1, y1, x2, y2] = m[1].split(',').map(Number);
+const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+fn = (t) => {
+let u = t;
+for (let i = 0; i < 5; i++) {
+const x = ((ax * u + bx) * u + cx) * u - t;
+const dx = (3 * ax * u + 2 * bx) * u + cx;
+if (Math.abs(dx) < 1e-5) break;
+u = Math.max(0, Math.min(1, u - x / dx));
+}
+return ((ay * u + by) * u + cy) * u;
+};
+} else {
+fn = (t) => 1 - (1 - t) * (1 - t) * (1 - t);
+}
+}
+easeCache.set(s, fn);
+return fn;
+};
+let svgJob = null;
+const activeAnims = new Set();
+const elemAnims = new WeakMap();
+let vpBusy = false;
+const syncBusy = () => {
+const busy = activeAnims.size > 0 || !!svgJob || vpBusy;
+const ds = document.documentElement.dataset;
+if (busy) { if (ds.motionBusy !== '1') ds.motionBusy = '1'; } else if ('motionBusy' in ds) delete ds.motionBusy;
+};
+const setViewportBusy = (b) => { vpBusy = b; syncBusy(); };
+const trackAnim = (el, anim) => {
+if (!anim) return anim;
+activeAnims.add(anim);
+syncBusy();
+let list = elemAnims.get(el);
+if (!list) { list = new Set(); elemAnims.set(el, list); }
+list.add(anim);
+const drop = () => { activeAnims.delete(anim); list.delete(anim); syncBusy(); };
+anim.addEventListener('finish', drop, { once: true });
+anim.addEventListener('cancel', drop, { once: true });
+return anim;
+};
+const cancelEl = (el) => {
+const list = elemAnims.get(el);
+if (!list) return;
+for (const a of list) { try { a.cancel(); } catch (_) {} }
+list.clear();
+};
+let ghostLayer = null;
+const ensureGhostLayer = () => {
+if (ghostLayer && ghostLayer.isConnected) return ghostLayer;
+ghostLayer = document.getElementById('motion-ghost-layer');
+if (!ghostLayer) {
+ghostLayer = document.createElement('div');
+ghostLayer.id = 'motion-ghost-layer';
+ghostLayer.setAttribute('data-export-skip', '');
+ghostLayer.setAttribute('aria-hidden', 'true');
+document.body.appendChild(ghostLayer);
+}
+return ghostLayer;
+};
+const GHOST_PROPS = [
+'display', 'position', 'boxSizing', 'flexDirection', 'flexWrap', 'alignItems', 'justifyContent',
+'gap', 'flex', 'width', 'height', 'minWidth', 'maxWidth',
+'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+'borderTopWidth', 'borderTopStyle', 'borderTopColor',
+'borderRightWidth', 'borderRightStyle', 'borderRightColor',
+'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor',
+'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor',
+'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+'backgroundColor', 'backgroundImage', 'color', 'fontFamily', 'fontSize', 'fontWeight',
+'lineHeight', 'letterSpacing', 'boxShadow', 'textAlign', 'whiteSpace', 'overflow', 'opacity'
+];
+const freezeClone = (el, skipFn) => {
+const build = (src, isRoot) => {
+if (src.nodeType === 3) return document.createTextNode(src.nodeValue);
+if (src.nodeType !== 1) return null;
+if (!isRoot && skipFn && skipFn(src)) return null;
+const cs = getComputedStyle(src);
+if (!isRoot && cs.display === 'none') return null;
+if (src.namespaceURI === 'http://www.w3.org/2000/svg') {
+const svg = src.cloneNode(true);
+svg.removeAttribute('id'); svg.removeAttribute('class');
+svg.querySelectorAll('[id],[class]').forEach((n) => { n.removeAttribute('id'); n.removeAttribute('class'); });
+return svg;
+}
+const tag = (cs.display === 'inline' || cs.display === 'inline-flex' || cs.display === 'inline-block') && !isRoot ? 'span' : 'div';
+const dst = document.createElement(tag);
+for (let j = 0; j < GHOST_PROPS.length; j++) {
+const p = GHOST_PROPS[j];
+if (cs[p]) dst.style[p] = cs[p];
+}
+if (src.tagName === 'INPUT' || src.tagName === 'TEXTAREA') dst.textContent = src.value;
+else {
+for (let c = src.firstChild; c; c = c.nextSibling) {
+const child = build(c, false);
+if (child) dst.appendChild(child);
+}
+}
+return dst;
+};
+const clone = build(el, true);
+clone.setAttribute('data-motion-ghost', '');
+clone.setAttribute('data-export-skip', '');
+clone.setAttribute('aria-hidden', 'true');
+return clone;
+};
+const ghostExit = (el, opts) => {
+if (!el || !enabled()) return null;
+const o = opts || {};
+const r = o.fromRect || el.getBoundingClientRect();
+if (!r || r.width <= 0 || r.height <= 0) return null;
+const clone = o.preCloned || freezeClone(el, o.skipChild);
+const inStage = !o.preCloned && stage.contains(el);
+const ow = o.baseW ?? (inStage && el.offsetWidth ? el.offsetWidth : r.width);
+const oh = o.baseH ?? (inStage && el.offsetHeight ? el.offsetHeight : r.height);
+const sx = ow ? r.width / ow : 1, sy = oh ? r.height / oh : 1;
+const baseScale = (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01) ? ` scale(${sx}, ${sy})` : '';
+clone.style.position = 'fixed';
+clone.style.left = `${r.left}px`;
+clone.style.top = `${r.top}px`;
+clone.style.width = `${ow}px`;
+clone.style.height = `${oh}px`;
+clone.style.margin = '0';
+clone.style.pointerEvents = 'none';
+clone.style.transformOrigin = o.origin || (baseScale ? 'top left' : 'center');
+clone.style.transform = baseScale.trim() || 'none';
+ensureGhostLayer().appendChild(clone);
+let toFrame;
+if (o.toRect) {
+const dx = o.toRect.left - r.left, dy = o.toRect.top - r.top;
+const tx = (ow ? o.toRect.width / ow : 1), ty = (oh ? o.toRect.height / oh : 1);
+clone.style.transformOrigin = 'top left';
+toFrame = { transform: `translate(${dx}px, ${dy}px) scale(${tx}, ${ty})`, opacity: o.opacity ?? 0.15 };
+} else {
+toFrame = { transform: (baseScale ? baseScale + ' ' : '') + (o.transform || 'scale(0.92)'), opacity: o.opacity ?? 0 };
+if (o.clipPath) toFrame.clipPath = o.clipPath;
+}
+const fromFrame = { transform: baseScale.trim() || 'none', opacity: 1 };
+if (o.clipPath) fromFrame.clipPath = 'inset(0 0 0 0)';
+const anim = clone.animate([fromFrame, toFrame], {
+duration: Math.max(40, Math.round((o.duration ?? 110) * speedScale())),
+easing: curve(o.easing || 'curve-in'),
+fill: 'forwards'
+});
+const cleanup = () => clone.remove();
+anim.addEventListener('finish', cleanup, { once: true });
+anim.addEventListener('cancel', cleanup, { once: true });
+return trackAnim(clone, anim);
+};
+const keyOf = (spec, el) => (typeof spec.key === 'function'
+? String(spec.key(el))
+: (spec.key.startsWith('data-') ? el.getAttribute(spec.key) : el.dataset[spec.key]) || '');
+const capture = (root, specs, opts) => {
+if (!enabled() || !root) return null;
+const list = Array.isArray(specs) ? specs : [specs];
+const inStage = root === stage || stage.contains(root);
+const st = inStage ? stage.getBoundingClientRect() : null;
+const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+const snap = new Map();
+const raw = new Map();
+const els = [];
+for (let si = 0; si < list.length; si++) {
+const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+for (let i = 0; i < nodes.length; i++) {
+const el = nodes[i], id = keyOf(spec, el);
+if (!id) continue;
+const vr = el.getBoundingClientRect();
+if (!vr.width && !vr.height) continue;
+const entry = {
+id, si, mode: spec.mode || 'pos', vr, el,
+x: inStage ? (vr.left - st.left) / k : vr.left,
+y: inStage ? (vr.top - st.top) / k : vr.top,
+w: vr.width / k, h: vr.height / k,
+baseW: inStage && el.offsetWidth ? el.offsetWidth : vr.width / k,
+baseH: inStage && el.offsetHeight ? el.offsetHeight : vr.height / k,
+preCloned: opts && opts.ghosts ? freezeClone(el) : null
+};
+snap.set(si + ':' + id, entry);
+raw.set(id, entry);
+els.push(el);
+}
+}
+for (let i = 0; i < els.length; i++) cancelEl(els[i]);
+snap._raw = raw; snap._inStage = inStage;
+return snap;
+};
+const play = (snap, root, specs, opts) => {
+if (!snap || !enabled() || !root) return 0;
+const o = opts || {};
+const list = Array.isArray(specs) ? specs : [specs];
+const inStage = snap._inStage;
+const st = inStage ? stage.getBoundingClientRect() : null;
+const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+const vpW = window.innerWidth, vpH = window.innerHeight;
+const items = [];
+const newByKey = new Map();
+const newRaw = new Map();
+for (let si = 0; si < list.length; si++) {
+const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+for (let i = 0; i < nodes.length; i++) {
+const el = nodes[i], id = keyOf(spec, el);
+if (!id) continue;
+if (o.skipKeys && o.skipKeys.has(id)) continue;
+if (o.skipSelector && el.matches(o.skipSelector)) continue;
+const vr = el.getBoundingClientRect();
+if (!vr.width && !vr.height) continue;
+const it = {
+id, key: si + ':' + id, mode: spec.mode || 'pos', el, vr,
+x: inStage ? (vr.left - st.left) / k : vr.left,
+y: inStage ? (vr.top - st.top) / k : vr.top,
+w: vr.width / k, h: vr.height / k
+};
+items.push(it);
+newByKey.set(it.key, it);
+newRaw.set(id, it);
+}
+}
+const sf = markPlay();
+const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
+const easing = curve(o.easing || 'curve-spring-settle');
+const cull = items.length > 60;
+const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
+const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
+const ow = o.originRect ? o.originRect.width / k : 0;
+const oh = o.originRect ? o.originRect.height / k : 0;
+const lookup = (map, id) => !map ? null : (map instanceof Map ? map.get(id) : map[id]);
+for (let i = 0; i < items.length; i++) {
+const it = items[i];
+if (cull && (it.vr.right < 0 || it.vr.left > vpW || it.vr.bottom < 0 || it.vr.top > vpH)) continue;
+const prev = snap.get(it.key);
+if (prev) {
+const dx = prev.x - it.x, dy = prev.y - it.y;
+const dw = Math.abs(prev.w - it.w), dh = Math.abs(prev.h - it.h);
+const mode = cull ? 'pos' : it.mode;
+const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
+const resized = mode !== 'pos' && (dw > 1 || dh > 1);
+if (!moved && !resized) continue;
+if (resized && mode === 'size' && it.w > 0 && it.h > 0) {
+const rw = prev.w / it.w, rh = prev.h / it.h;
+if (rw >= 0.45 && rw <= 2.2 && rh >= 0.45 && rh <= 2.2) {
+it.el.style.transformOrigin = o.transformOrigin || 'top left';
+trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+continue;
+}
+}
+if (resized && (it.w > prev.w || it.h > prev.h)) {
+const rClip = Math.max(0, it.w - prev.w), bClip = Math.max(0, it.h - prev.h);
+trackAnim(it.el, it.el.animate([
+{ transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 ${rClip}px ${bClip}px 0)` },
+{ transform: 'none', clipPath: 'inset(0 0 0 0)' }
+], { duration: baseDur, easing }));
+} else {
+trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: baseDur, easing }));
+}
+} else if (o.enter !== false) {
+const fk = lookup(o.fromKey, it.id);
+const src = fk ? snap._raw.get(fk) : (o.originRect ? { x: ox, y: oy, w: ow, h: oh } : null);
+if (src && it.w > 0 && it.h > 0) {
+const dx = src.x - it.x, dy = src.y - it.y;
+const rw = Math.max(0.25, Math.min(2.5, src.w / it.w)), rh = Math.max(0.25, Math.min(2.5, src.h / it.h));
+it.el.style.transformOrigin = 'top left';
+trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+} else {
+const sc = o.enterScale ?? 0.88;
+if (o.enterShift != null) {
+trackAnim(it.el, it.el.animate([
+{ opacity: 0, transform: `translateY(${o.enterShift}px) scale(${sc})` },
+{ opacity: 1, transform: 'none' }
+], { duration: baseDur, easing: curve(o.enterEasing || 'curve-out') }));
+continue;
+}
+trackAnim(it.el, it.el.animate([
+{ transform: `scale(${sc})`, clipPath: 'inset(6% 6% 6% 6%)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0)' }
+], { duration: Math.round(baseDur * 0.82), easing: curve('curve-spring-tactile') }));
+}
+}
+}
+if (o.toKey || o.ghostExit) {
+for (const [k2, prev] of snap) {
+if (newByKey.has(k2)) continue;
+const tk = lookup(o.toKey, prev.id);
+const target = tk ? newRaw.get(tk) : null;
+if (target && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, toRect: target.vr, baseW: prev.baseW, baseH: prev.baseH, duration: baseDur, easing });
+else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: o.exitDuration ?? 110, transform: o.exitTransform, easing: o.exitEasing });
+}
+}
+return baseDur;
+};
+const morphRect = (fromRect, toEl, opts) => {
+if (!enabled() || !fromRect || !toEl) return null;
+const o = opts || {};
+cancelEl(toEl);
+const toRect = toEl.getBoundingClientRect();
+if (!toRect.width || !toRect.height) return null;
+const inStage = stage.contains(toEl);
+const k = inStage && stage.offsetWidth ? stage.getBoundingClientRect().width / stage.offsetWidth : 1;
+const dx = (fromRect.left - toRect.left) / k, dy = (fromRect.top - toRect.top) / k;
+const sx = fromRect.width / toRect.width, sy = fromRect.height / toRect.height;
+if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.02 && Math.abs(sy - 1) < 0.02) return null;
+toEl.style.transformOrigin = o.origin || 'top left';
+return trackAnim(toEl, toEl.animate(
+[{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: 'none' }],
+{ duration: Math.max(40, Math.round((o.duration ?? dur('dur-base', 180)) * speedScale())), easing: curve(o.easing || 'curve-spring-settle') }
+));
+};
+const drawPath = (pathEl, opts) => {
+if (!enabled() || !pathEl || typeof pathEl.getTotalLength !== 'function') return null;
+const o = opts || {};
+const len = pathEl.getTotalLength();
+if (!len) return null;
+cancelEl(pathEl);
+const cs = getComputedStyle(pathEl);
+const rawDash = (cs.strokeDasharray || '').trim();
+const nums = rawDash && rawDash !== 'none'
+? rawDash.split(/[\s,]+/).map(v => parseFloat(v)).filter(v => Number.isFinite(v) && v > 0)
+: [];
+let dashArray = `${len} ${len}`;
+let startOffset = len;
+if (nums.length) {
+const pat = nums.length % 2 === 1 ? nums.concat(nums) : nums;
+const period = pat.reduce((a, b) => a + b, 0);
+if (period > 0 && len / period <= 2000) {
+const reps = Math.ceil(len / period);
+const seq = [];
+for (let i = 0; i < reps; i++) seq.push(...pat);
+const pad = Math.ceil(parseFloat(cs.strokeWidth) || 2);
+startOffset = reps * period;
+seq[seq.length - 1] += Math.ceil(len) + pad;
+dashArray = seq.join(' ');
+}
+}
+pathEl.style.strokeDasharray = dashArray;
+pathEl.style.strokeDashoffset = `${startOffset}`;
+const anim = pathEl.animate([{ strokeDashoffset: startOffset }, { strokeDashoffset: 0 }], {
+duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
+easing: curve(o.easing || 'curve-out')
+});
+const clear = () => { pathEl.style.strokeDasharray = ''; pathEl.style.strokeDashoffset = ''; };
+anim.addEventListener('finish', clear, { once: true });
+anim.addEventListener('cancel', clear, { once: true });
+return trackAnim(pathEl, anim);
+};
+const normPoly = (a, b) => {
+const out = a.slice();
+while (out.length < b.length) {
+let best = 0, bestLen = -1;
+for (let i = 0; i < out.length - 2; i += 2) {
+const l = Math.hypot(out[i + 2] - out[i], out[i + 3] - out[i + 1]);
+if (l > bestLen) { bestLen = l; best = i; }
+}
+out.splice(best + 2, 0, (out[best] + out[best + 2]) / 2, (out[best + 1] + out[best + 3]) / 2);
+}
+return out;
+};
+const applySvgJob = (job, p) => {
+const { n, els, kinds, offs, cnts, fromBuf, toBuf } = job;
+for (let i = 0; i < n; i++) {
+const o = offs[i], k = kinds[i], el = els[i];
+if (k === 0) {
+el.setAttribute('d',
+'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+' C ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p) +
+', ' + (fromBuf[o + 4] + (toBuf[o + 4] - fromBuf[o + 4]) * p) + ' ' + (fromBuf[o + 5] + (toBuf[o + 5] - fromBuf[o + 5]) * p) +
+', ' + (fromBuf[o + 6] + (toBuf[o + 6] - fromBuf[o + 6]) * p) + ' ' + (fromBuf[o + 7] + (toBuf[o + 7] - fromBuf[o + 7]) * p));
+} else if (k === 1) {
+if (el.tagName === 'path') {
+el.setAttribute('d', 'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+' L ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+} else {
+el.setAttribute('x1', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+el.setAttribute('y1', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+el.setAttribute('x2', fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p);
+el.setAttribute('y2', fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p);
+}
+} else if (k === 2) {
+el.setAttribute('x', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+el.setAttribute('y', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+el.setAttribute('width', Math.max(0, fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p));
+el.setAttribute('height', Math.max(0, fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+} else {
+const cnt = cnts[i], isPoly = k === 4;
+let s = (isPoly ? '' : 'M ') + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+for (let j = 2; j < cnt; j += 2) {
+s += (isPoly ? ' ' : ' L ') + (fromBuf[o + j] + (toBuf[o + j] - fromBuf[o + j]) * p) + ' ' + (fromBuf[o + j + 1] + (toBuf[o + j + 1] - fromBuf[o + j + 1]) * p);
+}
+el.setAttribute(isPoly ? 'points' : 'd', s);
+}
+}
+};
+const tweenSvg = (tracks, opts) => {
+if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
+if (!enabled() || !tracks || !tracks.length) return;
+const o = opts || {};
+const polyCap = tracks.length > 35;
+const active = [];
+let total = 0;
+for (let i = 0; i < tracks.length; i++) {
+const tr = tracks[i];
+if (!tr || !tr.el || !tr.from || !tr.to) continue;
+if (tr.type === 'polyline') {
+if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
+if (!polyCap && tr.el.tagName === 'path') drawPath(tr.el, o);
+continue;
+}
+const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
+const t = tr.to.length < tr.from.length ? normPoly(tr.to, tr.from) : tr.to;
+active.push({ kind: tr.el.tagName === 'polyline' ? 4 : 3, el: tr.el, f, t });
+total += f.length;
+} else {
+const kind = tr.type === 'bezier' ? 0 : tr.type === 'rect' ? 2 : 1;
+const len = kind === 0 ? 8 : 4;
+if (tr.from.length < len || tr.to.length < len) continue;
+active.push({ kind, el: tr.el, f: tr.from, t: tr.to });
+total += len;
+}
+}
+const n = active.length;
+if (!n) return;
+const els = new Array(n), kinds = new Uint8Array(n), offs = new Int32Array(n), cnts = new Int32Array(n);
+const fromBuf = new Float64Array(total), toBuf = new Float64Array(total);
+let pos = 0;
+for (let i = 0; i < n; i++) {
+const tr = active[i], len = tr.f.length;
+els[i] = tr.el; kinds[i] = tr.kind; offs[i] = pos; cnts[i] = len;
+for (let j = 0; j < len; j++) { fromBuf[pos + j] = tr.f[j]; toBuf[pos + j] = tr.t[j]; }
+pos += len;
+}
+const d = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * markPlay()));
+const ease = easeFn(o.easing || 'curve-spring-settle');
+const start = performance.now();
+const job = { n, els, kinds, offs, cnts, fromBuf, toBuf, raf: 0 };
+svgJob = job;
+syncBusy();
+const tick = (now) => {
+if (svgJob !== job) return;
+const u = Math.min(1, (now - start) / d);
+applySvgJob(job, u >= 1 ? 1 : ease(u));
+if (u < 1) job.raf = requestAnimationFrame(tick);
+else { svgJob = null; syncBusy(); if (o.onComplete) o.onComplete(); }
+};
+applySvgJob(job, 0);
+job.raf = requestAnimationFrame(tick);
+};
+let lastBar = null, barTimer = false;
+const hideBar = (barOrSel) => {
+const el = typeof barOrSel === 'string' ? document.querySelector(barOrSel) : barOrSel;
+if (!el) return;
+if (enabled()) {
+const r = el.getBoundingClientRect();
+if (r.width > 0 && r.height > 0) {
+const pre = freezeClone(el);
+const inSt = stage.contains(el);
+lastBar = {
+rect: r, at: performance.now(), pre, el, claimed: false,
+baseW: inSt && el.offsetWidth ? el.offsetWidth : r.width,
+baseH: inSt && el.offsetHeight ? el.offsetHeight : r.height
+};
+if (!barTimer) {
+barTimer = true;
+queueMicrotask(() => {
+barTimer = false;
+if (lastBar && !lastBar.claimed) ghostExit(lastBar.el, { preCloned: lastBar.pre, fromRect: lastBar.rect, baseW: lastBar.baseW, baseH: lastBar.baseH, duration: 100 });
+});
+}
+}
+}
+el.remove();
+};
+const showBar = (barEl, opts) => {
+if (!barEl || !enabled()) return;
+const o = opts || {};
+const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
+const slide = o.clipRight || barEl.classList.contains('edge-bar');
+trackAnim(barEl, barEl.animate(
+[{ transform: slide ? 'translateX(-8px) scale(0.94)' : 'scale(0.92) translateY(4px)' }, { transform: 'none' }],
+{ duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
+));
+};
+const unfoldNote = (cardEl, badgeEl, leaderEl, opts) => {
+if (!cardEl || !enabled()) return;
+const o = opts || {};
+const br = badgeEl && badgeEl.getBoundingClientRect();
+if (br && br.width > 0) {
+morphRect(br, cardEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-tactile' });
+} else {
+trackAnim(cardEl, cardEl.animate([{ transform: 'scale(0.88)' }, { transform: 'none' }], {
+duration: o.duration ?? 170, easing: curve(o.easing || 'curve-spring-tactile')
+}));
+}
+if (leaderEl) drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
+};
+const foldNote = (cardEl, badgeEl, opts) => {
+if (!cardEl || !enabled()) return;
+const br = badgeEl && badgeEl.getBoundingClientRect();
+ghostExit(cardEl, { toRect: br && br.width > 0 ? br : null, duration: (opts && opts.duration) ?? 120, easing: 'curve-in' });
+};
+const hideHint = (el) => {
+if (!el) return;
+ghostExit(el, { duration: 110, transform: 'translateY(10px) scale(0.96)' });
+el.remove();
+};
+const anim = (el, frames, opts) => {
+if (!el || !enabled()) return null;
+cancelEl(el);
+return trackAnim(el, el.animate(frames, opts));
+};
+const hiddenWhile = new Set();
+const ghostMorph = (fromRect, toEl, duration, easing) => {
+if (!enabled() || !fromRect || !toEl) return null;
+const tr = toEl.getBoundingClientRect();
+if (!tr.width || !tr.height) return null;
+const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
+if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
+const ghost = freezeClone(toEl);
+ghost.style.position = 'fixed';
+ghost.style.left = `${tr.left}px`;
+ghost.style.top = `${tr.top}px`;
+ghost.style.width = `${tr.width}px`;
+ghost.style.height = `${tr.height}px`;
+ghost.style.margin = '0';
+ghost.style.transformOrigin = 'top left';
+ensureGhostLayer().appendChild(ghost);
+toEl.style.opacity = '0';
+hiddenWhile.add(toEl);
+const a = ghost.animate([
+{ transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+{ transform: 'none' }
+], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
+const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
+a.addEventListener('finish', done, { once: true });
+a.addEventListener('cancel', done, { once: true });
+return trackAnim(ghost, a);
+};
+const cancelAll = () => {
+for (const a of [...activeAnims]) { try { a.cancel(); } catch (_) {} }
+activeAnims.clear();
+for (const el of hiddenWhile) el.style.opacity = '';
+hiddenWhile.clear();
+if (svgJob) { cancelAnimationFrame(svgJob.raf); applySvgJob(svgJob, 1); svgJob = null; }
+if (ghostLayer) ghostLayer.textContent = '';
+syncBusy();
+};
+const pulseEl = (el, transform = 'scale(1.15)', duration = 180) => {
+if (el && enabled()) trackAnim(el, el.animate([{ transform: 'none' }, { transform }, { transform: 'none' }], {
+duration, easing: curve('curve-spring-tactile')
+}));
+};
+const morphRing = (fromRect, toEl) => {
+if (!enabled() || !fromRect || !toEl) return;
+const tr = toEl.getBoundingClientRect();
+if (!tr.width || !tr.height || fromRect.right < 0 || fromRect.left > innerWidth || tr.right < 0 || tr.left > innerWidth) return;
+const ring = document.createElement('div');
+ring.setAttribute('data-motion-ghost', '');
+ring.setAttribute('data-export-skip', '');
+ring.setAttribute('aria-hidden', 'true');
+ring.style.cssText = `position:fixed;left:${tr.left - 2}px;top:${tr.top - 2}px;width:${tr.width + 4}px;height:${tr.height + 4}px;border:2px solid var(--focus-ring);border-radius:var(--radius-md);pointer-events:none;transform-origin:top left;`;
+ensureGhostLayer().appendChild(ring);
+const anim = ring.animate([
+{ transform: `translate(${fromRect.left - tr.left}px, ${fromRect.top - tr.top}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+{ transform: 'none' }
+], { duration: 160, easing: curve('curve-inout') });
+const drop = () => ring.remove();
+anim.addEventListener('finish', drop, { once: true });
+anim.addEventListener('cancel', drop, { once: true });
+trackAnim(ring, anim);
+};
+const flipDock = (mutateFn) => {
+const dock = document.querySelector('.toolbar-center');
+if (!dock || !enabled()) { mutateFn(); return; }
+const kids = [...dock.children];
+const prev = new Map();
+for (let i = 0; i < kids.length; i++) {
+const r = kids[i].getBoundingClientRect();
+if (r.width > 0) prev.set(kids[i], r);
+}
+mutateFn();
+const durMs = Math.round(dur('dur-base', 180) * speedScale());
+const eas = curve('curve-spring-settle');
+for (let i = 0; i < kids.length; i++) {
+const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
+if (!newR.width) continue;
+if (oldR) {
+const dx = oldR.left - newR.left;
+if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
+} else {
+trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
+}
+}
+};
+return {
+enabled, dur, curve, speedScale, easeFn, anim, ghostMorph, capture, play, morphRect,
+ghostExit, setViewportBusy, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
+};
+})();
+let vpAnim = null;
+function cancelViewportAnim() {
+if (!vpAnim) return;
+cancelAnimationFrame(vpAnim.raf);
+vpAnim = null;
+motion.setViewportBusy(false);
+viewport.classList.remove('gesturing');
+}
+const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
+function animateViewport(targetPanX, targetPanY, targetScale, opts) {
+const o = opts || {};
+if (!motion.enabled() || o.duration === 0) {
+cancelViewportAnim();
+panX = targetPanX; panY = targetPanY; scale = targetScale;
+updateTransform();
+if (o.onComplete) o.onComplete();
+return;
+}
+const sx = panX, sy = panY, sk = scale;
+if (Math.abs(targetPanX - sx) < 0.5 && Math.abs(targetPanY - sy) < 0.5 && Math.abs(targetScale - sk) < 0.002) {
+cancelViewportAnim();
+panX = targetPanX; panY = targetPanY; scale = targetScale;
+updateTransform();
+if (o.onComplete) o.onComplete();
+return;
+}
+if (vpAnim) cancelAnimationFrame(vpAnim.raf);
+const d = Math.max(40, Math.round((o.duration ?? motion.dur('dur-camera', 240)) * motion.speedScale()));
+const ease = motion.easeFn(o.easing || 'curve-out');
+const start = performance.now();
+viewport.classList.add('gesturing');
+const job = { targetPanX, targetPanY, targetScale, raf: 0 };
+vpAnim = job;
+motion.setViewportBusy(true);
+showZoom();
+const tick = (now) => {
+if (vpAnim !== job) return;
+const u = Math.min(1, (now - start) / d);
+const p = u >= 1 ? 1 : ease(u);
+panX = sx + (targetPanX - sx) * p;
+panY = sy + (targetPanY - sy) * p;
+scale = sk + (targetScale - sk) * p;
+updateTransform();
+if (u < 1) { job.raf = requestAnimationFrame(tick); }
+else { vpAnim = null; motion.setViewportBusy(false); viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
+};
+job.raf = requestAnimationFrame(tick);
+}
+let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
+let initialDataText = null;   // raw inline #diagram-data text at load, used to verify linked-folder file matches
+async function loadInitialData() {
+try {
+const dataEl = document.getElementById('diagram-data');
+let raw = '';
+if (dataEl) {
+raw = dataEl.textContent.trim();
+initialDataText = raw.replace(/\r\n?/g, '\n');
+} else {
+const [text] = await Promise.all([
+fetch('diagram.json').then((r) => {
+if (!r.ok) throw new Error(`HTTP ${r.status} loading diagram.json`);
+return r.text();
+}),
+engineSrcPromise || Promise.resolve()
+]);
+raw = text.trim();
+}
+if (raw) {
+const disk = JSON.parse(raw);
+if (typeof disk._readme === 'string') dataReadme = disk._readme;
+delete disk._readme;
+chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
+}
+} catch (err) {
+console.error("Failed to parse diagram-data JSON:", err);
+}
+chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+document.title = chartTitleEl.textContent;
+publishedTitle = document.title;
+chartTitleEl.addEventListener('dblclick', (e) => {
+e.stopPropagation();
+chartTitleEl.contentEditable = 'true';
+chartTitleEl.focus();
+const range = document.createRange();
+range.selectNodeContents(chartTitleEl);
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+});
+chartTitleEl.addEventListener('blur', () => {
+chartTitleEl.contentEditable = 'false';
+const val = chartTitleEl.textContent.trim();
+if (val && chartData.title !== val) {
+const sr = saveStatus.getBoundingClientRect();
+chartData.title = val;
+document.title = val;
+updateStatus(true);
+motion.morphRect(sr, saveStatus, { duration: 140, easing: 'curve-out' });
+}
+});
+chartTitleEl.addEventListener('keydown', (e) => {
+if (e.key === 'Enter') {
+e.preventDefault();
+chartTitleEl.blur();
+}
+});
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('present') || urlParams.has('capture') || window.name === 'present') {
+document.body.classList.add('presentation');
+document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
+}
+if (urlParams.has('capture')) document.body.classList.add('capture');
+initTheme();
+initSearch();
+const interactive = !urlParams.has('report') && !urlParams.has('capture');
+const applyInitialView = () => {
+fitView();
+if (!interactive || !plugin || plugin.id !== 'sequence' || scale >= 0.85) return;
+const { vpRect, frame, scaleX, minPan } = fitMetrics();
+if (vpRect.width < 600) return;
+scale = Math.min(1.0, Math.max(scaleX, 0.85));
+panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 : minPan) - frame.x * scale;
+panY = minPan - frame.y * scale;
+updateTransform();
+};
+try {
+plugin.render();
+applyInitialView();
+updateStatus(false);
+committedJson = savedJson = JSON.stringify(chartData);
+updateHistoryButtons();
+} finally {
+document.documentElement.classList.remove('is-loading');
+document.documentElement.dataset.diagramReady = '1';
+}
+requestAnimationFrame(() => {
+applyInitialView();
+syncHeaderCompact();
+const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
+: Promise.resolve();
+fontsIn.then(() => {
+document.documentElement.dataset.diagramSettled = '1';
+if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
+if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
+});
+});
+}
+const btnPresent = document.getElementById('btn-present');
+let presentEntry = null;
+const presentOn = () => document.body.classList.contains('presentation');
+function setPresent(on) {
+if (on === presentOn()) return;
+const canAnim = motion.enabled();
+const presentRect = canAnim ? btnPresent.getBoundingClientRect() : null;
+const hdr = canAnim ? document.querySelector('header') : null;
+const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
+if (canAnim) motion.cancelAll();
+if (on && canAnim) {
+if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(-100% - 20px))', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
+if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
+}
+if (on) {
+plugin.cancelInteraction(); plugin.clearSelection();
+setHelpOpen(false, false);
+setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
+presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
+}
+document.body.classList.toggle('presentation', on);
+btnPresent.setAttribute('aria-pressed', String(on));
+if (!on) syncHeaderCompact();
+if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
+const e = presentEntry;
+undoStack = e.undo; redoStack = e.redo;
+restoreSnapshot(e.json);
+committedJson = e.committed; presentEntry = null;
+} else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+if (canAnim) {
+if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
+if (!on) {
+const eas = motion.curve('curve-inout');
+if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-64px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
+if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
+}
+fitView(true);
+}
+if (on) showToast('Esc or the Present button to exit');
+}
+btnPresent.addEventListener('click', () => setPresent(!presentOn()));
+for (const type of ['dblclick', 'contextmenu', 'dragover', 'drop']) {
+window.addEventListener(type, (e) => { if (presentOn()) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+}
+function updateStatus(unsaved) {
+if (unsaved) recordHistory();
+setStatusBadge(unsaved);
+if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
+}
+function setStatusBadgeText(text, cls, title) {
+const changed = saveStatus.textContent !== text;
+const prevRect = changed && motion.enabled() ? saveStatus.getBoundingClientRect() : null;
+saveStatus.textContent = text;
+if (cls !== undefined) saveStatus.className = cls;
+if (title !== undefined) saveStatus.title = title;
+syncHeaderCompact();
+if (prevRect && prevRect.width > 0) {
+motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
+const roll = document.createElement('span');
+roll.style.display = 'inline-block';
+roll.textContent = text;
+saveStatus.textContent = '';
+saveStatus.appendChild(roll);
+const a = motion.anim(roll, [{ transform: 'translateY(4px)' }, { transform: 'none' }], { duration: 180, easing: motion.curve('curve-inout') });
+if (a) a.addEventListener('finish', () => { if (roll.parentNode === saveStatus) saveStatus.textContent = text; }, { once: true });
+}
+}
+function setStatusBadge(unsaved) {
+hasUnsavedChanges = unsaved;
+if (unsaved) reloadExpected = false;
+if (artifactMode === 'view-only') {
+setStatusBadgeText("View only", "badge badge-status", unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.');
+return;
+}
+if (artifactMode === 'publish' && !unsaved) {
+setStatusBadgeText("Saved to artifact", "badge badge-status saved");
+return;
+}
+const target = fileHandle ? fileHandle.name : (helperSavedName || storedName);
+if (unsaved) {
+setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
+} else if (helperSavedName && !fileHandle) {
+setStatusBadgeText(`Saved to ${helperSavedName}`, "badge badge-status saved", `Saved straight to ${helperSavedName} via local helper`);
+} else if (fileHandle) {
+setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
+} else if (everSaved) {
+setStatusBadgeText("Downloaded a copy", "badge badge-status saved", location.protocol === 'file:'
+? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
+: 'The edited diagram went to your downloads folder.');
+} else if (target) {
+setStatusBadgeText(`Saves to ${target}`, "badge badge-status", `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`);
+} else {
+setStatusBadgeText("Ready", "badge badge-status", '');
+}
+}
+function recordHistory() {
+if (committedJson === null) return;          // still loading
+const now = JSON.stringify(chartData);
+if (now === committedJson) return;           // nothing actually changed
+undoStack.push(committedJson);
+if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+redoStack = [];
+committedJson = now;
+updateHistoryButtons();
+}
+function restoreSnapshot(json) {
+plugin.cancelInteraction();
+plugin.clearSelection();
+chartData = JSON.parse(json);
+committedJson = json;
+chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+document.title = chartTitleEl.textContent;
+plugin.render();
+setStatusBadge(json !== savedJson);
+updateHistoryButtons();
+}
+function nudgeHistoryIcon(btn, deg) {
+if (!motion.enabled()) return;
+const svg = btn && btn.querySelector('svg');
+if (svg) motion.anim(svg, [{ transform: 'none' }, { transform: `rotate(${deg}deg)` }, { transform: 'none' }], {
+duration: 140, easing: motion.curve('curve-spring-tactile')
+});
+}
+function undo() {
+if (!undoStack.length || pointerHeld) return;
+nudgeHistoryIcon(btnUndo, -12);
+redoStack.push(committedJson);
+restoreSnapshot(undoStack.pop());
+}
+function redo() {
+if (!redoStack.length || pointerHeld) return;
+nudgeHistoryIcon(btnRedo, 12);
+undoStack.push(committedJson);
+restoreSnapshot(redoStack.pop());
+}
+function updateHistoryButtons() {
+btnUndo.disabled = !undoStack.length;
+btnRedo.disabled = !redoStack.length;
+}
+btnUndo.addEventListener('click', undo);
+btnRedo.addEventListener('click', redo);
+window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
+window.addEventListener('pointerup', () => { pointerHeld = false; }, true);
+window.addEventListener('pointercancel', () => { pointerHeld = false; }, true);
+function publishTidyResult() {
+layoutDiagram(chartData);
+const el = document.createElement('script');
+el.id = 'tidy-result';
+el.type = 'application/json';
+el.textContent = JSON.stringify(chartData);
+document.body.appendChild(el);
+}
+btnAutoTidy.addEventListener('click', () => {
+if (plugin.tidy) { plugin.tidy(); return; }
+layoutDiagram(chartData);
+plugin.render();
+updateStatus(true);
+});
+const btnTheme = document.getElementById('btn-theme');
+function currentTheme() {
+return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+let themeTimer = 0;
+function applyTheme(theme, persist, fromClick) {
+const flip = () => {
+document.documentElement.setAttribute('data-theme', theme);
+btnTheme.setAttribute('aria-pressed', String(theme === 'dark'));
+btnTheme.title = btnTheme.ariaLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
+if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
+if (plugin) plugin.render();   // type colors may depend on the theme
+};
+if (!persist || !motion.enabled()) { flip(); return; }
+if (document.startViewTransition && fromClick) {
+const anchor = btnTheme.getClientRects().length ? btnTheme : (btnMore && btnMore.getClientRects().length ? btnMore : btnTheme);
+const r = anchor.getBoundingClientRect();
+const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
+const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
+const vt = document.startViewTransition(flip);
+vt.ready.then(() => {
+document.documentElement.animate(
+{ clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
+{ duration: 260, easing: motion.curve('curve-inout'), pseudoElement: '::view-transition-new(root)' }
+);
+}).catch(() => {});
+return;
+}
+document.body.classList.add('theme-animating');
+clearTimeout(themeTimer);
+themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
+flip();
+}
+function initTheme() { applyTheme(currentTheme(), false); }
+btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
+let lastAppliedScale = null;
+function showZoom() {
+const label = (plugin && plugin.zoomController && plugin.zoomController.getLabel)
+? plugin.zoomController.getLabel()
+: `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+viewport.dataset.zoom = label;
+if (zoomLevelEl) zoomLevelEl.textContent = label;
+}   // a glide in flight shows where it lands
+function updateTransform() {
+if (plugin && plugin.customViewport) {
+stage.style.transform = '';
+stage.style.setProperty('--ui-scale', '1');
+showZoom();
+if (plugin.onViewChange) plugin.onViewChange();
+return;
+}
+stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+if (scale !== lastAppliedScale) {
+lastAppliedScale = scale;
+stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
+showZoom();
+}
+if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+}
+const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
+const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
+document.addEventListener('pointerover', (e) => {
+for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+if (el.dataset.noTip !== undefined) return;
+if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
+const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
+if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+}
+});
+function publishRenderReport() {
+const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+const nodes = [...document.querySelectorAll(plugin.report.node)].map(el => ({ id: el.dataset.nodeId, box: box(el) }));
+const labels = [...document.querySelectorAll(plugin.report.label)]
+.map(el => ({ id: el.dataset.edgeId, text: (el.querySelector(plugin.report.labelText)?.textContent || '').trim(), box: box(el) }))
+.filter(l => l.text);
+const errors = [], warnings = [];
+for (let i = 0; i < labels.length; i++) {
+for (let j = i + 1; j < labels.length; j++) {
+if (hit(labels[i].box, labels[j].box)) errors.push(`Edge labels overlap: "${labels[i].text}" (${labels[i].id}) and "${labels[j].text}" (${labels[j].id})`);
+}
+nodes.forEach(n => {
+if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
+});
+}
+if (plugin.report.nodeText) {
+document.querySelectorAll(plugin.report.nodeText).forEach(el => {
+if (isCut(el)) {
+const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
+warnings.push(el.dataset.tip || el.title || isClamped(el)
+? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
+: `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+}
+});
+}
+document.querySelectorAll('.lane-title').forEach(el => {
+if (isCut(el)) {
+warnings.push(isClamped(el)
+? `Lane title truncated ("..."): "${el.textContent.trim()}"; the full text shows on hover`
+: `Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+}
+});
+const effPx = (sel) => {
+const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(el.dataset.basePx || getComputedStyle(el).fontSize) * scale);
+return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
+};
+const minNodeFontPx = effPx(plugin.report.nodeText);
+const minEdgeFontPx = effPx(plugin.report.labelText);
+const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
+const legibility = [];
+if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum.`);
+if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
+const report = {
+viewport: { w: window.innerWidth, h: window.innerHeight },
+fitScale: Math.round(scale * 100) / 100,
+nodeCount: nodes.length, labelCount: labels.length,
+minNodeFontPx, minEdgeFontPx, minTextPx: MIN_PX, errors, legibility, warnings,
+natural: (() => { const f = contentFrame(); return { w: f.w, h: f.h }; })()
+};
+const el = document.createElement('script');
+el.id = 'render-report';
+el.type = 'application/json';
+el.textContent = JSON.stringify(report);
+document.body.appendChild(el);
+}
+function contentFrame() {
+const o = (plugin.contentOverflow && plugin.contentOverflow()) || {};
+const l = o.left || 0, t = o.top || 0;
+return {
+x: -l, y: -t,
+w: (plugin.contentEl.offsetWidth || 1400) + l + (o.right || 0),
+h: (plugin.contentEl.offsetHeight || 800) + t + (o.bottom || 0)
+};
+}
+function fitMetrics() {
+const vpRect = viewport.getBoundingClientRect();
+const frame = contentFrame();
+const capture = document.body.classList.contains('capture');
+const pad = capture ? 0 : (plugin.fitPad && plugin.fitPad(vpRect.width)) || 80;
+const dock = document.querySelector('.dock-area');
+const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+let topBand = 0;
+if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
+if (el.hidden || getComputedStyle(el).display === 'none') return;
+const r = el.getBoundingClientRect();
+if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
+});
+const scaleX = (vpRect.width - pad) / frame.w;
+const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
+return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+}
+function fitView(animate) {
+if (plugin && plugin.zoomController && plugin.zoomController.reset) {
+plugin.zoomController.reset(animate);
+showZoom();
+return;
+}
+const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
+if (capture) {
+const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
+if (reqW > 0) {
+cancelViewportAnim();
+scale = Math.min(1, reqW / frame.w);
+panX = -frame.x * scale;
+panY = -frame.y * scale;
+updateTransform();
+return;
+}
+}
+const nextScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
+const nextPanX = Math.max(minPan, (vpRect.width - frame.w * nextScale) / 2) - frame.x * nextScale;
+const nextPanY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * nextScale) / 2) - frame.y * nextScale;
+if (animate && motion.enabled()) {
+animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
+} else {
+cancelViewportAnim();
+scale = nextScale; panX = nextPanX; panY = nextPanY;
+updateTransform();
+}
+}
+let spaceHeld = false;
+const typingInField = () => {
+const a = document.activeElement;
+return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+};
+const setSpaceHeld = (on) => {
+spaceHeld = on;
+document.body.classList.toggle('space-pan', on);
+};
+window.addEventListener('keydown', (e) => {
+if (e.code !== 'Space' || typingInField()) return;
+e.preventDefault();
+if (!e.repeat) setSpaceHeld(true);
+}, true);
+window.addEventListener('keyup', (e) => {
+if (e.code !== 'Space') return;
+if (spaceHeld) e.preventDefault();
+setSpaceHeld(false);
+}, true);
+window.addEventListener('blur', () => setSpaceHeld(false));
+viewport.addEventListener('click', (e) => {
+if (spaceHeld) { e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+viewport.addEventListener('pointerdown', (e) => {
+if (plugin && plugin.customViewport) return;
+if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
+e.preventDefault();
+e.stopImmediatePropagation();
+cancelViewportAnim();
+isPanning = true;
+panStartX = e.clientX - panX;
+panStartY = e.clientY - panY;
+viewport.classList.add('panning', 'gesturing');
+}, true);
+viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
+viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
+viewport.addEventListener('pointerdown', (e) => {
+if (plugin && plugin.customViewport) return;
+if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
+if (plugin.cancelInteraction()) return;
+if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
+cancelViewportAnim();
+isPanning = true;
+panStartX = e.clientX - panX;
+panStartY = e.clientY - panY;
+viewport.classList.add('panning', 'gesturing');
+plugin.clearSelection();
+}
+});
+const touches = new Map();     // pointerId -> { x, y }
+let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
+let replayingTap = false;
+const TAP_SLOP = 8;            // px a finger may wander and still be a tap
+let transformRaf = 0;
+function scheduleTransform() {
+if (transformRaf) return;
+transformRaf = requestAnimationFrame(() => { transformRaf = 0; updateTransform(); });
+}
+function flushTransform() {
+if (!transformRaf) return;
+cancelAnimationFrame(transformRaf);
+transformRaf = 0;
+updateTransform();
+}
+const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
+function startPinch() {
+const [a, b] = [...touches.values()];
+touchGesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale, panX, panY };
+}
+viewport.addEventListener('pointerdown', (e) => {
+if (plugin && plugin.customViewport) return;
+if (e.pointerType !== 'touch' || replayingTap) return;
+touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+if (touches.size >= 2) {
+e.preventDefault();
+e.stopImmediatePropagation();
+if (touches.size > 2) return;
+endMarquee();
+cancelViewportAnim();
+isPanning = false;
+plugin.cancelInteraction();
+viewport.classList.add('panning', 'gesturing');
+startPinch();
+return;
+}
+const hit = document.elementFromPoint(e.clientX, e.clientY);
+const target = hit && viewport.contains(hit) ? hit : e.target;
+const bg = isBlankCanvas(target);
+if (!bg && target.closest && target.closest('.selected, [data-touch-drag]')) {   // the plugin drags it
+touchGesture = null;
+if (target !== e.target) { e.stopImmediatePropagation(); replayPress(target, e, false); }
+return;
+}
+e.stopImmediatePropagation();
+touchGesture = { kind: 'pan', sx: e.clientX, sy: e.clientY, panX, panY, moved: false, bg, target, init: e };
+}, true);
+function replayPress(target, init, withUp) {
+const opts = { bubbles: true, cancelable: true, composed: true, pointerId: init.pointerId, pointerType: 'touch',
+isPrimary: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1,
+shiftKey: init.shiftKey, ctrlKey: init.ctrlKey, metaKey: init.metaKey, altKey: init.altKey };
+replayingTap = true;
+try {
+target.dispatchEvent(new PointerEvent('pointerdown', opts));
+if (withUp) target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, opts, { buttons: 0 })));
+} finally { replayingTap = false; }
+}
+window.addEventListener('pointermove', (e) => {
+if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+const g = touchGesture;
+if (!g) return;                       // a plugin drag of a selected item
+e.stopPropagation();                  // nothing else follows a finger the shell owns (or a frozen drag)
+if (g.kind === 'pinch') {
+if (touches.size < 2) return;
+const [a, b] = [...touches.values()];
+const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+const ns = Math.min(Math.max(g.scale * d / g.dist, 0.2), 2.5);
+const vp = viewport.getBoundingClientRect();
+panX = (mx - vp.left) - (g.mx - vp.left - g.panX) * (ns / g.scale);
+panY = (my - vp.top) - (g.my - vp.top - g.panY) * (ns / g.scale);
+scale = ns;
+scheduleTransform();
+return;
+}
+const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
+if (!g.moved) { cancelViewportAnim(); g.moved = true; viewport.classList.add('panning', 'gesturing'); }
+panX = g.panX + dx;
+panY = g.panY + dy;
+scheduleTransform();
+}, true);
+function endTouch(e) {
+if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+touches.delete(e.pointerId);
+const g = touchGesture;
+if (!g) return;
+if (g.kind === 'pinch') {
+if (touches.size === 1) {           // one finger left: carry on panning with it
+const [rest] = [...touches.values()];
+touchGesture = { kind: 'pan', sx: rest.x, sy: rest.y, panX, panY, moved: true };
+} else if (touches.size === 0) {
+touchGesture = null;
+viewport.classList.remove('panning', 'gesturing');
+}
+return;
+}
+touchGesture = null;
+viewport.classList.remove('panning', 'gesturing');
+if (g.moved || e.type !== 'pointerup' || touches.size) return;
+if (g.bg) {                           // a tap on blank canvas
+if (!plugin.cancelInteraction()) plugin.clearSelection();
+return;
+}
+const { target, init } = g;
+setTimeout(() => { if (target.isConnected) replayPress(target, init, true); }, 0);
+}
+window.addEventListener('pointerup', endTouch, true);
+window.addEventListener('pointercancel', endTouch, true);
+let marquee = null;   // { el, x, y, mode }
+const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
+function startMarquee(e) {
+if (!e.shiftKey || !plugin.selectInRect || document.body.classList.contains('presentation')) return false;
+e.preventDefault();
+if (isTyping()) document.activeElement.blur();   // commit a label being edited, as any click on the canvas does
+const el = document.createElement('div');
+el.className = 'marquee';
+document.body.appendChild(el);
+marquee = { el, x: e.clientX, y: e.clientY, mode: (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace' };
+moveMarquee(e, true);
+return true;
+}
+function moveMarquee(e, start = false) {
+const left = Math.min(marquee.x, e.clientX), top = Math.min(marquee.y, e.clientY);
+const width = Math.abs(e.clientX - marquee.x), height = Math.abs(e.clientY - marquee.y);
+Object.assign(marquee.el.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+plugin.selectInRect({ left, top, right: left + width, bottom: top + height, width, height }, marquee.mode, start);
+}
+function endMarquee() {
+if (!marquee) return;
+if (marquee.el.offsetWidth > 4 || marquee.el.offsetHeight > 4) {
+motion.ghostExit(marquee.el, { duration: 90, transform: 'scale(0.92)' });
+}
+marquee.el.remove();
+marquee = null;
+}
+window.addEventListener('pointermove', (e) => { if (marquee) moveMarquee(e); });
+window.addEventListener('pointerup', endMarquee);
+window.addEventListener('pointercancel', endMarquee);
+window.addEventListener('keydown', (e) => {
+if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a' || !plugin.selectAll) return;
+if (isTyping() || document.body.classList.contains('presentation')) return;
+e.preventDefault();
+plugin.selectAll();
+});
+window.addEventListener('pointermove', (e) => {
+if (!isPanning) return;
+panX = e.clientX - panStartX;
+panY = e.clientY - panStartY;
+scheduleTransform();
+});
+function endMousePan() {
+if (!isPanning) return;
+flushTransform();
+isPanning = false;
+viewport.classList.remove('panning');
+if (!touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+}
+window.addEventListener('pointerup', endMousePan);
+window.addEventListener('pointercancel', endMousePan);
+const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
+let wheelGestureTimer = 0;
+function bumpWheelGesture() {
+viewport.classList.add('gesturing');
+clearTimeout(wheelGestureTimer);
+wheelGestureTimer = setTimeout(() => {
+wheelGestureTimer = 0;
+if (!isPanning && !touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+}, 140);
+}
+viewport.addEventListener('wheel', (e) => {
+if (plugin && plugin.customViewport) {
+if ((e.ctrlKey || e.metaKey) && plugin.zoomController) {
+e.preventDefault();
+if (e.deltaY < 0 && plugin.zoomController.zoomIn) plugin.zoomController.zoomIn(e);
+else if (e.deltaY > 0 && plugin.zoomController.zoomOut) plugin.zoomController.zoomOut(e);
+showZoom();
+}
+return;
+}
+e.preventDefault();
+cancelViewportAnim();
+const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
+const dX = e.deltaX * unit, dY = e.deltaY * unit;
+const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
+if (!isZoom) {
+const notch = e.deltaMode !== 0 || Math.max(Math.abs(dX), Math.abs(dY)) >= 50;
+const k = notch ? WHEEL_SCROLL : 1;
+const sideways = e.shiftKey && !dX;
+panX -= (sideways ? dY : dX) * k;
+panY -= (sideways ? 0 : dY) * k;
+bumpWheelGesture();
+updateTransform();
+return;
+}
+const step = Math.sign(dY) * Math.min(Math.abs(dY) * 0.01, 0.14);
+const newScale = Math.min(Math.max(scale * Math.exp(-step), 0.2), 2.5);
+const vp = viewport.getBoundingClientRect();
+const cx = e.clientX - vp.left, cy = e.clientY - vp.top;
+panX = cx - (cx - panX) * (newScale / scale);
+panY = cy - (cy - panY) * (newScale / scale);
+scale = newScale;
+bumpWheelGesture();
+updateTransform();
+}, { passive: false });
+function zoomIn() {
+if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
+plugin.zoomController.zoomIn();
+showZoom();
+return;
+}
+const base = vpAnim ? vpAnim.targetScale : scale;
+const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
+}
+function zoomOut() {
+if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
+plugin.zoomController.zoomOut();
+showZoom();
+return;
+}
+const base = vpAnim ? vpAnim.targetScale : scale;
+const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
+}
+if (btnZoomIn) btnZoomIn.addEventListener('click', zoomIn);
+if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOut);
+if (btnZoomReset) btnZoomReset.addEventListener('click', () => fitView(true));
+function setHelpOpen(open, restoreFocus) {
+const wasOpen = helpDrawer.classList.contains('open');
+if (open === wasOpen) return;
+if (!open) {
+motion.ghostExit(helpDrawer, {
+duration: 110,
+transform: 'scale(0.92, 0.86) translateY(-4px)',
+clipPath: 'inset(0 0 25% 0 round 8px)',
+origin: 'top right'
+});
+}
+helpDrawer.classList.toggle('open', open);
+btnHelp.setAttribute('aria-expanded', String(open));
+if (open) {
+if (motion.enabled()) {
+helpDrawer.style.transformOrigin = 'top right';
+motion.anim(helpDrawer, [
+{ transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+}
+document.getElementById('help-close').focus();
+} else if (restoreFocus) {
+(btnHelp.getClientRects().length ? btnHelp : (btnMore || btnHelp)).focus();
+}
+}
+btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open'), false); });
+document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false, true));
+document.addEventListener('pointerdown', (e) => {
+if (helpDrawer.classList.contains('open') && !helpDrawer.contains(e.target) && !btnHelp.contains(e.target)) {
+setHelpOpen(false, false);
+}
+}, true);
+window.__searchItems = () => (plugin && plugin.searchItems ? plugin.searchItems() : []);
+const btnSearch = document.getElementById('btn-search');
+const searchBar = document.getElementById('search-bar');
+const searchInput = document.getElementById('search-input');
+const searchCount = document.getElementById('search-count');
+const searchPrev = document.getElementById('search-prev');
+const searchNext = document.getElementById('search-next');
+const SEARCH_MIN_SCALE = 0.6;   // below this zoom a centred match is too small to read, so zoom in on it
+let searchMatches = [];         // [{ id, text, el }] matching the query, one per element, in plugin order
+let searchIndex = 0;
+const searchFold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const searchOpen = () => !searchBar.hidden;
+function applySearch() {
+const prevCur = stage.querySelector('.search-current');
+const prevRect = prevCur && motion.enabled() ? prevCur.getBoundingClientRect() : null;
+stage.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
+const q = searchFold(searchInput.value.trim());
+const keep = searchMatches[searchIndex] && searchMatches[searchIndex].id;
+searchMatches = [];
+if (q && searchOpen()) {
+const items = window.__searchItems();
+const seen = new Set();
+items.forEach(it => { if (searchFold(it.text).includes(q) && !seen.has(it.el)) { seen.add(it.el); searchMatches.push(it); } });
+items.forEach(it => { if (!seen.has(it.el)) it.el.classList.add('search-dim'); });
+const kept = searchMatches.findIndex(m => m.id === keep);
+searchIndex = kept >= 0 ? kept : Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
+if (searchMatches[searchIndex]) {
+const nextEl = searchMatches[searchIndex].el;
+nextEl.classList.add('search-current');
+if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
+}
+} else searchIndex = 0;
+searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
+searchPrev.disabled = searchNext.disabled = !searchMatches.length;
+}
+function centreSearchMatch() {
+const m = searchMatches[searchIndex];
+if (!m) return;
+const vp = viewport.getBoundingClientRect(), r = m.el.getBoundingClientRect(), st = stage.getBoundingClientRect();
+const k = (stage.offsetWidth ? st.width / stage.offsetWidth : 0) || scale;
+let s = scale;
+if (s < SEARCH_MIN_SCALE && r.width && r.height) {
+const fit = Math.min((vp.width - 160) / (r.width / k), (vp.height - 160) / (r.height / k), 1);
+s = Math.max(s, Math.min(Math.max(fit, 0.25), 1));
+}
+const cx = (r.left + r.width / 2 - st.left) / k, cy = (r.top + r.height / 2 - st.top) / k;
+animateViewport(vp.width / 2 - cx * s, vp.height / 2 - cy * s, s, { duration: 220, easing: 'curve-out' });
+}
+function stepSearch(dir) {
+if (!searchMatches.length) return;
+searchIndex = (searchIndex + dir + searchMatches.length) % searchMatches.length;
+applySearch();
+centreSearchMatch();
+}
+function setSearchOpen(on) {
+const wasOpen = !searchBar.hidden;
+if (on === wasOpen) {
+if (!on) { searchInput.value = ''; applySearch(); }
+return;
+}
+if (!on) {
+motion.ghostExit(searchBar, { duration: 110, transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)', origin: 'top right' });
+}
+searchBar.hidden = !on;
+btnSearch.setAttribute('aria-expanded', String(on));
+if (on) {
+if (motion.enabled()) {
+searchBar.style.transformOrigin = 'top right';
+motion.anim(searchBar, [
+{ transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)' },   // drops from the pill's search button
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: 160, easing: motion.curve('curve-out') });
+}
+searchInput.focus(); searchInput.select();
+} else {
+searchInput.value = '';
+searchInput.blur();
+}
+applySearch();
+}
+new MutationObserver(() => { if (searchOpen() && searchInput.value) applySearch(); }).observe(stage, { childList: true, subtree: true });
+function initSearch() {
+btnSearch.hidden = !(plugin && plugin.searchItems);
+if (btnSearch.hidden) return;
+btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
+searchPrev.addEventListener('click', () => stepSearch(-1));
+searchNext.addEventListener('click', () => stepSearch(1));
+searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
+searchInput.addEventListener('keydown', (e) => {
+if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }
+else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSearchOpen(false); }
+});
+document.addEventListener('pointerdown', (e) => {
+if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock, #btn-search')) setSearchOpen(false);
+}, true);
+window.addEventListener('keydown', (e) => {
+const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
+const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
+if ((mod || slash) && !typingInField() && !presentOn()) { e.preventDefault(); setSearchOpen(true); }
+else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
+});
+}
+const btnExport = document.getElementById('btn-export');
+const exportMenu = document.getElementById('export-menu');
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
+const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
+let defaultStyleCache = null;
+function defaultStyleFor(el) {
+if (!defaultStyleCache) {
+const frame = document.createElement('iframe');
+frame.style.cssText = 'position:fixed;left:-9999px;width:10px;height:10px;visibility:hidden';
+document.body.appendChild(frame);
+defaultStyleCache = { frame, doc: frame.contentDocument, map: {} };
+defaultStyleCache.doc.body.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+}
+const c = defaultStyleCache, key = el.namespaceURI + '|' + el.localName;
+if (!c.map[key]) {
+const probe = c.doc.createElementNS(el.namespaceURI, el.localName);
+(el.namespaceURI === EXPORT_SVG_NS ? c.doc.body.firstChild : c.doc.body).appendChild(probe);
+const cs = c.frame.contentWindow.getComputedStyle(probe), o = {};
+for (let i = 0; i < cs.length; i++) o[cs[i]] = cs.getPropertyValue(cs[i]);
+c.map[key] = o;
+}
+return c.map[key];
+}
+function inlineStyles(src, dst) {
+const cs = getComputedStyle(src), def = defaultStyleFor(src);
+let css = '';
+for (let i = 0; i < cs.length; i++) {
+const prop = cs[i], v = cs.getPropertyValue(prop);
+if (def[prop] !== v) css += prop + ':' + v + ';';
+}
+css = css.replace(/url\("?#arrowhead-(selected|in|out)"?\)/g, 'url("#arrowhead")');
+dst.setAttribute('style', css);
+dst.removeAttribute('class');
+const sk = Array.from(src.children), dk = Array.from(dst.children);
+for (let i = 0; i < sk.length; i++) {
+if (sk[i].matches(SKIP_SELECTOR) || (sk[i].namespaceURI !== EXPORT_SVG_NS && getComputedStyle(sk[i]).display === 'none')) { dk[i].remove(); continue; }
+inlineStyles(sk[i], dk[i]);
+}
+}
+function buildExportSvg() {
+const root = stage.firstElementChild;
+if (!root) throw new Error('Nothing to export');
+motion.cancelAll();
+const frozen = document.createElement('style');
+frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
+document.head.appendChild(frozen);
+document.body.classList.add('exporting');   // view-dependent styles (frozen headers) reset for the export
+const touched = [];
+TRANSIENT_CLASSES.forEach(cls => stage.querySelectorAll('.' + cls).forEach(el => { el.classList.remove(cls); touched.push([el, cls]); }));
+try {
+const rr = root.getBoundingClientRect(), pad = 24;
+let minX = 0, minY = 0, maxX = rr.width / scale, maxY = rr.height / scale;
+root.querySelectorAll('*').forEach(el => {
+if (el.matches(SKIP_SELECTOR) || el.closest('defs')) return;
+const r = el.getBoundingClientRect();
+if (!r.width && !r.height) return;
+minX = Math.min(minX, (r.left - rr.left) / scale); minY = Math.min(minY, (r.top - rr.top) / scale);
+maxX = Math.max(maxX, (r.right - rr.left) / scale); maxY = Math.max(maxY, (r.bottom - rr.top) / scale);
+});
+const w = Math.ceil(maxX - minX + pad * 2), h = Math.ceil(maxY - minY + pad * 2);
+const clone = root.cloneNode(true);
+inlineStyles(root, clone);
+clone.style.transform = 'none';
+clone.style.position = 'absolute';
+clone.style.left = (pad - minX) + 'px';
+clone.style.top = (pad - minY) + 'px';
+const wrap = document.createElement('div');
+wrap.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+wrap.setAttribute('style', 'position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;background:' + getComputedStyle(viewport).backgroundColor);
+wrap.appendChild(clone);
+const xml = new XMLSerializer().serializeToString(wrap);
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+'<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + xml + '</foreignObject></svg>';
+return { svg, w, h };
+} finally {
+touched.forEach(([el, cls]) => el.classList.add(cls));
+frozen.remove();
+document.body.classList.remove('exporting');
+}
+}
+function exportFileName(ext, part) {
+const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
+}
+async function deliverFile(filename, blob) {
+if (downloadsApi) {
+try { await downloadsApi.save({ filename, data: blob }); } catch (err) {
+showToast('Download did not complete: ' + (err && err.message || err));
+}
+return;
+}
+const url = URL.createObjectURL(blob), a = document.createElement('a');
+a.href = url;
+a.download = filename;
+document.body.appendChild(a); a.click(); document.body.removeChild(a);
+setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
+function announce(message) {
+let r = document.getElementById('sr-announcer');
+if (!r) {
+r = document.createElement('div');
+r.id = 'sr-announcer';
+r.className = 'visually-hidden';
+r.setAttribute('role', 'status');
+r.setAttribute('aria-live', 'polite');
+r.setAttribute('data-export-skip', '');
+document.body.appendChild(r);
+}
+r.textContent = '';
+setTimeout(() => { r.textContent = message; }, 50);
+}
+function showToast(message) {
+announce(message);
+const t = document.createElement('div');
+t.className = 'toast';
+t.setAttribute('aria-hidden', 'true');   // announced through #sr-announcer
+t.textContent = message;
+document.body.appendChild(t);
+setTimeout(() => {
+if (!t.isConnected) return;
+motion.ghostExit(t, { duration: 120, transform: 'translateY(12px) scale(0.95)' });
+t.remove();
+}, 6000);
+}
+function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
+function exportPngBlob() {
+const { svg, w, h } = buildExportSvg();
+const k = Math.min(1.5, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+return new Promise((resolve, reject) => {
+const img = new Image();
+img.onload = () => {
+const canvas = document.createElement('canvas');
+canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
+const ctx = canvas.getContext('2d');
+ctx.scale(k, k);
+ctx.drawImage(img, 0, 0, w, h);
+canvas.toBlob(b => b ? resolve(b) : reject(new Error('image too large')), 'image/png');
+};
+img.onerror = () => reject(new Error('the diagram could not be drawn as an image'));
+img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgDocument(svg));
+});
+}
+function exportDiagram(format) {
+try {
+if (format === 'html') { downloadHtmlFile(); return; }
+if (format === 'svg-all') {
+plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+return;
+}
+if (format === 'svg') {
+downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
+return;
+}
+exportPngBlob().then(b => downloadBlob(b, 'png'), err => alert('PNG export failed: ' + err.message));
+} catch (err) {
+alert('Export failed: ' + err.message);
+}
+}
+const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
+let copyFlashTimer = null;
+function flashCopied(what) { flashStatus('Copied as ' + what); }
+function flashStatus(text) {
+setStatusBadgeText(text, 'badge badge-status saved');
+clearTimeout(copyFlashTimer);
+copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
+}
+function mermaidData() {
+const d = plugin.toDisk ? plugin.toDisk(chartData) : JSON.parse(JSON.stringify(chartData));
+const layout = d.layout || {};
+delete d.layout;
+(d.lanes || []).forEach((l) => { if (layout[l.id] && layout[l.id].color) l.color = layout[l.id].color; });
+return d;
+}
+function copyDiagram(format) {
+let job;
+try {
+if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
+if (format === 'svg') {
+job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+} else if (format === 'mermaid') {
+if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
+job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex), stock: true }));
+} else if (format === 'png') {
+if (!canCopyPng) throw new Error('this browser cannot copy images');
+job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+} else {
+throw new Error('unknown format ' + format);
+}
+} catch (err) {
+job = Promise.reject(err);
+}
+job.then(() => flashCopied(format === 'mermaid' ? 'Mermaid' : format.toUpperCase()),
+err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
+}
+document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
+const btnImportMermaid = document.getElementById('btn-import-mermaid');
+btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
+function syncCopyMenu() {
+document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
+btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
+}
+syncCopyMenu();
+function animateMenuToggle(menu, open, leftOrigin) {
+const origin = leftOrigin ? 'top left' : 'top right';
+if (!open) {
+if (!menu.hidden) motion.ghostExit(menu, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)', origin });
+menu.hidden = true;
+return;
+}
+const wasHidden = menu.hidden;
+menu.hidden = false;
+if (wasHidden && motion.enabled()) {
+menu.style.transformOrigin = origin;
+motion.anim(menu, [
+{ transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: 120, easing: motion.curve('curve-out') });   // short and without overshoot: items settle before a click lands
+}
+}
+function setExportOpen(open) {
+animateMenuToggle(exportMenu, open, false);
+btnExport.setAttribute('aria-expanded', String(open));
+}
+function syncMoreMenu() {
+if (!moreMenu) return;
+moreMenu.replaceChildren();
+const addItem = (label, iconName, onClick, attr) => {
+const b = document.createElement('button');
+b.type = 'button';
+b.setAttribute('role', 'menuitem');
+if (attr) b.dataset[attr[0]] = attr[1];
+if (iconName) b.appendChild(ui.iconEl(iconName, { size: 'sm' }));
+b.appendChild(document.createTextNode(label));
+b.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); onClick(); });
+moreMenu.appendChild(b);
+return b;
+};
+const isDark = currentTheme() === 'dark';
+addItem(isDark ? 'Light mode' : 'Dark mode', isDark ? 'sun' : 'moon', () => btnTheme.click(), ['more', 'theme']);
+addItem('Shortcuts', 'help', () => btnHelp.click(), ['more', 'help']);
+if (btnImportMermaid && !btnImportMermaid.hidden) {
+addItem('Import Mermaid', 'import', () => openMermaidImport(), ['more', 'import']);
+}
+[...exportMenu.children].forEach((node) => {
+if (node.hidden) return;
+if (node.classList.contains('menu-label')) {
+const lbl = document.createElement('div');
+lbl.className = 'menu-label';
+lbl.setAttribute('role', 'presentation');
+lbl.textContent = node.textContent;
+moreMenu.appendChild(lbl);
+} else if (node.matches('button[role="menuitem"]')) {
+const iconName = node.dataset.export ? 'export' : null;
+addItem(node.textContent, iconName, () => node.click());
+}
+});
+}
+function setMoreOpen(open) {
+if (!moreMenu || !btnMore) return;
+if (open) syncMoreMenu();
+animateMenuToggle(moreMenu, open, false);
+btnMore.setAttribute('aria-expanded', String(open));
+}
+function menuArrowKeys(menu, btn, setOpen) {
+const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden && getComputedStyle(el).display !== 'none');
+menu.addEventListener('keydown', (e) => {
+if (menu.hidden) return;
+if (e.key === 'Tab') { setOpen && setOpen(false); return; }
+if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen && setOpen(false); btn.focus(); return; }
+if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+const list = items();
+if (!list.length) return;
+e.preventDefault();
+const i = list.indexOf(document.activeElement);
+const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+: i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
+: (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+list[next].focus();
+});
+btn.addEventListener('keydown', (e) => {
+if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+e.preventDefault();
+if (menu.hidden && setOpen) setOpen(true);
+const list = items();
+if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
+});
+}
+menuArrowKeys(exportMenu, btnExport, setExportOpen);
+if (moreMenu && btnMore) menuArrowKeys(moreMenu, btnMore, setMoreOpen);
+btnExport.addEventListener('click', (e) => {
+e.stopPropagation();
+closeMermaidImport();
+setMoreOpen(false);
+const opening = exportMenu.hidden;
+setExportOpen(opening);
+if (opening && e.detail === 0) {
+const first = exportMenu.querySelector('[role^="menuitem"]:not([hidden])');
+if (first) first.focus();
+}
+});
+if (btnMore) btnMore.addEventListener('click', (e) => {
+e.stopPropagation();
+closeMermaidImport();
+setExportOpen(false);
+const opening = moreMenu.hidden;
+setMoreOpen(opening);
+if (opening && e.detail === 0) {
+const first = moreMenu.querySelector('[role^="menuitem"]:not([hidden])');
+if (first) first.focus();
+}
+});
+exportMenu.addEventListener('click', (e) => {
+const b = e.target.closest('[data-export], [data-copy]');
+if (!b) return;
+setExportOpen(false);
+if (b.dataset.copy) copyDiagram(b.dataset.copy);
+else exportDiagram(b.dataset.export);
+});
+document.addEventListener('click', (e) => {
+setExportOpen(false);
+setMoreOpen(false);
+if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
+});
+window.addEventListener('keydown', (e) => {
+if (e.key !== 'Escape') return;
+setExportOpen(false);
+setMoreOpen(false);
+closeMermaidImport();
+});
+const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
+function mermaidTypeOf(text) {
+const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
+const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
+if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
+if (head.startsWith('sequencediagram')) return 'sequence';
+if (head.startsWith('erdiagram')) return 'erd';
+if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
+return '';
+}
+function importMermaid(text) {
+if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
+const kind = mermaidTypeOf(text);
+if (kind && kind !== plugin.id) {
+throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
+}
+let res;
+try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+const next = res.data;
+if (!next.title && chartData.title) next.title = chartData.title;
+plugin.cancelInteraction();
+plugin.clearSelection();
+chartData = plugin.fromDisk ? plugin.fromDisk(next) : next;
+if (plugin.placeImported) plugin.placeImported();
+chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+document.title = chartTitleEl.textContent;
+plugin.render();
+updateStatus(true);
+fitView(true);
+const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
+return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
+}
+let importEl = null;
+function closeMermaidImport() {
+if (!importEl) return false;
+motion.ghostExit(importEl, { duration: 110, transform: 'scale(0.94) translateY(-6px)', origin: 'top right' });
+importEl.remove();
+importEl = null;
+return true;
+}
+function positionImportBox(box) {
+const anchorEl = btnImportMermaid.getClientRects().length ? btnImportMermaid : (btnMore || btnExport);
+const anchor = anchorEl.getBoundingClientRect();
+const bw = box.offsetWidth;
+box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
+box.style.top = `${anchor.bottom + 8}px`;
+}
+function showImportNotesBox(box, notes) {
+box.textContent = '';
+const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
+add('div', 'confirm-title', 'Imported, with notes');
+const list = add('ul', 'confirm-list');
+notes.forEach((n) => { const li = document.createElement('li'); li.textContent = n; list.appendChild(li); });
+const done = add('div', 'confirm-actions');
+const close = document.createElement('button');
+close.type = 'button';
+close.className = 'btn btn-primary confirm-ok';
+close.textContent = 'Close';
+close.addEventListener('click', closeMermaidImport);
+done.append(close);
+close.focus();
+}
+function openMermaidImport() {
+ui.closeConfirm();
+closeMermaidImport();
+const box = document.createElement('div');
+box.className = 'confirm confirm-wide';
+box.dataset.exportSkip = '';
+box.setAttribute('role', 'dialog');
+box.setAttribute('aria-label', 'Paste Mermaid');
+const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
+const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+add('div', 'confirm-title', 'Paste Mermaid');
+add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
+const field = add('textarea', 'confirm-field');
+field.spellcheck = false;
+field.setAttribute('aria-label', 'Mermaid text');
+const error = add('div', 'confirm-msg confirm-error');
+error.setAttribute('role', 'alert');
+error.hidden = true;
+const row = add('div', 'confirm-actions');
+const cancel = button('btn confirm-cancel', 'Cancel');
+cancel.addEventListener('click', closeMermaidImport);
+const ok = button('btn btn-primary confirm-ok', 'Import');
+row.append(cancel, ok);
+const run = () => {
+let notes;
+try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
+if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
+showImportNotesBox(box, notes);
+};
+ok.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); setMoreOpen(false); run(); });
+box.addEventListener('click', (e) => { setExportOpen(false); setMoreOpen(false); e.stopPropagation(); });
+box.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
+else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
+if (e.key !== 'Tab') e.stopPropagation();   // keys typed here must not reach the diagram's shortcuts
+});
+document.body.appendChild(box);
+importEl = box;
+positionImportBox(box);
+if (motion.enabled()) {
+box.style.transformOrigin = 'top right';
+motion.anim(box, [
+{ transform: 'scale(0.94) translateY(-6px)', clipPath: 'inset(0 0 25% 0 round 10px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-out') });
+}
+field.focus();
+}
+window.addEventListener('paste', (e) => {
+if (document.body.classList.contains('presentation') || !(plugin && typeof plugin.fromMermaid === 'function')) return;
+const t = e.target;
+if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+if (!text.trim() || !mermaidTypeOf(text)) return;
+e.preventDefault();
+let notes;
+try { notes = importMermaid(text); } catch (err) { showToast(err.message); return; }
+if (!notes.length) { flashStatus('Imported Mermaid'); return; }
+ui.closeConfirm();
+closeMermaidImport();
+const box = document.createElement('div');
+box.className = 'confirm confirm-wide';
+box.dataset.exportSkip = '';
+box.setAttribute('role', 'dialog');
+box.setAttribute('aria-label', 'Imported, with notes');
+box.addEventListener('keydown', (ev) => {
+if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
+if (ev.key !== 'Tab') ev.stopPropagation();
+});
+document.body.appendChild(box);
+importEl = box;
+showImportNotesBox(box, notes);
+positionImportBox(box);
+});
+document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
+const DOCK_POP_MAX_COLS = 6;
+document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
+const trigger = wrap.querySelector('.dock-pop-trigger');
+const pop = wrap.querySelector('.dock-pop');
+if (!trigger || !pop) return;
+const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
+const grids = [...pop.querySelectorAll('.dock-pop-grid')];
+const largest = Math.max(1, ...grids.map(g => g.children.length));
+const cols = Math.max(1, Math.min(largest, DOCK_POP_MAX_COLS));
+pop.style.setProperty('--pop-cols', cols);
+grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
+items.forEach((el, i) => el.style.setProperty('--i', i));
+let closeTimer = null;
+let pointerInside = false;
+const isOpen = () => wrap.classList.contains('open');
+function clampToWindow() {
+const t = trigger.getBoundingClientRect(), w = pop.offsetWidth, m = 8;
+const left = t.left + t.width / 2 - w / 2;
+const shift = Math.max(m - left, 0) + Math.min(innerWidth - m - (left + w), 0);
+pop.style.setProperty('--pop-shift', `${Math.round(shift)}px`);
+}
+function setOpen(open) {
+clearTimeout(closeTimer);
+if (open && trigger.disabled) return;
+if (open === isOpen()) return;
+if (open) clampToWindow();
+wrap.classList.toggle('open', open);
+trigger.setAttribute('aria-expanded', String(open));
+}
+const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
+wrap.addEventListener('pointerenter', (e) => {
+if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+pointerInside = true;
+setOpen(true);
+});
+wrap.addEventListener('pointerleave', (e) => {
+if (e.pointerType === 'touch') return;
+pointerInside = false;
+closeSoon();
+});
+let lastPointerType = '';
+wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
+const clickKind = (e) => (e.detail === 0 ? '' : (e.pointerType || lastPointerType));
+const isHoverPointer = (k) => k === 'mouse' || k === 'pen';
+trigger.addEventListener('click', (e) => setOpen(isHoverPointer(clickKind(e)) ? true : !isOpen()));
+pop.addEventListener('click', (e) => {
+const kind = clickKind(e);
+if (!e.target.closest('.dock-pop-grid > *') || isHoverPointer(kind)) return;
+setOpen(false);
+if (!kind) trigger.focus();
+});
+wrap.addEventListener('keydown', (e) => {
+if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
+});
+wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget) && !pointerInside) closeSoon(); });
+document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
+window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
+});
+const btnDelete = document.getElementById('btn-delete-selection');
+let deleteCheckQueued = false;
+function refreshDeleteButton() {
+deleteCheckQueued = false;
+if (!btnDelete || !plugin) return;
+const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
+if (on === btnDelete.classList.contains('show')) return;
+if (!on) motion.ghostExit(btnDelete, { duration: 110, transform: 'scale(0.85)' });
+motion.flipDock(() => {
+btnDelete.classList.toggle('show', on);
+btnDelete.setAttribute('aria-hidden', String(!on));
+btnDelete.tabIndex = on ? 0 : -1;
+});
+}
+function queueDeleteRefresh() {
+if (deleteCheckQueued) return;
+deleteCheckQueued = true;
+requestAnimationFrame(refreshDeleteButton);
+}
+['pointerup', 'click', 'keyup'].forEach(type => window.addEventListener(type, queueDeleteRefresh));
+if (btnDelete) btnDelete.addEventListener('click', () => {
+if (!btnDelete.classList.contains('show')) return;
+plugin.deleteSelection(btnDelete);
+queueDeleteRefresh();
+});
+const FOLDER_STORE_LIMIT = 20;
+let dirPickerBlocked = false;   // flipped if the host rejects showDirectoryPicker as unsupported here
+function isEmbeddedFrame() {
+try { return window.self !== window.top; } catch (_) { return true; }
+}
+function isElectronHost() {
+return typeof window.acquireVsCodeApi === 'function' || /\b(Electron|Code)\b/i.test(navigator.userAgent || '');
+}
+function canPickSaveFile() {
+return 'showSaveFilePicker' in window && !isElectronHost();
+}
+function canPickDirectory() {
+if (dirPickerBlocked || !('showDirectoryPicker' in window)) return false;
+if (isEmbeddedFrame() || isElectronHost()) return false;
+return true;
+}
+function handleStorageKey() { return location.href.split(/[?#]/)[0]; }
+function handleDb() {
+return new Promise((resolve, reject) => {
+const req = indexedDB.open('ultimate-diagram', 2);
+req.onupgradeneeded = () => {
+const db = req.result;
+if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { autoIncrement: true });
+};
+req.onsuccess = () => resolve(req.result);
+req.onerror = () => reject(req.error);
+});
+}
+function readHandleByKey(db, key) {
+return new Promise((resolve, reject) => {
+const r = db.transaction('handles').objectStore('handles').get(key);
+r.onsuccess = () => resolve(r.result || null);
+r.onerror = () => reject(r.error);
+});
+}
+async function readStoredHandle() {
+try {
+const db = await handleDb();
+const key = handleStorageKey();
+const h = await readHandleByKey(db, key);
+if (h || key === location.href) return h;
+return await readHandleByKey(db, location.href);
+} catch (_) { return null; }
+}
+async function loadStoredHandle() {
+try {
+const h = await readStoredHandle();
+if (!h) return null;
+const opts = { mode: 'readwrite' };
+if ((await h.queryPermission(opts)) === 'granted') return h;
+showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
+if ((await h.requestPermission(opts)) === 'granted') return h;
+} catch (_) {}
+return null;
+}
+async function storeHandle(h) {
+try {
+const db = await handleDb();
+db.transaction('handles', 'readwrite').objectStore('handles').put(h, handleStorageKey());
+} catch (_) {}
+}
+async function readStoredFolders() {
+try {
+const db = await handleDb();
+if (!db.objectStoreNames.contains('folders')) return [];
+return await new Promise((resolve, reject) => {
+const out = [];
+const r = db.transaction('folders').objectStore('folders').openCursor(null, 'prev');
+r.onsuccess = () => {
+const cur = r.result;
+if (!cur) { resolve(out); return; }
+if (cur.value) out.push({ key: cur.key, handle: cur.value });
+cur.continue();
+};
+r.onerror = () => reject(r.error);
+});
+} catch (_) { return []; }
+}
+async function storeFolderHandle(dir) {
+try {
+const existing = await readStoredFolders();
+for (const item of existing) {
+if (item.handle && typeof item.handle.isSameEntry === 'function') {
+try { if (await item.handle.isSameEntry(dir)) return; } catch (_) {}
+}
+}
+const db = await handleDb();
+const tx = db.transaction('folders', 'readwrite');
+const store = tx.objectStore('folders');
+store.add(dir);
+for (const stale of existing.slice(FOLDER_STORE_LIMIT - 1)) store.delete(stale.key);
+} catch (_) {}
+}
+function extractDataBlockText(htmlText) {
+const openTag = '<script id="diagram-data" type="application/' + 'json">';
+const closeTag = '<' + '/script>';
+const start = htmlText.indexOf(openTag);
+if (start < 0) return null;
+const bodyStart = start + openTag.length;
+const end = htmlText.indexOf(closeTag, bodyStart);
+if (end < 0) return null;
+return htmlText.slice(bodyStart, end).trim().replace(/\r\n?/g, '\n');
+}
+function localPathSegments(loc) {
+const raw = loc.file.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
+return raw.split('/').filter(Boolean);
+}
+function sameSegment(a, b, win) {
+return win ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+async function resolveFileInFolder(dir, loc, { askPermission = false } = {}) {
+if (!dir || !dir.name || !loc) return null;
+const segs = localPathSegments(loc);
+const matches = [];
+for (let i = 0; i < segs.length - 1; i++) {
+if (sameSegment(segs[i], dir.name, loc.win)) matches.push(i);
+}
+if (!matches.length) return null;
+const opts = { mode: 'readwrite' };
+try {
+const curPerm = typeof dir.queryPermission === 'function' ? await dir.queryPermission(opts) : 'granted';
+if (curPerm !== 'granted') {
+if (!askPermission || typeof dir.requestPermission !== 'function') return null;
+showToast(`Your browser asks once per session to edit files in ${dir.name}.`);
+if ((await dir.requestPermission(opts)) !== 'granted') return null;
+}
+} catch (_) { return null; }
+for (const idx of matches) {
+try {
+let cur = dir;
+for (let j = idx + 1; j < segs.length - 1; j++) {
+cur = await cur.getDirectoryHandle(segs[j]);
+}
+const fh = await cur.getFileHandle(segs[segs.length - 1]);
+if (initialDataText !== null && typeof fh.getFile === 'function') {
+const diskText = await (await fh.getFile()).text();
+const diskData = extractDataBlockText(diskText);
+if (diskData !== initialDataText) continue;
+}
+return fh;
+} catch (_) {   }
+}
+return null;
+}
+async function loadFromLinkedFolders(loc, { askPermission = true } = {}) {
+if (!loc) return null;
+const folders = await readStoredFolders();
+for (const item of folders) {
+const fh = await resolveFileInFolder(item.handle, loc, { askPermission });
+if (fh) return fh;
+}
+return null;
+}
+function formatJson(v, indent = '') {
+const scalar = (x) => x === null || typeof x !== 'object';
+if (scalar(v)) return JSON.stringify(v);
+const isObj = !Array.isArray(v);
+const items = isObj ? Object.entries(v).filter(([, x]) => x !== undefined) : v.map(x => [null, x]);
+if (!items.length) return isObj ? '{}' : '[]';
+const key = (k) => (k === null ? '' : JSON.stringify(k) + ': ');
+const flat = items.every(([, x]) => scalar(x) || (Array.isArray(x) && x.every(scalar)));
+if (indent && flat) {
+const inline = (x) => (scalar(x) ? JSON.stringify(x) : `[${x.map(y => JSON.stringify(y)).join(', ')}]`);
+const body = items.map(([k, x]) => key(k) + inline(x)).join(', ');
+return isObj ? `{ ${body} }` : `[${body}]`;
+}
+const inner = indent + '  ';
+const body = items.map(([k, x]) => inner + key(k) + formatJson(x, inner)).join(',\n');
+return (isObj ? '{' : '[') + '\n' + body + '\n' + indent + (isObj ? '}' : ']');
+}
+function escapeHtml(text) {
+return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function stampReadingGuide(html) {
+const g = html.indexOf('<!-- For agents:');
+const o = html.indexOf('<script id="diagram-data" type="application\/json">');
+const e = html.indexOf('<!-- end diagram-' + 'data -->');
+if (g < 0 || o < 0 || e < 0) return html;
+let gEnd = html.indexOf('\n', g);
+if (gEnd < 0) gEnd = html.length;
+const lineOf = (i) => html.slice(0, i).split('\n').length;
+const start = lineOf(o), end = lineOf(e);
+const line = html.slice(g, gEnd)
+.replace(/on lines \d+-\d+ of this file/, `on lines ${start}-${end} of this file`)
+.replace(/(Read lines 1-|limit |after line )\d+/g, (_, p) => p + end);
+return html.slice(0, g) + line + html.slice(gEnd);
+}
+function withoutSearchMarks(n) {
+if (!n.outerHTML) return '';
+const c = n.cloneNode(true);
+c.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
+return c.outerHTML;
+}
+async function loadSourceText() {
+let fullHtml = "";
+try {
+const res = await fetch(window.location.href);
+if (res.ok) {
+fullHtml = await res.text();
+}
+} catch (_) {}
+if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
+fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
+: n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : withoutSearchMarks(n)).join('\n');
+}
+return fullHtml;
+}
+function buildDiskData() {
+chartData.title = chartTitleEl.textContent.trim();
+const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
+delete disk._readme;
+return dataReadme === null ? disk : { _readme: dataReadme, ...disk };
+}
+function serializeDiagramJson() {
+return formatJson(buildDiskData());
+}
+function buildSavedHtml(sourceText) {
+const updatedJson = serializeDiagramJson();
+const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+const replacedHtml = stampReadingGuide(fullHtml
+.replace(
+/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+(_, open, close) => `${open}\n${updatedJson}\n  ${close}`
+)
+.replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
+.replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
+const dataEl = document.getElementById('diagram-data');
+if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
+return replacedHtml;
+}
+function buildArtifactHtml() {
+return buildSavedHtml(ARTIFACT_HEAD + pristineBody + ARTIFACT_TAIL);
+}
+function artifactToFileHtml(doc) {
+const body = doc.slice(ARTIFACT_HEAD.length, doc.length - ARTIFACT_TAIL.length);
+const m = /^\s*(<title>[\s\S]*?<\/title>)\n(<!--[\s\S]*?-->)\n([\s\S]*?<\/style>)([\s\S]*)$/.exec(body);
+if (!m) return doc;
+return stampReadingGuide('<!DOCTYPE html>\n' + m[2] + '\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  ' + m[1] + '\n' + m[3] +
+'\n</head>\n<body>' + m[4].replace(ARTIFACT_END_MARKER + '\n', '') + '</body>\n</html>\n');
+}
+async function buildExportHtmlFile() {
+const [cssText, jsText] = await Promise.all([
+fetch('app.css').then((r) => {
+if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.css`);
+return r.text();
+}),
+fetch('app.js').then((r) => {
+if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.js`);
+return r.text();
+})
+]);
+const jsonText = serializeDiagramJson();
+const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+const guide =
+'<!-- For agents' + ': the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 0-0 of this file. Read lines 1-0 only (offset 1, limit 0); everything after line 0 is editor code (CSS, JS, icons) and says nothing about the diagram.\n' +
+'     The model\'s first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:\n' +
+'     sed -n \'/<script id="diagram-data" type="application\\/json">/,/<\\/script>/p\' FILE\n' +
+'     python -c "import re,sys;print(re.search(r\'<script id=\\"diagram-data\\" type=\\"application\\/json\\">(.*?)<\\/script>\',open(sys.argv[1],encoding=\'utf8\').read(),re.S)[1])" FILE -->';
+const closeScript = '<' + '/script>';
+const dataOpen = '<script id="diagram-data" type="application/' + 'json">';
+const dataEnd = '<!-- end diagram-' + 'data -->';
+const themeBlock = capturedThemeJson
+? `\n  <script id="diagram-theme" type="application/${'json'}">${capturedThemeJson.replace(/</g, '\\u003c')}${closeScript}`
+: '';
+const fontBlock = capturedFontLinks ? `\n${capturedFontLinks}` : '';
+const bodyMarkup = (pristineScaffoldHtml || '\n')
+.replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
+const html = '<!DOCTYPE html>\n' + guide + '\n<html lang="en">\n' +
+'<head>\n' +
+'  <meta charset="UTF-8">\n' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+`  <title>${pageTitle}</title>\n` +
+'  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->\n' +
+`  ${dataOpen}\n${jsonText}\n  ${closeScript}\n` +
+`  ${dataEnd}${themeBlock}${fontBlock}\n` +
+'  <style>\n' + cssText.trimEnd() + '\n  </style>\n' +
+'</head>\n' +
+'<body>' + bodyMarkup +
+'\n  <script>\n' + jsText.trimEnd() + `\n  ${closeScript}\n` +
+'</body>\n</html>\n';
+return stampReadingGuide(html);
+}
+async function downloadHtmlFile() {
+if (!artifactMode) return;
+try {
+const html = document.getElementById('diagram-data')
+? artifactToFileHtml(buildArtifactHtml())
+: await buildExportHtmlFile();
+await deliverFile(exportFileName('html'), new Blob([html], { type: 'text/html' }));
+} catch (err) {
+showToast('Download failed: ' + (err && err.message || err));
+}
+}
+async function publishToArtifact() {
+if (publishing || !artifactApi) return;
+publishing = true;   // held until the whole attempt, including the one retry and its delay, is over
+let skipIndex = false;
+btnSave.disabled = true;
+try {
+for (let attempt = 0; ; attempt++) {
+let diagramJson, snapshot;
+const files = {};
+try {
+diagramJson = serializeDiagramJson() + '\n';
+snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
+files[embedDir + 'diagram.json'] = diagramJson;
+const title = chartData.title || plugin.defaultTitle;
+if (title !== publishedTitle && !skipIndex && !embedDir) {   // an embed leaves the host's title alone
+try {
+const r = await fetch('index.html');
+if (r.ok) {
+const page = await r.text();
+const next = page.replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => open + escapeHtml(title) + close);
+if (next !== page) files['index.html'] = next;
+}
+} catch (_) {   }
+}
+await artifactApi.publish(files);
+document.title = title;
+publishedTitle = title;
+savedJson = snapshot;
+everSaved = true;
+updateStatus(false);
+motion.pulseEl(btnSave.querySelector('svg'));
+if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
+return;
+} catch (err) {
+const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
+'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
+const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
+if (files['index.html'] && (code === 'invalid_content' || code === 'read_only_path')) { skipIndex = true; continue; }   // keep the data save; leave the title
+if (code === 'conflict') {
+reloadExpected = true;
+showToast('Someone else saved first. Showing their version.');
+} else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
+'capability_removed', 'read_only_path'].includes(code)) {
+artifactMode = 'view-only';
+applyArtifactUi();
+showToast('Saving is not available here. Use Export > HTML file.');
+} else if (code === 'rate_limited') {
+showToast('Saving too often. Wait a moment, then save again.');
+} else if (code === 'too_large') {
+showToast('This diagram is too large to save to the artifact. Use Export > HTML file instead.');
+} else if (code === 'upstream_error' && attempt === 0) {
+await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+continue;
+} else {
+showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
+}
+return;
+}
+}
+} finally {
+publishing = false;
+if (artifactMode === 'publish') btnSave.disabled = false;
+}
+}
+function localFilePath() {
+if (location.protocol !== 'file:') return null;
+let p;
+try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
+const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
+if (location.host) p = '//' + location.host + p;
+if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
+const sep = win ? '\\' : '/';
+const i = p.lastIndexOf(sep);
+if (i < 0 || !/\.html?$/i.test(p)) return null;
+return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
+}
+function copyText(text) {
+const legacyCopy = () => {
+const ta = document.createElement('textarea');
+ta.value = text;
+ta.setAttribute('readonly', '');
+ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+document.body.appendChild(ta);
+ta.select();
+let ok = false;
+try { ok = document.execCommand('copy'); } catch (_) {}
+ta.remove();
+return ok;
+};
+if (navigator.clipboard && navigator.clipboard.writeText) {
+return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
+}
+return Promise.resolve(legacyCopy());
+}
+async function askSaveLocation(loc, choose, linkFolder) {
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+const text = mac ? loc.folder : loc.file;
+const copied = await copyText(text);
+const where = loc.win
+? 'paste in File name (Ctrl+A, Ctrl+V), Save, and overwrite.'
+: mac
+? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
+: 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
+const extra = document.createDocumentFragment();
+const path = document.createElement('code');
+path.className = 'save-where';
+path.textContent = text;
+extra.appendChild(path);
+if (linkFolder) {
+const addTip = (lead, body) => {
+const p = document.createElement('div');
+p.className = 'save-folder-tip';
+const b = document.createElement('strong');
+b.textContent = lead;
+p.append(b, body);
+extra.appendChild(p);
+};
+addTip('Link folder: ', 'copies this file\u2019s folder to paste. Pick it (or a higher project folder) once so diagrams inside save in one click.');
+addTip('Choose file: ', copied ? 'path copied \u2014 ' + where : 'copy path, ' + where);
+ui.confirm(btnSave, {
+label: 'Save over the file you opened',
+title: 'Save to disk',
+message: 'Link a project folder once, or pick just this file.',
+extra,
+alt: { text: 'Choose file\u2026', onClick: choose },
+ok: 'Link folder\u2026',
+okClass: 'btn-primary'
+}, linkFolder);
+return;
+}
+ui.confirm(btnSave, {
+label: 'Save over the file you opened',
+title: copied ? 'Path copied' : 'Save over this file',
+message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
+extra,
+ok: 'Choose\u2026',
+okClass: 'btn-primary'
+}, choose);
+}
+async function writeToHandle(handle, replacedHtml) {
+const writable = await handle.createWritable();
+await writable.write(replacedHtml);
+await writable.close();
+savedJson = JSON.stringify(chartData);
+everSaved = true;
+updateStatus(false);
+motion.pulseEl(btnSave.querySelector('svg'));
+}
+async function linkFolderAndSave(loc, replacedHtml) {
+await copyText(loc.folder);
+let dir;
+try {
+dir = await window.showDirectoryPicker({ id: 'ultimate-diagram-root', mode: 'readwrite' });
+} catch (err) {
+if (!err || err.name === 'AbortError') return;
+const msg = err.message || '';
+if (/system files|sensitive/i.test(msg)) {
+showToast('Your browser blocks system folders (like Downloads or C:\\). Pick a project subfolder instead.');
+} else if (err.name === 'SecurityError') {
+dirPickerBlocked = true;
+showToast('Folder linking is not supported in this browser window. Open the diagram in Chrome or Edge to link a folder.');
+} else {
+showToast('Could not link folder: ' + (msg || err.name));
+}
+return;
+}
+const fh = await resolveFileInFolder(dir, loc, { askPermission: true });
+if (!fh) {
+showToast(`${dir.name} does not contain ${loc.name}. Pick a folder that contains this file.`);
+return;
+}
+await storeFolderHandle(dir);
+fileHandle = fh;
+storeHandle(fh);
+try {
+await writeToHandle(fh, replacedHtml);
+showToast(`Linked ${dir.name} \u2014 diagrams in it and its subfolders will save directly.`);
+} catch (err) {
+if (err && err.name === 'AbortError') return;
+showToast('Save failed: ' + ((err && err.message) || err));
+}
+}
+async function pickSaveFile() {
+let currentName = '';
+try {
+currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+} catch (_) {}
+const suggested = /\.html?$/i.test(currentName)
+? currentName
+: (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+return window.showSaveFilePicker({
+id: 'ultimate-diagram-save',
+suggestedName: suggested,
+types: [{
+description: 'HTML Diagram File',
+accept: { 'text/html': ['.html'] }
+}]
+});
+}
+async function writeFile(replacedHtml, picked) {
+if (canPickSaveFile()) {
+let pickedNow = false;
+try {
+if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
+const loc = !fileHandle && !picked ? localFilePath() : null;
+if (!fileHandle && loc && canPickDirectory()) {
+fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
+if (fileHandle) storeHandle(fileHandle);
+}
+if (!fileHandle) {
+if (loc) {
+const linkFolder = canPickDirectory()
+? () => linkFolderAndSave(loc, replacedHtml)
+: null;
+askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+return;
+}
+fileHandle = await pickSaveFile();
+pickedNow = true;
+}
+await writeToHandle(fileHandle, replacedHtml);
+if (pickedNow) storeHandle(fileHandle);
+return;
+} catch (err) {
+if (err && err.name === 'AbortError') return;
+if (pickedNow) {
+fileHandle = null;
+showToast('Could not overwrite file directly: ' + ((err && err.message) || err));
+return;
+}
+}
+}
+try {
+const blob = new Blob([replacedHtml], { type: 'text/html' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+savedJson = JSON.stringify(chartData);
+everSaved = true;
+updateStatus(false);
+if (!downloadToldOnce) {
+downloadToldOnce = true;
+showToast(location.protocol === 'file:'
+? 'Saved a copy to your downloads folder. The file you opened was not changed.'
+: 'Saved a copy to your downloads folder.');
+}
+} catch (err) {
+alert("Save failed: " + err.message);
+}
+}
+const HELPER_PORTS = [19847, 19848, 19849, 19850, 19851];
+function getDiagramSaveId() {
+const meta = document.querySelector('meta[name="diagram-save-id"]');
+const val = meta ? (meta.getAttribute('content') || '').trim() : '';
+return /^[0-9a-f]{32}$/.test(val) ? val : '';
+}
+function isLoopbackPreviewOrigin() {
+return location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+}
+function helperPortsToProbe() {
+const override = Array.isArray(window.__ULTIMATE_DIAGRAM_HELPER_PORTS__)
+? window.__ULTIMATE_DIAGRAM_HELPER_PORTS__
+: null;
+return override && override.length ? override : HELPER_PORTS;
+}
+async function fetchWithTimeout(url, opts, ms) {
+const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+try {
+return await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts);
+} finally {
+if (timer) clearTimeout(timer);
+}
+}
+async function findHelperPort() {
+const ports = helperPortsToProbe();
+for (const port of ports) {
+try {
+const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
+if (!resp.ok) continue;
+const info = await resp.json();
+if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
+} catch (_) {}
+}
+return null;
+}
+async function postSaveToHelper(port, payload) {
+const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/save`, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-Ultimate-Diagram-Save': '1'
+},
+body: JSON.stringify(payload)
+}, 3000);
+if (!resp.ok) return null;
+const body = await resp.json();
+return body && body.ok ? body : null;
+}
+async function saveViaLocalHelper() {
+if (playground || claudeHost) return false;
+const isLocalFile = location.protocol === 'file:';
+if (!isLocalFile && !isLoopbackPreviewOrigin()) return false;
+const saveId = getDiagramSaveId();
+if (!saveId) return false;
+const loc = isLocalFile ? localFilePath() : null;
+const diskData = buildDiskData();
+const title = chartData.title || plugin.defaultTitle;
+const payload = { path: loc ? loc.file : null, saveId, data: diskData, title };
+let result = null;
+if (helperPort !== null) {
+try { result = await postSaveToHelper(helperPort, payload); } catch (_) { result = null; }
+if (!result) helperPort = null;
+}
+if (!result) {
+const port = await findHelperPort();
+if (port === null) return false;
+try { result = await postSaveToHelper(port, payload); } catch (_) { result = null; }
+if (!result) return false;
+helperPort = port;
+}
+const updatedJson = formatJson(diskData);
+const dataEl = document.getElementById('diagram-data');
+if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
+if (title) document.title = title;
+helperSavedName = result.name || (loc && loc.name) || 'diagram.html';
+savedJson = JSON.stringify(chartData);
+everSaved = true;
+updateStatus(false);
+motion.pulseEl(btnSave.querySelector('svg'));
+return true;
+}
+async function saveToFile() {
+if (playground) {
+try {
+await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
+savedJson = JSON.stringify(chartData);
+everSaved = true;
+updateStatus(false);
+} catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
+return;
+}
+if (artifactMode === 'publish') return publishToArtifact();
+if (artifactMode === 'view-only') return downloadHtmlFile();
+if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+if (await saveViaLocalHelper()) return;
+const html = document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: await buildExportHtmlFile();
+await writeFile(html);
+}
+function applyArtifactUi() {
+btnSave.hidden = artifactMode === 'view-only';
+btnSave.disabled = artifactMode === 'pending' || publishing;
+btnSave.title = artifactMode === 'pending' ? 'Connecting to claude.ai...' : 'Save a new version of this artifact (Ctrl+S)';
+if (!exportMenu.querySelector('[data-export="html"]')) {
+const item = document.createElement('button');
+item.type = 'button'; item.setAttribute('role', 'menuitem'); item.dataset.export = 'html';
+item.textContent = 'HTML file (editable)';
+exportMenu.querySelector('[data-export="png"]').after(item);
+}
+setStatusBadge(hasUnsavedChanges);
+}
+if (claudeHost && playground) {
+Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
+} else if (claudeHost) {
+const useNamespace = (name) => {
+try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
+catch (_) { return Promise.resolve(null); }
+};
+applyArtifactUi();
+useNamespace('artifact').then(a => {
+artifactApi = a;
+artifactMode = a ? 'publish' : 'view-only';
+applyArtifactUi();
+});
+useNamespace('downloads').then(d => { downloadsApi = d; });
+window.addEventListener('beforeunload', (e) => {
+if (artifactMode === 'publish' && hasUnsavedChanges && !reloadExpected) { e.preventDefault(); e.returnValue = ''; }
+});
+}
+btnSave.addEventListener('click', saveToFile);
+if (!claudeHost && location.protocol === 'file:' && canPickSaveFile()) {
+readStoredHandle().then(async (h) => {
+if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
+if (!fileHandle && canPickDirectory()) {
+const loc = localFilePath();
+const fh = loc ? await loadFromLinkedFolders(loc, { askPermission: false }) : null;
+if (fh && fh.name && !fileHandle) { storedName = fh.name; setStatusBadge(hasUnsavedChanges); }
+}
+});
+}
+if (playground) {
+const catchVt = (e) => { if (e.viewTransition) { e.viewTransition.finished.catch(() => {}); e.viewTransition.ready.catch(() => {}); } };
+window.addEventListener('pageswap', catchVt);
+window.addEventListener('pagereveal', catchVt);
+window.addEventListener('unhandledrejection', (e) => {
+if (e.reason && e.reason.name === 'AbortError' && /Transition was skipped/.test(e.reason.message || '')) e.preventDefault();
+});
+btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
+const icon = document.querySelector('.toolbar-left > svg');
+const wrap = document.createElement('div');
+wrap.className = 'menu-wrap type-switch';
+const btn = document.createElement('button');
+btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn type-btn';
+btn.title = 'Switch diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+const menu = document.createElement('div');
+menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+icon.replaceWith(wrap);
+const cur = playground.types.find((x) => x.id === playground.type);
+const curLabel = document.createElement('span'); curLabel.className = 'btn-label'; curLabel.textContent = cur.name;
+icon.remove();
+btn.append(ui.iconEl('type-' + cur.id, { size: 'sm' }), curLabel, ui.iconEl('chevron-down', { size: 'sm' }));
+wrap.append(btn, menu);
+const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
+const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
+window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
+for (const t of playground.types) {
+const item = document.createElement('button');
+item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+const here = t.id === playground.type;
+item.setAttribute('aria-checked', String(here));
+item.append(ui.iconEl('type-' + t.id, { size: 'sm' }), t.name);
+if (here) item.appendChild(ui.iconEl('check', { size: 'sm', class: 'menu-check' }));
+item.addEventListener('click', () => {
+setOpen(false);
+if (here) return;
+if (!hasUnsavedChanges) { goTo(t.id); return; }
+const mine = playground.types.find((x) => x.id === playground.type).name;
+ui.confirm(btn, {
+label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
+message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
+alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
+}, () => goTo(t.id));
+});
+menu.appendChild(item);
+}
+menuArrowKeys(menu, btn, setOpen);
+btn.addEventListener('click', (e) => {
+e.stopPropagation();
+const opening = menu.hidden;
+setOpen(opening);
+if (opening && e.detail === 0) {
+const first = menu.querySelector('[role^="menuitem"]:not([hidden])');
+if (first) first.focus();
+}
+});
+document.addEventListener('click', () => setOpen(false));
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+}
+window.addEventListener('keydown', (e) => {
+if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+e.preventDefault();
+if (!presentOn()) saveToFile();
+} else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
+if (document.body.classList.contains('presentation')) return;
+e.preventDefault();
+if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+} else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '=' || e.key === '+')) {
+e.preventDefault();
+zoomIn();
+} else if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === '-' || e.key === '_')) {
+e.preventDefault();
+zoomOut();
+} else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === '0') {
+e.preventDefault();
+fitView(true);
+} else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === '!' || e.code === 'Digit1') && !typingInField()) {
+e.preventDefault();
+fitView(true);
+} else if (e.key === 'Escape') {
+if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
+if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }
+plugin.cancelInteraction();
+} else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
+e.preventDefault();
+setHelpOpen(!helpDrawer.classList.contains('open'), true);
+} else if (e.key === 'Delete' || e.key === 'Backspace') {
+if (document.body.classList.contains('presentation')) return;
+if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
+return;
+}
+plugin.deleteSelection();
+}
+});
+//@engine-begin
+function routeEdgesOrthogonal(model) {
+const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
+const FONT_M = TOKENS.font.metrics;
+const rects = {};
+const nodeMap = {};
+chartData.nodes.forEach(n => {
+nodeMap[n.id] = n;
+const r = boxes[n.id];
+if (!r) return;
+const { x, y, w, h } = r;
+rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+});
+const makeGrid = (frame) => {
+let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+for (const r of frame) {
+x0 = Math.min(x0, r.x, r.x + r.w); x1 = Math.max(x1, r.x, r.x + r.w);
+y0 = Math.min(y0, r.y, r.y + r.h); y1 = Math.max(y1, r.y, r.y + r.h);
+}
+if (![x0, y0, x1, y1].every(Number.isFinite)) { x0 = y0 = 0; x1 = y1 = 1; }   // no usable boxes: one cell
+const cell = Math.max(32, Math.sqrt(((x1 - x0) * (y1 - y0)) / Math.max(1, frame.length)));
+const cols = Math.min(512, Math.floor((x1 - x0) / cell) + 1), rows = Math.min(512, Math.floor((y1 - y0) / cell) + 1);
+const cells = Array.from({ length: cols * rows }, () => []);
+const lo = (v, o, n) => { const c = Math.floor((v - o) / cell); return c > 0 ? (c < n ? c : n - 1) : 0; };
+const hi = (v, o, n) => { const c = Math.floor((v - o) / cell); return c < n - 1 ? (c > 0 ? c : 0) : n - 1; };
+const seen = [];
+let stamp = 0;
+const hit = [];
+const cellsIn = (ax, ay, bx, by) => {
+const c0 = lo(Math.min(ax, bx), x0, cols), c1 = hi(Math.max(ax, bx), x0, cols);
+const r0 = lo(Math.min(ay, by), y0, rows), r1 = hi(Math.max(ay, by), y0, rows);
+hit.length = 0;
+for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) hit.push(cells[r * cols + c]);
+return hit;
+};
+return {
+cellsIn,
+add: (id, ax, ay, bx, by) => { for (const list of cellsIn(ax, ay, bx, by)) list.push(id); },
+remove: (id, ax, ay, bx, by) => {
+for (const list of cellsIn(ax, ay, bx, by)) { let j = 0; for (const v of list) if (v !== id) list[j++] = v; list.length = j; }
+},
+near: (boxes, pad = 0, out = []) => {
+out.length = 0;
+stamp++;
+for (let k = 0; k < boxes.length; k += 4) {
+for (const list of cellsIn(boxes[k] - pad, boxes[k + 1] - pad, boxes[k + 2] + pad, boxes[k + 3] + pad)) {
+for (let u = 0; u < list.length; u++) if (seen[list[u]] !== stamp) { seen[list[u]] = stamp; out.push(list[u]); }
+}
+}
+if (out.length > 64) return out.sort((a, b) => a - b);
+for (let i = 1; i < out.length; i++) {
+const v = out[i];
+let j = i - 1;
+while (j >= 0 && out[j] > v) { out[j + 1] = out[j]; j--; }
+out[j + 1] = v;
+}
+return out;
+},
+};
+};
+const segBoxes = (pts) => {
+const out = [];
+for (let i = 0; i < pts.length - 1; i++) out.push(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+return out;
+};
+const rectList = Object.keys(rects).map(id => [id, rects[id]]);
+const rectGrid = makeGrid(rectList.map(([, r]) => r));
+rectList.forEach(([, r], k) => rectGrid.add(k, r.x, r.y, r.x + r.w, r.y + r.h));
+const segmentClear = (x1, y1, x2, y2, ignore) => {
+const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
+const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
+for (const list of rectGrid.cellsIn(minX, minY, maxX, maxY)) {
+for (let u = 0; u < list.length; u++) {
+const r = rectList[list[u]][1];
+if (r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY && !ignore.includes(rectList[list[u]][0])) return false;
+}
+}
+return true;
+};
+const verticalEntryUsed = {};
+const outEdges = {};
+const inEdges = {};
+chartData.nodes.forEach(n => { outEdges[n.id] = []; inEdges[n.id] = []; });
+const validEdges = chartData.edges.filter(e => rects[e.from] && rects[e.to]);
+validEdges.forEach(e => {
+outEdges[e.from].push(e);
+inEdges[e.to].push(e);
+});
+const touching = {};
+chartData.nodes.forEach(n => { touching[n.id] = []; });
+validEdges.forEach(e => { touching[e.from].push(e); if (e.to !== e.from) touching[e.to].push(e); });
+const backPorts = {};
+const backRoute = (f, t, fp, tp, ids) => {
+let pts;
+if (fp === 'left' && tp === 'right') {
+const sx = f.x, sy = f.cy, ex = t.x + t.w, ey = t.cy;
+if (ex > sx - 12) return null;
+if (Math.abs(sy - ey) < 6) pts = [[sx, sy], [ex, sy]];
+else { const mx = (sx + ex) / 2; pts = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]]; }
+} else if (fp === 'left' && tp === 'left') {  // left exit, wrap upstream into target's flow-entry port: two bends
+const sx = f.x, sy = f.cy, ex = t.x, ey = t.cy;
+for (const pad of [24, 14, 10]) {
+const gx = Math.min(sx, ex) - pad;
+if (gx < 8) continue;
+const cand = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
+if (cand.slice(0, -1).every((p, i) => segmentClear(p[0], p[1], cand[i + 1][0], cand[i + 1][1], ids))) return 2;
+}
+return null;
+} else if (fp === 'left') {            // left exit, vertical entry into top/bottom: one bend
+const sx = f.x, sy = f.cy, ex = t.cx;
+const ey = tp === 'top' ? t.y : t.y + t.h;
+if (ex > sx - 20 || (tp === 'top' ? sy >= ey - 8 : sy <= ey + 8)) return null;
+pts = [[sx, sy], [ex, sy], [ex, ey]];
+} else if (tp === 'right') {           // vertical exit, side entry: one bend
+const sx = f.cx, sy = fp === 'top' ? f.y : f.y + f.h, ex = t.x + t.w, ey = t.cy;
+if (ex > sx - 20 || (fp === 'top' ? ey >= sy - 8 : ey <= sy + 8)) return null;
+pts = [[sx, sy], [sx, ey], [ex, ey]];
+} else if (fp === 'bottom' && tp === 'bottom') { // U-turn below both nodes: two bends
+const sx = f.cx, sy = f.y + f.h, ex = t.cx, ey = t.y + t.h;
+const g = Math.max(sy, ey) + 36;
+pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
+} else if (fp === 'top' && tp === 'top') {       // U-turn above both nodes (a near-side loop, see loopSides)
+const sx = f.cx, sy = f.y, ex = t.cx, ey = t.y;
+const g = Math.min(sy, ey) - 36;
+pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
+} else {
+return null;
+}
+for (let i = 0; i < pts.length - 1; i++) {
+if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return null;
+}
+return pts.length - 2; // bends
+};
+validEdges.forEach(e => {
+const f = rects[e.from], t = rects[e.to];
+if (!(t.cx < f.cx - 30)) return;
+const dy = t.cy - f.cy;
+const uTurn = nodeMap[e.from].laneId === nodeMap[e.to].laneId && loopSide(e) === 'near' ? 'top' : 'bottom';
+const legacy = dy > 30 ? { fromPort: 'left', toPort: 'top' }
+: dy < -30 ? { fromPort: 'left', toPort: 'bottom' }
+: { fromPort: uTurn, toPort: uTurn };
+const leftExitFree = !inEdges[e.from].some(ie => ie !== e && rects[ie.from].cx < f.cx - 30 && Math.abs(rects[ie.from].cy - f.cy) <= 30);
+const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
+const cands = [];
+const sameRow = Math.abs(dy) <= 30;
+const decisionBranchOnSide = !sameRow && nodeMap[e.to] && nodeMap[e.to].type === 'decision'
+&& (outEdges[e.to] || []).some(o => rects[o.to] && rects[o.to].cx >= t.cx - 30
+&& (dy > 30 ? rects[o.to].cy < t.cy - 30 : rects[o.to].cy > t.cy + 30));
+if (rightEntryFree) {
+if (leftExitFree) cands.push(['left', 'right']);
+if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
+}
+if (!sameRow && leftExitFree) {
+if (decisionBranchOnSide) cands.push(['left', 'left']);
+else cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+}
+cands.push([uTurn, uTurn]);
+let best = null;
+cands.forEach(([fp, tp]) => {
+const bends = backRoute(f, t, fp, tp, [e.from, e.to]);
+if (bends === null) return;
+const isLegacy = fp === legacy.fromPort && tp === legacy.toPort;
+if (!best || bends < best.bends || (bends === best.bends && isLegacy)) best = { fromPort: fp, toPort: tp, bends };
+});
+backPorts[e.id] = best ? { fromPort: best.fromPort, toPort: best.toPort } : legacy;
+});
+const hasLeftLoopback = new Set();
+validEdges.forEach(e => {
+const bp = backPorts[e.id];
+if (bp && bp.fromPort === 'left' && Math.abs(rects[e.to].cy - rects[e.from].cy) > 30) {
+hasLeftLoopback.add(e.from);
+}
+});
+const edgePorts = {};
+Object.keys(outEdges).forEach(uId => {
+const uOuts = outEdges[uId];
+if (!uOuts.length) return;
+const f = rects[uId];
+const uNode = nodeMap[uId];
+const fwdOuts = [];
+uOuts.forEach(e => {
+const t = rects[e.to];
+if (t.cx < f.cx - 30) {
+edgePorts[e.id] = backPorts[e.id];
+} else {
+fwdOuts.push(e);
+}
+});
+const isMultiOrDecision = (uNode && uNode.type === 'decision') || fwdOuts.length > 1;
+const upCands = fwdOuts.filter(e => rects[e.to].cy < f.cy - 30).sort((a, b) => rects[a.to].cy - rects[b.to].cy);
+const downCands = fwdOuts.filter(e => rects[e.to].cy > f.cy + 30).sort((a, b) => rects[b.to].cy - rects[a.to].cy);
+const alignedFirst = (list) => list.sort((a, b) => (Math.abs(rects[a.to].cx - f.cx) < 30 ? 0 : 1) - (Math.abs(rects[b.to].cx - f.cx) < 30 ? 0 : 1));
+alignedFirst(upCands);
+alignedFirst(downCands);
+const isParallelFork = (cands) => (!uNode || uNode.type !== 'decision')
+&& cands.length >= 2
+&& cands.every(e => !(e.label || '').trim() && rects[e.to].x > f.x + f.w + 20);
+const upFork = isParallelFork(upCands);
+const downFork = isParallelFork(downCands);
+const backTaken = new Set(uNode && uNode.type === 'decision'
+? uOuts.filter(e => !fwdOuts.includes(e)).map(e => edgePorts[e.id] && edgePorts[e.id].fromPort)
+: []);
+let topEdgeId = (!upFork && isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
+let bottomEdgeId = (!downFork && isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
+if (!upFork && !topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+topEdgeId = upCands[0].id;
+}
+if (!downFork && !bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+bottomEdgeId = downCands[0].id;
+}
+fwdOuts.forEach(e => {
+const t = rects[e.to];
+const inFork = (upFork && upCands.includes(e)) || (downFork && downCands.includes(e));
+let fromPort = 'right';
+if (e.id === topEdgeId) {
+fromPort = 'top';
+} else if (e.id === bottomEdgeId) {
+fromPort = 'bottom';
+}
+let toPort = 'left';
+if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
+toPort = (t.cy < f.cy) ? 'bottom' : 'top';
+} else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
+const dy = t.cy - f.cy;
+const incomingSameSide = t.cx > f.x + f.w + 24 && (inEdges[uId] || []).some(o => {
+const s = rects[o.from];
+return s && (dy > 0 ? s.cy > f.cy + 30 : s.cy < f.cy - 30);
+});
+if (!incomingSameSide && Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
+const sy = dy > 0 ? f.y + f.h : f.y;
+if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
+fromPort = dy > 0 ? 'bottom' : 'top';
+}
+}
+}
+if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs(t.cx - f.cx) < 30) {
+toPort = (t.cy < f.cy) ? 'bottom' : 'top';
+} else if (!inFork && fromPort === 'right' && toPort === 'left' && Math.abs(t.cy - f.cy) > 30 && t.cx > f.x + f.w + 24) {
+const enterSide = t.cy < f.cy ? 'bottom' : 'top';
+const ey = enterSide === 'bottom' ? t.y + t.h : t.y;
+const sideKey = e.to + ':' + enterSide;
+const cutsSiblingTrunk = (inEdges[e.to] || []).some(o => {
+if (o === e || !rects[o.from]) return false;
+const s = rects[o.from];
+const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
+return farther && s.cx > f.x + f.w && s.cx < t.cx + 30;
+});
+const decisionBranchOnEnter = nodeMap[e.to] && nodeMap[e.to].type === 'decision'
+&& (outEdges[e.to] || []).some(o => rects[o.to]
+&& (enterSide === 'bottom' ? rects[o.to].cy > t.cy + 30 : rects[o.to].cy < t.cy - 30));
+if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk && !decisionBranchOnEnter
+&& segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
+&& segmentClear(t.cx, f.cy, t.cx, ey, [uId, e.to])) {
+toPort = enterSide;
+verticalEntryUsed[sideKey] = true;
+}
+}
+edgePorts[e.id] = { fromPort, toPort };
+});
+});
+const PORT_SLOT = 10;
+const fromOffX = {};
+const toOffX = {};
+const fromOffY = {};
+const toOffY = {};
+const splitPortAxis = (nid, sides, fromMap, toMap, axis) => {
+if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
+sides.forEach(side => {
+const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
+const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
+if (!outs.length || !ins.length) return;
+const aligned = (a, b) => Math.abs(rects[a][axis] - rects[b][axis]) < 30;
+const opp = axis === 'cx' ? ['top', 'bottom'] : ['left', 'right'];
+const isStraightOut = outs.some(e => aligned(e.to, nid) && opp.includes(edgePorts[e.id].toPort));
+const isStraightIn = ins.some(e => aligned(e.from, nid) && opp.includes(edgePorts[e.id].fromPort));
+const isDecision = nodeMap[nid] && nodeMap[nid].type === 'decision';
+if ((isStraightOut || isDecision) && !isStraightIn) {
+outs.forEach(e => { fromMap[e.id] = 0; });
+const insMean = ins.reduce((s, e) => s + rects[e.from][axis], 0) / ins.length;
+const slotDir = insMean >= rects[nid][axis] ? 1 : -1;
+ins.forEach(e => { toMap[e.id] = slotDir * PORT_SLOT; });
+return;
+} else if (isStraightIn && !isStraightOut) {
+ins.forEach(e => { toMap[e.id] = 0; });
+const outsMean = outs.reduce((s, e) => s + rects[e.to][axis], 0) / outs.length;
+const slotDir = outsMean >= rects[nid][axis] ? 1 : -1;
+outs.forEach(e => { fromMap[e.id] = slotDir * PORT_SLOT; });
+return;
+}
+const mean = (list, key) => list.reduce((s, e) => s + rects[e[key]][axis], 0) / list.length;
+const insFirst = mean(ins, 'from') <= mean(outs, 'to');
+ins.forEach(e => { toMap[e.id] = insFirst ? -PORT_SLOT : PORT_SLOT; });
+outs.forEach(e => { fromMap[e.id] = insFirst ? PORT_SLOT : -PORT_SLOT; });
+});
+};
+Object.keys(rects).forEach(nid => {
+splitPortAxis(nid, ['top', 'bottom'], fromOffX, toOffX, 'cx');
+splitPortAxis(nid, ['left', 'right'], fromOffY, toOffY, 'cy');
+});
+const toPortOffsetY = {};
+Object.keys(inEdges).forEach(vId => {
+const leftIns = inEdges[vId].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === 'left');
+if (leftIns.length > 1) {
+leftIns.sort((a, b) => rects[a.from].cy - rects[b.from].cy);
+leftIns.forEach(e => { toPortOffsetY[e.id] = 0; });
+} else if (leftIns.length === 1) {
+toPortOffsetY[leftIns[0].id] = 0;
+}
+});
+const channelXMap = {};
+const rlElbows = validEdges.filter(e => {
+const p = edgePorts[e.id];
+if (!p || p.fromPort !== 'right' || p.toPort !== 'left') return false;
+const sy = rects[e.from].cy;
+const ey = rects[e.to].cy + (toPortOffsetY[e.id] || 0);
+return Math.abs(sy - ey) >= 6;
+});
+const gapGroups = {};
+rlElbows.forEach(e => {
+const tx = Math.round(rects[e.to].x / 100) * 100;
+if (!gapGroups[tx]) gapGroups[tx] = [];
+gapGroups[tx].push(e);
+});
+Object.values(gapGroups).forEach(group => {
+if (group.length === 1) {
+const e = group[0];
+const sx = rects[e.from].x + rects[e.from].w;
+const ex = rects[e.to].x;
+channelXMap[e.id] = sx + (ex - sx) * 0.5;
+} else {
+const goingUp = group.filter(e => rects[e.to].cy < rects[e.from].cy).sort((a, b) => rects[a.from].cy - rects[b.from].cy);
+const goingDown = group.filter(e => rects[e.to].cy >= rects[e.from].cy).sort((a, b) => rects[b.from].cy - rects[a.from].cy);
+const ordered = [...goingUp, ...goingDown];
+const forkCounts = new Map();
+const forkKeyOf = (e) => `${e.from}\0${rects[e.to].cy < rects[e.from].cy ? 'u' : 'd'}`;
+ordered.forEach(e => {
+if (!(e.label || '').trim()) forkCounts.set(forkKeyOf(e), (forkCounts.get(forkKeyOf(e)) || 0) + 1);
+});
+const slots = [];
+const forkSlot = new Map();
+ordered.forEach(e => {
+const fk = forkKeyOf(e);
+if (!(e.label || '').trim() && (forkCounts.get(fk) || 0) >= 2) {
+if (!forkSlot.has(fk)) { const s = []; forkSlot.set(fk, s); slots.push(s); }
+forkSlot.get(fk).push(e);
+} else {
+slots.push([e]);
+}
+});
+slots.forEach((slot, idx) => {
+const sx = rects[slot[0].from].x + rects[slot[0].from].w;
+const ex = Math.min(...slot.map(e => rects[e.to].x));
+const gap = ex - sx;
+const frac = (idx + 1) / (slots.length + 1);
+const cx = sx + Math.max(24, Math.min(gap - 24, gap * frac));
+slot.forEach(e => { channelXMap[e.id] = cx; });
+});
+}
+});
+const edgePolylines = {};
+validEdges.forEach(e => {
+const p = edgePorts[e.id];
+const f = rects[e.from];
+const t = rects[e.to];
+const offsetY = (toPortOffsetY[e.id] || 0) + (toOffY[e.id] || 0);
+const srcOffY = fromOffY[e.id] || 0;
+let points = [];
+if (p.toPort === 'right') {
+const ex = t.x + t.w, ey = t.cy + offsetY;
+if (p.fromPort === 'left') {
+const sx = f.x, sy = f.cy + srcOffY;
+if (Math.abs(sy - ey) < 6) {
+points = [[sx, sy], [ex, sy]];
+} else {
+const mx = (sx + ex) / 2;
+points = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]];
+}
+} else {
+const sx = f.cx + (fromOffX[e.id] || 0);
+const sy = p.fromPort === 'top' ? f.y : f.y + f.h;
+points = [[sx, sy], [sx, ey], [ex, ey]];
+}
+} else if (p.fromPort === 'left' && p.toPort === 'left') {
+const sx = f.x, sy = f.cy + srcOffY, ex = t.x, ey = t.cy + offsetY;
+let gx = Math.min(sx, ex) - 24;
+for (const pad of [24, 14, 10]) {
+const cand = Math.min(sx, ex) - pad;
+if (cand >= 8 && segmentClear(sx, sy, cand, sy, [e.from, e.to]) && segmentClear(cand, sy, cand, ey, [e.from, e.to]) && segmentClear(cand, ey, ex, ey, [e.from, e.to])) {
+gx = cand;
+break;
+}
+}
+points = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
+} else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
+const sx = f.x;
+const sy = f.cy + srcOffY;
+const ex = t.cx + (toOffX[e.id] || 0);
+const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+const xExit = sx - 24;
+const sourceAbove = (p.toPort === 'top') ? (sy < ey - 8) : (sy > ey + 8);
+if (sourceAbove && ex < sx - 20 && segmentClear(ex, sy, sx, sy, [e.from, e.to]) && segmentClear(ex, sy, ex, ey, [e.from, e.to])) {
+points = [[sx, sy], [ex, sy], [ex, ey]];
+} else {
+let bypassY = (p.toPort === 'top') ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+bypassY = Math.max(20, bypassY);
+points = [[sx, sy], [xExit, sy], [xExit, bypassY], [ex, bypassY], [ex, ey]];
+}
+} else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && (p.toPort === 'top' || p.toPort === 'bottom')) {
+const sx = f.cx + (fromOffX[e.id] || 0);
+const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
+const ex = t.cx + (toOffX[e.id] || 0);
+const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+if (e.to === e.from || t.cx < f.cx - 30) {
+const gutterY = p.fromPort === 'top' && p.toPort === 'top' ? Math.min(sy, ey) - 36 : Math.max(sy, ey) + 36;
+points = [[sx, sy], [sx, gutterY], [ex, gutterY], [ex, ey]];
+} else if (Math.abs(sx - ex) < 1) {
+points = [[sx, sy], [ex, ey]];
+} else {
+const midY = sy + (ey - sy) * 0.5;
+points = [[sx, sy], [sx, midY], [ex, midY], [ex, ey]];
+}
+} else if (p.fromPort === 'right' && (p.toPort === 'top' || p.toPort === 'bottom')) {
+const sx = f.x + f.w;
+const sy = f.cy + srcOffY;
+const ex = t.cx + (toOffX[e.id] || 0);
+const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+points = [[sx, sy], [ex, sy], [ex, ey]];
+} else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && p.toPort === 'left') {
+const sx = f.cx + (fromOffX[e.id] || 0);
+const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
+const ex = t.x;
+const ey = t.cy + offsetY;
+points = [[sx, sy], [sx, ey], [ex, ey]];
+} else {
+const sx = f.x + f.w;
+const sy = f.cy + srcOffY;
+const ex = t.x;
+const ey = t.cy + offsetY;
+if (Math.abs(sy - ey) < 6) {
+points = [[sx, sy], [ex, sy]];
+} else {
+const midX = channelXMap[e.id] !== undefined ? channelXMap[e.id] : (sx + (ex - sx) * 0.5);
+points = [[sx, sy], [midX, sy], [midX, ey], [ex, ey]];
+}
+}
+edgePolylines[e.id] = points;
+});
+[1, -1].forEach(dir => {
+const isU = pts => pts && pts.length === 4 && Math.abs(pts[1][1] - pts[2][1]) < 1 &&
+Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 &&
+(pts[1][1] - pts[0][1]) * dir > 0 && (pts[2][1] - pts[3][1]) * dir > 0;
+const us = validEdges.filter(e => isU(edgePolylines[e.id])).map(e => {
+const pts = edgePolylines[e.id];
+return { e, y: pts[1][1], lo: Math.min(pts[0][0], pts[3][0]), hi: Math.max(pts[0][0], pts[3][0]) };
+}).sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo));
+const placed = [];
+us.forEach(u => {
+let k = 0;
+while (placed.some(q => Math.abs(q.y - (u.y + dir * k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
+const pts = edgePolylines[u.e.id];
+if (k) { pts[1][1] += dir * k * 14; pts[2][1] += dir * k * 14; }
+placed.push({ y: pts[1][1], lo: u.lo, hi: u.hi });
+});
+});
+const polyClear = (pts, ids) => {
+for (let i = 0; i < pts.length - 1; i++) {
+if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return false;
+}
+return true;
+};
+const bboxCache = new WeakMap();
+const bboxOf = (pts) => {
+let b = bboxCache.get(pts);
+if (b) return b;
+b = [Infinity, Infinity, -Infinity, -Infinity];
+for (const [x, y] of pts) { b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+bboxCache.set(pts, b);
+return b;
+};
+const NONE = { overlap: 0, near: 0, cross: 0 };
+const relate = (pts, otherPts, skipFirst = false, skipLast = false, skipFirstTrunk = false) => {
+const a = bboxOf(otherPts);
+let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+for (let i = 0; i < pts.length; i++) {
+const x = pts[i][0], y = pts[i][1];
+if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+}
+if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
+let overlap = 0, near = 0, cross = 0;
+const lastI = pts.length - 2, lastJ = otherPts.length - 2;
+for (let i = 0; i < pts.length - 1; i++) {
+const ax = pts[i][0], ay = pts[i][1], bx = pts[i + 1][0], by = pts[i + 1][1];
+const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
+for (let j = 0; j < otherPts.length - 1; j++) {
+if ((skipFirst && i === 0 && j === 0)
+|| (skipFirstTrunk && lastI >= 2 && lastJ >= 2 && i === 1 && j === 1)
+|| (skipLast && ((i === lastI && j === lastJ) || (lastI >= 2 && lastJ >= 2 && i === lastI - 1 && j === lastJ - 1)))) continue;
+const cx = otherPts[j][0], cy = otherPts[j][1], dx = otherPts[j + 1][0], dy = otherPts[j + 1][1];
+const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
+if (aV && cV) {
+const run = Math.min(Math.max(ay, by), Math.max(cy, dy)) - Math.max(Math.min(ay, by), Math.min(cy, dy));
+if (run > 1) { const gap = Math.abs(ax - cx); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
+} else if (aH && cH) {
+const run = Math.min(Math.max(ax, bx), Math.max(cx, dx)) - Math.max(Math.min(ax, bx), Math.min(cx, dx));
+if (run > 1) { const gap = Math.abs(ay - cy); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
+} else if (aV && cH) {
+if (Math.min(cx, dx) + 1 < ax && ax < Math.max(cx, dx) - 1 && Math.min(ay, by) + 1 < cy && cy < Math.max(ay, by) - 1) cross += 1;
+} else if (aH && cV) {
+if (Math.min(ax, bx) + 1 < cx && cx < Math.max(ax, bx) - 1 && Math.min(cy, dy) + 1 < ay && ay < Math.max(cy, dy) - 1) cross += 1;
+}
+}
+}
+return { overlap, near, cross };
+};
+const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200, entryShare: 2600, backwardExit: 3500, upstreamDetour: 4500, sideOvershoot: 1800 };
+const routeDefects = (pts, ids) => {
+let d = 0;
+for (let i = 0; i < pts.length - 1; i++) {
+const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
+const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
+let tight = false;
+for (const list of rectGrid.cellsIn(x1, y1, x2, y2)) {
+for (let u = 0; u < list.length && !tight; u++) {
+const r = rectList[list[u]][1];
+tight = r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1 && !ids.includes(rectList[list[u]][0]);
+}
+if (tight) break;
+}
+if (tight) d += COST.nearNode;
+}
+return d;
+};
+const portClashes = () => 0;
+const sharedBranchVertex = (edge, fp) => {
+const src = nodeMap[edge.from];
+if (!src || src.type !== 'decision') return 0;
+return outEdges[edge.from].filter(o => o !== edge && edgePorts[o.id] && edgePorts[o.id].fromPort === fp
+&& (o.label || '').trim().toLowerCase() !== (edge.label || '').trim().toLowerCase()).length;
+};
+const ownBodyClear = (pts, edge) => {
+for (const id of [edge.from, edge.to]) {
+const r = rects[id];
+if (!r) continue;
+const x1 = r.x + 3, x2 = r.x + r.w - 3, y1 = r.y + 3, y2 = r.y + r.h - 3;
+for (let i = 0; i < pts.length - 1; i++) {
+const ax = Math.min(pts[i][0], pts[i + 1][0]), bx = Math.max(pts[i][0], pts[i + 1][0]);
+const ay = Math.min(pts[i][1], pts[i + 1][1]), by = Math.max(pts[i][1], pts[i + 1][1]);
+if (ax < x2 && bx > x1 && ay < y2 && by > y1) return false;
+}
+}
+return true;
+};
+const routeCost = (pts, edge, isOther, fp, tp, limit = Infinity) => {
+let len = 0;
+for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
+if ((pts.length - 2) * COST.bend + len >= limit) return Infinity;   // cannot beat the best so far
+const ids = [edge.from, edge.to];
+if (!ownBodyClear(pts, edge)) return Infinity;
+const fixed = (pts.length - 2) * COST.bend + len;
+let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
+const f = rects[edge.from], t = rects[edge.to];
+if (t.cx >= f.cx - 30) {
+if (nodeMap[edge.from] && nodeMap[edge.from].type === 'decision' && fp === 'left') {
+defect += COST.backwardExit;
+}
+let minX = Infinity;
+for (let i = 0; i < pts.length; i++) if (pts[i][0] < minX) minX = pts[i][0];
+const upLimit = Math.min(f.x, t.x) - 16;
+if (minX < upLimit) defect += COST.upstreamDetour + (upLimit - minX) * 4;
+}
+if (fp !== tp) {
+let minY = Infinity, maxY = -Infinity;
+for (let i = 0; i < pts.length; i++) {
+if (pts[i][1] < minY) minY = pts[i][1];
+if (pts[i][1] > maxY) maxY = pts[i][1];
+}
+const loY = Math.min(f.y, t.y) - 16, hiY = Math.max(f.y + f.h, t.y + t.h) + 16;
+const overY = Math.max(0, loY - minY) + Math.max(0, maxY - hiY);
+if (overY > 0) defect += COST.sideOvershoot + overY * 4;
+}
+if (fixed + defect >= limit) return Infinity;
+if (!polyClear(pts, ids)) return Infinity;
+const near = edgeGrid.near(segBoxes(pts), 0, nearBuf);
+for (let k = 0; k < near.length; k++) {
+const o = validEdges[near[k]];
+if (!isOther(o)) continue;
+const op = edgePorts[o.id];
+const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
+const skipFirst = o.from === edge.from && op && op.fromPort === fp;
+const skipLast = o.to === edge.to && op && op.toPort === tp;
+const skipFirstTrunk = skipFirst && !(edge.label || '').trim() && !(o.label || '').trim();
+const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast, skipFirstTrunk);
+defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
+if (fixed + defect >= limit) return Infinity;
+}
+defect += routeDefects(pts, ids);
+if (fixed + defect >= limit) return Infinity;
+return { cost: fixed + defect, defect };
+};
+const anchor = (r, side) => side === 'top' ? [r.cx, r.y] : side === 'bottom' ? [r.cx, r.y + r.h]
+: side === 'left' ? [r.x, r.cy] : [r.x + r.w, r.cy];
+const bounds = Object.values(rects).reduce((b, r) => ({
+minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
+minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
+}), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+const buildCorridors = (loKey, sizeKey, minBound, maxBound) => {
+const ivs = rectList.map(([, r]) => [r[loKey], r[loKey] + r[sizeKey]]).sort((a, b) => a[0] - b[0]);
+const seen = new Set();
+const out = [];
+const push = (v) => {
+const q = Math.round(v / 8);
+if (seen.has(q)) return;
+seen.add(q);
+out.push(v);
+};
+let hi = -Infinity;
+for (const [a, b] of ivs) {
+if (a > hi + 28 && hi > -Infinity) {
+const mid = (hi + a) / 2;
+push(mid); push(mid - 22); push(mid + 22);
+}
+if (b > hi) hi = b;
+}
+for (let k = 0; k < rectList.length; k++) {
+const r = rectList[k][1];
+push(r[loKey] - 16);
+push(r[loKey] + r[sizeKey] + 16);
+}
+push(minBound - 24);
+push(maxBound + 24);
+return out;
+};
+const corridorXs = buildCorridors('x', 'w', bounds.minX, bounds.maxX);
+const corridorYs = buildCorridors('y', 'h', bounds.minY, bounds.maxY);
+const altRoutes = (f, t, deep) => {
+const out = [];
+const SIDES = ['top', 'bottom', 'left', 'right'];
+const horiz = s => s === 'left' || s === 'right';
+SIDES.forEach(fp => SIDES.forEach(tp => {
+const [sx, sy] = anchor(f, fp), [ex, ey] = anchor(t, tp);
+const add = (pts, dev = 0) => out.push({ fp, tp, pts, dev });
+if (horiz(fp) && horiz(tp)) {
+if (fp === tp) return;
+const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
+if (!dirOk) return;
+if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
+const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14, mid = (sx + ex) / 2;
+let hasMid = false;
+for (let x = lo; x <= hi; x += 16) {
+if (Math.abs(x - mid) < 4) hasMid = true;
+add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - mid));
+}
+if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [mid, sy], [mid, ey], [ex, ey]], 0);
+} else if (!horiz(fp) && !horiz(tp)) {
+if (fp !== tp) {
+const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
+if (!dirOk) return;
+if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
+const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14, mid = (sy + ey) / 2;
+let hasMid = false;
+for (let y = lo; y <= hi; y += 16) {
+if (Math.abs(y - mid) < 4) hasMid = true;
+add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - mid));
+}
+if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
+} else {
+const seenG = new Set();
+const tryU = g => {
+if (fp === 'top' ? g > Math.min(sy, ey) - 12 : g < Math.max(sy, ey) + 12) return;
+const q = Math.round(g / 8);
+if (seenG.has(q)) return;
+seenG.add(q);
+add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
+};
+[28, 36, 48, 72].forEach(d => tryU(fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d));
+if (deep) corridorYs.forEach(tryU);
+}
+} else if (horiz(fp)) {
+if (!(fp === 'right' ? ex <= sx + 20 : ex >= sx - 20) && !(tp === 'top' ? ey <= sy + 8 : ey >= sy - 8)) {
+add([[sx, sy], [ex, sy], [ex, ey]]);
+}
+} else {
+if (!(fp === 'top' ? sy <= ey + 8 : sy >= ey - 8) && !(tp === 'left' ? ex <= sx + 20 : ex >= sx - 20)) {
+add([[sx, sy], [sx, ey], [ex, ey]]);
+}
+}
+if (deep && horiz(fp) !== horiz(tp)) {
+const STEP = 64;
+if (!horiz(fp)) {
+[16, 20, 36, 56].forEach(d => {
+const g = fp === 'top' ? sy - d : sy + d;
+const seenX = new Set();
+const tryX = x => {
+const q = Math.round(x / 8);
+if (seenX.has(q)) return;
+seenX.add(q);
+if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
+if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
+add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
+};
+corridorXs.forEach(tryX);
+const xLo = Math.min(sx, ex) - 64, xHi = Math.max(sx, ex) + 64;
+for (let x = xLo; x <= xHi; x += STEP) tryX(x);
+});
+} else {
+[16, 20, 36, 56].forEach(d => {
+const x = fp === 'right' ? sx + d : sx - d;
+const seenG = new Set();
+const tryG = g => {
+const q = Math.round(g / 8);
+if (seenG.has(q)) return;
+seenG.add(q);
+if (tp === 'top' ? g > ey - 14 : g < ey + 14) return;
+if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) return;
+add([[sx, sy], [x, sy], [x, g], [ex, g], [ex, ey]], 0);
+};
+corridorYs.forEach(tryG);
+const gLo = Math.min(sy, ey) - 64, gHi = Math.max(sy, ey) + 64;
+for (let g = gLo; g <= gHi; g += STEP) tryG(g);
+});
+}
+}
+}));
+return out;
+};
+const edgeClear = {};
+validEdges.forEach(o => {
+const pts = edgePolylines[o.id];
+edgeClear[o.id] = Boolean(pts && polyClear(pts, [o.from, o.to]));
+});
+const RELATE_PAD = 20;
+const nearBuf = [];   // routeCost's lookup result, reused (routeCost never nests)
+const edgeGrid = makeGrid(rectList.map(([, r]) => r));
+const filed = [];
+const fileEdge = (i, on) => {
+const pts = on ? edgePolylines[validEdges[i].id] : filed[i];
+if (!pts) return;
+const b = segBoxes(pts);
+for (let k = 0; k < b.length; k += 4) {
+(on ? edgeGrid.add : edgeGrid.remove)(i, Math.min(b[k], b[k + 2]) - RELATE_PAD, Math.min(b[k + 1], b[k + 3]) - RELATE_PAD,
+Math.max(b[k], b[k + 2]) + RELATE_PAD, Math.max(b[k + 1], b[k + 3]) + RELATE_PAD);
+}
+filed[i] = on ? pts : undefined;
+};
+validEdges.forEach((o, i) => fileEdge(i, true));
+const manhattan = e => Math.abs(rects[e.from].cx - rects[e.to].cx) + Math.abs(rects[e.from].cy - rects[e.to].cy);
+[...validEdges].sort((a2, b2) => manhattan(b2) - manhattan(a2)).forEach(e => {
+if (e.to === e.from) return;
+const cur = edgePolylines[e.id];
+if (!cur) return;
+const isOther = o => o !== e && Boolean(edgePolylines[o.id]) && edgeClear[o.id];
+const srcIsDecision = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
+const dstIsDecision = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
+const entryVertex = s => srcIsDecision && (s === 'top' || s === 'bottom')
+&& (inEdges[e.from] || []).some(o => edgePorts[o.id] && edgePorts[o.id].toPort === s);
+const branchVertex = s => dstIsDecision && (s === 'top' || s === 'bottom' || s === 'right')
+&& (outEdges[e.to] || []).some(o => edgePorts[o.id] && edgePorts[o.id].fromPort === s);
+const entryShare = (fp, tp) => (entryVertex(fp) ? COST.entryShare : 0) + (branchVertex(tp) ? COST.entryShare : 0);
+const base = routeCost(cur, e, isOther, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+const baseEntryShare = entryShare(edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+if (base !== Infinity && base.defect === 0 && baseEntryShare === 0) return;
+const baseCost = base === Infinity ? Infinity : base.cost + baseEntryShare;
+let best = null;
+const deep = base === Infinity || base.defect + baseEntryShare >= COST.cross;
+altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
+const r = routeCost(c.pts, e, isOther, c.fp, c.tp, best ? best.cost : baseCost - 250);
+if (r === Infinity) return;
+const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
+const cost = r.cost + c.dev * 0.3 + sideChange + entryShare(c.fp, c.tp);
+if (!best || cost < best.cost) best = { cost, c };
+});
+if (best && best.cost < baseCost - 250) {
+edgePolylines[e.id] = best.c.pts;
+edgePorts[e.id] = { fromPort: best.c.fp, toPort: best.c.tp };
+edgeClear[e.id] = true;
+validEdges.forEach((o, i) => { if (o.id === e.id) { fileEdge(i, false); fileEdge(i, true); } });
+}
+});
+const SPREAD = 24;
+const farOrder = (far1, far2, cx, pts1, a1, b1, pts2, a2, b2) => {
+const run1 = Math.abs(pts1[b1][1] - pts1[a1][1]), run2 = Math.abs(pts2[b2][1] - pts2[a2][1]);
+if (Math.abs(run1 - run2) >= 1 && (far1 > cx) === (far2 > cx) && pts1.length === 3 && pts2.length === 3) {
+return far1 > cx ? run2 - run1 : run1 - run2;
+}
+if (Math.abs(far1 - far2) >= 1) return far1 - far2;
+return far1 > cx ? run2 - run1 : run1 - run2;
+};
+Object.keys(rects).forEach(nid => {
+const r = rects[nid];
+[['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
+['out', 'in'].forEach(role => {
+if (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
+const ends = [];
+touching[nid].forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts) return;
+const n = pts.length;
+if (role === 'out' && e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1)
+ends.push({ e, a: 0, b: 1, x: pts[0][0], fixed: n < 3, peer: e.to, far: pts[n - 1][0] });
+if (role === 'in' && e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1)
+ends.push({ e, a: n - 1, b: n - 2, x: pts[n - 1][0], fixed: n < 3, peer: e.from, far: pts[0][0] });
+});
+ends.sort((p1, p2) => p1.x - p2.x);
+const clusterGap = role === 'in' ? SPREAD : 10;
+const hasOutOnSide = role === 'in' && touching[nid].some(o => {
+const op = edgePolylines[o.id];
+return op && o.from === nid && Math.abs(op[0][1] - edgeY) < 1 && Math.abs(op[0][0] - op[1][0]) < 1;
+});
+let i = 0;
+while (i < ends.length) {
+let j = i + 1;
+while (j < ends.length && ends[j].x - ends[j - 1].x < clusterGap) j++;
+const cluster = ends.slice(i, j);
+i = j;
+if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
+const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) =>
+farOrder(p1.far, p2.far, r.cx, edgePolylines[p1.e.id], p1.a, p1.b, edgePolylines[p2.e.id], p2.a, p2.b));
+if (movable.length > 1 && movable.every(c => edgePolylines[c.e.id].length === 4)) movable.reverse();
+if (!movable.length) continue;
+const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
+const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
+if (role === 'in') {
+const lo = r.x + 14, hi = r.x + r.w - 14;
+const cands = fixed.length ? [fixed[0].x]
+: !hasOutOnSide ? [r.cx, ...cluster.map(c => c.x), base0]
+: [...cluster.map(c => c.x), base0];
+const canJoinAt = (jx) => jx >= lo && jx <= hi && movable.every(c => {
+const pts = edgePolylines[c.e.id];
+const ids = [c.e.from, c.e.to];
+return segmentClear(jx, pts[c.a][1], jx, pts[c.b][1], ids)
+&& segmentClear(jx, pts[c.b][1], pts[c.b - 1][0], pts[c.b - 1][1], ids);
+});
+const jx = cands.find(canJoinAt);
+if (jx !== undefined) movable.forEach(c => shiftEnd(c, jx));
+} else if (fixed.length) {
+const fx = fixed[0].x;
+const sideCount = { '-1': 0, '1': 0 };
+const ordered = [...movable].sort((p1, p2) => Math.abs(p1.far - fx) - Math.abs(p2.far - fx));
+ordered.forEach(c => {
+const dir = c.far < fx - 1 ? -1 : c.far > fx + 1 ? 1 : (sideCount['1'] <= sideCount['-1'] ? 1 : -1);
+sideCount[dir] += 1;
+shiftEnd(c, fx + dir * SPREAD * sideCount[dir]);
+});
+} else {
+const m = movable.length;
+movable.forEach((c, k) => shiftEnd(c, base0 + (k - (m - 1) / 2) * SPREAD));
+}
+}
+});
+});
+});
+const SEP = 16, SHIFT = 9;
+Object.keys(rects).forEach(nid => {
+const r = rects[nid];
+[['top', 0, r.y], ['bottom', 0, r.y + r.h], ['left', 1, r.x], ['right', 1, r.x + r.w]].forEach(([side, ai, edgeCoord]) => {
+const fi = 1 - ai; // ai: coordinate that slides along the side, fi: the fixed one
+const ends = [];
+touching[nid].forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts || pts.length < 3) return;       // straight lines stay aligned
+const n = pts.length;
+if (e.from === nid && Math.abs(pts[0][fi] - edgeCoord) < 1 && Math.abs(pts[0][ai] - pts[1][ai]) < 1) ends.push({ e, role: 'out', a: 0, b: 1, other: pts[n - 1][ai] });
+if (e.to === nid && Math.abs(pts[n - 1][fi] - edgeCoord) < 1 && Math.abs(pts[n - 1][ai] - pts[n - 2][ai]) < 1) ends.push({ e, role: 'in', a: n - 1, b: n - 2, other: pts[0][ai] });
+});
+const outs = ends.filter(x => x.role === 'out'), ins = ends.filter(x => x.role === 'in');
+if (!outs.length || !ins.length) return;
+const at = x => edgePolylines[x.e.id][x.a][ai];
+const minGap = Math.min(...ins.flatMap(i => outs.map(o => Math.abs(at(i) - at(o)))));
+if (minGap >= SEP) return;
+const mean = l => l.reduce((s2, x) => s2 + x.other, 0) / l.length;
+const insLow = mean(ins) <= mean(outs);
+const shift = (x, d) => { edgePolylines[x.e.id][x.a][ai] += d; edgePolylines[x.e.id][x.b][ai] += d; };
+if (nodeMap[nid] && nodeMap[nid].type === 'decision') {
+ins.forEach(x => shift(x, insLow ? -SEP : SEP));
+} else {
+ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
+outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
+}
+});
+});
+const CLEAR = 24;
+Object.keys(rects).forEach(nid => {
+const r = rects[nid];
+[['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
+const units = new Map();
+touching[nid].forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts) return;
+const n = pts.length;
+const add = (role, a, b, peer, far) => {
+const mergeIn = role === 'in';   // fan-in: one trunk per side (5a1)
+const key = role + '|' + (mergeIn ? '*' : peer) + '|' + Math.round(pts[a][0]);
+if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
+const u = units.get(key);
+u.ends.push({ pts, a, b });
+if (n < 3 || (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision')) u.fixed = true;
+};
+if (e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1) add('out', 0, 1, e.to, pts[n - 1][0]);
+if (e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1) add('in', n - 1, n - 2, e.from, pts[0][0]);
+});
+const sorted = [...units.values()].sort((u1, u2) => u1.x - u2.x);
+const lo = r.x + 14, hi = r.x + r.w - 14;
+const place = (u, nx) => {
+const x = Math.max(lo, Math.min(hi, nx));
+u.ends.forEach(en => { en.pts[en.a][0] = x; en.pts[en.b][0] = x; });
+u.x = x;
+};
+let i = 0;
+while (i < sorted.length) {
+let j = i + 1;
+while (j < sorted.length && sorted[j].x - sorted[j - 1].x < CLEAR - 0.5) j++;
+const cluster = sorted.slice(i, j);
+i = j;
+const fixed = cluster.filter(u => u.fixed);
+const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => farOrder(u1.far, u2.far, r.cx,
+u1.ends[0].pts, u1.ends[0].a, u1.ends[0].b, u2.ends[0].pts, u2.ends[0].a, u2.ends[0].b));
+if (cluster.length < 2 || !movable.length) continue;
+const nested = movable.length > 1 && movable.every(u => u.ends.every(en => en.pts.length === 4));
+if (nested) movable.reverse();
+if (!fixed.length) {
+const mean = cluster.reduce((s2, u) => s2 + u.x, 0) / cluster.length;
+movable.forEach((u, k) => place(u, mean + (k - (movable.length - 1) / 2) * CLEAR));
+} else {
+const fMin = Math.min(...fixed.map(u => u.x)), fMax = Math.max(...fixed.map(u => u.x));
+const anchor = (fMin + fMax) / 2;
+const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => nested ? u1.far - u2.far : u2.far - u1.far);
+const right = movable.filter(u => !(u.far < anchor - 1));
+left.forEach((u, k) => place(u, fMin - CLEAR * (k + 1)));
+right.forEach((u, k) => place(u, fMax + CLEAR * (k + 1)));
+}
+}
+});
+});
+{
+const NEAR = 18;
+const runs = [];
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id], p = edgePorts[e.id];
+if (!pts || pts.length < 3 || !p) return;
+for (let i = 0; i < pts.length - 2; i++) {          // the last leg (into the target) is shared already
+const a = pts[i], b = pts[i + 1];
+const k = Math.abs(a[0] - b[0]) < 1 ? 0 : Math.abs(a[1] - b[1]) < 1 ? 1 : -1;
+if (k < 0) continue;
+runs.push({ e, i, k, pos: a[k], lo: Math.min(a[1 - k], b[1 - k]), hi: Math.max(a[1 - k], b[1 - k]), first: i === 0, to: p.toPort });
+}
+});
+runs.forEach(m => {
+if (m.first) return;                                  // attached to its source: it is the one others join
+const pts = edgePolylines[m.e.id];
+const t = runs.find(o => o.e.to === m.e.to && o.e.id !== m.e.id && o.to === m.to && o.k === m.k &&
+Math.abs(o.pos - m.pos) >= 1 && Math.abs(o.pos - m.pos) < NEAR && Math.min(o.hi, m.hi) - Math.max(o.lo, m.lo) > 24 &&
+(o.first || o.e.id < m.e.id));
+if (!t) return;
+const k = m.k, old = m.pos, ids = [m.e.from, m.e.to];
+pts[m.i][k] = pts[m.i + 1][k] = t.pos;
+const legOk = (j) => segmentClear(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1], ids);
+const ok = legOk(m.i - 1) && legOk(m.i) && legOk(m.i + 1) &&
+Math.sign(t.pos - pts[m.i - 1][k]) === Math.sign(old - pts[m.i - 1][k]) &&
+Math.sign(pts[m.i + 2][k] - t.pos) === Math.sign(pts[m.i + 2][k] - old);
+if (!ok) pts[m.i][k] = pts[m.i + 1][k] = old;
+});
+}
+{
+const SLIDE = 24;
+const ends = [];
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts || pts.length < 3) return;
+[0, 1].forEach(k => {
+if (Math.abs(pts[0][k] - pts[1][k]) < 1 && Math.abs(pts[1][1 - k] - pts[0][1 - k]) > 1) ends.push({ e, pts, k });
+});
+});
+ends.forEach((b, bi) => ends.slice(0, bi).forEach(a => {
+if (a.k !== b.k || a.e.to !== b.e.to || a.e.from === b.e.from) return;
+const k = a.k, m = 1 - k;
+if (Math.abs(a.pts[0][k] - b.pts[0][k]) >= 1) return;
+const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
+if (da * db >= 0) return;                              // not facing
+const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
+if (gap < 0 || gap > 40 || Math.abs(a.pts[0][m] - b.pts[0][m]) >= 120) return;  // far apart, or overlapping (not this case)
+const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
+const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
+const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
+if (!dir || Math.abs(b.pts[2][k] - b.pts[1][k]) < SLIDE + 12 || nx < lo || nx > hi) return;
+b.pts[0][k] = b.pts[1][k] = nx;
+}));
+}
+{
+const forks = {};
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (pts && pts.length >= 4 && Math.abs(pts[0][1] - pts[1][1]) < 1 && Math.abs(pts[1][0] - pts[2][0]) < 1 && Math.abs(pts[1][0] - pts[0][0]) > 1) {
+(forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] = forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] || []).push(e);
+}
+});
+Object.values(forks).forEach(group => {
+if (group.length < 2) return;
+group.sort((a, b) => edgePolylines[a.id].length - edgePolylines[b.id].length || (a.id < b.id ? -1 : 1));
+const lead = edgePolylines[group[0].id], x = lead[1][0], dirY = Math.sign(lead[2][1] - lead[1][1]);
+group.slice(1).forEach(e => {
+const pts = edgePolylines[e.id], old = pts[1][0];
+if (Math.abs(old - x) < 1) return;
+const sameWay = Math.sign(pts[2][1] - pts[1][1]) === dirY;
+if (sameWay && ((e.label || '').trim() || (group[0].label || '').trim())) return;
+if (Math.sign(x - pts[0][0]) !== Math.sign(old - pts[0][0])) return;
+if (Math.sign(pts[3][0] - x) !== Math.sign(pts[3][0] - old)) return;
+pts[1][0] = pts[2][0] = x;
+if (!polyClear(pts, [e.from, e.to])) pts[1][0] = pts[2][0] = old;
+});
+});
+}
+const TRACK_GAP = 14;
+['v', 'h'].forEach(orient => {
+const segs = [];
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts) return;
+for (let i = 1; i < pts.length - 2; i++) {
+const a = pts[i], b = pts[i + 1];
+const isV = Math.abs(a[0] - b[0]) < 1;
+const isH = Math.abs(a[1] - b[1]) < 1;
+if (orient === 'v' ? !isV : !isH) continue;
+const k = orient === 'v' ? 0 : 1; // fixed axis
+const m = 1 - k;                  // running axis
+segs.push({ e, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]) });
+}
+});
+const parent = segs.map((_, i) => i);
+const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+for (let a = 0; a < segs.length; a++) {
+for (let b = a + 1; b < segs.length; b++) {
+const A = segs[a], B = segs[b];
+if (A.e.id === B.e.id || A.e.from === B.e.from || A.e.to === B.e.to) continue;
+if (Math.abs(A.pos - B.pos) >= 1) continue;
+if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
+parent[find(a)] = find(b);
+}
+}
+const clusters = {};
+segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
+Object.values(clusters).forEach(cl => {
+if (cl.length < 2) return;
+cl.sort((p, q) => (orient === 'v' ? rects[p.e.to].cx - rects[q.e.to].cx : rects[p.e.to].cy - rects[q.e.to].cy));
+const k = orient === 'v' ? 0 : 1;
+const applyGap = (gap) => {
+const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
+cl.forEach((s, idx) => {
+const shift = (idx - (cl.length - 1) / 2) * gap;
+const pts = edgePolylines[s.e.id];
+pts[s.i][k] += shift;
+pts[s.i + 1][k] += shift;
+});
+if (!cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]))) {
+cl.forEach((s, idx) => {
+const pts = edgePolylines[s.e.id];
+pts[s.i][k] = saved[idx][0];
+pts[s.i + 1][k] = saved[idx][1];
+});
+return false;
+}
+return true;
+};
+if (!applyGap(TRACK_GAP)) {
+cl.forEach((s, idx) => {
+const shift = (idx - (cl.length - 1) / 2) * 8;
+const pts = edgePolylines[s.e.id];
+pts[s.i][k] += shift;
+pts[s.i + 1][k] += shift;
+});
+}
+});
+});
+const DECISION_TRACK_GAP = 20;
+['v', 'h'].forEach(orient => {
+const k = orient === 'v' ? 0 : 1; // fixed axis
+const m = 1 - k;                  // running axis
+const segs = [];
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+const p = edgePorts[e.id];
+if (!pts || !p) return;
+const srcDec = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
+const dstDec = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
+if (!srcDec && !dstDec) return;
+for (let i = 1; i < pts.length - 2; i++) {
+const a = pts[i], b = pts[i + 1];
+const isV = Math.abs(a[0] - b[0]) < 1;
+const isH = Math.abs(a[1] - b[1]) < 1;
+if (orient === 'v' ? !isV : !isH) continue;
+segs.push({ e, p, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]), srcDec, dstDec });
+}
+});
+const sameDecisionSide = (A, B) =>
+(A.srcDec && A.e.from === B.e.from && A.p.fromPort === B.p.fromPort) ||
+(A.dstDec && A.e.to === B.e.to && A.p.toPort === B.p.toPort);
+const parent = segs.map((_, i) => i);
+const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+for (let a = 0; a < segs.length; a++) {
+for (let b = a + 1; b < segs.length; b++) {
+const A = segs[a], B = segs[b];
+if (A.e.id === B.e.id || !sameDecisionSide(A, B)) continue;
+if (Math.abs(A.pos - B.pos) >= DECISION_TRACK_GAP - 0.5) continue;
+if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
+parent[find(a)] = find(b);
+}
+}
+const clusters = {};
+segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
+Object.values(clusters).forEach(cl => {
+if (cl.length < 2) return;
+cl.sort((p, q) => {
+if (Math.abs(p.pos - q.pos) >= 1) return p.pos - q.pos;
+const sharedFrom = p.e.from === q.e.from;
+const nodeP = sharedFrom ? rects[p.e.to] : rects[p.e.from];
+const nodeQ = sharedFrom ? rects[q.e.to] : rects[q.e.from];
+return orient === 'v' ? nodeP.cx - nodeQ.cx : nodeP.cy - nodeQ.cy;
+});
+const meanPos = cl.reduce((sum, s) => sum + s.pos, 0) / cl.length;
+let minBase = -Infinity, maxBase = Infinity;
+cl.forEach((s, idx) => {
+const pts = edgePolylines[s.e.id];
+const off = (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
+const prev = pts[s.i - 1][k], next = pts[s.i + 2][k];
+const old = s.pos;
+const dPrev = Math.sign(old - prev);
+if (dPrev > 0) minBase = Math.max(minBase, prev + 8 - off);
+else if (dPrev < 0) maxBase = Math.min(maxBase, prev - 8 - off);
+const dNext = Math.sign(next - old);
+if (dNext > 0) maxBase = Math.min(maxBase, next - 8 - off);
+else if (dNext < 0) minBase = Math.max(minBase, next + 8 - off);
+});
+const basePos = minBase <= maxBase ? Math.max(minBase, Math.min(maxBase, meanPos)) : meanPos;
+const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
+let allValid = true;
+cl.forEach((s, idx) => {
+const pts = edgePolylines[s.e.id];
+const target = basePos + (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
+const prev = pts[s.i - 1][k], next = pts[s.i + 2][k], old = saved[idx][0];
+if ((old !== prev && (Math.sign(target - prev) !== Math.sign(old - prev) || Math.abs(target - prev) < 8)) ||
+(next !== old && (Math.sign(next - target) !== Math.sign(next - old) || Math.abs(next - target) < 8))) {
+allValid = false;
+}
+pts[s.i][k] = target;
+pts[s.i + 1][k] = target;
+});
+if (!allValid || !cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]) && ownBodyClear(edgePolylines[s.e.id], s.e))) {
+cl.forEach((s, idx) => {
+const pts = edgePolylines[s.e.id];
+pts[s.i][k] = saved[idx][0];
+pts[s.i + 1][k] = saved[idx][1];
+});
+}
+});
+});
+{
+const PAIR_GAP = 20;
+const done = new Set();
+validEdges.forEach(a => {
+if (done.has(a.id)) return;
+const b = validEdges.find(o => o !== a && o.from === a.to && o.to === a.from && !done.has(o.id));
+if (!b) return;
+const pa = edgePolylines[a.id], pb = edgePolylines[b.id];
+const f = rects[a.from], t = rects[a.to];
+if (!pa || !pb || !f || !t) return;
+const vertEnds = pts => pts.length >= 2 && Math.abs(pts[0][0] - pts[1][0]) < 1 &&
+Math.abs(pts[pts.length - 1][0] - pts[pts.length - 2][0]) < 1;
+if (!vertEnds(pa) || !vertEnds(pb)) return;
+const lo = Math.max(f.x, t.x) + 14, hi = Math.min(f.x + f.w, t.x + t.w) - 14;
+if (hi - lo < PAIR_GAP) {
+const aDown = f.y < t.y;
+const U = aDown ? f : t, L = aDown ? t : f;
+const y0 = U.y + U.h, y1 = L.y;
+if (y1 - y0 < 48 || Math.abs(L.cx - U.cx) < 30) return;
+const sgn = L.cx > U.cx ? 1 : -1, h = PAIR_GAP / 2;
+const midY = (y0 + y1) / 2;
+const pickCentre = (nodeId, node, edgeY) => {
+const others = [];
+validEdges.forEach(o => {
+if (o === a || o === b) return;
+const q = edgePolylines[o.id];
+if (!q) return;
+if (o.from === nodeId && Math.abs(q[0][1] - edgeY) < 1) others.push(q[0][0]);
+if (o.to === nodeId && Math.abs(q[q.length - 1][1] - edgeY) < 1) others.push(q[q.length - 1][0]);
+});
+const lo2 = node.x + 14 + h, hi2 = node.x + node.w - 14 - h;
+for (let d = 0; d <= 60; d += 4) {
+for (const c of d ? [node.cx - d, node.cx + d] : [node.cx]) {
+if (c < lo2 || c > hi2) continue;
+if (others.every(ox => Math.abs(ox - (c - h)) >= 14 && Math.abs(ox - (c + h)) >= 14)) return c;
+}
+}
+return node.cx;
+};
+const uId = aDown ? a.from : a.to, lId = aDown ? a.to : a.from;
+const cU = pickCentre(uId, U, y0), cL = pickCentre(lId, L, y1);
+const down = [[cU - h * sgn, y0], [cU - h * sgn, midY + 6], [cL - h * sgn, midY + 6], [cL - h * sgn, y1]];
+const up = [[cL + h * sgn, y1], [cL + h * sgn, midY - 6], [cU + h * sgn, midY - 6], [cU + h * sgn, y0]];
+const [sa2, sb2] = aDown ? [down, up] : [up, down];
+if (!polyClear(sa2, [a.from, a.to]) || !polyClear(sb2, [b.from, b.to])) return;
+edgePolylines[a.id] = sa2;
+edgePolylines[b.id] = sb2;
+done.add(a.id); done.add(b.id);
+return;
+}
+const c = Math.max(lo + PAIR_GAP / 2, Math.min(hi - PAIR_GAP / 2, (f.cx + t.cx) / 2));
+const xa = c - PAIR_GAP / 2, xb = c + PAIR_GAP / 2;
+const sa = [[xa, pa[0][1]], [xa, pa[pa.length - 1][1]]];
+const sb = [[xb, pb[0][1]], [xb, pb[pb.length - 1][1]]];
+if (!polyClear(sa, [a.from, a.to]) || !polyClear(sb, [b.from, b.to])) return;
+edgePolylines[a.id] = sa;
+edgePolylines[b.id] = sb;
+done.add(a.id); done.add(b.id);
+});
+}
+{
+const JOG = 16, CLEAR_PT = 24;
+const ends = (nid, skipId) => {
+const out = [];
+touching[nid].forEach(o => {
+if (o.id === skipId) return;
+const op = edgePolylines[o.id];
+if (!op) return;
+if (o.from === nid) out.push(op[0]);
+if (o.to === nid) out.push(op[op.length - 1]);
+});
+return out;
+};
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts || pts.length < 4) return;
+[[e.from, 0, 1, 2, 3], [e.to, pts.length - 1, pts.length - 2, pts.length - 3, pts.length - 4]].forEach(([nid, a, b, c, d]) => {
+const node = nodeMap[nid], r = rects[nid];
+if (!node || !r || node.type === 'decision') return;
+const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1 && Math.abs(pts[c][0] - pts[d][0]) < 1 && Math.abs(pts[b][1] - pts[c][1]) < 1;
+const horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1 && Math.abs(pts[c][1] - pts[d][1]) < 1 && Math.abs(pts[b][0] - pts[c][0]) < 1;
+const ax = vertLeg ? 0 : horizLeg ? 1 : -1;      // the coordinate that slides along the node's side
+if (ax < 0) return;
+const target = pts[c][ax];
+const off = Math.abs(target - pts[a][ax]);
+if (off < 0.5 || off >= JOG) return;
+const lo = ax === 0 ? r.x + 14 : r.y + 14, hi = ax === 0 ? r.x + r.w - 14 : r.y + r.h - 14;
+if (target < lo || target > hi) return;
+const side = pts[a][1 - ax];
+const crowded = ends(nid, e.id).some(p => Math.abs(p[1 - ax] - side) < 1 &&
+Math.abs(p[ax] - target) >= 1 && Math.abs(p[ax] - target) < CLEAR_PT);
+if (crowded) return;
+pts[a][ax] = target;
+pts[b][ax] = target;
+});
+});
+}
+if (tb) {
+const SIDE = { right: 'bottom', left: 'top', bottom: 'right', top: 'left' };
+Object.keys(edgePolylines).forEach(id => { edgePolylines[id] = edgePolylines[id].map(([a, b]) => [b, a]); });
+Object.keys(edgePorts).forEach(id => {
+const p = edgePorts[id];
+if (p) edgePorts[id] = { ...p, fromPort: SIDE[p.fromPort] || p.fromPort, toPort: SIDE[p.toPort] || p.toPort };
+});
+Object.values(rects).forEach(r => {
+[r.x, r.y, r.w, r.h, r.cx, r.cy] = [r.y, r.x, r.h, r.w, r.cy, r.cx];
+});
+}
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts || pts.length < 2) return;
+const snap = (nid, a, b) => {
+const node = nodeMap[nid], r = rects[nid];
+if (!node || !r || !outlineInset) return;
+const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1, horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1;
+let side = null;
+if (vertLeg && Math.abs(pts[a][1] - r.y) < 1) side = 'top';
+else if (vertLeg && Math.abs(pts[a][1] - (r.y + r.h)) < 1) side = 'bottom';
+else if (horizLeg && Math.abs(pts[a][0] - r.x) < 1) side = 'left';
+else if (horizLeg && Math.abs(pts[a][0] - (r.x + r.w)) < 1) side = 'right';
+if (!side) return;
+const ax = (side === 'top' || side === 'bottom') ? 1 : 0;   // the coordinate that moves
+const inset = outlineInset(node, r, side, pts[a][1 - ax]);
+if (inset < 0.5) return;
+const nv = (side === 'top' || side === 'left') ? pts[a][ax] + inset : pts[a][ax] - inset;
+if (Math.abs(pts[b][ax] - nv) >= 4 && Math.sign(pts[b][ax] - nv) === Math.sign(pts[b][ax] - pts[a][ax])) pts[a][ax] = nv;
+};
+snap(e.from, 0, 1);
+snap(e.to, pts.length - 1, pts.length - 2);
+});
+const SLIDES = new Set(['task', 'subprocess', 'document']);
+validEdges.forEach(e => {
+const pts = edgePolylines[e.id];
+if (!pts || pts.length !== 4) return;
+const [a, b, c, d] = pts;
+if (Math.abs(a[1] - b[1]) > 0.5 || Math.abs(b[0] - c[0]) > 0.5 || Math.abs(c[1] - d[1]) > 0.5) return;
+const dy = d[1] - a[1];
+if (Math.abs(dy) < 0.5 || Math.abs(dy) > 28 || Math.abs(d[0] - a[0]) < 30) return;
+const fits = (id, y) => {
+const n = nodeMap[id], r = rects[id];
+if (!n || !r || !SLIDES.has(n.type)) return false;
+const m = n.type === 'document' ? 10 : 6;
+return y > r.y + m && y < r.y + r.h - m;
+};
+if (fits(e.from, d[1])) edgePolylines[e.id] = [[a[0], d[1]], d];
+else if (fits(e.to, a[1])) edgePolylines[e.id] = [a, [d[0], a[1]]];
+});
+const verticalSegments = [];
+validEdges.forEach(other => {
+const pts = edgePolylines[other.id];
+if (!pts) return;
+for (let i = 0; i < pts.length - 1; i++) {
+if (Math.abs(pts[i][0] - pts[i + 1][0]) < 1) {
+const vx = pts[i][0];
+const yMin = Math.min(pts[i][1], pts[i + 1][1]);
+const yMax = Math.max(pts[i][1], pts[i + 1][1]);
+verticalSegments.push({ edgeId: other.id, x: vx, yMin, yMax });
+}
+}
+});
+const placedLabels = [];
+const allNodeBoxes = Object.values(rects);
+const routes = {};
+const nodeGrid = makeGrid(allNodeBoxes);
+allNodeBoxes.forEach((r, k) => nodeGrid.add(k, r.x, r.y, r.x + r.w, r.y + r.h));
+const vertGrid = makeGrid(allNodeBoxes);
+verticalSegments.forEach((v, k) => vertGrid.add(k, v.x, v.yMin, v.x, v.yMax));
+const segGrid = makeGrid(allNodeBoxes);
+const segs = [];   // [validEdges index, start point, end point], filed per arrow in validEdges order
+validEdges.forEach((o, i) => {
+const pts = edgePolylines[o.id];
+if (!pts) return;
+for (let j = 0; j < pts.length - 1; j++) {
+segGrid.add(segs.length, pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+segs.push([i, pts[j], pts[j + 1]]);
+}
+});
+const edgeById = new Map();
+chartData.edges.forEach(ed => { if (!edgeById.has(ed.id)) edgeById.set(ed.id, ed); });   // first match, as find() did
+validEdges.forEach(e => {
+const p = edgePorts[e.id];
+const points = edgePolylines[e.id];
+let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
+for (const q of points) { bx1 = Math.min(bx1, q[0]); bx2 = Math.max(bx2, q[0]); by1 = Math.min(by1, q[1]); by2 = Math.max(by2, q[1]); }
+const otherObstacles = vertGrid.near([bx1, by1, bx2, by2], 1).map(k => verticalSegments[k]).filter(obs => {
+if (obs.edgeId === e.id) return false;
+const otherE = edgeById.get(obs.edgeId);
+const oPts = edgePolylines[obs.edgeId];
+if (otherE && otherE.from === e.from && oPts && Math.abs(oPts[0][0] - points[0][0]) < 2 && Math.abs(oPts[0][1] - points[0][1]) < 2) return false;
+if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort &&
+oPts && Math.abs(oPts[oPts.length - 1][0] - points[points.length - 1][0]) < 2 && Math.abs(oPts[oPts.length - 1][1] - points[points.length - 1][1]) < 2) return false;
+return true;
+});
+const d = buildCurvedPathWithHops(points, otherObstacles, 8);
+const nodesNear = (x1, y1, x2, y2) => nodeGrid.near([x1, y1, x2, y2]).map(k => allNodeBoxes[k]);
+const otherSegsNear = (x1, y1, x2, y2) => segGrid.near([x1, y1, x2, y2])
+.filter(k => validEdges[segs[k][0]].id !== e.id).map(k => segs[k]);
+const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, nodesNear, placedLabels, otherSegsNear, labelMaxW);
+if (e.label && e.label.trim()) {
+const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * FONT_M.edgeLabel + 20);
+const lh = Math.max(28, labelPos.h);
+placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - lh / 2, w: lw, h: lh });
+}
+routes[e.id] = {
+path: d,
+points,   // final polyline (container coords): used to find the arrow under a dragged node
+midX: labelPos.x,
+midY: labelPos.y,
+fromRect: rects[e.from],
+toRect: rects[e.to],
+};
+});
+return routes;
+}
+function buildCurvedPathWithHops(points, verticalObstacles, r = 8) {
+if (!points || points.length === 0) return '';
+if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
+points = points.filter((p, i) => i === 0 || Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) > 0.5);
+points = points.filter((p, i) => {
+if (i === 0 || i === points.length - 1) return true;
+const a = points[i - 1], b = points[i + 1];
+return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.5;
+});
+const expanded = [points[0]];
+for (let i = 0; i < points.length - 1; i++) {
+const p1 = points[i];
+const p2 = points[i + 1];
+const isHorizontal = Math.abs(p1[1] - p2[1]) < 1;
+if (isHorizontal && verticalObstacles && verticalObstacles.length > 0) {
+const y = p1[1];
+const minX = Math.min(p1[0], p2[0]);
+const maxX = Math.max(p1[0], p2[0]);
+const goingRight = p2[0] > p1[0];
+const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
+const lo1 = endRoom(i), lo2 = endRoom(i + 1);
+const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
+const hops = [];
+verticalObstacles.forEach(obs => {
+const vx = obs.x;
+if (vx > minX + minRoom && vx < maxX - maxRoom && y > obs.yMin + 8 && y < obs.yMax - 8) {
+hops.push(vx);
+}
+});
+hops.sort((a, b) => goingRight ? a - b : b - a);
+hops.forEach(vx => {
+expanded.push({ isHop: true, x: vx, y: y, dir: goingRight ? 1 : -1 });
+});
+}
+expanded.push(p2);
+}
+const hopR = 6;
+const hopEdge = (h, side) => [h.x + side * hopR * h.dir, h.y];   // side -1: where the hop starts, +1: ends
+let d = `M ${expanded[0][0]} ${expanded[0][1]}`;
+for (let i = 1; i < expanded.length; i++) {
+const item = expanded[i];
+if (item.isHop) {
+const hx = item.x;
+const hy = item.y;
+const dir = item.dir;
+d += ` L ${(hx - hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
+d += ` A ${hopR} ${hopR} 0 0 1 ${(hx + hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
+continue;
+}
+const prev = expanded[i - 1];
+const next = i < expanded.length - 1 ? expanded[i + 1] : null;
+if (next) {
+const pPrev = prev.isHop ? hopEdge(prev, 1) : prev;
+const pCurr = item;
+const pNext = next.isHop ? hopEdge(next, -1) : next;
+const vIn = [pCurr[0] - pPrev[0], pCurr[1] - pPrev[1]];
+const vOut = [pNext[0] - pCurr[0], pNext[1] - pCurr[1]];
+const lenIn = Math.hypot(vIn[0], vIn[1]);
+const lenOut = Math.hypot(vOut[0], vOut[1]);
+if (lenIn > 0.5 && lenOut > 0.5) {
+const roomIn = (i - 1 === 0 || prev.isHop) ? lenIn : lenIn / 2;
+const roomOut = next.isHop ? lenOut : lenOut / 2;
+const curR = Math.min(r, roomIn, roomOut);
+const startX = pCurr[0] - (vIn[0] / lenIn) * curR;
+const startY = pCurr[1] - (vIn[1] / lenIn) * curR;
+const endX = pCurr[0] + (vOut[0] / lenOut) * curR;
+const endY = pCurr[1] + (vOut[1] / lenOut) * curR;
+d += ` L ${startX.toFixed(1)} ${startY.toFixed(1)}`;
+d += ` Q ${pCurr[0].toFixed(1)} ${pCurr[1].toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+continue;
+}
+}
+d += ` L ${item[0]} ${item[1]}`;
+}
+return d;
+}
+const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
+function pickClearLabelPosition(points, fromPort, labelText, nodesNear, placedLabels, otherSegsNear, labelMaxW) {
+const FONT_M = TOKENS.font.metrics;
+const candidates = [];
+if (points.length === 2) {
+const [a, b] = points, len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+const free = Math.max(0, len - ARROWHEAD_LEN);
+for (const frac of [0.5, 0.25, 0.78]) {
+const t = (free * frac) / len;
+candidates.push({ x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t });
+}
+} else if (points.length === 3) {
+const p0 = points[0], p1 = points[1], p2 = points[2];
+const seg1Len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1;
+const free1 = Math.max(0, seg1Len - ARROWHEAD_LEN);
+const seg1Cand = { x: p1[0] + (p2[0] - p1[0]) * (free1 * 0.5 / seg1Len), y: p1[1] + (p2[1] - p1[1]) * (free1 * 0.5 / seg1Len) };
+if (fromPort === 'top' || fromPort === 'bottom') {
+const sign = p1[1] > p0[1] ? 1 : -1;
+const distY = Math.abs(p1[1] - p0[1]);
+candidates.push({
+x: p0[0],
+y: p0[1] + sign * Math.min(34, distY * 0.45)
+});
+candidates.push(seg1Cand);
+} else {
+candidates.push({
+x: (p0[0] + p1[0]) / 2,
+y: p0[1]
+});
+candidates.push(seg1Cand);
+}
+if (free1 >= 36) {
+for (const frac of [0.24, 0.78]) {
+const t1 = (free1 * frac) / seg1Len;
+candidates.push({ x: p1[0] + (p2[0] - p1[0]) * t1, y: p1[1] + (p2[1] - p1[1]) * t1 });
+}
+}
+} else if (points.length >= 4) {
+const p0 = points[0];
+const p1 = points[1];
+const p2 = points[2];
+const p3 = points[3];
+if (Math.abs(p1[0] - p2[0]) < 2) {
+for (const t of [0.5, 0.22, 0.78, 0.35, 0.65]) {
+candidates.push({
+x: p1[0],
+y: p1[1] + (p2[1] - p1[1]) * t
+});
+}
+} else {
+candidates.push({
+x: (p1[0] + p2[0]) / 2,
+y: (p1[1] + p2[1]) / 2
+});
+}
+candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
+candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+if (points.length >= 5) {
+const p4 = points[4];
+candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+}
+}
+for (let i = 0; i < points.length - 1; i++) {
+const p = points[i], q = points[i + 1];
+const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+const isLast = i === points.length - 2;
+const endClear = isLast ? Math.max(22, ARROWHEAD_LEN + 8) : 22;
+if (len >= 56) {
+for (const t of [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85]) {
+if (len * t < 22 || len * (1 - t) < endClear) continue;
+candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+}
+} else if (len >= 34) {
+const t = isLast ? Math.max(0.15, (len - ARROWHEAD_LEN) / 2 / len) : 0.5;
+candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+}
+}
+const sharedStretches = [];
+for (let i = 0; i < points.length - 1; i++) {
+const p = points[i], q = points[i + 1];
+const isV = Math.abs(p[0] - q[0]) < 1, isH = Math.abs(p[1] - q[1]) < 1;
+if (!isV && !isH) continue;
+const k = isV ? 0 : 1, m = 1 - k;                       // k: fixed axis, m: running axis
+const lo = Math.min(p[m], q[m]), hi = Math.max(p[m], q[m]);
+const near = otherSegsNear(Math.min(p[0], q[0]) - 3, Math.min(p[1], q[1]) - 3, Math.max(p[0], q[0]) + 3, Math.max(p[1], q[1]) + 3);
+for (const [, c, d] of near) {
+if (Math.abs(c[k] - d[k]) >= 1 || Math.abs(c[k] - p[k]) >= 2) continue;
+const a0 = Math.max(lo, Math.min(c[m], d[m])), a1 = Math.min(hi, Math.max(c[m], d[m]));
+if (a1 - a0 > 2) sharedStretches.push(isV ? { x: p[0], y: a0, w: 0, h: a1 - a0 } : { x: a0, y: p[1], w: a1 - a0, h: 0 });
+}
+}
+if (sharedStretches.length) {
+for (let i = 0; i < points.length - 1; i++) {
+const p = points[i], q = points[i + 1];
+const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+if (len < 56) continue;
+for (let d = 22; d <= len - 22; d += 14) {
+const t = d / len;
+candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+}
+}
+}
+if (sharedStretches.length) {
+for (let i = 0; i < points.length - 1; i++) {
+const p = points[i], q = points[i + 1];
+const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+if (len >= 26 && len < 56) candidates.push({ x: (p[0] + q[0]) / 2, y: (p[1] + q[1]) / 2, pad: -2 });
+}
+}
+const textLen = labelText ? labelText.trim().length : 0;
+const singleLineWidth = Math.max(40, textLen * FONT_M.edgeWrap + 18);
+let lw = singleLineWidth;
+let lh = 24;
+let horizClearance = null;
+if (points.length >= 2) {
+const minX = Math.min(...points.map(p => p[0]));
+const maxX = Math.max(...points.map(p => p[0]));
+if (maxX - minX > 50) {
+horizClearance = maxX - minX - 16;
+}
+}
+const wrapAt = Math.min(horizClearance || Infinity, labelMaxW);
+if (singleLineWidth > wrapAt) {
+const longestWord = Math.max(0, ...String(labelText || '').trim().split(/\s+/).map(w => w.length));
+const minWordW = Math.max(40, longestWord * FONT_M.label + 20);
+lw = Math.max(minWordW, Math.min(singleLineWidth, wrapAt));
+const lines = Math.ceil(singleLineWidth / lw);
+lh = Math.max(24, lines * 15 + 8);
+}
+function BoxOverlap(bx, by, bw, bh, ox, oy, ow, oh, pad) {
+return (
+bx < ox + ow + pad &&
+bx + bw > ox - pad &&
+by < oy + oh + pad &&
+by + bh > oy - pad
+);
+}
+let fallback = null;
+for (const cand of candidates) {
+const bx = cand.x - lw / 2;
+const by = cand.y - lh / 2;
+let penalty = 0;
+const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
+const softPad = cand.pad ?? 8;
+for (const nb of nodesNear(bx - 9, by - 9, bx + lw + 9, by + lh + 9)) {
+if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, hardPad)) {
+const ox = Math.min(bx + lw, nb.x + nb.w + hardPad) - Math.max(bx, nb.x - hardPad);
+const oy = Math.min(by + lh, nb.y + nb.h + hardPad) - Math.max(by, nb.y - hardPad);
+penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
+} else if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, softPad)) {
+penalty += 200;
+}
+}
+for (const pl of placedLabels) {
+if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 0)) {
+const ox = Math.min(bx + lw, pl.x + pl.w) - Math.max(bx, pl.x);
+const oy = Math.min(by + lh, pl.y + pl.h) - Math.max(by, pl.y);
+penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
+} else if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) {
+penalty += 200;
+}
+}
+for (const [, c, d] of otherSegsNear(bx - 7, by - 7, bx + lw + 7, by + lh + 7)) {
+const sx = Math.min(c[0], d[0]);
+const sy = Math.min(c[1], d[1]);
+const sw = Math.abs(d[0] - c[0]);
+const sh = Math.abs(d[1] - c[1]);
+if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
+}
+for (const st of sharedStretches) {
+if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 600; break; }
+}
+if (penalty === 0) return { x: cand.x, y: cand.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
+if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
+}
+const spot = fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
+return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
+}
+const SQ = {
+BOX_W: 168, BOX_H: 64, TOP: 24, MARGIN: 56, MIN_GAP: 220,
+FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
+FRAG_TOP: 44, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
+CHAR_W: Math.round(TOKENS.font.metrics.label * (14 / 13) * 10) / 10, LABEL_PAD: 40, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
+NUM_W: 28,                              // room for the step number before a label ("numbered")
+DETAIL_CHAR_W: Math.round(TOKENS.font.metrics.detail * (12 / 11) * 10) / 10, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
+NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
+NOTE_CLEAR: 24, NOTE_MAX_W: 360,        // clearance before the next lifeline, and max auto-width on the rightmost lifeline
+SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
+RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
+GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
+LABEL_MAX_W: 288, LABEL_LINE: 22, DETAIL_LINE: 16,   // a label or detail wider than this wraps to more lines, each adding a line of row height
+SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
+};
+const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
+function sqWrapText(t, charW, maxW) {
+const cpl = Math.max(1, Math.floor(maxW / charW)), out = [];
+String(t == null ? '' : t).split('\n').forEach((seg) => {
+let line = '';
+seg.split(/(?<=[ /-])/).forEach((w) => {
+if (line.length + w.replace(/ $/, '').length <= cpl) { line += w; return; }
+if (line) out.push(line.replace(/ $/, ''));
+line = '';
+while (w.length > cpl) { out.push(w.slice(0, cpl)); w = w.slice(cpl); }
+line = w;
+});
+out.push(line.replace(/ $/, ''));
+});
+return out;
+}
+const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
+const sqBranches = (f) => (Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }]);
+const sqNoteOver = (n) => (Array.isArray(n.over) ? n.over : n.over === undefined ? [] : [n.over]).slice(0, 2);
+function sqWrap(text, maxChars) {
+const lines = [];
+String(text == null ? '' : text).split('\n').forEach((para) => {
+let line = '';
+para.split(/\s+/).filter(Boolean).forEach((word) => {
+while (word.length > maxChars) {
+if (line) { lines.push(line); line = ''; }
+lines.push(word.slice(0, maxChars));
+word = word.slice(maxChars);
+}
+if (!line) line = word;
+else if (line.length + 1 + word.length <= maxChars) line += ' ' + word;
+else { lines.push(line); line = word; }
+});
+lines.push(line);
+});
+return lines;
+}
+function sqNoteSingleW(text, leftX, nextX) {
+const maxLen = String(text == null ? '' : text).split('\n').reduce((m, s) => Math.max(m, s.length), 0);
+const want = sqGrid(Math.ceil(maxLen * SQ.NOTE_CHAR_W) + 2 * SQ.NOTE_PAD);
+const avail = nextX !== undefined ? Math.floor(nextX - SQ.NOTE_CLEAR - leftX) : SQ.NOTE_MAX_W;
+return Math.max(SQ.NOTE_W, Math.min(want, avail));
+}
+function layoutDiagram(data) {
+const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [], ns = data.notes || [];
+const pIdx = {};
+ps.forEach((p, i) => { pIdx[p.id] = i; });
+const mIdx = {};
+ms.forEach((m, i) => { mIdx[m.id] = i; });
+const showDetails = data.showDetails !== false;
+const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
+const numW = data.numbered ? SQ.NUM_W : 0;
+const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
+const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
+const msgW = (m) => Math.max(labelW(m), detailW(m));
+const msgMaxW = (m) => {
+const a = ps[pIdx[m.from]], b = ps[pIdx[m.to]];
+return !a || !b || a === b ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
+};
+const labelLines = (m) => sqWrapText(m.label, SQ.CHAR_W, msgMaxW(m)).length;
+const detailLines = (m) => (detailOf(m) ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, msgMaxW(m)).length : 0);
+const frs = fs
+.map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], divs: [] }))
+.filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
+fs.forEach((f) => { delete f.x; delete f.y; delete f.w; delete f.h; delete f.elseY; delete f.dividers; });
+ns.forEach((n) => { delete n.x; delete n.y; delete n.w; delete n.h; });
+const span = (r) => r.b - r.a;
+const outer = (o, i) => o !== i && o.a <= i.a && i.b <= o.b &&
+(span(o) > span(i) || (span(o) === span(i) && frs.indexOf(o) < frs.indexOf(i)));
+const levelOf = (r) => frs.reduce((lv, i) => (outer(r, i) ? Math.max(lv, levelOf(i) + 1) : lv), 0);
+frs.forEach((r) => { r.level = levelOf(r); });
+frs.forEach((r) => {
+const seen = {};
+r.branches = sqBranches(r.f)
+.map((br) => ({ at: br.at, label: br.label || '', e: mIdx[br.at] }))
+.filter((br) => br.e !== undefined && br.e > r.a && br.e <= r.b && !seen[br.e] && (seen[br.e] = true));
+});
+const collapsed = frs.filter((r) => r.f.collapsed);
+collapsed.forEach((c) => { c.own = !collapsed.some((o) => outer(o, c)); });
+frs.forEach((r) => { r.hidden = collapsed.some((c) => outer(c, r)); });
+const ownerOf = (k) => collapsed.find((c) => c.own && c.a <= k && k <= c.b);
+const lifespans = data.lifespans === true;
+const noteShown = (n) => {
+const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+if (!key) return true;
+const k = mIdx[n[key]];
+if (k === undefined) return false;
+const C = ownerOf(k);
+return !C || (key === 'before' && k === C.a);
+};
+const seen = ps.map(() => false), folded = ps.map(() => false);
+ms.forEach((m, k) => {
+const into = ownerOf(k) ? folded : seen;
+[pIdx[m.from], pIdx[m.to]].forEach((i) => { if (i !== undefined) into[i] = true; });
+});
+ns.forEach((n) => sqNoteOver(n).forEach((id) => {
+if (pIdx[id] !== undefined) (noteShown(n) ? seen : folded)[pIdx[id]] = true;
+}));
+const rail = ps.map((p, i) => data.rails === true && folded[i] && !seen[i]);
+const colOf = [], cols = [];
+ps.forEach((p, i) => {
+let h = i;
+while (lifespans && ps[h].column !== undefined && pIdx[ps[h].column] !== undefined && pIdx[ps[h].column] < h) h = pIdx[ps[h].column];
+if (h === i) { colOf[i] = cols.length; cols.push([i]); } else { colOf[i] = colOf[h]; cols[colOf[h]].push(i); }
+});
+const colRail = cols.map((c) => c.every((i) => rail[i]));
+if (colRail.every(Boolean)) colRail.fill(false);   // nothing at all would be left to read
+ps.forEach((p, i) => { rail[i] = colRail[colOf[i]]; });
+const anyRail = rail.some(Boolean);
+ps.forEach((p, i) => { if (rail[i]) p.rail = true; else delete p.rail; });
+const half = (i) => (rail[i] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+const colHalf = (c) => (colRail[c] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+const gaps = cols.slice(1).map((c, i) => colHalf(i) + colHalf(i + 1) + (colRail[i] || colRail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
+const need = [];
+ms.forEach((m, k) => {
+const a = colOf[pIdx[m.from]], b = colOf[pIdx[m.to]];
+if (a === undefined || b === undefined || (anyRail && ownerOf(k))) return;
+if (a === b) {
+if (m.from === m.to && a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
+} else {
+need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
+}
+});
+need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
+need.forEach((n) => {
+let sum = 0;
+for (let i = n.lo; i < n.hi; i++) sum += gaps[i];
+if (sum < n.w) {
+const add = (n.w - sum) / (n.hi - n.lo);
+for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
+}
+});
+const colX = [];
+let x = SQ.MARGIN + colHalf(0) + SQ.FRAG_PAD_STEP * 2;
+cols.forEach((c, i) => {
+if (i) x += sqGrid(gaps[i - 1]);
+colX[i] = Math.round(x);
+});
+ps.forEach((p, i) => { p.x = colX[colOf[i]]; });
+const rowOf = (k) => { const C = ownerOf(k); return C ? C.a : k; };
+const life = ps.map(() => null);   // [first row, last row] (message indices) or null: no events at all
+const live = (i, k) => {
+if (i === undefined || k === undefined) return;
+const r = rowOf(k);
+life[i] = life[i] ? [Math.min(life[i][0], r), Math.max(life[i][1], r)] : [r, r];
+};
+ps.forEach((p) => { delete p.top; delete p.bottom; });
+if (lifespans) {
+ms.forEach((m, k) => { live(pIdx[m.from], k); live(pIdx[m.to], k); });
+ns.forEach((n) => {
+const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+const k = key ? mIdx[n[key]] : ms.length ? 0 : undefined;   // a free note sits above the first message
+sqNoteOver(n).forEach((id) => live(pIdx[id], k));
+});
+ps.forEach((p, i) => {
+if (!life[i]) return;
+if (mIdx[p.start] !== undefined) life[i][0] = Math.min(life[i][0], rowOf(mIdx[p.start]));
+if (mIdx[p.end] !== undefined) life[i][1] = Math.max(life[i][1], rowOf(mIdx[p.end]));
+});
+}
+const startAt = {};
+if (lifespans) life.forEach((l, i) => { if (l && l[0] > 0) (startAt[l[0]] = startAt[l[0]] || []).push(i); });
+const boxH = (i) => (rail[i] ? SQ.RAIL_H : SQ.BOX_H);
+const topRows = ps.map((p, i) => i).filter((i) => !(life[i] && life[i][0] > 0));
+const topH = Math.max(SQ.BOX_H, ...topRows.map((i) => (rail[i] ? SQ.RAIL_H : 0)));
+const floating = [], beforeOf = {}, afterOf = {};
+const placeX = (place) => {
+const k = Math.max(0, Math.min(ps.length - 1, place)), i = Math.min(ps.length - 2, Math.floor(k));
+return ps.length < 2 ? ps[0].x : ps[i].x + (k - i) * (ps[i + 1].x - ps[i].x);
+};
+const noteBox = (n) => {
+if (n.over === undefined && typeof n.place === 'number' && ps.length) {
+const cx = placeX(n.place);
+const x = Math.max(SQ.GRID, Math.round(cx - SQ.NOTE_W / 2));
+const nextX = colX.find((lx) => lx > cx + 1);
+const w = sqNoteSingleW(n.text, x, nextX);
+const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
+return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+}
+const over = sqNoteOver(n).map((id) => ps[pIdx[id]]);
+if (!over.length || over.some((p) => !p)) return null;
+const xs = over.map((p) => p.x);
+const lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
+let x, w;
+if (hi > lo) {
+w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
+x = Math.round((lo + hi) / 2 - w / 2);
+} else {
+x = Math.round(lo - SQ.NOTE_W / 2);
+const nextX = colX[colOf[pIdx[over[0].id]] + 1];
+w = sqNoteSingleW(n.text, x, nextX);
+}
+const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
+return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+};
+ns.forEach((n) => {
+const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+if (!key) { floating.push(n); return; }
+const k = mIdx[n[key]];
+if (k === undefined) return;   // unknown message: not drawn (the audit reports it)
+const map = key === 'after' ? afterOf : beforeOf;
+(map[k] = map[k] || []).push(n);
+});
+let y = SQ.TOP + topH + SQ.FIRST_GAP;
+const rowEnd = {};
+const placeNotes = (list) => (list || []).forEach((n) => {
+const box = noteBox(n);
+if (!box) return;
+n.x = box.x; n.w = box.w; n.h = box.h; n.y = Math.round(y);
+y += box.h + SQ.NOTE_GAP;
+});
+placeNotes(floating);
+ms.forEach((m, k) => {
+const C = ownerOf(k);
+if (!C || k === C.a) {
+frs.filter((r) => !r.hidden && r !== C).forEach((r) => r.branches.filter((br) => br.e === k).forEach((br) => {
+r.divs.push({ at: br.at, y: Math.round(y + 6), label: br.label });
+y += SQ.ELSE_GAP;
+}));
+if (startAt[k]) {
+startAt[k].forEach((i) => { ps[i].top = Math.round(y); });
+y += Math.max.apply(null, startAt[k].map(boxH)) + SQ.NOTE_GAP;
+}
+placeNotes(beforeOf[k]);
+const starting = frs.filter((r) => !r.hidden && r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
+const y0 = y;
+starting.forEach((r, s) => { r.top = y0 + SQ.FRAG_TOP * s + 8; });
+y += SQ.FRAG_TOP * starting.length;
+if (C) {
+C.rowY = y + SQ.SUMMARY_ROW / 2;
+y += SQ.SUMMARY_ROW;
+C.rowBottom = y - 4;
+} else {
+const lab = labelLines(m), det = detailLines(m);   // kept on the message only when wrapped
+if (lab > 1) m.lab = lab; else delete m.lab;
+if (det > 1) m.det = det; else delete m.det;
+const labX = (lab - 1) * SQ.LABEL_LINE;
+m.y = y + SQ.ARROW_AT + (m.from === m.to ? 0 : labX);
+y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + labX + (det ? SQ.DETAIL_ROW + (det - 1) * SQ.DETAIL_LINE : 0);
+placeNotes(afterOf[k]);   // inside every frame the message is in: before any of them closes
+}
+rowEnd[k] = y - SQ.ROW_BOTTOM_PAD;
+}
+if (C) { m.y = C.rowY; m.hidden = true; } else delete m.hidden;
+if (C) { delete m.lab; delete m.det; }
+const rowBottom = C ? C.rowBottom : y - SQ.ROW_BOTTOM_PAD;
+const ending = frs.filter((r) => !r.hidden && r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
+ending.forEach((r, e) => { r.bottom = rowBottom + SQ.FRAG_STEP_BOTTOM * e; });
+y += SQ.FRAG_STEP_BOTTOM * ending.length;
+});
+let maxRight = cols.length ? colX[cols.length - 1] + colHalf(cols.length - 1) : SQ.MARGIN;
+const noteIn = (n, r) => {
+if (n.x === undefined) return false;
+const k = n.after !== undefined ? mIdx[n.after] : n.before !== undefined ? mIdx[n.before] : undefined;
+return k !== undefined && k <= r.b && (n.after !== undefined ? k >= r.a : k > r.a);
+};
+frs.forEach((r) => {
+if (r.hidden || r.top === undefined || r.bottom === undefined) return;
+let lo = Infinity, hi = -Infinity;
+for (let k = r.a; k <= r.b; k++) {
+const m = ms[k], pa = ps[pIdx[m.from]], pb = ps[pIdx[m.to]];
+if (!pa || !pb) continue;
+lo = Math.min(lo, pa.x, pb.x);
+hi = Math.max(hi, pa.x, pb.x);
+if (m.from === m.to && !(anyRail && ownerOf(k))) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + msgW(m) + 12);
+}
+if (lo === Infinity) { lo = hi = SQ.MARGIN; }
+const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * (anyRail && r.f.collapsed ? 0 : r.level);   // a folded frame draws nothing inside
+let left = lo - pad, right = hi + pad;
+const notePad = 8 + SQ.FRAG_PAD_STEP * r.level;
+ns.forEach((n) => {
+if (!noteIn(n, r)) return;
+left = Math.min(left, n.x - notePad);
+right = Math.max(right, n.x + n.w + notePad);
+});
+ps.forEach((p, i) => {
+if (life[i] && life[i][0] > r.a && life[i][0] <= r.b) {
+left = Math.min(left, p.x - half(i) - 8);
+right = Math.max(right, p.x + half(i) + 8);
+}
+});
+const tagW = (r.f.kind === 'group' ? 0 : sqTextW(r.f.kind)) + sqTextW(r.f.label) + 56;
+const branchW = r.branches.reduce((w, br) => Math.max(w, sqTextW(br.label) + 40), 0);
+r.f.x = Math.round(left);
+r.f.w = Math.round(Math.max(right - left, tagW, branchW, anyRail && r.f.collapsed ? SQ.SUMMARY_W : 0));
+r.f.y = Math.round(r.top);
+r.f.h = Math.round(r.bottom - r.top);
+if (r.divs.length) r.f.dividers = r.divs;
+maxRight = Math.max(maxRight, r.f.x + r.f.w);
+});
+ns.forEach((n) => { if (n.x !== undefined) maxRight = Math.max(maxRight, n.x + n.w); });
+ms.forEach((m) => { m.y = Math.round(m.y); });
+if (lifespans) {
+ps.forEach((p, i) => {
+if (p.top === undefined) p.top = SQ.TOP;
+p.bottom = Math.round(life[i] ? rowEnd[life[i][1]] + 12 : y + SQ.TAIL - 24);
+});
+}
+data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
+}
+//@engine-end
+const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
+'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
+'alt', 'else', 'opt', 'loop', 'par', 'and', 'rect', 'box', 'note', 'participant', 'actor', 'create', 'destroy', 'activate',
+'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break', 'as', 'over', 'left',
+'right', 'of', 'off', 'sequencediagram'];
+function mmdText(s) {
+let t = String(s == null ? '' : s).trim();
+if (/^`[\s\S]*`$/.test(t)) t = t.slice(1, -1);
+t = t.replace(/<br\s*\/?>/gi, '\n');
+const named = { quot: '"', amp: '&', lt: '<', gt: '>', nbsp: ' ' };
+t = t.replace(/#(quot|amp|lt|gt|nbsp|\d+);/g, (m, k) => (k in named ? named[k] : String.fromCodePoint(+k)));
+return t.trim();
+}
+function mmdQuote(s) {
+const map = { '#': '#35;', '"': '#quot;', ';': '#59;', '`': '#96;' };
+const t = String(s == null ? '' : s).replace(/\r\n?/g, '\n').replace(/[#";`]/g, (c) => map[c]).replace(/\n/g, '<br>');
+return '"' + (t === '' ? ' ' : t) + '"';
+}
+function mmdSafeId(id, used) {
+let s = String(id == null ? '' : id).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
+if (/^[0-9]/.test(s)) s = 'n_' + s;
+while (MMD_RESERVED.includes(s.toLowerCase())) s += '_';
+if (used) {
+let u = s, k = 2;
+while (used.has(u)) u = s + '_' + k++;
+used.add(u);
+s = u;
+}
+return s;
+}
+const MMD_SHAPE_ALIASES = {
+rect: 'rect', rectangle: 'rect', proc: 'rect', process: 'rect', task: 'rect',
+rounded: 'round', event: 'round', stadium: 'stadium', pill: 'stadium', terminal: 'stadium',
+diamond: 'diamond', decision: 'diamond', question: 'diamond',
+doc: 'doc', document: 'doc', delay: 'delay',
+'sm-circ': 'sm-circ', 'small-circle': 'sm-circ', start: 'sm-circ',
+'fr-circ': 'fr-circ', 'framed-circle': 'fr-circ', stop: 'fr-circ',
+'f-circ': 'f-circ', 'filled-circle': 'f-circ', 'dbl-circ': 'dbl-circ', 'double-circle': 'dbl-circ',
+subproc: 'subproc', subprocess: 'subproc', 'fr-rect': 'subproc', 'framed-rectangle': 'subproc',
+cyl: 'cyl', cylinder: 'cyl', db: 'cyl', database: 'cyl', circle: 'circle', circ: 'circle',
+hex: 'hex', hexagon: 'hex', prepare: 'hex', 'lean-r': 'lean-r', 'lean-right': 'lean-r', 'in-out': 'lean-r',
+'lean-l': 'lean-l', 'lean-left': 'lean-l', 'out-in': 'lean-l', 'trap-b': 'trap-b', 'trapezoid-bottom': 'trap-b',
+priority: 'trap-b', 'trap-t': 'trap-t', 'trapezoid-top': 'trap-t', manual: 'trap-t',
+};
 const MMD_OPENERS = [
-  ['(((', '(', [[')))', 'dbl-circ']]],
-  ['((', '(', [['))', 'circle']]],
-  ['([', '(', [['])', 'stadium']]],
-  ['(', '(', [[')', 'round']]],
-  ['[[', '[', [[']]', 'subroutine']]],
-  ['[(', '(', [[')]', 'cylinder']]],
-  ['[/', '[', [['/]', 'lean-r'], ['\\]', 'trap-b']]],
-  ['[\\', '[', [['\\]', 'lean-l'], ['/]', 'trap-t']]],
-  ['[', '[', [[']', 'rect']]],
-  ['{{', '{', [['}}', 'hex']]],
-  ['{', '{', [['}', 'diamond']]],
-  ['>', '[', [[']', 'odd']]],
+['(((', '(', [[')))', 'dbl-circ']]],
+['((', '(', [['))', 'circle']]],
+['([', '(', [['])', 'stadium']]],
+['(', '(', [[')', 'round']]],
+['[[', '[', [[']]', 'subroutine']]],
+['[(', '(', [[')]', 'cylinder']]],
+['[/', '[', [['/]', 'lean-r'], ['\\]', 'trap-b']]],
+['[\\', '[', [['\\]', 'lean-l'], ['/]', 'trap-t']]],
+['[', '[', [[']', 'rect']]],
+['{{', '{', [['}}', 'hex']]],
+['{', '{', [['}', 'diamond']]],
+['>', '[', [[']', 'odd']]],
 ];
 const MMD_CLOSE_OF = { '(': ')', '[': ']', '{': '}' };
 const MMD_ID = /[A-Za-z0-9_\u0080-￿]+(?:-(?=[A-Za-z0-9_\u0080-￿])[A-Za-z0-9_\u0080-￿]*)*/y;
-
-// Split a line into statements at `;`, outside quotes and not when the `;` ends an entity such as #59;
 function mmdSplitStatements(line) {
-  const out = [];
-  let cur = '', q = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') q = !q;
-    if (c === ';' && !q && !/#\w+$/.test(cur)) { out.push(cur); cur = ''; } else cur += c;
-  }
-  out.push(cur);
-  return out.map((s) => s.trim()).filter(Boolean);
+const out = [];
+let cur = '', q = false;
+for (let i = 0; i < line.length; i++) {
+const c = line[i];
+if (c === '"') q = !q;
+if (c === ';' && !q && !/#\w+$/.test(cur)) { out.push(cur); cur = ''; } else cur += c;
 }
-
+out.push(cur);
+return out.map((s) => s.trim()).filter(Boolean);
+}
 function mmdParseFlow(text) {
-  const ast = { title: null, dir: null, dirRaw: null, directives: [], nodes: [], edges: [], subgraphs: [], ignored: [] };
-  const nodeById = new Map(), sgById = new Map(), sgOf = new Map(), classOps = [];
-  const stack = [];
-  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
-  let li = 0, headerSeen = false, ln = 0;
-  const fail = (msg) => { throw new Error(`line ${ln}: ${msg}`); };
-
-  // Front-matter
-  while (li < lines.length && !lines[li].trim()) li++;
-  if (li < lines.length && lines[li].trim() === '---') {
-    li++;
-    while (li < lines.length && lines[li].trim() !== '---') {
-      const m = /^title\s*:\s*(.*)$/.exec(lines[li]);
-      if (m) {
-        let v = m[1].trim();
-        if (v[0] === '"') { try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); } } else if (v[0] === "'") v = v.replace(/^'|'$/g, '');
-        ast.title = mmdText(v);
-      }
-      li++;
-    }
-    li++;
-  }
-
-  function addNode(id, decl, classes) {
-    let n = nodeById.get(id);
-    if (!n) {
-      n = { id, label: id, shape: 'rect', classes: [], line: ln, declared: false };
-      nodeById.set(id, n);
-      ast.nodes.push(n);
-    }
-    if (decl && !n.declared) { n.label = decl.label; n.shape = decl.shape; n.declared = true; }
-    (classes || []).forEach((c) => { if (!n.classes.includes(c)) n.classes.push(c); });
-    if (stack.length && !sgOf.has(id)) {
-      const sg = stack[stack.length - 1];
-      sgOf.set(id, sg.id);
-      sg.nodes.push(id);
-    }
-    return id;
-  }
-
-  // Parse one node (id, then a shape or @{ } block, then :::classes) from s at i. Returns [id, next index].
-  function parseNode(s, i) {
-    while (s[i] === ' ') i++;
-    MMD_ID.lastIndex = i;
-    const m = MMD_ID.exec(s);
-    if (!m) fail(`cannot read a node id near "${s.slice(i, i + 20)}"`);
-    const id = m[0];
-    i += id.length;
-    let decl = null;
-    if (s.startsWith('@{', i)) {
-      let j = i + 2, q = false;
-      while (j < s.length && (q || s[j] !== '}')) { if (s[j] === '"') q = !q; j++; }
-      if (j >= s.length) fail('unterminated @{ }');
-      const body = s.slice(i + 2, j);
-      i = j + 1;
-      const props = {};
-      let part = '', pq = false;
-      const flush = () => {
-        const k = part.indexOf(':');
-        if (k > 0) {
-          let v = part.slice(k + 1).trim();
-          if (/^(".*"|'.*')$/.test(v)) v = v.slice(1, -1);
-          props[part.slice(0, k).trim().replace(/^"|"$/g, '')] = v;
-        }
-        part = '';
-      };
-      for (const c of body) { if (c === '"') pq = !pq; if (c === ',' && !pq) flush(); else part += c; }
-      flush();
-      const sname = String(props.shape || 'rect').toLowerCase();
-      const shape = MMD_SHAPE_ALIASES[sname] || sname;
-      const circ = ['sm-circ', 'fr-circ', 'f-circ', 'dbl-circ'].includes(shape);
-      decl = { shape, label: 'label' in props ? mmdText(props.label) : (circ ? '' : id) };
-    } else {
-      for (const [open, fam, closers] of MMD_OPENERS) {
-        if (!s.startsWith(open, i)) continue;
-        let j = i + open.length;
-        while (s[j] === ' ') j++;
-        const tryClose = (k) => closers.find(([c]) => s.startsWith(c, k));
-        let label = null, hit = null, end = 0;
-        if (s[j] === '"') {
-          const e = s.indexOf('"', j + 1);
-          if (e > 0) {
-            let k = e + 1;
-            while (s[k] === ' ') k++;
-            hit = tryClose(k);
-            if (hit) { label = s.slice(j + 1, e); end = k + hit[0].length; }
-          }
-        }
-        if (!hit) {
-          const closeCh = MMD_CLOSE_OF[fam];
-          let depth = 0, k = j;
-          for (; k < s.length; k++) {
-            if (depth === 0 && (hit = tryClose(k))) break;
-            if (s[k] === fam) depth++; else if (s[k] === closeCh && depth > 0) depth--;
-          }
-          if (!hit) fail(`missing "${closers[0][0]}" for node ${id}`);
-          label = s.slice(j, k);
-          end = k + hit[0].length;
-        }
-        decl = { shape: hit[1], label: mmdText(label) };
-        i = end;
-        break;
-      }
-    }
-    const classes = [];
-    while (s.startsWith(':::', i)) {
-      const m2 = /^[\w-]+/.exec(s.slice(i + 3));
-      if (!m2) fail('empty class after :::');
-      classes.push(m2[0]);
-      i += 3 + m2[0].length;
-    }
-    return [addNode(id, decl, classes), i];
-  }
-
-  function parseLink(s, i) {
-    let r = s.slice(i), m, id = null;
-    if ((m = /^[A-Za-z0-9_]+@(?=[-=.~<ox])/.exec(r))) { id = m[0].slice(0, -1); r = r.slice(m[0].length); }
-    let start = '';
-    if ((m = /^([<ox])(?=[-=])/.exec(r))) { start = m[1]; r = r.slice(1); }
-    let stroke, head = '', label = null;
-    const take = (n) => { r = r.slice(n); };
-    const textForm = (open, endRe, str) => {
-      take(open);
-      const e = endRe.exec(r);
-      if (!e) fail('unterminated edge text');
-      label = r.slice(0, e.index).trim().replace(/^"([\s\S]*)"$/, '$1');
-      head = e[0].slice(-1);
-      if (!'>ox'.includes(head)) head = '';
-      take(e.index + e[0].length);
-      stroke = str;
-    };
-    if ((m = /^~{3,}/.exec(r))) { stroke = 'invisible'; take(m[0].length); } else if (/^==\s/.test(r)) textForm(2, /={2,}[>ox]?/, 'thick');
-    else if (/^-\.\s/.test(r)) textForm(2, /\.+-[>ox]?/, 'dotted');
-    else if (/^--\s/.test(r)) textForm(2, /-{2,}[>ox]?/, 'normal');
-    else if ((m = /^={2,}([>ox]?)/.exec(r))) { stroke = 'thick'; head = m[1]; take(m[0].length); } else if ((m = /^-\.+-([>ox]?)/.exec(r))) { stroke = 'dotted'; head = m[1]; take(m[0].length); } else if ((m = /^-{2,}([>ox]?)/.exec(r))) { stroke = 'normal'; head = m[1]; take(m[0].length); } else return null;
-    if ((m = /^\s*\|/.exec(r))) {
-      take(m[0].length);
-      let e;
-      if (/^\s*"/.test(r)) { const q = r.indexOf('"'); const q2 = r.indexOf('"', q + 1); e = r.indexOf('|', q2 + 1); label = r.slice(q + 1, q2); } else { e = r.indexOf('|'); label = r.slice(0, e); }
-      if (e < 0) fail('unterminated |edge text|');
-      take(e + 1);
-    }
-    const heads = { '>': 'arrow', o: 'circle', x: 'cross', '': 'none' };
-    return { link: { label: label == null ? '' : mmdText(label), stroke, head: heads[head], both: start !== '', id }, next: s.length - r.length };
-  }
-
-  function parseChain(s) {
-    let i = 0, prev = null;
-    for (;;) {
-      const group = [];
-      for (;;) {
-        const [id, j] = parseNode(s, i);
-        group.push(id);
-        i = j;
-        while (s[i] === ' ') i++;
-        if (s[i] === '&') { i++; continue; }
-        break;
-      }
-      if (prev) prev.links.forEach((lk) => prev.group.forEach((a) => group.forEach((b) => ast.edges.push({ from: a, to: b, label: lk.label, stroke: lk.stroke, head: lk.head, both: lk.both, line: ln }))));
-      if (i >= s.length) return;
-      const res = parseLink(s, i);
-      if (!res) fail(`cannot read "${s.slice(i, i + 20)}"`);
-      i = res.next;
-      prev = { group, links: [res.link] };
-    }
-  }
-
-  // A repeated id under another parent is a separate subgraph (the same lane inside a `sub_` block); `sub` names the
-  // top-level `sub_` block a subgraph sits in (flowcharts), else null.
-  const sgScoped = new Map();
-  function parseSubgraph(rest) {
-    let id, title, m;
-    if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
-    title = mmdText(title);
-    const top = stack.length ? stack[stack.length - 1] : null, parent = top ? top.id : null;
-    const key = parent + '>' + id;
-    const known = sgScoped.get(key) || (sgById.has(id) && sgById.get(id).parent === parent ? sgById.get(id) : null);
-    if (known) { stack.push(known); return; }
-    const sg = { id, title, parent, sub: !top && /^sub_/.test(id) ? id : (top ? top.sub : null), nodes: [], classes: [], line: ln };
-    sgScoped.set(key, sg);
-    if (!sgById.has(id)) sgById.set(id, sg);
-    ast.subgraphs.push(sg);
-    stack.push(sg);
-  }
-
-  function statement(s) {
-    let m;
-    if ((m = /^subgraph(?:\s+([\s\S]*))?$/.exec(s))) return parseSubgraph((m[1] || '').trim());
-    if (s === 'end') { stack.pop(); return; }
-    if (/^direction\s+\w+$/.test(s)) return;
-    if ((m = /^class\s+(\S+)\s+(\S+)$/.exec(s))) { classOps.push([m[1].split(','), m[2].split(',')]); return; }
-    if ((m = /^(classDef|style|linkStyle|click|accTitle|accDescr|href|call)\b/.exec(s))) { ast.ignored.push({ line: ln, text: s }); return; }
-    parseChain(s);
-  }
-
-  let inAcc = false;
-  for (; li < lines.length; li++) {
-    ln = li + 1;
-    const raw = lines[li].trim();
-    if (inAcc) { if (raw.includes('}')) inAcc = false; continue; }
-    if (!raw) continue;
-    if (raw.startsWith('%%')) {
-      const m = /^%%\s*@(\w+)\s*(.*)$/.exec(raw);
-      if (m) ast.directives.push({ key: m[1], args: m[2].trim(), line: ln });
-      continue;
-    }
-    if (/^accDescr\s*\{/.test(raw) && !raw.includes('}')) { inAcc = true; ast.ignored.push({ line: ln, text: raw }); continue; }
-    let stmts = mmdSplitStatements(raw);
-    if (!headerSeen) {
-      const m = /^(?:flowchart|graph)(?:-elk)?(?:\s+(LR|RL|TB|TD|BT))?\s*(.*)$/.exec(stmts[0]);
-      if (!m) fail('expected "flowchart" or "graph"');
-      headerSeen = true;
-      if (m[1]) { ast.dirRaw = m[1]; ast.dir = { LR: 'LR', RL: 'LR', TB: 'TB', TD: 'TB', BT: 'TB' }[m[1]]; }
-      stmts = (m[2] ? [m[2]] : []).concat(stmts.slice(1));
-    }
-    stmts.forEach(statement);
-  }
-  if (!headerSeen) { ln = 1; fail('expected "flowchart" or "graph"'); }
-
-  classOps.forEach(([ids, cls]) => ids.forEach((id) => {
-    const target = nodeById.get(id) || sgById.get(id);
-    if (target) cls.forEach((c) => { if (!target.classes.includes(c)) target.classes.push(c); });
-  }));
-  ast.nodes.forEach((n) => delete n.declared);
-  return ast;
+const ast = { title: null, dir: null, dirRaw: null, directives: [], nodes: [], edges: [], subgraphs: [], ignored: [] };
+const nodeById = new Map(), sgById = new Map(), sgOf = new Map(), classOps = [];
+const stack = [];
+const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+let li = 0, headerSeen = false, ln = 0;
+const fail = (msg) => { throw new Error(`line ${ln}: ${msg}`); };
+while (li < lines.length && !lines[li].trim()) li++;
+if (li < lines.length && lines[li].trim() === '---') {
+li++;
+while (li < lines.length && lines[li].trim() !== '---') {
+const m = /^title\s*:\s*(.*)$/.exec(lines[li]);
+if (m) {
+let v = m[1].trim();
+if (v[0] === '"') { try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); } } else if (v[0] === "'") v = v.replace(/^'|'$/g, '');
+ast.title = mmdText(v);
 }
-// Sequence diagram <-> Mermaid. Plain script, no DOM, no imports; concatenated after assets/shell/mermaid-flow.js
-// (needs mmdText, mmdSafeId). Mapping: dev/plans/plan-mermaid-input.md, "Sequence". The flowchart tokenizer does not
-// apply here: a sequenceDiagram is read line by line by the mmdSeq helpers below.
-//
-// Positional model: messages are m1.. in text order, and frames and notes hold their message ids by position.
-// A note right after a message is `after` it; a note after a frame opening, `else`, `and` or `end` is `before` the next
-// message; a note before the first message has no anchor. The writer adds `%% @before` where the plain reading would
-// differ (a note before a message that directly follows another message), so JSON -> Mermaid -> JSON is exact.
-// A group's label is the first `Note over` inside its `rect`, since Mermaid's rect has no name of its own.
-
+li++;
+}
+li++;
+}
+function addNode(id, decl, classes) {
+let n = nodeById.get(id);
+if (!n) {
+n = { id, label: id, shape: 'rect', classes: [], line: ln, declared: false };
+nodeById.set(id, n);
+ast.nodes.push(n);
+}
+if (decl && !n.declared) { n.label = decl.label; n.shape = decl.shape; n.declared = true; }
+(classes || []).forEach((c) => { if (!n.classes.includes(c)) n.classes.push(c); });
+if (stack.length && !sgOf.has(id)) {
+const sg = stack[stack.length - 1];
+sgOf.set(id, sg.id);
+sg.nodes.push(id);
+}
+return id;
+}
+function parseNode(s, i) {
+while (s[i] === ' ') i++;
+MMD_ID.lastIndex = i;
+const m = MMD_ID.exec(s);
+if (!m) fail(`cannot read a node id near "${s.slice(i, i + 20)}"`);
+const id = m[0];
+i += id.length;
+let decl = null;
+if (s.startsWith('@{', i)) {
+let j = i + 2, q = false;
+while (j < s.length && (q || s[j] !== '}')) { if (s[j] === '"') q = !q; j++; }
+if (j >= s.length) fail('unterminated @{ }');
+const body = s.slice(i + 2, j);
+i = j + 1;
+const props = {};
+let part = '', pq = false;
+const flush = () => {
+const k = part.indexOf(':');
+if (k > 0) {
+let v = part.slice(k + 1).trim();
+if (/^(".*"|'.*')$/.test(v)) v = v.slice(1, -1);
+props[part.slice(0, k).trim().replace(/^"|"$/g, '')] = v;
+}
+part = '';
+};
+for (const c of body) { if (c === '"') pq = !pq; if (c === ',' && !pq) flush(); else part += c; }
+flush();
+const sname = String(props.shape || 'rect').toLowerCase();
+const shape = MMD_SHAPE_ALIASES[sname] || sname;
+const circ = ['sm-circ', 'fr-circ', 'f-circ', 'dbl-circ'].includes(shape);
+decl = { shape, label: 'label' in props ? mmdText(props.label) : (circ ? '' : id) };
+} else {
+for (const [open, fam, closers] of MMD_OPENERS) {
+if (!s.startsWith(open, i)) continue;
+let j = i + open.length;
+while (s[j] === ' ') j++;
+const tryClose = (k) => closers.find(([c]) => s.startsWith(c, k));
+let label = null, hit = null, end = 0;
+if (s[j] === '"') {
+const e = s.indexOf('"', j + 1);
+if (e > 0) {
+let k = e + 1;
+while (s[k] === ' ') k++;
+hit = tryClose(k);
+if (hit) { label = s.slice(j + 1, e); end = k + hit[0].length; }
+}
+}
+if (!hit) {
+const closeCh = MMD_CLOSE_OF[fam];
+let depth = 0, k = j;
+for (; k < s.length; k++) {
+if (depth === 0 && (hit = tryClose(k))) break;
+if (s[k] === fam) depth++; else if (s[k] === closeCh && depth > 0) depth--;
+}
+if (!hit) fail(`missing "${closers[0][0]}" for node ${id}`);
+label = s.slice(j, k);
+end = k + hit[0].length;
+}
+decl = { shape: hit[1], label: mmdText(label) };
+i = end;
+break;
+}
+}
+const classes = [];
+while (s.startsWith(':::', i)) {
+const m2 = /^[\w-]+/.exec(s.slice(i + 3));
+if (!m2) fail('empty class after :::');
+classes.push(m2[0]);
+i += 3 + m2[0].length;
+}
+return [addNode(id, decl, classes), i];
+}
+function parseLink(s, i) {
+let r = s.slice(i), m, id = null;
+if ((m = /^[A-Za-z0-9_]+@(?=[-=.~<ox])/.exec(r))) { id = m[0].slice(0, -1); r = r.slice(m[0].length); }
+let start = '';
+if ((m = /^([<ox])(?=[-=])/.exec(r))) { start = m[1]; r = r.slice(1); }
+let stroke, head = '', label = null;
+const take = (n) => { r = r.slice(n); };
+const textForm = (open, endRe, str) => {
+take(open);
+const e = endRe.exec(r);
+if (!e) fail('unterminated edge text');
+label = r.slice(0, e.index).trim().replace(/^"([\s\S]*)"$/, '$1');
+head = e[0].slice(-1);
+if (!'>ox'.includes(head)) head = '';
+take(e.index + e[0].length);
+stroke = str;
+};
+if ((m = /^~{3,}/.exec(r))) { stroke = 'invisible'; take(m[0].length); } else if (/^==\s/.test(r)) textForm(2, /={2,}[>ox]?/, 'thick');
+else if (/^-\.\s/.test(r)) textForm(2, /\.+-[>ox]?/, 'dotted');
+else if (/^--\s/.test(r)) textForm(2, /-{2,}[>ox]?/, 'normal');
+else if ((m = /^={2,}([>ox]?)/.exec(r))) { stroke = 'thick'; head = m[1]; take(m[0].length); } else if ((m = /^-\.+-([>ox]?)/.exec(r))) { stroke = 'dotted'; head = m[1]; take(m[0].length); } else if ((m = /^-{2,}([>ox]?)/.exec(r))) { stroke = 'normal'; head = m[1]; take(m[0].length); } else return null;
+if ((m = /^\s*\|/.exec(r))) {
+take(m[0].length);
+let e;
+if (/^\s*"/.test(r)) { const q = r.indexOf('"'); const q2 = r.indexOf('"', q + 1); e = r.indexOf('|', q2 + 1); label = r.slice(q + 1, q2); } else { e = r.indexOf('|'); label = r.slice(0, e); }
+if (e < 0) fail('unterminated |edge text|');
+take(e + 1);
+}
+const heads = { '>': 'arrow', o: 'circle', x: 'cross', '': 'none' };
+return { link: { label: label == null ? '' : mmdText(label), stroke, head: heads[head], both: start !== '', id }, next: s.length - r.length };
+}
+function parseChain(s) {
+let i = 0, prev = null;
+for (;;) {
+const group = [];
+for (;;) {
+const [id, j] = parseNode(s, i);
+group.push(id);
+i = j;
+while (s[i] === ' ') i++;
+if (s[i] === '&') { i++; continue; }
+break;
+}
+if (prev) prev.links.forEach((lk) => prev.group.forEach((a) => group.forEach((b) => ast.edges.push({ from: a, to: b, label: lk.label, stroke: lk.stroke, head: lk.head, both: lk.both, line: ln }))));
+if (i >= s.length) return;
+const res = parseLink(s, i);
+if (!res) fail(`cannot read "${s.slice(i, i + 20)}"`);
+i = res.next;
+prev = { group, links: [res.link] };
+}
+}
+const sgScoped = new Map();
+function parseSubgraph(rest) {
+let id, title, m;
+if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
+title = mmdText(title);
+const top = stack.length ? stack[stack.length - 1] : null, parent = top ? top.id : null;
+const key = parent + '>' + id;
+const known = sgScoped.get(key) || (sgById.has(id) && sgById.get(id).parent === parent ? sgById.get(id) : null);
+if (known) { stack.push(known); return; }
+const sg = { id, title, parent, sub: !top && /^sub_/.test(id) ? id : (top ? top.sub : null), nodes: [], classes: [], line: ln };
+sgScoped.set(key, sg);
+if (!sgById.has(id)) sgById.set(id, sg);
+ast.subgraphs.push(sg);
+stack.push(sg);
+}
+function statement(s) {
+let m;
+if ((m = /^subgraph(?:\s+([\s\S]*))?$/.exec(s))) return parseSubgraph((m[1] || '').trim());
+if (s === 'end') { stack.pop(); return; }
+if (/^direction\s+\w+$/.test(s)) return;
+if ((m = /^class\s+(\S+)\s+(\S+)$/.exec(s))) { classOps.push([m[1].split(','), m[2].split(',')]); return; }
+if ((m = /^(classDef|style|linkStyle|click|accTitle|accDescr|href|call)\b/.exec(s))) { ast.ignored.push({ line: ln, text: s }); return; }
+parseChain(s);
+}
+let inAcc = false;
+for (; li < lines.length; li++) {
+ln = li + 1;
+const raw = lines[li].trim();
+if (inAcc) { if (raw.includes('}')) inAcc = false; continue; }
+if (!raw) continue;
+if (raw.startsWith('%%')) {
+const m = /^%%\s*@(\w+)\s*(.*)$/.exec(raw);
+if (m) ast.directives.push({ key: m[1], args: m[2].trim(), line: ln });
+continue;
+}
+if (/^accDescr\s*\{/.test(raw) && !raw.includes('}')) { inAcc = true; ast.ignored.push({ line: ln, text: raw }); continue; }
+let stmts = mmdSplitStatements(raw);
+if (!headerSeen) {
+const m = /^(?:flowchart|graph)(?:-elk)?(?:\s+(LR|RL|TB|TD|BT))?\s*(.*)$/.exec(stmts[0]);
+if (!m) fail('expected "flowchart" or "graph"');
+headerSeen = true;
+if (m[1]) { ast.dirRaw = m[1]; ast.dir = { LR: 'LR', RL: 'LR', TB: 'TB', TD: 'TB', BT: 'TB' }[m[1]]; }
+stmts = (m[2] ? [m[2]] : []).concat(stmts.slice(1));
+}
+stmts.forEach(statement);
+}
+if (!headerSeen) { ln = 1; fail('expected "flowchart" or "graph"'); }
+classOps.forEach(([ids, cls]) => ids.forEach((id) => {
+const target = nodeById.get(id) || sgById.get(id);
+if (target) cls.forEach((c) => { if (!target.classes.includes(c)) target.classes.push(c); });
+}));
+ast.nodes.forEach((n) => delete n.declared);
+return ast;
+}
 const MMD_SEQ_RESERVED = ['alt', 'else', 'opt', 'loop', 'par', 'and', 'end', 'rect', 'box', 'note', 'participant', 'actor', 'create',
-  'destroy', 'activate', 'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break',
-  'as', 'over', 'left', 'right', 'of', 'off', 'sequencediagram', 'acctitle', 'accdescr'];
+'destroy', 'activate', 'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break',
+'as', 'over', 'left', 'right', 'of', 'off', 'sequencediagram', 'acctitle', 'accdescr'];
 const MMD_SEQ_COLOURS = ['transparent', 'aqua', 'black', 'blue', 'fuchsia', 'gray', 'grey', 'green', 'lime', 'maroon', 'navy', 'olive', 'orange',
-  'purple', 'red', 'silver', 'teal', 'white', 'yellow'];
-// Mermaid type -> JSON kind (boundary is the UML name for a screen or front end)
+'purple', 'red', 'silver', 'teal', 'white', 'yellow'];
 const MMD_SEQ_TYPE_KIND = { database: 'database', queue: 'queue', boundary: 'ui', control: 'system', entity: 'system', collections: 'system' };
 const MMD_SEQ_KIND_TYPE = { database: 'database', queue: 'queue', ui: 'boundary' };
-// message arrow -> [JSON kind, nearest-arrow note or '']
 const MMD_SEQ_ARROWS = {
-  '->>': ['sync', ''], '-->>': ['reply', ''], '-)': ['async', ''],
-  '->': ['sync', 'a plain line'], '-->': ['reply', 'a dashed plain line'], '-x': ['sync', 'a cross'], '--x': ['reply', 'a dashed cross'],
-  '--)': ['async', 'a dashed open arrow'], '<<->>': ['sync', 'a two-way arrow'], '<<-->>': ['reply', 'a dashed two-way arrow'],
+'->>': ['sync', ''], '-->>': ['reply', ''], '-)': ['async', ''],
+'->': ['sync', 'a plain line'], '-->': ['reply', 'a dashed plain line'], '-x': ['sync', 'a cross'], '--x': ['reply', 'a dashed cross'],
+'--)': ['async', 'a dashed open arrow'], '<<->>': ['sync', 'a two-way arrow'], '<<-->>': ['reply', 'a dashed two-way arrow'],
 };
 const MMD_SEQ_ARROW_OF = { sync: '->>', reply: '-->>', async: '-)' };
-
-// Text on one Mermaid line: # and ; escaped, line breaks as `nl` (<br> by default), a literal "<br" kept apart from a break.
 function mmdSeqEsc(s, nl) {
-  return String(s == null ? '' : s).replace(/\r\n?/g, '\n')
-    .replace(/[#;]/g, (c) => (c === '#' ? '#35;' : '#59;'))
-    .replace(/<(?=br\s*\/?>|\/?small\b)/gi, '#lt;')
-    .replace(/\n/g, nl || '<br>');
+return String(s == null ? '' : s).replace(/\r\n?/g, '\n')
+.replace(/[#;]/g, (c) => (c === '#' ? '#35;' : '#59;'))
+.replace(/<(?=br\s*\/?>|\/?small\b)/gi, '#lt;')
+.replace(/\n/g, nl || '<br>');
 }
-
-// "#rrggbb" -> [r, g, b], or null
 function mmdSeqHexRgb(hex) {
-  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex).trim());
-  if (!m) return null;
-  const h = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex).trim());
+if (!m) return null;
+const h = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
 }
-
-// A CSS colour as written in Mermaid (rgb(), rgba() or #hex) -> [r, g, b], or null
 function mmdSeqRgb(css) {
-  const t = String(css).trim();
-  const m = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/i.exec(t);
-  return m ? [+m[1], +m[2], +m[3]] : mmdSeqHexRgb(t);
+const t = String(css).trim();
+const m = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/i.exec(t);
+return m ? [+m[1], +m[2], +m[3]] : mmdSeqHexRgb(t);
 }
-
-// Split "<colour> <label>" as Mermaid does for `box` and `rect`: the first word is the colour when it is one.
 function mmdSeqSplitColour(rest) {
-  const m = /^((?:rgba?|hsla?)\s*\([^)]*\)|#[0-9a-f]{3,8}\b|[a-z]+)\s*([\s\S]*)$/i.exec(String(rest).trim());
-  if (m && (/^(?:rgba?|hsla?)\s*\(/i.test(m[1]) || m[1][0] === '#' || MMD_SEQ_COLOURS.includes(m[1].toLowerCase()))) return { colour: m[1], label: m[2] };
-  return { colour: '', label: String(rest).trim() };
+const m = /^((?:rgba?|hsla?)\s*\([^)]*\)|#[0-9a-f]{3,8}\b|[a-z]+)\s*([\s\S]*)$/i.exec(String(rest).trim());
+if (m && (/^(?:rgba?|hsla?)\s*\(/i.test(m[1]) || m[1][0] === '#' || MMD_SEQ_COLOURS.includes(m[1].toLowerCase()))) return { colour: m[1], label: m[2] };
+return { colour: '', label: String(rest).trim() };
 }
-
-// The CSS colour the writer draws a palette slot or a custom hex with: translucent, so arrows stay readable
 function mmdSeqCss(value, palette) {
-  const hex = /^[1-8]$/.test(String(value)) ? (palette && palette[Number(value) - 1]) : String(value);
-  const c = hex && mmdSeqHexRgb(hex);
-  return c ? 'rgba(' + c.join(', ') + ', 0.25)' : '';   // tokens-ok: Mermaid's own colour syntax for a box or rect, not a page style
+const hex = /^[1-8]$/.test(String(value)) ? (palette && palette[Number(value) - 1]) : String(value);
+const c = hex && mmdSeqHexRgb(hex);
+return c ? 'rgba(' + c.join(', ') + ', 0.25)' : '';   // tokens-ok: Mermaid's own colour syntax for a box or rect, not a page style
 }
-
 function fromMermaid(text, opts) {
-  opts = opts || {};
-  const infos = [], warnings = [];
-  const info = (s) => infos.push('[INFO] ' + s);
-  const warn = (s) => warnings.push('[WARN] ' + s);
-  const once = new Set();
-  const infoOnce = (key, s) => { if (!once.has(key)) { once.add(key); info(s); } };
-  const palette = Array.isArray(opts.palette) && opts.palette.length ? opts.palette.map(mmdSeqHexRgb) : null;
-
-  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
-  const data = { diagramType: 'sequence' };
-  let li = 0;
-  while (li < lines.length && !lines[li].trim()) li++;
-  if (li < lines.length && lines[li].trim() === '---') {   // front matter: the title
-    li++;
-    while (li < lines.length && lines[li].trim() !== '---') {
-      const m = /^title\s*:\s*(.*)$/.exec(lines[li]);
-      if (m) {
-        let v = m[1].trim();
-        if (v[0] === '"') { try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); } } else if (v[0] === "'") v = v.replace(/^'|'$/g, '');
-        data.title = mmdText(v);
-      }
-      li++;
-    }
-    li++;
-  }
-
-  const parts = [], partById = new Map();
-  const msgs = [], frames = [], notes = [], stack = [], boxes = [], globals = [];
-  let pending = {}, lastKind = 'none', headerSeen = false, ln = 0, createdNext = null, destroyedNext = null;
-  let notesInFrame = 0, droppedFrames = 0, droppedBranches = 0, bars = false, opened = 0;
-
-  const part = (id) => {
-    let p = partById.get(id);
-    if (!p) { p = { id, name: id }; parts.push(p); partById.set(id, p); }
-    return p;
-  };
-  // Directives that belong to the next message, frame or note are taken here; any other one is reported
-  const take = (allowed) => {
-    const got = {};
-    Object.keys(pending).forEach((k) => {
-      if (allowed.includes(k)) got[k] = pending[k]; else warn('line ' + pending[k].line + ': @' + k + ' does not apply to the next statement, ignored');
-    });
-    pending = {};
-    return got;
-  };
-  const flag = (d) => (/^false$/i.test(String(d.args).trim()) ? false : true);
-
-  function declare(kw, rest, created) {   // participant / actor
-    const m = /^(\S+?)\s*(?:@\{([^}]*)\})?\s*(?:\bas\b\s*([\s\S]*))?$/i.exec(rest.trim());
-    if (!m) { warn('line ' + ln + ': cannot read the participant "' + rest + '"'); return; }
-    const p = part(m[1]);
-    if (m[3] !== undefined) p.name = mmdText(m[3]);
-    if (/^actor$/i.test(kw)) p.kind = 'actor';
-    const t = m[2] && /["']?type["']?\s*:\s*["']?(\w+)/i.exec(m[2]);
-    if (t) {
-      const k = MMD_SEQ_TYPE_KIND[t[1].toLowerCase()];
-      if (k) { p.kind = k; if (k === 'system') infoOnce('type' + t[1], 'participant type "' + t[1] + '" read as a plain service'); } else if (t[1].toLowerCase() !== 'participant') infoOnce('type' + t[1], 'participant type "' + t[1] + '" read as a plain service');
-    }
-    if (stack.length && stack[stack.length - 1].box) stack[stack.length - 1].box.members.push(p);
-    return p;
-  }
-
-  function note(side, over, body) {
-    const ids = over.split(',').map((s) => s.trim()).filter(Boolean);
-    if (side !== 'over') infoOnce('noteside', '"Note left of" and "Note right of" are read as a note over that participant');
-    if (ids.length > 2) infoOnce('note3', 'a note over more than two participants keeps the first two');
-    ids.slice(0, 2).forEach((id) => part(id));
-    const dir = take(['before', 'place']);
-    const top = stack[stack.length - 1];
-    const n = { text: mmdText(body), over: ids.length > 1 ? ids.slice(0, 2) : ids[0] };
-    if (dir.place) {
-      const v = Number(String(dir.place.args).trim());
-      if (isFinite(v)) { delete n.over; n.place = v; } else warn('line ' + dir.place.line + ': @place needs a number, ignored');
-    }
-    let mode;
-    if (lastKind === 'msg') mode = dir.before ? 'before' : 'after';
-    else if (lastKind === 'none') mode = 'free';
-    else mode = 'before';
-    const entry = { n, mode, at: msgs.length };
-    notes.push(entry);
-    if (lastKind === 'open' && top) {
-      // The first note right after a `rect` opens is the group's label; it is kept as an ordinary note if the rect ends up empty
-      if (top.rect && !top.labelEntry) top.labelEntry = entry; else top.early = (top.early || 0) + 1;
-    }
-    return n;
-  }
-
-  function openBlock(kw, rest) {
-    const dir = take(['color', 'collapsed']);
-    const b = { kind: kw, a: msgs.length, branches: [], line: ln, order: opened++ };
-    let label = rest;
-    if (kw === 'rect') {
-      const sp = mmdSeqSplitColour(rest);
-      b.css = sp.colour;
-      label = sp.label;
-    }
-    if (kw === 'critical') { b.kind = 'group'; b.critical = true; infoOnce('critical', '"critical" is read as a group, or as an alt when it has "option" branches'); }
-    if (kw === 'rect') { b.kind = 'group'; b.rect = true; }
-    b.label = mmdText(label);
-    if (dir.color) b.color = String(dir.color.args).trim();
-    if (dir.collapsed) b.collapsed = flag(dir.collapsed);
-    stack.push(b);
-    lastKind = 'open';
-  }
-
-  function branch(kw, rest) {
-    const b = stack[stack.length - 1];
-    if (!b || b.box) { warn('line ' + ln + ': "' + kw + '" outside a frame, ignored'); return; }
-    if (b.critical && b.kind === 'group') b.kind = 'alt';   // "option" branches need an alt
-    if (b.kind !== 'alt' && b.kind !== 'par') { infoOnce('branch' + b.kind, '"' + kw + '" in a ' + b.kind + ' frame is ignored: only alt and par have branches'); return; }
-    b.branches.push({ e: msgs.length, label: mmdText(rest) });
-    lastKind = 'else';
-  }
-
-  function closeBlock() {
-    const top = stack.pop();
-    if (!top) { warn('line ' + ln + ': "end" with nothing open, ignored'); return; }
-    if (top.box) { boxes.push(top.box); return; }
-    lastKind = 'end';
-    const b = msgs.length - 1;
-    if (b < top.a) { droppedFrames++; return; }   // no message inside: a frame is a range of messages; its notes stay
-    notesInFrame += top.early || 0;
-    if (top.labelEntry) { top.label = top.labelEntry.n.text; notes.splice(notes.indexOf(top.labelEntry), 1); }
-    const seen = new Set();
-    const br = [];
-    top.branches.forEach((x) => {
-      if (x.e > top.a && x.e <= b && !seen.has(x.e)) { seen.add(x.e); br.push({ at: 'm' + (x.e + 1), label: x.label }); } else droppedBranches++;
-    });
-    const f = { kind: top.kind, label: top.label, from: 'm' + (top.a + 1), to: 'm' + (b + 1), color: top.color, collapsed: top.collapsed, css: top.css, br, order: top.order };
-    frames.push(f);
-  }
-
-  function message(m) {
-    const arrow = MMD_SEQ_ARROWS[m[2]];
-    if (arrow[1]) infoOnce('arrow' + m[2], '"' + m[2] + '" (' + arrow[1] + ') is read as ' + MMD_SEQ_ARROW_OF[arrow[0]]);
-    if (m[3]) bars = true;
-    const from = part(m[1].trim()), to = part(m[4].trim());
-    const dir = take(['activate', 'until']);
-    const raw = m[5] === undefined ? '' : m[5];
-    // A <br> is a line break in the label; only a trailing "<br><small>…</small>" (what the export writes) is the detail line
-    const det = /<br\s*\/?>\s*<small>([\s\S]*?)<\/small>\s*$/i.exec(raw);
-    const msg = { from: from.id, to: to.id, label: mmdText(det ? raw.slice(0, det.index) : raw) };
-    if (det) { const d = mmdText(det[1]); if (d) msg.detail = d; }
-    if (arrow[0] !== 'sync') msg.kind = arrow[0];
-    if (dir.activate && !flag(dir.activate)) msg.activate = false;
-    if (dir.until) {
-      const k = parseInt(String(dir.until.args).trim(), 10);
-      if (k >= 1) msg.until = 'm' + k; else warn('line ' + dir.until.line + ': @until needs a step number, ignored');
-    }
-    msgs.push(msg);
-    const idx = msgs.length - 1;
-    if (createdNext) { if (!createdNext.start) createdNext.start = 'm' + (idx + 1); createdNext = null; }
-    if (destroyedNext) { destroyedNext.end = 'm' + (idx + 1); destroyedNext = null; }
-    lastKind = 'msg';
-  }
-
-  const header = /^sequenceDiagram\b/i;
-  for (; li < lines.length; li++) {
-    ln = li + 1;
-    const line = lines[li].trim();
-    if (!line) continue;
-    if (line.startsWith('%%')) {
-      const d = /^%%\s*@(\w+)(?:\s+([\s\S]*))?$/.exec(line);
-      if (!d) continue;
-      const dir = { key: d[1], args: (d[2] || '').trim(), line: ln };
-      if (['activate', 'until', 'collapsed', 'before', 'place'].includes(dir.key) || (dir.key === 'color' && !/\s/.test(dir.args))) pending[dir.key] = dir;
-      else globals.push(dir);
-      continue;
-    }
-    if (!headerSeen) {
-      if (!header.test(line)) throw new Error('line ' + ln + ': expected "sequenceDiagram"');
-      headerSeen = true;
-      continue;
-    }
-    // `;` ends a statement as a new line does (but not the one that ends an entity such as #59;)
-    const stmts = [];
-    let cur = '';
-    for (const c of line) {
-      if (c === ';' && !/#\w*$/.test(cur)) { stmts.push(cur); cur = ''; } else cur += c;
-    }
-    stmts.push(cur);
-    for (const raw of stmts) {
-      const s = raw.trim();
-      if (!s) continue;
-      let m;
-      if ((m = /^(participant|actor)\s+([\s\S]+)$/i.exec(s))) declare(m[1], m[2]);
-      else if ((m = /^create\s+(participant|actor)\s+([\s\S]+)$/i.exec(s))) { const p = declare(m[1], m[2]); if (p) createdNext = p; }
-      else if ((m = /^destroy\s+(\S+)/i.exec(s))) destroyedNext = part(m[1]);
-      else if ((m = /^box(?:\s+([\s\S]*))?$/i.exec(s))) {
-        const sp = mmdSeqSplitColour(m[1] || '');
-        const dir = take(['color']);
-        stack.push({ line: ln, box: { css: sp.colour, label: mmdText(sp.label), members: [], slot: dir.color && /^[1-9]$/.test(dir.color.args.trim()) ? dir.color.args.trim() : '' } });
-      } else if (/^end$/i.test(s)) closeBlock();
-      else if ((m = /^(alt|opt|loop|par|rect|critical|break)(?:\s+([\s\S]*))?$/i.exec(s))) openBlock(m[1].toLowerCase(), m[2] || '');
-      else if ((m = /^(else|and|option)(?:\s+([\s\S]*))?$/i.exec(s))) branch(m[1].toLowerCase(), m[2] || '');
-      else if (/^autonumber(?:\s|$)/i.test(s)) {
-        if (/^autonumber\s+off\b/i.test(s)) data.numbered = false;
-        else { data.numbered = true; if (/^autonumber\s+\S/i.test(s)) infoOnce('autonumber', '"autonumber" start and step are ignored: steps are numbered from 1'); }
-      } else if ((m = /^title(?:\s*:\s*|\s+)([\s\S]*)$/i.exec(s))) data.title = mmdText(m[1]);
-      else if ((m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:([\s\S]*)$/i.exec(s))) note(m[1].toLowerCase().split(' ')[0], m[2], m[3]);
-      else if (/^(activate|deactivate)\s/i.test(s)) bars = true;
-      else if (/^(links?|properties|details|acctitle|accdescr)\b/i.test(s)) infoOnce('ign' + s.split(/\s/)[0].toLowerCase(), '"' + s.split(/[\s:]/)[0] + '" is not used by sequence diagrams, ignored');
-      else if ((m = /^(.*?)\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s*([^:]*?)\s*(?::([\s\S]*))?$/.exec(s)) && m[1] && m[4]) message(m);
-      else warn('line ' + ln + ': not understood, skipped: ' + s);
-    }
-  }
-  if (!headerSeen) throw new Error('line 1: expected "sequenceDiagram"');
-  while (stack.length) { info('line ' + stack[stack.length - 1].line + ': a frame or box is never closed with "end"; closed at the end'); ln = lines.length; closeBlock(); }
-  take([]);
-
-  if (bars) infoOnce('bars', 'activation bars ("+", "-", activate, deactivate) are ignored: bars are computed from the calls and replies; use %% @activate false or %% @until <step> to change one');
-  if (notesInFrame) info(notesInFrame + ' note(s) sit inside a frame before its first message; a note is anchored to a message, so they are placed before the frame');
-  if (droppedFrames) info(droppedFrames + ' frame(s) with no message inside were dropped: a frame covers a range of messages (their notes are kept)');
-  if (droppedBranches) info(droppedBranches + ' else/and branch(es) with no message of their own in the frame were dropped (their notes are kept)');
-
-  // Diagram directives
-  const colorKey = {};
-  const explicitColor = new Map();
-  globals.forEach((d) => {
-    const a = d.args;
-    let m;
-    switch (d.key) {
-      case 'schemaVersion': if (a !== '' && !isNaN(Number(a))) data.schemaVersion = Number(a); break;
-      case 'colorKey': if ((m = /^(\S+)\s+([\s\S]+)$/.exec(a))) colorKey[m[1]] = mmdText(m[2]); break;
-      case 'showDetails': data.showDetails = flag(d); break;
-      case 'rails': data.rails = flag(d); break;
-      case 'lifespans': data.lifespans = flag(d); break;
-      case 'participantOrder': if (a) data.participantOrder = a; break;
-      case 'kind':
-        if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1])) partById.get(m[1]).kind = m[2]; else warn('line ' + d.line + ': @kind needs a known participant and a kind');
-        break;
-      case 'column':
-        if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1]) && partById.has(m[2])) partById.get(m[1]).column = m[2]; else warn('line ' + d.line + ': @column needs two known participants');
-        break;
-      case 'color':
-        if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1])) explicitColor.set(m[1], m[2]); else warn('line ' + d.line + ': @color needs a known participant and a colour');
-        break;
-      case 'start': case 'end':
-        if ((m = /^(\S+)\s+(\d+)$/.exec(a)) && partById.has(m[1])) partById.get(m[1])[d.key] = 'm' + m[2]; else warn('line ' + d.line + ': @' + d.key + ' needs a known participant and a step number');
-        break;
-      case 'type': break;
-      default: info('line ' + d.line + ': unknown directive @' + d.key + ' ignored');
-    }
-  });
-
-  // Colours of boxes and rects: a `%% @color` slot before the box, else the palette slot nearest the colour, else the next free slot
-  const cssSlot = new Map();
-  const taken = new Set(Object.keys(colorKey));
-  explicitColor.forEach((v) => { if (/^[1-9]$/.test(v)) taken.add(v); });
-  const slotOf = (css) => {
-    const k = css.replace(/\s+/g, '').toLowerCase();
-    if (cssSlot.has(k)) return cssSlot.get(k);
-    const rgb = mmdSeqRgb(css);
-    let slot;
-    if (rgb && palette) {
-      let best = Infinity;
-      palette.forEach((c, i) => { if (c) { const d = (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2; if (d < best) { best = d; slot = String(i + 1); } } });
-    } else {
-      let n = 1;
-      while (taken.has(String(n)) && n < 8) n++;
-      slot = String(n);
-      if (taken.has(slot)) infoOnce('slots', 'more than 8 distinct colours: the last slot is reused');
-      taken.add(slot);
-    }
-    cssSlot.set(k, slot);
-    return slot;
-  };
-  boxes.forEach((bx) => {
-    let slot = bx.slot;
-    if (!slot && (bx.css || bx.label)) slot = bx.css && bx.css.toLowerCase() !== 'transparent' ? slotOf(bx.css) : slotOf('box:' + bx.label);
-    if (!slot) return;
-    if (bx.label && !colorKey[slot]) colorKey[slot] = bx.label;
-    bx.members.forEach((p) => { if (!explicitColor.has(p.id)) p.color = slot; });
-  });
-  explicitColor.forEach((v, id) => { partById.get(id).color = v; });
-
-  // Notes get their anchors now that every message is known
-  const total = msgs.length;
-  const noteOut = notes.map(({ n, mode, at }) => {
-    if (mode === 'after' && at > 0) n.after = 'm' + at;
-    else if (at > 0 && (mode === 'before' || mode === 'after')) {   // before the first message = no anchor
-      if (at < total) n.before = 'm' + (at + 1); else if (total) n.after = 'm' + total;
-    }
-    return n;
-  });
-
-  const fragOut = frames.sort((p, q) => p.order - q.order).map((f, i) => {
-    const o = { id: 'f' + (i + 1), kind: f.kind, label: f.label, from: f.from, to: f.to };
-    if (f.br.length) {
-      if (f.kind === 'alt' && f.br.length === 1 && !f.br[0].label) o.elseAt = f.br[0].at; else o.branches = f.br;
-    }
-    const css = f.css && f.css.toLowerCase() !== 'transparent' ? f.css : '';
-    if (f.color !== undefined) o.color = f.color; else if (css && f.kind === 'group') o.color = slotOf(css);
-    if (f.collapsed !== undefined) o.collapsed = f.collapsed;
-    return o;
-  });
-
-  if (Object.keys(colorKey).length) data.colorKey = colorKey;
-  data.participants = parts.map((p) => {
-    const o = { id: p.id, name: p.name };
-    if (p.kind && p.kind !== 'system') o.kind = p.kind;
-    ['color', 'start', 'end', 'column'].forEach((k) => { if (p[k] !== undefined) o[k] = p[k]; });
-    return o;
-  });
-  data.messages = msgs.map((m, i) => Object.assign({ id: 'm' + (i + 1) }, m));
-  if (fragOut.length) data.fragments = fragOut;
-  if (noteOut.length) data.notes = noteOut.map((n, i) => Object.assign({ id: 'n' + (i + 1) }, n));
-  // Steps named by @until, @start and @end must exist
-  data.messages.forEach((m) => { if (m.until && Number(m.until.slice(1)) > total) { warn('@until ' + m.until.slice(1) + ' is past the last step (' + total + '), ignored'); delete m.until; } });
-  data.participants.forEach((p) => ['start', 'end'].forEach((k) => { if (p[k] && Number(p[k].slice(1)) > total) { warn('@' + k + ' ' + p[k].slice(1) + ' is past the last step (' + total + '), ignored'); delete p[k]; } }));
-  const order = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
-  const sorted = {};
-  order.forEach((k) => { if (k in data) sorted[k] = data[k]; });
-  return { data: sorted, infos, warnings };
+opts = opts || {};
+const infos = [], warnings = [];
+const info = (s) => infos.push('[INFO] ' + s);
+const warn = (s) => warnings.push('[WARN] ' + s);
+const once = new Set();
+const infoOnce = (key, s) => { if (!once.has(key)) { once.add(key); info(s); } };
+const palette = Array.isArray(opts.palette) && opts.palette.length ? opts.palette.map(mmdSeqHexRgb) : null;
+const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+const data = { diagramType: 'sequence' };
+let li = 0;
+while (li < lines.length && !lines[li].trim()) li++;
+if (li < lines.length && lines[li].trim() === '---') {   // front matter: the title
+li++;
+while (li < lines.length && lines[li].trim() !== '---') {
+const m = /^title\s*:\s*(.*)$/.exec(lines[li]);
+if (m) {
+let v = m[1].trim();
+if (v[0] === '"') { try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); } } else if (v[0] === "'") v = v.replace(/^'|'$/g, '');
+data.title = mmdText(v);
 }
-
+li++;
+}
+li++;
+}
+const parts = [], partById = new Map();
+const msgs = [], frames = [], notes = [], stack = [], boxes = [], globals = [];
+let pending = {}, lastKind = 'none', headerSeen = false, ln = 0, createdNext = null, destroyedNext = null;
+let notesInFrame = 0, droppedFrames = 0, droppedBranches = 0, bars = false, opened = 0;
+const part = (id) => {
+let p = partById.get(id);
+if (!p) { p = { id, name: id }; parts.push(p); partById.set(id, p); }
+return p;
+};
+const take = (allowed) => {
+const got = {};
+Object.keys(pending).forEach((k) => {
+if (allowed.includes(k)) got[k] = pending[k]; else warn('line ' + pending[k].line + ': @' + k + ' does not apply to the next statement, ignored');
+});
+pending = {};
+return got;
+};
+const flag = (d) => (/^false$/i.test(String(d.args).trim()) ? false : true);
+function declare(kw, rest, created) {   // participant / actor
+const m = /^(\S+?)\s*(?:@\{([^}]*)\})?\s*(?:\bas\b\s*([\s\S]*))?$/i.exec(rest.trim());
+if (!m) { warn('line ' + ln + ': cannot read the participant "' + rest + '"'); return; }
+const p = part(m[1]);
+if (m[3] !== undefined) p.name = mmdText(m[3]);
+if (/^actor$/i.test(kw)) p.kind = 'actor';
+const t = m[2] && /["']?type["']?\s*:\s*["']?(\w+)/i.exec(m[2]);
+if (t) {
+const k = MMD_SEQ_TYPE_KIND[t[1].toLowerCase()];
+if (k) { p.kind = k; if (k === 'system') infoOnce('type' + t[1], 'participant type "' + t[1] + '" read as a plain service'); } else if (t[1].toLowerCase() !== 'participant') infoOnce('type' + t[1], 'participant type "' + t[1] + '" read as a plain service');
+}
+if (stack.length && stack[stack.length - 1].box) stack[stack.length - 1].box.members.push(p);
+return p;
+}
+function note(side, over, body) {
+const ids = over.split(',').map((s) => s.trim()).filter(Boolean);
+if (side !== 'over') infoOnce('noteside', '"Note left of" and "Note right of" are read as a note over that participant');
+if (ids.length > 2) infoOnce('note3', 'a note over more than two participants keeps the first two');
+ids.slice(0, 2).forEach((id) => part(id));
+const dir = take(['before', 'place']);
+const top = stack[stack.length - 1];
+const n = { text: mmdText(body), over: ids.length > 1 ? ids.slice(0, 2) : ids[0] };
+if (dir.place) {
+const v = Number(String(dir.place.args).trim());
+if (isFinite(v)) { delete n.over; n.place = v; } else warn('line ' + dir.place.line + ': @place needs a number, ignored');
+}
+let mode;
+if (lastKind === 'msg') mode = dir.before ? 'before' : 'after';
+else if (lastKind === 'none') mode = 'free';
+else mode = 'before';
+const entry = { n, mode, at: msgs.length };
+notes.push(entry);
+if (lastKind === 'open' && top) {
+if (top.rect && !top.labelEntry) top.labelEntry = entry; else top.early = (top.early || 0) + 1;
+}
+return n;
+}
+function openBlock(kw, rest) {
+const dir = take(['color', 'collapsed']);
+const b = { kind: kw, a: msgs.length, branches: [], line: ln, order: opened++ };
+let label = rest;
+if (kw === 'rect') {
+const sp = mmdSeqSplitColour(rest);
+b.css = sp.colour;
+label = sp.label;
+}
+if (kw === 'critical') { b.kind = 'group'; b.critical = true; infoOnce('critical', '"critical" is read as a group, or as an alt when it has "option" branches'); }
+if (kw === 'rect') { b.kind = 'group'; b.rect = true; }
+b.label = mmdText(label);
+if (dir.color) b.color = String(dir.color.args).trim();
+if (dir.collapsed) b.collapsed = flag(dir.collapsed);
+stack.push(b);
+lastKind = 'open';
+}
+function branch(kw, rest) {
+const b = stack[stack.length - 1];
+if (!b || b.box) { warn('line ' + ln + ': "' + kw + '" outside a frame, ignored'); return; }
+if (b.critical && b.kind === 'group') b.kind = 'alt';   // "option" branches need an alt
+if (b.kind !== 'alt' && b.kind !== 'par') { infoOnce('branch' + b.kind, '"' + kw + '" in a ' + b.kind + ' frame is ignored: only alt and par have branches'); return; }
+b.branches.push({ e: msgs.length, label: mmdText(rest) });
+lastKind = 'else';
+}
+function closeBlock() {
+const top = stack.pop();
+if (!top) { warn('line ' + ln + ': "end" with nothing open, ignored'); return; }
+if (top.box) { boxes.push(top.box); return; }
+lastKind = 'end';
+const b = msgs.length - 1;
+if (b < top.a) { droppedFrames++; return; }   // no message inside: a frame is a range of messages; its notes stay
+notesInFrame += top.early || 0;
+if (top.labelEntry) { top.label = top.labelEntry.n.text; notes.splice(notes.indexOf(top.labelEntry), 1); }
+const seen = new Set();
+const br = [];
+top.branches.forEach((x) => {
+if (x.e > top.a && x.e <= b && !seen.has(x.e)) { seen.add(x.e); br.push({ at: 'm' + (x.e + 1), label: x.label }); } else droppedBranches++;
+});
+const f = { kind: top.kind, label: top.label, from: 'm' + (top.a + 1), to: 'm' + (b + 1), color: top.color, collapsed: top.collapsed, css: top.css, br, order: top.order };
+frames.push(f);
+}
+function message(m) {
+const arrow = MMD_SEQ_ARROWS[m[2]];
+if (arrow[1]) infoOnce('arrow' + m[2], '"' + m[2] + '" (' + arrow[1] + ') is read as ' + MMD_SEQ_ARROW_OF[arrow[0]]);
+if (m[3]) bars = true;
+const from = part(m[1].trim()), to = part(m[4].trim());
+const dir = take(['activate', 'until']);
+const raw = m[5] === undefined ? '' : m[5];
+const det = /<br\s*\/?>\s*<small>([\s\S]*?)<\/small>\s*$/i.exec(raw);
+const msg = { from: from.id, to: to.id, label: mmdText(det ? raw.slice(0, det.index) : raw) };
+if (det) { const d = mmdText(det[1]); if (d) msg.detail = d; }
+if (arrow[0] !== 'sync') msg.kind = arrow[0];
+if (dir.activate && !flag(dir.activate)) msg.activate = false;
+if (dir.until) {
+const k = parseInt(String(dir.until.args).trim(), 10);
+if (k >= 1) msg.until = 'm' + k; else warn('line ' + dir.until.line + ': @until needs a step number, ignored');
+}
+msgs.push(msg);
+const idx = msgs.length - 1;
+if (createdNext) { if (!createdNext.start) createdNext.start = 'm' + (idx + 1); createdNext = null; }
+if (destroyedNext) { destroyedNext.end = 'm' + (idx + 1); destroyedNext = null; }
+lastKind = 'msg';
+}
+const header = /^sequenceDiagram\b/i;
+for (; li < lines.length; li++) {
+ln = li + 1;
+const line = lines[li].trim();
+if (!line) continue;
+if (line.startsWith('%%')) {
+const d = /^%%\s*@(\w+)(?:\s+([\s\S]*))?$/.exec(line);
+if (!d) continue;
+const dir = { key: d[1], args: (d[2] || '').trim(), line: ln };
+if (['activate', 'until', 'collapsed', 'before', 'place'].includes(dir.key) || (dir.key === 'color' && !/\s/.test(dir.args))) pending[dir.key] = dir;
+else globals.push(dir);
+continue;
+}
+if (!headerSeen) {
+if (!header.test(line)) throw new Error('line ' + ln + ': expected "sequenceDiagram"');
+headerSeen = true;
+continue;
+}
+const stmts = [];
+let cur = '';
+for (const c of line) {
+if (c === ';' && !/#\w*$/.test(cur)) { stmts.push(cur); cur = ''; } else cur += c;
+}
+stmts.push(cur);
+for (const raw of stmts) {
+const s = raw.trim();
+if (!s) continue;
+let m;
+if ((m = /^(participant|actor)\s+([\s\S]+)$/i.exec(s))) declare(m[1], m[2]);
+else if ((m = /^create\s+(participant|actor)\s+([\s\S]+)$/i.exec(s))) { const p = declare(m[1], m[2]); if (p) createdNext = p; }
+else if ((m = /^destroy\s+(\S+)/i.exec(s))) destroyedNext = part(m[1]);
+else if ((m = /^box(?:\s+([\s\S]*))?$/i.exec(s))) {
+const sp = mmdSeqSplitColour(m[1] || '');
+const dir = take(['color']);
+stack.push({ line: ln, box: { css: sp.colour, label: mmdText(sp.label), members: [], slot: dir.color && /^[1-9]$/.test(dir.color.args.trim()) ? dir.color.args.trim() : '' } });
+} else if (/^end$/i.test(s)) closeBlock();
+else if ((m = /^(alt|opt|loop|par|rect|critical|break)(?:\s+([\s\S]*))?$/i.exec(s))) openBlock(m[1].toLowerCase(), m[2] || '');
+else if ((m = /^(else|and|option)(?:\s+([\s\S]*))?$/i.exec(s))) branch(m[1].toLowerCase(), m[2] || '');
+else if (/^autonumber(?:\s|$)/i.test(s)) {
+if (/^autonumber\s+off\b/i.test(s)) data.numbered = false;
+else { data.numbered = true; if (/^autonumber\s+\S/i.test(s)) infoOnce('autonumber', '"autonumber" start and step are ignored: steps are numbered from 1'); }
+} else if ((m = /^title(?:\s*:\s*|\s+)([\s\S]*)$/i.exec(s))) data.title = mmdText(m[1]);
+else if ((m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:([\s\S]*)$/i.exec(s))) note(m[1].toLowerCase().split(' ')[0], m[2], m[3]);
+else if (/^(activate|deactivate)\s/i.test(s)) bars = true;
+else if (/^(links?|properties|details|acctitle|accdescr)\b/i.test(s)) infoOnce('ign' + s.split(/\s/)[0].toLowerCase(), '"' + s.split(/[\s:]/)[0] + '" is not used by sequence diagrams, ignored');
+else if ((m = /^(.*?)\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s*([^:]*?)\s*(?::([\s\S]*))?$/.exec(s)) && m[1] && m[4]) message(m);
+else warn('line ' + ln + ': not understood, skipped: ' + s);
+}
+}
+if (!headerSeen) throw new Error('line 1: expected "sequenceDiagram"');
+while (stack.length) { info('line ' + stack[stack.length - 1].line + ': a frame or box is never closed with "end"; closed at the end'); ln = lines.length; closeBlock(); }
+take([]);
+if (bars) infoOnce('bars', 'activation bars ("+", "-", activate, deactivate) are ignored: bars are computed from the calls and replies; use %% @activate false or %% @until <step> to change one');
+if (notesInFrame) info(notesInFrame + ' note(s) sit inside a frame before its first message; a note is anchored to a message, so they are placed before the frame');
+if (droppedFrames) info(droppedFrames + ' frame(s) with no message inside were dropped: a frame covers a range of messages (their notes are kept)');
+if (droppedBranches) info(droppedBranches + ' else/and branch(es) with no message of their own in the frame were dropped (their notes are kept)');
+const colorKey = {};
+const explicitColor = new Map();
+globals.forEach((d) => {
+const a = d.args;
+let m;
+switch (d.key) {
+case 'schemaVersion': if (a !== '' && !isNaN(Number(a))) data.schemaVersion = Number(a); break;
+case 'colorKey': if ((m = /^(\S+)\s+([\s\S]+)$/.exec(a))) colorKey[m[1]] = mmdText(m[2]); break;
+case 'showDetails': data.showDetails = flag(d); break;
+case 'rails': data.rails = flag(d); break;
+case 'lifespans': data.lifespans = flag(d); break;
+case 'participantOrder': if (a) data.participantOrder = a; break;
+case 'kind':
+if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1])) partById.get(m[1]).kind = m[2]; else warn('line ' + d.line + ': @kind needs a known participant and a kind');
+break;
+case 'column':
+if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1]) && partById.has(m[2])) partById.get(m[1]).column = m[2]; else warn('line ' + d.line + ': @column needs two known participants');
+break;
+case 'color':
+if ((m = /^(\S+)\s+(\S+)$/.exec(a)) && partById.has(m[1])) explicitColor.set(m[1], m[2]); else warn('line ' + d.line + ': @color needs a known participant and a colour');
+break;
+case 'start': case 'end':
+if ((m = /^(\S+)\s+(\d+)$/.exec(a)) && partById.has(m[1])) partById.get(m[1])[d.key] = 'm' + m[2]; else warn('line ' + d.line + ': @' + d.key + ' needs a known participant and a step number');
+break;
+case 'type': break;
+default: info('line ' + d.line + ': unknown directive @' + d.key + ' ignored');
+}
+});
+const cssSlot = new Map();
+const taken = new Set(Object.keys(colorKey));
+explicitColor.forEach((v) => { if (/^[1-9]$/.test(v)) taken.add(v); });
+const slotOf = (css) => {
+const k = css.replace(/\s+/g, '').toLowerCase();
+if (cssSlot.has(k)) return cssSlot.get(k);
+const rgb = mmdSeqRgb(css);
+let slot;
+if (rgb && palette) {
+let best = Infinity;
+palette.forEach((c, i) => { if (c) { const d = (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2; if (d < best) { best = d; slot = String(i + 1); } } });
+} else {
+let n = 1;
+while (taken.has(String(n)) && n < 8) n++;
+slot = String(n);
+if (taken.has(slot)) infoOnce('slots', 'more than 8 distinct colours: the last slot is reused');
+taken.add(slot);
+}
+cssSlot.set(k, slot);
+return slot;
+};
+boxes.forEach((bx) => {
+let slot = bx.slot;
+if (!slot && (bx.css || bx.label)) slot = bx.css && bx.css.toLowerCase() !== 'transparent' ? slotOf(bx.css) : slotOf('box:' + bx.label);
+if (!slot) return;
+if (bx.label && !colorKey[slot]) colorKey[slot] = bx.label;
+bx.members.forEach((p) => { if (!explicitColor.has(p.id)) p.color = slot; });
+});
+explicitColor.forEach((v, id) => { partById.get(id).color = v; });
+const total = msgs.length;
+const noteOut = notes.map(({ n, mode, at }) => {
+if (mode === 'after' && at > 0) n.after = 'm' + at;
+else if (at > 0 && (mode === 'before' || mode === 'after')) {   // before the first message = no anchor
+if (at < total) n.before = 'm' + (at + 1); else if (total) n.after = 'm' + total;
+}
+return n;
+});
+const fragOut = frames.sort((p, q) => p.order - q.order).map((f, i) => {
+const o = { id: 'f' + (i + 1), kind: f.kind, label: f.label, from: f.from, to: f.to };
+if (f.br.length) {
+if (f.kind === 'alt' && f.br.length === 1 && !f.br[0].label) o.elseAt = f.br[0].at; else o.branches = f.br;
+}
+const css = f.css && f.css.toLowerCase() !== 'transparent' ? f.css : '';
+if (f.color !== undefined) o.color = f.color; else if (css && f.kind === 'group') o.color = slotOf(css);
+if (f.collapsed !== undefined) o.collapsed = f.collapsed;
+return o;
+});
+if (Object.keys(colorKey).length) data.colorKey = colorKey;
+data.participants = parts.map((p) => {
+const o = { id: p.id, name: p.name };
+if (p.kind && p.kind !== 'system') o.kind = p.kind;
+['color', 'start', 'end', 'column'].forEach((k) => { if (p[k] !== undefined) o[k] = p[k]; });
+return o;
+});
+data.messages = msgs.map((m, i) => Object.assign({ id: 'm' + (i + 1) }, m));
+if (fragOut.length) data.fragments = fragOut;
+if (noteOut.length) data.notes = noteOut.map((n, i) => Object.assign({ id: 'n' + (i + 1) }, n));
+data.messages.forEach((m) => { if (m.until && Number(m.until.slice(1)) > total) { warn('@until ' + m.until.slice(1) + ' is past the last step (' + total + '), ignored'); delete m.until; } });
+data.participants.forEach((p) => ['start', 'end'].forEach((k) => { if (p[k] && Number(p[k].slice(1)) > total) { warn('@' + k + ' ' + p[k].slice(1) + ' is past the last step (' + total + '), ignored'); delete p[k]; } }));
+const order = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
+const sorted = {};
+order.forEach((k) => { if (k in data) sorted[k] = data[k]; });
+return { data: sorted, infos, warnings };
+}
 function mmdSeqAutoColumns(ps, ms, ns) {
-  if (ps.length <= 2 || ps.some((p) => p.id === undefined) || new Set(ps.map((p) => p.id)).size !== ps.length) return null;
-  const mIdx = new Map();
-  ms.forEach((m, i) => mIdx.set(m.id, i));
-  const columns = [], hosts = [], assigned = {};
-  ps.forEach((p) => {
-    const pid = p.id, events = [];
-    ms.forEach((m, i) => { if (m.from === pid || m.to === pid) events.push(i); });
-    ns.forEach((n) => {
-      const over = Array.isArray(n.over) ? n.over : n.over == null ? [] : [n.over];
-      if (!over.includes(pid)) return;
-      const key = n.after !== undefined && n.after !== null ? 'after' : n.before !== undefined && n.before !== null ? 'before' : null;
-      const at = key ? mIdx.get(n[key]) : (ms.length ? 0 : undefined);
-      if (at !== undefined) events.push(at);
-    });
-    if (!events.length) return;
-    const lo = Math.min(...events), hi = Math.max(...events);
-    const idx = columns.findIndex((col) => col.every(([olo, ohi]) => Math.max(lo, olo) > Math.min(hi, ohi)));
-    if (idx >= 0) { columns[idx].push([lo, hi]); assigned[pid] = hosts[idx]; }
-    else { columns.push([[lo, hi]]); hosts.push(pid); }
-  });
-  return Object.keys(assigned).length >= 2 ? assigned : null;
+if (ps.length <= 2 || ps.some((p) => p.id === undefined) || new Set(ps.map((p) => p.id)).size !== ps.length) return null;
+const mIdx = new Map();
+ms.forEach((m, i) => mIdx.set(m.id, i));
+const columns = [], hosts = [], assigned = {};
+ps.forEach((p) => {
+const pid = p.id, events = [];
+ms.forEach((m, i) => { if (m.from === pid || m.to === pid) events.push(i); });
+ns.forEach((n) => {
+const over = Array.isArray(n.over) ? n.over : n.over == null ? [] : [n.over];
+if (!over.includes(pid)) return;
+const key = n.after !== undefined && n.after !== null ? 'after' : n.before !== undefined && n.before !== null ? 'before' : null;
+const at = key ? mIdx.get(n[key]) : (ms.length ? 0 : undefined);
+if (at !== undefined) events.push(at);
+});
+if (!events.length) return;
+const lo = Math.min(...events), hi = Math.max(...events);
+const idx = columns.findIndex((col) => col.every(([olo, ohi]) => Math.max(lo, olo) > Math.min(hi, ohi)));
+if (idx >= 0) { columns[idx].push([lo, hi]); assigned[pid] = hosts[idx]; }
+else { columns.push([[lo, hi]]); hosts.push(pid); }
+});
+return Object.keys(assigned).length >= 2 ? assigned : null;
 }
-
 function toMermaid(data, opts) {
-  opts = opts || {};
-  const palette = Array.isArray(opts.palette) ? opts.palette : null;
-  const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [], ns = data.notes || [];
-  const out = [];
-
-  // Ids: mmdSafeId, then away from the words Mermaid reads as statements
-  const used = new Set(), sid = new Map();
-  ps.forEach((p) => {
-    if (sid.has(p.id)) return;
-    let s = mmdSafeId(p.id, used);
-    if (MMD_SEQ_RESERVED.includes(s.toLowerCase())) { used.delete(s); s += '_'; while (used.has(s)) s += '_'; used.add(s); }
-    sid.set(p.id, s);
-  });
-  const pid = (id) => sid.get(id) || mmdSafeId(String(id));
-  const mIdx = new Map();
-  ms.forEach((m, i) => { if (!mIdx.has(m.id)) mIdx.set(m.id, i); });
-  const step = (id) => (mIdx.has(id) ? mIdx.get(id) + 1 : null);
-  const flag = (key, v) => (v === undefined || v === null ? null : '%% @' + key + (v ? '' : ' false'));
-  const same = (v) => v !== undefined && v !== null && v !== '';
-
-  // Frames: only those that name real messages and nest properly (the outer one wins over one that crosses it)
-  const frames = fs.map((f, n) => ({ f, n, a: mIdx.get(f.from), b: mIdx.get(f.to) })).filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b)
-    .sort((p, q) => p.a - q.a || (q.b - q.a) - (p.b - p.a) || p.n - q.n);
-  const open = [];
-  const nested = frames.filter((r) => {
-    while (open.length && open[open.length - 1].b < r.a) open.pop();
-    if (open.length && r.b > open[open.length - 1].b) return false;
-    open.push(r);
-    return true;
-  });
-  nested.forEach((r) => {
-    const f = r.f;
-    const list = Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }];
-    const seen = new Set();
-    r.br = f.kind === 'alt' || f.kind === 'par' ? list.map((x) => ({ e: mIdx.get(x.at), label: x.label || '' }))
-      .filter((x) => x.e !== undefined && x.e > r.a && x.e <= r.b && !seen.has(x.e) && seen.add(x.e)).sort((p, q) => p.e - q.e) : [];
-  });
-
-  // Participants that Mermaid creates and destroys itself: the ones its rules allow (`create` goes before the first message
-  // to the participant, `destroy` before a message of it), and at the end of the list, so declaration order is kept
-  const firstUse = (id) => ms.findIndex((m) => m.from === id || m.to === id);
-  const createIdx = new Map(), destroyIdx = new Map();
-  const tail = [];
-  for (let i = ps.length - 1; i >= 0; i--) {
-    const p = ps[i], s = same(p.start) ? mIdx.get(p.start) : undefined;
-    if (s === undefined || ms[s].to !== p.id || firstUse(p.id) !== s || (tail.length && s >= tail[0].s)) break;
-    tail.unshift({ p, s });
-  }
-  tail.forEach(({ p, s }) => createIdx.set(p.id, s));
-  ps.forEach((p) => {
-    const e = same(p.end) ? mIdx.get(p.end) : undefined;
-    if (e !== undefined && (ms[e].from === p.id || ms[e].to === p.id) && ![...destroyIdx].some(([, v]) => v === e)) destroyIdx.set(p.id, e);
-  });
-
-  const text = (s) => mmdSeqEsc(s);
-  const ind = (n) => '  '.repeat(n);
-  const decl = (p, kw) => {
-    const id = pid(p.id), type = MMD_SEQ_KIND_TYPE[p.kind];
-    const alias = p.name === id ? '' : ' as ' + text(p.name).trimEnd();
-    if (p.kind === 'actor') return (kw ? 'create ' : '') + 'actor ' + id + alias;
-    return (kw ? 'create ' : '') + 'participant ' + id + (type ? '@{ "type": "' + type + '" }' : '') + alias;
-  };
-
-  if (data.title) out.push('---', 'title: ' + (/[:#"'\[\]{}&*!|>%@`,]|^[\s?-]|\s$/.test(data.title) ? JSON.stringify(String(data.title)) : data.title), '---');
-  out.push('sequenceDiagram');
-  const top = (s) => out.push(ind(1) + s);
-  if (data.schemaVersion != null) top('%% @schemaVersion ' + data.schemaVersion);
-  const ck = data.colorKey || {};
-  Object.keys(ck).sort((a, b) => a - b).forEach((k) => top('%% @colorKey ' + k + ' ' + text(ck[k])));
-  const stripAutoCols = data.lifespans === true && !ps.some((p) => p.start != null || p.end != null) && (() => {
-    const cols = ps.filter((p) => same(p.column));
-    if (cols.length < 2) return false;
-    const auto = mmdSeqAutoColumns(ps, ms, ns);
-    return !!auto && cols.length === Object.keys(auto).length && cols.every((p) => auto[p.id] === p.column);
-  })();
-  [flag('showDetails', data.showDetails), data.participantOrder ? '%% @participantOrder ' + data.participantOrder : null,
-    flag('rails', data.rails), stripAutoCols ? null : flag('lifespans', data.lifespans)].forEach((s) => { if (s) top(s); });
-  if (data.numbered === true) top('autonumber'); else if (data.numbered === false) top('autonumber off');
-
-  // Participants. A run of neighbours with one colour slot that the colour key names becomes a box; any other colour is a directive.
-  const slotOf = (p) => (/^[1-9]$/.test(String(p.color)) ? String(p.color) : null);
-  const keyLabelOk = (s) => {
-    const label = ck[s];
-    if (typeof label !== 'string' || !label || label !== label.trim() || Object.keys(ck).filter((k) => ck[k] === label).length !== 1) return false;
-    return mmdText(text(label)) === label && (mmdSeqCss(s, palette) || !mmdSeqSplitColour(text(label)).colour);
-  };
-  const boxed = (p) => !createIdx.has(p.id) && slotOf(p) && keyLabelOk(slotOf(p));
-  const tops = ps.filter((p) => !createIdx.has(p.id));
-  const extra = [];
-  for (let i = 0; i < tops.length;) {
-    const s = slotOf(tops[i]);
-    if (boxed(tops[i])) {
-      let j = i;
-      while (j < tops.length && slotOf(tops[j]) === s) j++;
-      const css = mmdSeqCss(s, palette);
-      top('%% @color ' + s);
-      top('box ' + (css ? css + ' ' : '') + text(ck[s]));
-      for (let k = i; k < j; k++) top(ind(1) + decl(tops[k]));
-      top('end');
-      i = j;
-    } else { top(decl(tops[i])); i++; }
-  }
-  ps.forEach((p) => {
-    const k = p.kind;
-    if (k && !['system', 'actor', 'ui', 'database', 'queue'].includes(k)) extra.push('%% @kind ' + pid(p.id) + ' ' + k);
-    if (p.color != null && p.color !== '' && !boxed(p)) extra.push('%% @color ' + pid(p.id) + ' ' + p.color);
-    if (!stripAutoCols && same(p.column) && sid.has(p.column)) extra.push('%% @column ' + pid(p.id) + ' ' + pid(p.column));
-    if (same(p.start) && !createIdx.has(p.id) && step(p.start)) extra.push('%% @start ' + pid(p.id) + ' ' + step(p.start));
-    if (same(p.end) && !destroyIdx.has(p.id) && step(p.end)) extra.push('%% @end ' + pid(p.id) + ' ' + step(p.end));
-  });
-  extra.forEach(top);
-
-  // Notes by slot: before a message (free notes first) and after it
-  const noteSlots = { before: new Map(), after: new Map() };
-  const noteLines = ns.map((n) => {
-    const over = (Array.isArray(n.over) ? n.over : n.over == null ? [] : [n.over]).slice(0, 2);
-    let at = over.length ? over : null, place = null;
-    if (!over.length && typeof n.place === 'number' && ps.length) {
-      place = n.place;
-      at = [ps[Math.round(Math.max(0, Math.min(ps.length - 1, n.place)))].id];
-    }
-    if (!at || at.some((id) => !sid.has(id))) return null;
-    const kind = n.after != null ? 'after' : n.before != null ? 'before' : 'free';
-    const k = kind === 'free' ? 0 : mIdx.get(n[kind]);
-    if (k === undefined || k === null) return null;
-    return { n, kind, k, place, text: 'Note over ' + at.map(pid).join(',') + ': ' + text(n.text) };
-  }).filter(Boolean);
-  noteLines.forEach((r) => {
-    const map = r.kind === 'after' ? noteSlots.after : noteSlots.before;
-    if (!map.has(r.k)) map.set(r.k, []);
-    map.get(r.k).push(r);
-  });
-
-  // The body, message by message
-  let depth = 0, prev = 'none';
-  const line = (s) => out.push(ind(depth + 1) + s);
-  const emitNote = (r) => {
-    if (r.place !== null) line('%% @place ' + r.place);
-    if (r.kind === 'before' && prev === 'msg') line('%% @before');
-    line(r.text);
-  };
-  const stack = [];
-  ms.forEach((m, k) => {
-    // `else` / `and` of the frame that is open and innermost
-    const t = stack[stack.length - 1];
-    if (t) t.br.filter((x) => x.e === k).forEach((x) => { depth--; line(((t.f.kind === 'par' ? 'and ' : 'else ') + text(x.label)).trimEnd()); depth++; prev = 'else'; });
-    (noteSlots.before.get(k) || []).forEach(emitNote);
-    nested.filter((r) => r.a === k).forEach((r) => {
-      const f = r.f, label = text(f.label || '');
-      if (same(f.color) && String(f.color) !== '') line('%% @color ' + f.color);
-      if (f.collapsed !== undefined) line(flag('collapsed', f.collapsed));
-      if (f.kind === 'group') {
-        const css = same(f.color) ? mmdSeqCss(f.color, palette) : '';
-        line('rect' + (css ? ' ' + css : ''));
-        // The name is the first line inside the rect: a note over every lifeline (first to last participant), read back as the name
-        if (label && ps.length) out.push(ind(depth + 2) + 'Note over ' + pid(ps[0].id) + (ps.length > 1 ? ',' + pid(ps[ps.length - 1].id) : '') + ': ' + label);
-      } else line((['alt', 'opt', 'loop', 'par', 'break'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
-      stack.push(r);
-      depth++;
-      prev = 'open';
-    });
-    if (m.activate === false) line('%% @activate false');
-    if (same(m.until) && step(m.until)) line('%% @until ' + step(m.until));
-    ps.forEach((p) => {
-      if (createIdx.get(p.id) === k) line(decl(p, true));
-      if (destroyIdx.get(p.id) === k) line('destroy ' + pid(p.id));
-    });
-    const label = mmdSeqEsc(m.label, '#10;'), detail = same(m.detail) ? mmdSeqEsc(m.detail, '#10;') : '';
-    line(pid(m.from) + MMD_SEQ_ARROW_OF[m.kind || 'sync'] + pid(m.to) + ':' + (label || detail ? ' ' + label + (detail ? '<br><small>' + detail + '</small>' : '') : ''));
-    prev = 'msg';
-    (noteSlots.after.get(k) || []).forEach(emitNote);
-    while (stack.length && stack[stack.length - 1].b === k) { stack.pop(); depth--; line('end'); prev = 'end'; }
-  });
-  if (!ms.length) (noteSlots.before.get(0) || []).forEach(emitNote);
-  return out.join('\n') + '\n';
+opts = opts || {};
+const palette = Array.isArray(opts.palette) ? opts.palette : null;
+const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [], ns = data.notes || [];
+const out = [];
+const used = new Set(), sid = new Map();
+ps.forEach((p) => {
+if (sid.has(p.id)) return;
+let s = mmdSafeId(p.id, used);
+if (MMD_SEQ_RESERVED.includes(s.toLowerCase())) { used.delete(s); s += '_'; while (used.has(s)) s += '_'; used.add(s); }
+sid.set(p.id, s);
+});
+const pid = (id) => sid.get(id) || mmdSafeId(String(id));
+const mIdx = new Map();
+ms.forEach((m, i) => { if (!mIdx.has(m.id)) mIdx.set(m.id, i); });
+const step = (id) => (mIdx.has(id) ? mIdx.get(id) + 1 : null);
+const flag = (key, v) => (v === undefined || v === null ? null : '%% @' + key + (v ? '' : ' false'));
+const same = (v) => v !== undefined && v !== null && v !== '';
+const frames = fs.map((f, n) => ({ f, n, a: mIdx.get(f.from), b: mIdx.get(f.to) })).filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b)
+.sort((p, q) => p.a - q.a || (q.b - q.a) - (p.b - p.a) || p.n - q.n);
+const open = [];
+const nested = frames.filter((r) => {
+while (open.length && open[open.length - 1].b < r.a) open.pop();
+if (open.length && r.b > open[open.length - 1].b) return false;
+open.push(r);
+return true;
+});
+nested.forEach((r) => {
+const f = r.f;
+const list = Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }];
+const seen = new Set();
+r.br = f.kind === 'alt' || f.kind === 'par' ? list.map((x) => ({ e: mIdx.get(x.at), label: x.label || '' }))
+.filter((x) => x.e !== undefined && x.e > r.a && x.e <= r.b && !seen.has(x.e) && seen.add(x.e)).sort((p, q) => p.e - q.e) : [];
+});
+const firstUse = (id) => ms.findIndex((m) => m.from === id || m.to === id);
+const createIdx = new Map(), destroyIdx = new Map();
+const tail = [];
+for (let i = ps.length - 1; i >= 0; i--) {
+const p = ps[i], s = same(p.start) ? mIdx.get(p.start) : undefined;
+if (s === undefined || ms[s].to !== p.id || firstUse(p.id) !== s || (tail.length && s >= tail[0].s)) break;
+tail.unshift({ p, s });
 }
-      // ===== SEQUENCE DIAGRAM PLUGIN =====
-      // Renders chartData (participants, messages, fragments) laid out by engine.js and handles editing.
-      // Positions are always derived by layoutDiagram(): edits change the logical model, then re-layout.
-      const seqCanvas = document.getElementById('seq-canvas');
-      const seqSvg = document.getElementById('seq-svg');
-      const seqHtml = document.getElementById('seq-html');
-      seqHtml.style.setProperty('--seq-label-max', `${SQ.LABEL_MAX_W}px`);   // the edit box wraps where the engine does
-      const seqFragG = document.getElementById('seq-fragments');
-      const seqLifeG = document.getElementById('seq-lifelines');
-      const seqActG = document.getElementById('seq-activations');
-      const seqMsgG = document.getElementById('seq-messages');
-      const seqDrop = document.getElementById('seq-drop-line');
-      const btnAddParticipant = document.getElementById('btn-add-participant');
-      const btnAddMessage = document.getElementById('btn-add-message');
-      const btnAddNote = document.getElementById('btn-add-note');
-      const btnFrame = document.getElementById('btn-frame');
-      const btnNumbers = document.getElementById('btn-numbers');
-      const btnDetails = document.getElementById('btn-details');
-      const btnShowAll = document.getElementById('btn-show-all');
-      const btnLifespans = document.getElementById('btn-lifespans');
-
-      const SVG_NS = 'http://www.w3.org/2000/svg';
-      const ACT_HALF = 6;      // half width of an activation bar
-      const ACT_STEP = 5;      // sideways offset per nested activation
-      const FRAG_KINDS = ['opt', 'alt', 'loop', 'par', 'break', 'group'];
-
-      // Selection: { kind: 'participant' | 'fragment' | 'note', id }, { kind: 'message', id, ids?, anchor? } (ids: a
-      // range of messages, in time order), or { kind: 'divider', id: <fragment id>, at: <message id> } (a branch)
-      let seqSel = null;
-      let seqBars = [];        // the bars of the last render (see seqActivations)
-      let seqDrag = null;      // active drag (see beginDrag)
-      let seqCounter = 0;
-      let seqSelStash = null;  // { sel, data }: the selection the shell cleared, and the model it belonged to
-
-      function svgEl(name, attrs) {
-        const el = document.createElementNS(SVG_NS, name);
-        Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
-        return el;
-      }
-      function htmlEl(tag, className, styles) {
-        const el = document.createElement(tag);
-        el.className = className;
-        if (styles) Object.assign(el.style, styles);
-        return el;
-      }
-      // Editor ids: <prefix>_<Date.now()>_<k>. toDisk renames them to readable ids (see renameGeneratedIds)
-      const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
-      const px = (v) => `${v}px`;
-
-      // A participant's colour: a palette slot or a custom hex (drawn with the run-time derivation), or none. Anything else is
-      // drawn as no colour (the audit reports it). The element then reads the swatch's shades from its slot (data-sw, see
-      // setSwatch in shell.js; --sw-stripe, --sw-line, ...).
-      const WHITE = '#ffffff';   // tokens-ok: the stored value of a white participant (a custom colour in the data, not styling)
-      const swatchOf = (p) => {
-        const c = p && p.color ? colorSlot(p.color) : null;
-        return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
-      };
-      function paintSwatch(el, color) {
-        if (!color) return el;
-        setSwatch(el, color);
-        return el;
-      }
-      // What is drawn for a participant: its own colour, else a palette slot by its position (render-time only: the diagram
-      // never saves it, and the colour key and the colour picker still see only a chosen colour)
-      const drawnSwatch = (p) => swatchOf(p) || SWATCHES[Math.max(0, chartData.participants.indexOf(p)) % SWATCHES.length].slot;
-      const swatchName = (color) => (paletteOf(color) || {}).name || color;
-
-      function ensureModel() {
-        chartData.participants = chartData.participants || [];
-        chartData.messages = chartData.messages || [];
-        chartData.fragments = chartData.fragments || [];
-      }
-
-      // Activation bars: a bar shows a participant busy handling something. Each participant keeps a stack of open
-      // executions, walked in message order:
-      //  - a sync call opens an execution on its target (a bar on a bar when the target is already busy: a callback)
-      //    that its reply closes. A call answered in several places (one reply per alt branch) keeps one bar, to its
-      //    last reply before the caller next sends that callee anything;
-      //  - a call with no reply closes when the caller moves on (sends another call at the same depth), at the
-      //    callee's last own message, or as a short stub;
-      //  - an async message opens an execution only if the target then sends something while it is busy with it;
-      //  - a self-call is a short bar on a bar for its loop;
-      //  - a system that calls while nothing is open on it (a job or a webhook starting the flow) is busy from that call
-      //    until it is next called; a person (kind actor) who starts the flow gets no bar;
-      //  - per message, "activate": false opens nothing, and "until": <message id> ends the bar at that message.
-      // A message hidden in a collapsed frame sits on its summary row, so a bar ends there.
-      function seqActivations() {
-        const ms = chartData.messages, bars = [], STUB = 20;
-        const kindOf = (pid) => (partById(pid) || {}).kind;
-        const yOf = (id) => { const m = msgById(id); return m ? m.y : null; };
-        const stacks = {};
-        const stack = (pid) => (stacks[pid] = stacks[pid] || []);
-        const finish = (ex, y2) => {
-          if (ex.async && ex.lastOut === null) return;   // an async target that did nothing visible
-          const end = ex.until !== null ? ex.until : y2;
-          if (!ex.visible) return;
-          bars.push({ pid: ex.pid, mid: ex.mid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
-        };
-        // Close an execution and everything opened on top of it (left dangling)
-        const closeAt = (pid, k, y2, by) => {
-          const st = stack(pid);
-          while (st.length > k) { const ex = st.pop(); ex.closedBy = st.length === k ? by : null; if (by && !by.hidden) ex.visible = true; finish(ex, ex.lastOut !== null && st.length >= k ? Math.max(y2, ex.lastOut) : y2); }
-        };
-        const touch = (pid, y, hidden) => { stack(pid).forEach((ex) => { if (!hidden) ex.visible = true; if (ex.lastOut === null || y > ex.lastOut) ex.lastOut = y; }); };
-        ms.forEach((m, i) => {
-          const from = m.from, to = m.to;
-          if (!partById(from) || !partById(to)) return;
-          const self = from === to;
-          if (m.kind === 'reply') {
-            const st = stack(from);
-            let k = -1;
-            for (let j = st.length - 1; j >= 0; j--) if (st[j].caller === to && !st[j].async) { k = j; break; }
-            if (k >= 0) { closeAt(from, k, m.y + 6, m); touch(to, m.y + 6, m.hidden); return; }
-            // A further reply to a call already answered in another branch: stretch that bar if the caller has not
-            // sent the callee anything since
-            const prev = bars.slice().reverse().find((b) => b.pid === from && b.caller === to && b.closedBy);
-            if (prev) {
-              const between = ms.slice(ms.indexOf(prev.closedBy) + 1, i);
-              if (!between.some((x) => x.from === to && x.to === from)) { prev.y2 = Math.max(prev.y2, m.y + 6); prev.closedBy = m; }
-            }
-            touch(from, m.y, m.hidden); touch(to, m.y + 6, m.hidden);
-            return;
-          }
-          // A call or async message: the sender moves on from earlier unanswered calls it made at this depth
-          const depth = stack(from).length;
-          Object.keys(stacks).forEach((pid) => {
-            const st = stacks[pid];
-            const k = st.findIndex((ex) => ex.caller === from && !ex.async && ex.callerDepth === depth && ex.open);
-            if (k >= 0 && pid !== from) closeAt(pid, k, (st[k].lastOut !== null ? st[k].lastOut : st[k].y1 + STUB), null);
-          });
-          // A system starting the flow is busy until it is next called (unless a bar stretched with "until" already covers it)
-          if (!depth && kindOf(from) !== 'actor' && !self && !bars.some((b) => b.pid === from && b.y1 <= m.y && m.y <= b.y2)) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, visible: !m.hidden });
-          touch(from, m.y, m.hidden);
-          if (m.activate === false) return;
-          if (self) {
-            if (!m.hidden && m.kind !== 'async') bars.push({ pid: from, y1: m.y + 22, y2: m.y + 48 });   // the loop returns onto it
-            return;
-          }
-          // The target is called: an initiator execution open on it ends here (it is no longer starting things)
-          const tst = stack(to);
-          if (tst.length === 1 && tst[0].initiator) closeAt(to, 0, tst[0].lastOut, null);
-          stack(to).push({ pid: to, mid: m.id, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
-            until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', visible: !m.hidden });
-        });
-        // Whatever is still open ends at its last message
-        Object.keys(stacks).forEach((pid) => closeAt(pid, 0, 0, null));
-        bars.forEach((b) => { delete b.caller; delete b.callerDepth; delete b.closedBy; });
-        bars.sort((a, b) => a.y1 - b.y1);
-        const open = {};
-        bars.forEach((b) => {
-          const stack = (open[b.pid] = (open[b.pid] || []).filter((o) => o.y2 > b.y1));
-          b.depth = stack.length;
-          stack.push(b);
-        });
-        return bars;
-      }
-
-      // A small icon per participant kind, the registry's kind-<kind> (system and actor have none: actor is the pill)
-      // A person (actor) wears the registry's user icon; a system, the default kind, wears none on its pill
-      const kindIconName = (kind) => (kind === 'actor' ? 'user' : `kind-${kind || 'system'}`);
-      const hasKindIcon = (kind) => !!kind && kind !== 'system' && !!ICONS[kindIconName(kind)];   // no kind = a plain service: a blank pill
-      const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
-      const KIND_TITLES = {
-        system: 'Service: a back-end service or app that is none of the kinds below (the default)',
-        actor: 'Actor: a person (no activation bar when they start the flow)',
-        ui: 'UI: a screen or front end', database: 'Database', queue: 'Queue: a message bus or topic',
-        external: 'External: a third-party system (dashed outline)'
-      };
-      function kindIcon(kind, size) {
-        return ui.iconEl(hasKindIcon(kind) ? kindIconName(kind) : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
-      }
-
-      const SEQ_FLIP_SPECS = [
-        { selector: '.seq-participant[data-node-id]', key: 'nodeId', mode: 'clip' },
-        { selector: '.seq-msg-label[data-edge-id]', key: 'edgeId' },
-        { selector: '.seq-msg-detail[data-edge-id]', key: 'edgeId' },
-        { selector: '.frame-tag[data-frag-id]', key: 'fragId', mode: 'clip' },
-        { selector: '.frame-summary[data-frag-id]', key: (el) => 'sum:' + el.dataset.fragId },
-        { selector: '.seq-frag-branch-label[data-frag-id][data-at]', key: (el) => el.dataset.fragId + ':' + el.dataset.at },
-        { selector: '.note[data-note-id]', key: 'noteId', mode: 'clip' },
-        { selector: '.color-key-item', key: (el) => { const c = el.querySelector('[data-color]'); return c ? c.dataset.color : ''; } }
-      ];
-      let pendingDrawEdges = new Set();
-      let pendingOriginRect = null;
-      let pendingFrameBox = null, pendingFrameId = null;
-      let pendingNoteOriginRect = null, pendingNoteId = null;
-      let pendingColorAnim = null;
-      let retiringSvgEls = [];
-      let barGhostAnim = null;
-      let pendingBarRect = null;
-      let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
-
-      function seqLinePts(d) {
-        const pts = [], re = /([MLHV])\s*([-\d.]+)(?:\s+([-\d.]+))?/gi;
-        let cx = 0, cy = 0, m;
-        while ((m = re.exec(d || ''))) {
-          const cmd = m[1].toUpperCase(), a = +m[2], b = m[3] !== undefined ? +m[3] : 0;
-          if (cmd === 'M' || cmd === 'L') { cx = a; cy = b; }
-          else if (cmd === 'H') cx = a;
-          else if (cmd === 'V') cy = a;
-          pts.push(cx, cy);
-        }
-        return pts;
-      }
-      function ptsDiff(a, b) {
-        if (!a || !b || a.length !== b.length) return true;
-        for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.5) return true;
-        return false;
-      }
-      const svgNums = (el, attrs) => attrs.map((a) => +el.getAttribute(a));
-      const participantKindOf = (el) => PARTICIPANT_KINDS.find((k) => k !== 'system' && el.classList.contains(`is-${k}`)) || 'system';
-      function captureColorStyles(kind, id) {
-        if (!motion.enabled()) return null;
-        const read = (el, props) => {
-          if (!el) return null;
-          const cs = getComputedStyle(el), out = {};
-          props.forEach((p) => { out[p] = cs[p]; });
-          return out;
-        };
-        if (kind === 'participant') {
-          return {
-            kind, id,
-            box: read(seqHtml.querySelector(`.seq-participant[data-node-id="${id}"]`), ['backgroundColor', 'borderColor', 'color']),
-            life: read(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${id}"]`), ['stroke']),
-            cap: read(seqLifeG.querySelector(`.seq-cap[data-node-id="${id}"]`), ['stroke']),
-            act: read(seqActG.querySelector(`.seq-activation[data-node-id="${id}"]`), ['fill', 'stroke'])
-          };
-        }
-        return {
-          kind, id,
-          box: read(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${id}"]`), ['fill', 'stroke']),
-          tag: read(seqHtml.querySelector(`.frame-tag[data-frag-id="${id}"]`), ['backgroundColor', 'borderColor'])
-        };
-      }
-      function playColorAnim(info) {
-        if (!info) return;
-        const opts = { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-inout') };
-        const tween = (el, old) => {
-          if (!el || !old) return;
-          const cs = getComputedStyle(el), next = {};
-          let diff = false;
-          Object.keys(old).forEach((p) => { next[p] = cs[p]; if (next[p] !== old[p]) diff = true; });
-          if (diff) motion.anim(el, [old, next], opts);
-        };
-        if (info.kind === 'participant') {
-          tween(seqHtml.querySelector(`.seq-participant[data-node-id="${info.id}"]`), info.box);
-          tween(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${info.id}"]`), info.life);
-          tween(seqLifeG.querySelector(`.seq-cap[data-node-id="${info.id}"]`), info.cap);
-          seqActG.querySelectorAll(`.seq-activation[data-node-id="${info.id}"]`).forEach((el) => tween(el, info.act));
-        } else {
-          tween(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${info.id}"]`), info.box);
-          tween(seqHtml.querySelector(`.frame-tag[data-frag-id="${info.id}"]`), info.tag);
-        }
-      }
-
-      function render() {
-        ensureModel();
-        retiringSvgEls.forEach((el) => el.remove());
-        retiringSvgEls = [];
-        // Undo and redo swap chartData for a snapshot and clear the selection first: put it back if the object is
-        // still there, so undo, look, redo does not mean selecting again each time
-        if (seqSelStash && seqSelStash.data !== chartData && !seqSel && selExists(seqSelStash.sel)) seqSel = seqSelStash.sel;
-        seqSelStash = null;
-        if (seqSel && !selExists(seqSel)) seqSel = null;
-        const ps = chartData.participants, ms = chartData.messages, fs = chartData.fragments, ns = chartData.notes || [];
-        const missing = !chartData.layout || ps.some((p) => p.x === undefined) || ms.some((m) => m.y === undefined);
-        if (missing) layoutDiagram(chartData);
-        const L = chartData.layout;
-        const byId = {};
-        ps.forEach((p) => { byId[p.id] = p; });
-        const showDetails = chartData.showDetails !== false;
-        const stepOf = {};
-        ms.forEach((m, i) => { stepOf[m.id] = i + 1; });
-
-        const canAnim = motion.enabled() && document.documentElement.dataset.diagramSettled === '1';
-        if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-        const oldBar = seqHtml.querySelector('.seq-actionbar');
-        pendingBarRect = oldBar && canAnim && seqSel && !isPresent() ? oldBar.getBoundingClientRect() : null;
-        if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
-        let snap = null, exitSnap = null;
-        const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
-        const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
-        let prevNumbered = false, prevRails = false;
-
-        if (canAnim) {
-          snap = motion.capture(seqHtml, SEQ_FLIP_SPECS);
-          prevNumbered = !!seqHtml.querySelector('.seq-msg-num');
-          prevRails = !!seqHtml.querySelector('.seq-participant.is-rail');
-          seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => prevCollapsed.set(el.dataset.fragId, el.classList.contains('is-collapsed')));
-          seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => prevKinds.set(el.dataset.nodeId, participantKindOf(el)));
-          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => prevLife.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
-          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => prevCap.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
-          const anonCnt = {};
-          seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
-            const pid = el.dataset.nodeId, mid = el.dataset.mid;
-            const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt[pid] = (anonCnt[pid] || 0) + 1)}`;
-            prevAct.set(k, { rect: svgNums(el, ['x', 'y', 'width', 'height']), sw: el.dataset.sw || el.style.getPropertyValue('--swatch-color'), pid });
-          });
-          seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => prevLine.set(el.dataset.edgeId, seqLinePts(el.getAttribute('d'))));
-          seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => prevFragBox.set(el.dataset.fragId, svgNums(el, ['x', 'y', 'width', 'height'])));
-          seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => prevDiv.set(`${el.dataset.fragId}:${el.dataset.at}`, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
-
-          // Detect exiting elements (collapsed into a frame tag or deleted) so ghosts freeze only what exits
-          const nextMsgs = new Set(ms.filter((m) => !m.hidden && byId[m.from] && byId[m.to]).map((m) => m.id));
-          const nextFrags = new Set(fs.filter((f) => f.x !== undefined).map((f) => f.id));
-          const nextNotes = new Set(ns.filter((n) => n.x !== undefined).map((n) => n.id));
-          const nextDetails = new Set(showDetails ? ms.filter((m) => !m.hidden && m.detail && byId[m.from] && byId[m.to]).map((m) => m.id) : []);
-          const nextParts = new Set(ps.map((p) => p.id));
-          const collapsedOwners = fs.filter((f) => f.collapsed && f.x !== undefined).map((f) => ({ id: f.id, a: stepOf[f.from], b: stepOf[f.to] })).filter((r) => r.a && r.b);
-          const ownerAtStep = (s) => collapsedOwners.find((r) => r.a <= s && s <= r.b);
-          let hasExits = false;
-          const markExit = (el, key, targetFid) => { el.dataset.motionExit = key; hasExits = true; if (targetFid) exitToFrag.set(key, targetFid); };
-          seqHtml.querySelectorAll('.seq-msg-label[data-edge-id]').forEach((el) => {
-            const id = el.dataset.edgeId;
-            if (!nextMsgs.has(id)) markExit(el, `m:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
-          });
-          seqHtml.querySelectorAll('.seq-msg-detail[data-edge-id]').forEach((el) => {
-            const id = el.dataset.edgeId;
-            if (!nextDetails.has(id)) markExit(el, `d:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
-          });
-          seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => {
-            const id = el.dataset.fragId;
-            if (!nextFrags.has(id)) {
-              const f = fragById(id), ow = f && stepOf[f.from] ? ownerAtStep(stepOf[f.from]) : null;
-              markExit(el, `f:${id}`, ow && ow.id !== id ? ow.id : null);
-            }
-          });
-          seqHtml.querySelectorAll('.note[data-note-id]').forEach((el) => {
-            const id = el.dataset.noteId;
-            if (!nextNotes.has(id)) {
-              const n = noteById(id), mid = n && (n.after !== undefined ? n.after : n.before);
-              markExit(el, `n:${id}`, mid ? (ownerAtStep(stepOf[mid]) || {}).id : null);
-            }
-          });
-          seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => {
-            const id = el.dataset.nodeId;
-            if (!nextParts.has(id)) markExit(el, `p:${id}`, null);
-          });
-          seqHtml.querySelectorAll('.frame-summary[data-frag-id]').forEach((el) => {
-            const id = el.dataset.fragId, f = fragById(id);
-            if (!f || !f.collapsed || !nextFrags.has(id)) markExit(el, `sum:${id}`, nextFrags.has(id) ? id : null);
-          });
-          if (hasExits) exitSnap = motion.capture(seqHtml, [{ selector: '[data-motion-exit]', key: 'motionExit' }], { ghosts: true });
-
-          // Map newly revealed elements from an expanded frame back to that frame's tag
-          fs.forEach((f) => {
-            if (prevCollapsed.get(f.id) !== true || f.collapsed || f.x === undefined) return;
-            const a = stepOf[f.from], b = stepOf[f.to];
-            if (!a || !b) return;
-            ms.forEach((m) => { if (!m.hidden && stepOf[m.id] >= a && stepOf[m.id] <= b && !snap._raw.has(m.id)) fromKey.set(m.id, f.id); });
-            fs.forEach((o) => { if (o !== f && o.x !== undefined && stepOf[o.from] >= a && stepOf[o.to] <= b && !snap._raw.has(o.id)) fromKey.set(o.id, f.id); });
-            ns.forEach((n) => {
-              if (n.x === undefined || snap._raw.has(n.id)) return;
-              const k = stepOf[n.after !== undefined ? n.after : n.before];
-              if (k && k >= a && k <= b) fromKey.set(n.id, f.id);
-            });
-          });
-        }
-
-        seqCanvas.style.width = px(L.width);
-        seqCanvas.style.height = px(L.height);
-        seqSvg.setAttribute('width', L.width);
-        seqSvg.setAttribute('height', L.height);
-        [seqFragG, seqLifeG, seqActG, seqMsgG].forEach((g) => { g.textContent = ''; });
-        seqHtml.textContent = '';
-
-        // Fragments (behind everything else)
-        fs.forEach((f) => {
-          if (f.x === undefined) return;
-          const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
-          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
-          // The border selects the frame (an 8px hit stroke); the inside stays click-through
-          seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
-          const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
-          tag.dataset.fragId = f.id;
-          const chev = htmlEl('button', 'frame-chev');
-          chev.type = 'button';
-          chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(!f.collapsed));
-          chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
-          tag.appendChild(chev);
-          if (f.kind !== 'group') {
-            const kind = htmlEl('span', 'seq-frag-kind');
-            kind.textContent = f.kind;
-            tag.appendChild(kind);
-          }
-          const text = htmlEl('span', 'seq-frag-text');
-          text.textContent = f.label || (f.kind === 'group' ? 'phase' : 'condition');
-          tag.appendChild(text);
-          const foc = focusState(f.id);
-          if (foc && foc.toCollapse.length) {
-            const on = isFocused(foc);
-            const fb = htmlEl('button', 'seq-frag-focus');
-            fb.type = 'button';
-            fb.title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
-            fb.setAttribute('aria-label', fb.title);
-            fb.setAttribute('aria-pressed', String(on));
-            fb.innerHTML = ui.icon('focus', { size: 'sm', bold: true });
-            tag.appendChild(fb);
-          }
-          seqHtml.appendChild(tag);
-          (f.dividers || []).forEach((d) => {
-            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
-            seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
-            if (d.label) {
-              const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
-              el.dataset.fragId = f.id;
-              el.dataset.at = d.at;
-              const t = htmlEl('span', 'seq-branch-text');
-              t.textContent = d.label;
-              el.appendChild(t);
-              seqHtml.appendChild(el);
-            } else if (f.kind === 'alt') {
-              // The short form (elseAt): an unlabelled "else" at the right, as before branches existed
-              const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(d.y + 3) });
-              el.dataset.fragId = f.id;
-              el.dataset.at = d.at;
-              el.textContent = 'else';
-              seqHtml.appendChild(el);
-            }
-          });
-          if (f.collapsed) {
-            const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
-            if (inside.length) {
-              const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
-              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y) });
-              sum.type = 'button';
-              sum.dataset.fragId = f.id;
-              sum.title = 'Expand this frame';
-              sum.textContent = `${inside.length} message${inside.length === 1 ? '' : 's'} hidden (step${a === b ? ` ${a}` : `s ${a}–${b}`})`;
-              seqHtml.appendChild(sum);
-            }
-          }
-        });
-
-        // Lifelines and participant boxes (a rail is a thin box with the kind icon and the name written downwards).
-        // With lifespans a box sits at the top of its lifeline (p.top) and the lifeline ends in a short cap (p.bottom).
-        ps.forEach((p) => {
-          const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
-          const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
-          const sw = drawnSwatch(p);
-          seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
-          // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
-          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
-          if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
-          const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
-          box.dataset.nodeId = p.id;
-          paintSwatch(box, sw);
-          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
-          const name = htmlEl('span', 'seq-participant-name');
-          name.textContent = p.name;
-          box.appendChild(name);
-          if (rail) {
-            const tip = htmlEl('span', 'seq-rail-tip');
-            tip.textContent = p.name;
-            tip.dataset.exportSkip = '';
-            box.appendChild(tip);
-          }
-          seqHtml.appendChild(box);
-          if (rail) {
-            name.dataset.tip = p.name;
-          } else if (name.scrollHeight > name.clientHeight + 2 || name.scrollWidth > name.clientWidth + 2) {
-            name.dataset.tip = p.name;
-            box.title = p.name;
-          }
-        });
-        // Insert a participant between two boxes, or past either end (only the one nearest the pointer shows, see onCanvasHover)
-        const half = (p) => (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2;
-        [-1].concat(ps.map((p, i) => i)).forEach((i) => {
-          const x = i < 0 ? ps[0].x - half(ps[0]) - 26 : i + 1 < ps.length ? (ps[i].x + ps[i + 1].x) / 2 : ps[i].x + half(ps[i]) + 26;
-          const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
-          ins.type = 'button';
-          ins.dataset.index = i + 1;   // -1 is the left end: index 0
-          ins.dataset.exportSkip = '';
-          ins.title = i >= 0 && i + 1 < ps.length ? 'Insert a participant here' : `Add a participant at the ${i < 0 ? 'left' : 'right'} end`;
-          ins.setAttribute('aria-label', ins.title);
-          ins.textContent = '+';
-          seqHtml.appendChild(ins);
-        });
-
-        // Activation bars
-        const bars = seqBars = seqActivations();
-        bars.forEach((b) => {
-          const p = byId[b.pid];
-          if (!p) return;
-          seqActG.appendChild(paintSwatch(svgEl('rect', Object.assign({ class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }, b.mid ? { 'data-mid': b.mid } : {})), drawnSwatch(p)));
-        });
-        const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
-        const edgeX = (p, y, dir) => {
-          const d = activeDepth(p.id, y);
-          return d < 0 ? p.x : p.x + dir * (ACT_HALF + d * ACT_STEP);
-        };
-
-        // Messages (those inside a collapsed frame are not drawn: its summary row stands for them)
-        ms.forEach((m) => {
-          const a = byId[m.from], b = byId[m.to];
-          if (!a || !b || m.hidden) return;
-          const self = a === b;
-          let d, labelStyle, detailStyle;
-          if (self) {
-            const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
-            d = `M ${xs} ${m.y} H ${xs + SQ.SELF_LOOP} V ${m.y + 28} H ${xe}`;
-            labelStyle = { left: px(xs + SQ.SELF_LOOP + 8), top: px(m.y + 4) };
-            detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24 + ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
-          } else {
-            const dir = b.x > a.x ? 1 : -1;
-            const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
-            d = `M ${x1} ${m.y} H ${x2}`;
-            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 28 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
-            detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
-          }
-          const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
-          seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
-          seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
-          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
-          label.dataset.edgeId = m.id;
-          if (chartData.numbered) {
-            const num = htmlEl('span', 'seq-msg-num');
-            num.textContent = stepOf[m.id];
-            label.appendChild(num);
-          }
-          const maxW = self ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
-          const text = htmlEl('span', 'seq-msg-label-text');
-          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, maxW).join('\n') : (m.label || '');
-          label.appendChild(text);
-          if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
-          seqHtml.appendChild(label);
-          if (m.detail && showDetails) {
-            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
-            det.dataset.edgeId = m.id;
-            const dt = htmlEl('span', 'seq-msg-detail-text');
-            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, maxW).join('\n') : m.detail;
-            det.appendChild(dt);
-            seqHtml.appendChild(det);
-          }
-        });
-
-        // Notes: a folded card over one lifeline, or stretched over two
-        ns.forEach((n) => {
-          if (n.x === undefined) return;
-          const { card, text } = ui.noteCard(n, {});
-          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h), minHeight: px(n.h) });
-          text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
-          seqHtml.appendChild(card);
-        });
-        // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
-        // with no label yet is a prompt in edit, and left out of ?present and exports.
-        const used = [];
-        ps.forEach((p) => { const sw = swatchOf(p); if (sw && swatchSlot(sw) && !used.includes(sw)) used.push(sw); });   // a white (hex) is no legend entry
-        const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
-        if (key) seqHtml.appendChild(key);
-        applySelection();
-        seqPinCache = null;
-        pinParticipants();
-
-        if (canAnim) {
-          const railShift = prevRails !== ps.some((p) => p.rail);
-          const hasCollapseChange = fs.some((f) => prevCollapsed.has(f.id) && prevCollapsed.get(f.id) !== !!f.collapsed);
-          const layoutDur = railShift ? 250 : hasCollapseChange ? 220 : motion.dur('dur-layout', 210);
-          const skipKeys = pendingNoteOriginRect && pendingNoteId ? new Set([pendingNoteId]) : null;
-          motion.play(snap, seqHtml, SEQ_FLIP_SPECS, {
-            duration: layoutDur, easing: 'curve-spring-settle', fromKey, originRect: pendingOriginRect, skipKeys
-          });
-          if (pendingNoteOriginRect && pendingNoteId) {
-            const noteEl = seqHtml.querySelector(`.note[data-note-id="${pendingNoteId}"]`);
-            if (noteEl) motion.morphRect(pendingNoteOriginRect, noteEl, { duration: 180, easing: 'curve-spring-settle' });
-          }
-          if (exitSnap) {
-            motion.play(exitSnap, seqHtml, [{ selector: '.frame-tag[data-frag-id]', key: 'fragId' }], {
-              enter: false, toKey: exitToFrag, ghostExit: true, duration: 190, easing: 'curve-in'
-            });
-          }
-
-          const svgTracks = [];
-          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => {
-            const prev = prevLife.get(el.dataset.nodeId), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
-            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
-          });
-          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => {
-            const id = el.dataset.nodeId, to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
-            const prev = prevCap.get(id);
-            if (prev) { if (ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to }); }
-            else {
-              const pl = prevLife.get(id);
-              if (pl) svgTracks.push({ type: 'line', el, from: [pl[0] - 7, pl[3], pl[2] + 7, pl[3]], to });
-            }
-          });
-          const newActKeys = new Set(), anonCnt2 = {};
-          seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
-            const pid = el.dataset.nodeId, mid = el.dataset.mid;
-            const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt2[pid] = (anonCnt2[pid] || 0) + 1)}`;
-            newActKeys.add(k);
-            const to = svgNums(el, ['x', 'y', 'width', 'height']), prev = prevAct.get(k);
-            if (prev) { if (ptsDiff(prev.rect, to)) svgTracks.push({ type: 'rect', el, from: prev.rect, to }); }
-            else if (mid && !fromKey.has(mid)) svgTracks.push({ type: 'rect', el, from: [to[0], to[1], to[2], 0], to });
-          });
-          const collapsedPids = new Set();
-          fs.forEach((f) => { if (f.collapsed && prevCollapsed.get(f.id) === false) ms.forEach((m) => { if (m.hidden) { collapsedPids.add(m.from); collapsedPids.add(m.to); } }); });
-          prevAct.forEach((old, k) => {
-            if (newActKeys.has(k) || !byId[old.pid] || collapsedPids.has(old.pid)) return;
-            const rEl = paintSwatch(svgEl('rect', { class: 'seq-activation', x: old.rect[0], y: old.rect[1], width: old.rect[2], height: old.rect[3], rx: 2, 'data-export-skip': '' }), old.sw);
-            rEl.style.pointerEvents = 'none';
-            seqActG.appendChild(rEl);
-            retiringSvgEls.push(rEl);
-            svgTracks.push({ type: 'rect', el: rEl, from: old.rect, to: [old.rect[0], old.rect[1], old.rect[2], 0] });
-          });
-          seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => {
-            const id = el.dataset.edgeId;
-            if (pendingDrawEdges.has(id) || fromKey.has(id)) {
-              motion.drawPath(el, { duration: motion.dur('dur-fast', 140), easing: 'curve-out' });
-              return;
-            }
-            const prev = prevLine.get(id), to = seqLinePts(el.getAttribute('d'));
-            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: prev.length === 4 && to.length === 4 ? 'line' : 'polyline', el, from: prev, to });
-          });
-          seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => {
-            const id = el.dataset.fragId, to = svgNums(el, ['x', 'y', 'width', 'height']);
-            if (pendingFrameBox && id === pendingFrameId) {
-              svgTracks.push({ type: 'rect', el, from: [pendingFrameBox.x, pendingFrameBox.y, pendingFrameBox.w, pendingFrameBox.h], to });
-            } else {
-              const prev = prevFragBox.get(id);
-              if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'rect', el, from: prev, to });
-            }
-          });
-          seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => {
-            const prev = prevDiv.get(`${el.dataset.fragId}:${el.dataset.at}`), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
-            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
-          });
-          if (svgTracks.length) {
-            motion.tweenSvg(svgTracks, {
-              duration: layoutDur, easing: 'curve-spring-settle',
-              onComplete: () => { retiringSvgEls.forEach((el) => el.remove()); retiringSvgEls = []; }
-            });
-          }
-
-          // Frame chevron rotations, number badge unfolds, participant kind icon morphs, swatch colour tweens
-          fs.forEach((f) => {
-            if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
-            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
-            if (chev) motion.anim(chev, [
-              { transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
-              { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
-            ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-inout') });
-          });
-          if (!prevNumbered && chartData.numbered) {
-            seqHtml.querySelectorAll('.seq-msg-num').forEach((num) => motion.anim(num, [
-              { transform: 'scale(0.4)', clipPath: 'inset(0 50% 0 50%)' },
-              { transform: 'none', clipPath: 'inset(0 0 0 0)' }
-            ], { duration: motion.dur('dur-fast', 140), easing: motion.curve('curve-spring-tactile') }));
-          }
-          ps.forEach((p) => {
-            const oldK = prevKinds.get(p.id), newK = p.kind || 'system';
-            if (!oldK || oldK === newK) return;
-            const box = seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
-            const ic = box && box.querySelector('.seq-kind-icon');
-            if (ic) motion.anim(ic, [{ transform: 'scale(0.65)' }, { transform: 'none' }], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
-            if (box && (oldK === 'external' || newK === 'external')) motion.anim(box, [{ transform: 'scale(0.97)' }, { transform: 'none' }], { duration: 150, easing: motion.curve('curve-spring-tactile') });
-          });
-          if (pendingColorAnim) playColorAnim(pendingColorAnim);
-        }
-        pendingDrawEdges.clear();
-        pendingOriginRect = null;
-        pendingFrameBox = null; pendingFrameId = null;
-        pendingNoteOriginRect = null; pendingNoteId = null;
-        pendingColorAnim = null;
-      }
-
-      // --- PINNED PARTICIPANT ROW ---
-      // Below the first screen of a long diagram no lifeline would have a name: once the boxes are panned off the
-      // top, they ride at the top of the viewport as pills in their halos (as the flowchart pins its lane pills).
-      // Called after every render and, via plugin.onViewChange, after every pan/zoom. Exports (body.exporting) and
-      // screenshots (body.capture) reset it in CSS, so they always show the row at the diagram's top.
-      const PIN_INSET = 8;
-      // Height of the participant row: taller when a rail is in it
-      const topRowH = () => (chartData.participants.some((p) => p.rail) ? SQ.RAIL_H : SQ.BOX_H);
-      let seqPinCache = null;
-      function pinParticipants() {
-        const L = chartData.layout;
-        if (!L) return;
-        if (!seqPinCache) {
-          const top = seqCanvas.offsetTop + seqCanvas.clientTop;
-          const partEls = [...seqHtml.querySelectorAll('.seq-participant')].map((el) => ({
-            el,
-            p: partById(el.dataset.nodeId)
-          }));
-          const fragTags = chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).map((f) => {
-            const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
-            if (!tag) return null;
-            return { f, tag, textEl: tag.querySelector('.seq-frag-text'), h: tag.offsetHeight || 22 };
-          }).filter(Boolean);
-          seqPinCache = { top, partEls, fragTags };
-        }
-        const { top, partEls, fragTags } = seqPinCache;
-        const visTop = -panY / scale - top;                        // viewport's top edge in canvas coords
-        const safeTop = visTop + (ui.chromeTop ? ui.chromeTop() / scale : 0);
-        const on = safeTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
-        const dy = Math.min(safeTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
-        const pinned = on && dy > 0;
-        const wasPinned = seqCanvas.classList.contains('seq-pinned');
-        if (!wasPinned && !pinned) {
-          seqCanvas.style.setProperty('--pin-dy', '0px');
-          return;
-        }
-        seqCanvas.classList.toggle('seq-pinned', pinned);
-        seqCanvas.style.setProperty('--pin-dy', `${pinned ? dy : 0}px`);
-        // With lifespans the row names only the lifelines alive at the rows under it: a box rides at the top once its
-        // own place has scrolled past it, and fades out when its lifeline has ended above. Nothing moves sideways.
-        const pinTop = SQ.TOP + (pinned ? dy : 0);
-        for (let i = 0; i < partEls.length; i++) {
-          const { el, p } = partEls[i];
-          if (!p || !pinned) { el.style.translate = ''; el.classList.remove('is-gone'); continue; }
-          if (!chartData.lifespans) continue;
-          const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
-          el.style.translate = own > 0 ? `0 ${own}px` : 'none';
-          el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
-        }
-        if (chartData.lifespans && seqSel && seqSel.kind === 'participant') {
-          const bar = seqHtml.querySelector('.seq-actionbar.is-pill');
-          const p = partById(seqSel.id);
-          if (bar && p) {
-            const own = pinned ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-            bar.style.setProperty('--pin-dy', `${own}px`);
-          }
-        }
-        // A frame cut by the pinned row keeps its tag readable: the tag rides just below the row (nested frames' tags
-        // stack, outer first) until the frame's bottom comes up to it
-        let below = pinTop + topRowH() + PIN_INSET;
-        for (let i = 0; i < fragTags.length; i++) {
-          const { f, tag, textEl, h } = fragTags[i];
-          const shift = pinned && f.y < below && f.y + f.h > below + h + 4 ? below - f.y : 0;   // a frame already gone keeps its tag
-          tag.style.translate = shift > 0 ? `0 ${shift}px` : '';
-          tag.classList.toggle('is-riding', shift > 0);
-          if (textEl && !textEl.isContentEditable) {
-            const activeDiv = shift > 0 && (f.dividers || []).filter((d) => d.y <= below + h).pop();
-            const want = activeDiv ? (activeDiv.label || (f.kind === 'alt' ? 'else' : 'branch')) : (f.label || (f.kind === 'group' ? 'phase' : 'condition'));
-            if (textEl.textContent !== want) textEl.textContent = want;
-          }
-          if (shift > 0) below = f.y + shift + h + 4;
-        }
-      }
-
-      // --- LOOKUPS ---
-      const isPresent = () => document.body.classList.contains('presentation');
-      const msgById = (id) => chartData.messages.find((m) => m.id === id);
-      const fragById = (id) => chartData.fragments.find((f) => f.id === id);
-      const noteById = (id) => (chartData.notes || []).find((n) => n.id === id);
-      const partById = (id) => chartData.participants.find((p) => p.id === id);
-      const msgIndex = (id) => chartData.messages.findIndex((m) => m.id === id);
-      const selIds = (sel) => (sel && sel.kind === 'message' ? (sel.ids || [sel.id]) : []);
-      // A point of the pointer in diagram (canvas) coordinates
-      function canvasPoint(e) {
-        const r = seqHtml.getBoundingClientRect();
-        return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
-      }
-      // A note dropped further than this from every lifeline stays where it is dropped (a "place" note)
-      const NOTE_SNAP = 40;
-      // The lifeline a note centred at x snaps to, or null when x is away from every lifeline
-      function snapLifeline(x) {
-        const p = nearestParticipant(x);
-        return p && Math.abs(p.x - x) <= NOTE_SNAP ? p : null;
-      }
-      // x as a position along the lifelines: 0 at the first, 1.5 halfway between the second and the third
-      function placeOf(x) {
-        const ps = chartData.participants;
-        if (ps.length < 2 || x <= ps[0].x) return 0;
-        for (let i = 0; i < ps.length - 1; i++) {
-          if (x <= ps[i + 1].x) return Math.round((i + (x - ps[i].x) / (ps[i + 1].x - ps[i].x)) * 100) / 100;
-        }
-        return ps.length - 1;
-      }
-      // Put a note over the lifeline at x, or, away from every lifeline, at x itself
-      function setNoteSpot(n, x) {
-        const p = snapLifeline(x);
-        if (p) { n.over = p.id; delete n.place; } else { delete n.over; n.place = placeOf(x); }
-      }
-      // The participant whose lifeline is nearest to x
-      function nearestParticipant(x) {
-        let best = null;
-        chartData.participants.forEach((p) => { if (!best || Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
-        return best;
-      }
-      // A fragment's branches as [{at, label}] (the short form elseAt is one unlabelled branch), and the way back:
-      // one unlabelled branch of an alt is written as elseAt, the form an old page has
-      function branchList(f) {
-        if (Array.isArray(f.branches)) return f.branches.map((b) => ({ at: b.at, label: b.label || '' }));
-        return f.elseAt === undefined ? [] : [{ at: f.elseAt, label: '' }];
-      }
-      function setBranches(f, list) {
-        const order = chartData.messages.map((m) => m.id);
-        const a = order.indexOf(f.from), b = order.indexOf(f.to), seen = new Set();
-        list = list.filter((br) => { const i = order.indexOf(br.at); if (i <= a || i > b || seen.has(i)) return false; seen.add(i); return true; })
-          .sort((u, v) => order.indexOf(u.at) - order.indexOf(v.at));
-        delete f.elseAt;
-        delete f.branches;
-        if (!list.length || (f.kind !== 'alt' && f.kind !== 'par')) return;
-        if (f.kind === 'alt' && list.length === 1 && !list[0].label) f.elseAt = list[0].at;
-        else f.branches = list.map((br) => ({ at: br.at, label: br.label || '' }));
-      }
-      // Message index range of a frame
-      const fragRange = (f) => [msgIndex(f.from), msgIndex(f.to)];
-      // Would a frame over messages [a, b] cross the edge of another frame (half in, half out)?
-      function crossesFrame(a, b, skipId) {
-        return chartData.fragments.some((o) => {
-          if (o.id === skipId) return false;
-          const [oa, ob] = fragRange(o);
-          return (oa < a && a <= ob && ob < b) || (a < oa && oa <= b && b < ob);
-        });
-      }
-
-      // Row gaps: where a message (or a note) can go. Messages hidden in a collapsed frame have no gap of their own.
-      // A gap where a frame closes or opens has one slot per depth, so a drop can land inside the frame (at its end or
-      // its start) or just outside it. A slot carries:
-      //   index  the index a new message would take, y  where the drop line is drawn,
-      //   frame  the innermost drawn frame the drop lands in (null: none),
-      //   plain  true for the one slot of a gap that is outside every frame closing or opening there (what a frame
-      //          edge, a divider or a lifespan end snaps to),
-      //   join   the frame edges a message dropped here takes over: [{id, edge: 'to' | 'from'}],
-      //   note   what a note dropped here is saved as ({after} or {before}), or null when a note cannot sit here: the
-      //          engine draws an after-note inside every frame that ends at that message and a before-note outside every
-      //          frame that starts at it, so only the innermost end slot and the outside slots can be written.
-      function rowSlots(skipId) {
-        const ms = chartData.messages.filter((m) => m.id !== skipId);
-        const vis = [];
-        ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
-        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT, plain: true, frame: null, join: [], note: {} }];
-        const spans = drawnSpans(skipId), bottom = (s) => s.f.y + s.f.h;
-        let last = vis[vis.length - 1].i + 1;
-        while (last < ms.length && ms[last].hidden) last++;
-        const slots = [];
-        for (let k = 0; k <= vis.length; k++) {
-          const A = vis[k - 1] || null, B = vis[k] || null, index = B ? B.i : last;
-          const closing = A ? spans.filter((s) => s.b === A.i).sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
-          const opening = B ? spans.filter((s) => s.a === B.i).sort((u, v) => u.f.y - v.f.y) : [];           // outer first
-          closing.forEach((s, i) => slots.push({
-            index, y: bottom(s) - 10, plain: false, frame: s.f, join: closing.slice(i).map((c) => ({ id: c.f.id, edge: 'to' })), note: i === 0 ? { after: A.m.id } : null
-          }));
-          let y;
-          if (closing.length && opening.length) y = (bottom(closing[closing.length - 1]) + opening[0].f.y) / 2;
-          else if (closing.length) y = bottom(closing[closing.length - 1]) + 12;
-          else if (opening.length) y = A ? (A.m.y + 22 + opening[0].f.y) / 2 : opening[0].f.y - 14;
-          else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
-          // Notes drawn between A and the next row: after-notes of A (inside A's frames) and before-notes of B (after
-          // any branch divider, before any frame that opens at B)
-          const drawn = (n) => n.y !== undefined && !n.hidden;
-          const afterA = A ? (chartData.notes || []).filter((n) => n.after === A.m.id && drawn(n)) : [];
-          const beforeB = B ? (chartData.notes || []).filter((n) => n.before === B.m.id && drawn(n)) : [];
-          const toAfter = afterA.map((n) => ({ id: n.id, key: 'after' })), toBefore = beforeB.map((n) => ({ id: n.id, key: 'before' }));
-          // Between A and its first after-note: inside every frame A is in
-          if (afterA.length) {
-            slots.push({ index, y: (A.m.y + afterA[0].y) / 2 + 6, plain: false, frame: frameAtSlot(index, skipId) || (closing[0] && closing[0].f) || null,
-              join: closing.map((c) => ({ id: c.f.id, edge: 'to' })), renote: toAfter, note: null });
-          }
-          // A branch divider at B: the end of the branch above it, and the start of the branch below it
-          const divs = [];
-          if (B) spans.forEach((sp) => branchList(sp.f).forEach((br, bi) => {
-            const dv = (sp.f.dividers || []).find((d) => d.at === br.at);
-            if (br.at === B.m.id && dv) divs.push({ f: sp.f, bi, y: dv.y });
-          }));
-          if (divs.length) y = Math.min(y, divs[0].y - 12);
-          else if (beforeB.length) y = Math.min(y, beforeB[0].y - 8);
-          const nextId = B ? B.m.id : A && A.i + 1 < ms.length ? ms[A.i + 1].id : null;
-          const note = nextId ? { before: nextId } : closing.length ? null : { after: A.m.id };
-          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note: divs.length ? { after: A.m.id } : note });
-          divs.forEach((dv) => slots.push({
-            index, y: dv.y + 20, plain: false, frame: dv.f, join: [{ id: dv.f.id, edge: 'branch', branch: dv.bi }], note: null
-          }));
-          // Between the before-notes of B and B (and the frames that open at B)
-          if (beforeB.length && !opening.length) {
-            const lastN = beforeB[beforeB.length - 1];
-            slots.push({ index, y: (lastN.y + lastN.h + B.m.y) / 2 - 6, plain: false, frame: frameAtSlot(index, skipId), join: [], renote: toBefore, note: null });
-          }
-          opening.forEach((s, j) => slots.push({
-            index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), renote: toBefore, note: null
-          }));
-        }
-        return slots;
-      }
-      const nearestSlot = (slots, y) => slots.reduce((b, s) => (Math.abs(s.y - y) < Math.abs(b.y - y) ? s : b), slots[0]);
-      // The drawn frames as message ranges [a, b] of the list without skipId. A frame whose first or last message is
-      // the one moving keeps its edge on the neighbour that stays.
-      function drawnSpans(skipId) {
-        const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
-        const full = chartData.messages.map((m) => m.id);
-        const out = [];
-        chartData.fragments.forEach((f) => {
-          if (f.x === undefined) return;
-          let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
-          while (fa <= fb && full[fa] === skipId) fa++;
-          while (fb >= fa && full[fb] === skipId) fb--;
-          if (fa > fb) return;
-          out.push({ f, a: order.indexOf(full[fa]), b: order.indexOf(full[fb]) });
-        });
-        return out;
-      }
-      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
-      function frameAtSlot(index, skipId) {
-        let best = null;
-        drawnSpans(skipId).forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
-        return best && best.f;
-      }
-      // The slots that are outside every frame closing or opening at their gap: one per gap
-      const plainSlots = () => rowSlots().filter((s) => s.plain);
-      // Make a message dropped at `slot` the last (or first) message of the frames the slot is inside
-      // A branch-start slot also moves the branch divider onto the new message, and a slot between a message and its
-      // notes re-anchors those notes so they stay on the far side of the new message.
-      function joinFrames(slot, id) {
-        slot.join.forEach((j) => {
-          const f = fragById(j.id);
-          if (!f) return;
-          if (j.edge === 'branch') { const list = branchList(f); if (list[j.branch]) { list[j.branch].at = id; setBranches(f, list); } } else f[j.edge] = id;
-        });
-        (slot.renote || []).forEach((r) => {
-          const n = noteById(r.id);
-          if (!n) return;
-          delete n.after; delete n.before;
-          n[r.key] = id;
-        });
-      }
-      function animateDropLine(axis) {
-        if (!motion.enabled() || seqDrop.style.display === 'block') return;
-        motion.anim(seqDrop, [
-          { transform: axis === 'y' ? 'scaleY(0.25)' : 'scaleX(0.25)' },
-          { transform: 'none' }
-        ], { duration: 90, easing: motion.curve('curve-out') });
-      }
-      function showDropLine(y, frame) {
-        const L = chartData.layout;
-        const x1 = frame ? frame.x + 6 : 8, x2 = frame ? frame.x + frame.w - 6 : L.width - 8;
-        Object.entries({ x1, x2, y1: y, y2: y }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
-        animateDropLine('x');
-        seqDrop.style.display = 'block';
-      }
-
-      // Focus: a selected participant dims every message that does not touch it; a selected message lights its
-      // two participant boxes (which matters once the row is pinned far from the message)
-      function applySelection() {
-        const sel = seqSel || {};
-        const ids = selIds(sel);
-        document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
-        // On touch a drag from a lifeline pans unless its participant is selected (the shell's data-touch-drag rule)
-        document.querySelectorAll('.seq-life-hit, .seq-activation').forEach((el) => {
-          el.toggleAttribute('data-touch-drag', sel.kind === 'participant' && (el.dataset.pid || el.dataset.nodeId) === sel.id);
-        });
-        document.querySelectorAll('.seq-cap').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
-        document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
-        document.querySelectorAll('.frame-tag, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
-        document.querySelectorAll('.note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
-        const isDiv = (el) => sel.kind === 'divider' && el.dataset.fragId === sel.id && el.dataset.at === sel.at;
-        document.querySelectorAll('.seq-frag-else, .seq-frag-branch-label, .seq-frag-else-label').forEach((el) => el.classList.toggle('selected', isDiv(el)));
-        const byMsg = {};
-        chartData.messages.forEach((m) => { byMsg[m.id] = m; });
-        document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => {
-          const m = byMsg[el.dataset.edgeId];
-          el.classList.toggle('is-dim', sel.kind === 'participant' && !!m && m.from !== sel.id && m.to !== sel.id);
-        });
-        const lit = new Set();
-        ids.forEach((id) => { const m = byMsg[id]; if (m) { lit.add(m.from); lit.add(m.to); } });
-        document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('linked', lit.has(el.dataset.nodeId)));
-        drawSelectionTools(sel);
-        refreshDock();
-      }
-
-      // Nothing silent: a dock button that cannot act is disabled and its tooltip says what to select
-      function setDockButton(btn, enabled, title) {
-        btn.disabled = !enabled;
-        btn.title = title;
-      }
-      const NOTE_HINT = 'Drag Note onto the diagram: near a lifeline it sits over it, elsewhere it stays where you drop it. Or click a message or a participant, then press Note';
-      const frameHint = (fc) => (fc ? 'A frame edge cuts through the selection: select whole frames only'
-        : 'Drag Frame onto the diagram to wrap the message there, then drag its edges to cover more. Or click a message, Shift+click another, then press Frame');
-      // The frame the Frame button would make: the selected message range, if no frame's edge cuts through it
-      function frameCandidate() {
-        const ids = selIds(seqSel);
-        if (!ids.length) return null;
-        const idx = ids.map(msgIndex).filter((i) => i >= 0).sort((u, v) => u - v);
-        if (!idx.length) return null;
-        const a = idx[0], b = idx[idx.length - 1];
-        return { a, b, ok: !crossesFrame(a, b) };
-      }
-      function refreshDock() {
-        const kind = seqSel && seqSel.kind;
-        // View toggles: pressed while on. They are saved flags ("numbered", "showDetails"), so each is one undo step.
-        btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
-        btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
-        const hasDetails = chartData.messages.some((m) => m.detail);
-        btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
-        setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
-          : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
-        btnLifespans.setAttribute('aria-checked', String(!!chartData.lifespans));
-        btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
-        const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
-        if (btnShowAll.hidden !== !anyCollapsed) {
-          if (!anyCollapsed) motion.ghostExit(btnShowAll, { duration: 110, transform: 'scale(0.85)' });
-          motion.flipDock(() => { btnShowAll.hidden = !anyCollapsed; });
-        }
-        btnShowAll.title = 'Expand every collapsed frame';
-        setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
-        const msgOk = kind === 'participant' || kind === 'message';
-        setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
-          : chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
-        // Frame and Note stay clickable: without a selection they say what to select (frameHint, NOTE_HINT)
-        const fc = frameCandidate();
-        setDockButton(btnFrame, true, fc && fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : frameHint(fc));
-        const noteOk = kind === 'participant' || kind === 'message';
-        setDockButton(btnAddNote, true, noteOk ? (kind === 'message' ? 'Add a note under the selected message, over its sender' : 'Add a note over the selected participant, above the first message')
-          : NOTE_HINT);
-      }
-
-      function select(kind, id, extra) {
-        seqSel = kind ? Object.assign({ kind, id }, extra || {}) : null;
-        applySelection();
-      }
-      function selExists(sel) {
-        if (!sel) return false;
-        if (sel.kind === 'participant') return !!partById(sel.id);
-        if (sel.kind === 'message') return selIds(sel).every((id) => !!msgById(id));
-        if (sel.kind === 'note') return !!noteById(sel.id);
-        const f = fragById(sel.id);
-        if (sel.kind === 'divider') return !!f && branchList(f).some((b) => b.at === sel.at);
-        return !!f;
-      }
-
-      function relayout() {
-        normalizeSpans();
-        layoutDiagram(chartData);
-        render();
-        updateStatus(true);
-      }
-
-      // --- LIFESPANS AND SHARED COLUMNS ---
-      // A lifespan is [first, last] message index of a participant's messages and the notes over it (engine.js does the
-      // same); with `widen`, also its "start" / "end". Two participants may share a column (p.column = the earlier one's
-      // id) only when their lifespans never overlap.
-      function seqSpan(pid, widen) {
-        const ms = chartData.messages, p = partById(pid);
-        let lo = Infinity, hi = -1;
-        const see = (k) => { if (k >= 0) { lo = Math.min(lo, k); hi = Math.max(hi, k); } };
-        ms.forEach((m, k) => { if (m.from === pid || m.to === pid) see(k); });
-        (chartData.notes || []).forEach((n) => {
-          if (!(Array.isArray(n.over) ? n.over : [n.over]).includes(pid)) return;
-          see(n.after !== undefined ? msgIndex(n.after) : n.before !== undefined ? msgIndex(n.before) : ms.length ? 0 : -1);
-        });
-        if (hi < 0) return null;
-        if (widen && p) { lo = Math.min(lo, msgIndex(p.start) < 0 ? lo : msgIndex(p.start)); hi = Math.max(hi, msgIndex(p.end)); }
-        return [lo, hi];
-      }
-      // The first message index where both participants are alive, or -1
-      function overlapAt(a, b) {
-        const x = seqSpan(a, true), y = seqSpan(b, true);
-        if (!x || !y) return -1;
-        const lo = Math.max(x[0], y[0]);
-        return lo <= Math.min(x[1], y[1]) ? lo : -1;
-      }
-      const columnMembers = (p) => {
-        const root = p.column ? partById(p.column) || p : p;
-        return chartData.participants.filter((q) => q === root || q.column === root.id);
-      };
-      // The refusal text: the earlier participant of the two first
-      function clashText(a, b, at) {
-        const ps = chartData.participants, [u, v] = ps.indexOf(a) < ps.indexOf(b) ? [a, b] : [b, a];
-        return `${u.name} and ${v.name} are both active at step ${at + 1}`;
-      }
-      // Why `p` may not sit in its column, or null
-      function columnClash(p) {
-        for (const q of columnMembers(p)) {
-          if (q === p) continue;
-          const at = overlapAt(p.id, q.id);
-          if (at >= 0) return clashText(p, q, at);
-        }
-        return null;
-      }
-      // A column names an earlier participant that has none of its own (no chains); anything else is dropped
-      function normalizeColumns() {
-        const ps = chartData.participants;
-        ps.forEach((p, i) => {
-          if (p.column === undefined) return;
-          const h = ps.findIndex((q) => q.id === p.column);
-          if (h < 0 || h >= i) delete p.column;
-          else if (ps[h].column !== undefined) p.column = ps[h].column;
-        });
-      }
-      // A "start" / "end" override names a message and can only widen a lifespan (the audit refuses one that does not):
-      // after an edit that deleted the message or moved the participant's own messages past it, it goes
-      function normalizeSpans() {
-        chartData.participants.forEach((p) => {
-          const sp = seqSpan(p.id, false);
-          [['start', (k) => k >= sp[0]], ['end', (k) => k <= sp[1]]].forEach(([key, useless]) => {
-            if (p[key] === undefined) return;
-            const k = msgIndex(p[key]);
-            if (k < 0 || (sp && useless(k))) delete p[key];
-          });
-        });
-      }
-      // Drop a participant's box on another's lifeline: they share a column (the later one takes the earlier's)
-      function shareColumn(idA, idB) {
-        const ps = chartData.participants;
-        const ia = ps.findIndex((q) => q.id === idA), ib = ps.findIndex((q) => q.id === idB);
-        const guest = ps[Math.max(ia, ib)], first = ps[Math.min(ia, ib)];
-        const host = first.column ? partById(first.column) : first;
-        if (guest.column === host.id) { render(); return; }
-        const guests = ps.filter((q) => q === guest || q.column === guest.id), hosts = ps.filter((q) => q === host || q.column === host.id);
-        for (const g of guests) for (const h of hosts) {
-          const at = overlapAt(g.id, h.id);
-          if (at >= 0) { seqHint(clashText(h, g, at)); render(); return; }
-        }
-        guests.forEach((g) => { g.column = host.id; });
-        seqSel = { kind: 'participant', id: guest.id };
-        relayout();
-      }
-      // Colour a participant (one undo step). The first time a swatch is used the key gains an entry with no label yet.
-      function setParticipantColor(pid, slot) {
-        const p = partById(pid);
-        if (!p || (p.color || '') === slot) return;
-        pendingColorAnim = slot ? captureColorStyles('participant', pid) : null;
-        if (slot) {
-          p.color = slot;
-          if (swatchSlot(slot)) {   // a white (hex) is no legend entry
-            chartData.colorKey = chartData.colorKey || {};
-            if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
-          }
-        } else delete p.color;
-        relayout();
-      }
-      // A short message above the dock (why a drop was refused)
-      let seqHintTimer = 0;
-      function seqHint(text) {
-        let hint = document.querySelector('.hint');
-        if (!hint) {
-          hint = htmlEl('div', 'hint');
-          hint.setAttribute('role', 'status');
-          hint.dataset.exportSkip = '';
-          document.body.appendChild(hint);
-        }
-        hint.textContent = text;
-        clearTimeout(seqHintTimer);
-        seqHintTimer = setTimeout(() => motion.hideHint(hint), 3200);
-      }
-
-      // --- DRAGS ---
-      // One drag at a time: beginDrag arms it on pointerdown; it starts after 4px of movement. While it runs the
-      // action bar is hidden (body.seq-dragging). cancelInteraction (Escape) drops it.
-      function beginDrag(e, d) {
-        seqDrag = Object.assign({ startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, moved: false }, d);
-        window.addEventListener('pointermove', onDragMove);
-        window.addEventListener('pointerup', onDragUp);
-      }
-      function onDragMove(e) {
-        const d = seqDrag;
-        if (!d) return;
-        d.dx = (e.clientX - d.startX) / scale;
-        d.dy = (e.clientY - d.startY) / scale;
-        if (!d.moved && Math.abs(d.dx) < 4 && Math.abs(d.dy) < 4) return;
-        if (!d.moved) { d.moved = true; document.body.classList.add('seq-dragging'); }
-        if (d.move) d.move(canvasPoint(e), d);
-      }
-      function endSeqDrag() {
-        window.removeEventListener('pointermove', onDragMove);
-        window.removeEventListener('pointerup', onDragUp);
-        document.body.classList.remove('seq-dragging');
-        seqDrop.style.display = 'none';
-        seqRubber.style.display = 'none';
-        document.querySelectorAll('.seq-lifeline.is-target').forEach((el) => el.classList.remove('is-target'));
-        const d = seqDrag;
-        seqDrag = null;
-        return d;
-      }
-      function onDragUp(e) {
-        const d = endSeqDrag();
-        if (!d) return;
-        // A click without movement must not rebuild the DOM: the second click of a double-click has to land on
-        // the same element, or the browser's dblclick never reaches the text
-        if (!d.moved) { if (d.click) d.click(); else applySelection(); return; }
-        if (d.drop) d.drop(canvasPoint(e), d); else render();
-      }
-      // The rubber band of a connect or retarget drag, and the lifeline it would land on
-      const seqRubber = svgEl('line', { id: 'seq-rubber', x1: 0, y1: 0, x2: 0, y2: 0, 'marker-end': 'url(#seq-arrow-drag)' });
-      seqSvg.appendChild(seqRubber);
-      function showRubber(x1, y1, x2, y2) {
-        Object.entries({ x1, y1, x2, y2 }).forEach(([k, v]) => seqRubber.setAttribute(k, v));
-        seqRubber.style.display = 'block';
-      }
-      function lightLifeline(pid) {
-        document.querySelectorAll('.seq-lifeline').forEach((el) => el.classList.toggle('is-target', el.dataset.nodeId === pid));
-      }
-
-      // Reorder participants sideways
-      function participantDrag(id, el) {
-        return {
-          move(pt, d) {
-            el.classList.add('dragging');
-            el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
-            const ps = chartData.participants, me = partById(id), L = chartData.layout;
-            const others = ps.filter((p) => p.id !== id);
-            // With lifespans, a box dropped right on another lifeline shares that column (see shareColumn)
-            d.share = chartData.lifespans ? others.find((p) => p.x !== me.x && Math.abs(p.x - (me.x + d.dx)) < 40) : null;
-            lightLifeline(d.share && d.share.id);
-            if (d.share) { seqDrop.style.display = 'none'; return; }
-            d.index = others.filter((p) => p.x < me.x + d.dx).length;
-            const left = others[d.index - 1], right = others[d.index];
-            const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right ? right.x - SQ.BOX_W / 2 - 16 : me.x;
-            Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
-            animateDropLine('y');
-            seqDrop.style.display = 'block';
-          },
-          drop(pt, d) {
-            if (d.share) { shareColumn(id, d.share.id); return; }
-            const ps = chartData.participants, from = ps.findIndex((p) => p.id === id);
-            if (d.index === undefined || d.index === from) { render(); return; }
-            const [p] = ps.splice(from, 1);
-            delete p.column;   // moved away from the column it shared
-            ps.splice(d.index, 0, p);
-            normalizeColumns();
-            relayout();
-          }
-        };
-      }
-
-      // --- MOVING A MESSAGE, AND WHICH FRAME IT BELONGS TO ---
-      // A message belongs to a frame when it sits between the frame's first and last message. Before a move the
-      // message is detached: a frame whose first or last it was keeps its edge on the neighbour that stays (a frame
-      // whose only message leaves is removed), and a branch starting at it moves to the next message of the frame
-      // (or goes, if that would leave a branch empty). Dropped between two messages of a frame, it then joins it.
-      function detachMessage(id) {
-        const order = chartData.messages.map((m) => m.id), i = order.indexOf(id);
-        chartData.fragments = chartData.fragments.filter((f) => {
-          const brs = branchList(f);
-          let a = order.indexOf(f.from), b = order.indexOf(f.to);
-          if (a === i && b === i) return false;
-          if (a === i) { f.from = order[i + 1]; a = i + 1; }
-          if (b === i) { f.to = order[i - 1]; b = i - 1; }
-          const next = brs.map((br) => {
-            if (br.at !== id) return br;
-            const n = i + 1;
-            return n <= b && !brs.some((o) => o.at === order[n]) ? { at: order[n], label: br.label } : null;
-          }).filter(Boolean);
-          // A branch now at the frame's first message would be empty: it merges into the one above
-          const kept = next.filter((br) => order.indexOf(br.at) > a);
-          if (kept.length !== brs.length || next.some((br, k) => br.at !== brs[k].at)) {
-            const short = f.elseAt !== undefined;
-            delete f.elseAt; delete f.branches;
-            if (kept.length) { if (short && kept.length === 1 && !kept[0].label) f.elseAt = kept[0].at; else f.branches = kept; }
-          }
-          return true;
-        });
-      }
-      // Move a message to a slot (see rowSlots): to its index in the list without it, and into the frames the slot is
-      // inside at their end or start. Dropped back where it was, it may still leave or join a frame: false only if
-      // nothing changed.
-      function moveMessage(id, slot) {
-        const ms = chartData.messages, from = msgIndex(id);
-        if (from < 0) return false;
-        const was = JSON.stringify(chartData.fragments);
-        detachMessage(id);
-        const [m] = ms.splice(from, 1);
-        ms.splice(Math.max(0, Math.min(slot.index, ms.length)), 0, m);
-        joinFrames(slot, id);
-        return slot.index !== from || JSON.stringify(chartData.fragments) !== was;
-      }
-      function messageDrag(id) {
-        return {
-          move(pt, d) {
-            const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
-            if (el) {
-              el.classList.add('dragging');
-              el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
-            }
-            const m = msgById(id);
-            d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
-            showDropLine(d.slot.y, d.slot.frame);
-          },
-          drop(pt, d) {
-            if (d.slot && moveMessage(id, d.slot)) relayout(); else render();
-          }
-        };
-      }
-
-      // --- CREATE A MESSAGE BY DRAWING IT: from a lifeline's + to another lifeline ---
-      // Hovering a lifeline shows a + dot snapped to the gap between two rows; dragging it draws a rubber-band arrow,
-      // lights the lifeline it would land on and shows the row. Released on the same lifeline: a self-message.
-      const seqPlus = htmlEl('div', 'seq-plus');
-      seqPlus.dataset.exportSkip = '';
-      seqPlus.title = 'Drag to another lifeline to add a message here (or drag from any lifeline or activation bar)';
-      seqPlus.textContent = '+';
-      function hidePlus() { seqPlus.style.display = 'none'; }
-      function onCanvasHover(e) {
-        if (seqDrag || isPresent() || !chartData.layout || document.body.classList.contains('seq-dragging')) { hidePlus(); return; }
-        hoverBarHandle(e.target);
-        const pt = canvasPoint(e);
-        // Only the + nearest the pointer shows, within a short reach: a gap between two boxes, or past either end
-        const inRow = pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0;
-        let near = null;
-        seqHtml.querySelectorAll('.seq-insert').forEach((el) => {
-          const d = Math.abs(parseFloat(el.style.left) - pt.x);
-          if (inRow && d < 40 && (!near || d < near.d)) near = { el, d };
-          el.classList.remove('is-near');
-        });
-        if (near) near.el.classList.add('is-near');
-        if (e.target === seqPlus) return;
-        // On a lifeline the + wins over a frame's border or a branch divider crossing it
-        const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
-          || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit')
-          || e.target.classList.contains('seq-life-hit') || e.target.classList.contains('seq-activation');
-        // Down to a little past the last slot (the room below the last message), not a fixed margin from the layout's edge
-        const slots = rowSlots();
-        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < slots[slots.length - 1].y + 24 ? nearestParticipant(pt.x) : null;
-        if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
-        const slot = nearestSlot(slots, pt.y);
-        const wasHidden = seqPlus.style.display !== 'flex';
-        if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
-        seqPlus.style.display = 'flex';
-        seqPlus.style.translate = `${p.x}px ${slot.y}px`;
-        if (wasHidden && motion.enabled()) {
-          motion.anim(seqPlus, [{ transform: 'scale(0.6)' }, { transform: 'none' }], {
-            duration: motion.dur('dur-micro', 100), easing: motion.curve('curve-spring-tactile')
-          });
-        }
-        seqPlus.dataset.pid = p.id;
-        seqPlus.dataset.slot = slots.indexOf(slot);
-      }
-      seqCanvas.addEventListener('pointermove', onCanvasHover);
-      seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqHtml.querySelectorAll('.seq-insert.is-near').forEach((el) => el.classList.remove('is-near')); });
-      // fromLine: the drag started on a lifeline or an activation bar, not on the + (a click there selects the
-      // participant). A message needs the pointer near the lifeline it lands on (SNAP_MAX, or a third of the gap to the
-      // next lifeline when that is less); a self-message needs the pointer to have gone SELF_OUT out from the lifeline and
-      // come back; a drag shorter than MIN_DRAW is a click. Anything else cancels, and then no lifeline is lit.
-      const SNAP_MAX = 40, SELF_OUT = 60, MIN_DRAW = 8;
-      function snapTarget(x) {
-        const p = nearestParticipant(x);
-        if (!p) return null;
-        const gap = Math.min(...chartData.participants.filter((o) => o !== p).map((o) => Math.abs(o.x - p.x)), Infinity);
-        return Math.abs(p.x - x) <= Math.min(SNAP_MAX, gap / 3) ? p : null;
-      }
-      function connectDrag(pid = seqPlus.dataset.pid, slot = rowSlots()[+seqPlus.dataset.slot], fromLine = false) {
-        const from = partById(pid), index = slot.index, y = slot.y;
-        // The lifeline a release at pt would land on, or null: a release there cancels
-        const landing = (pt, d) => {
-          d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
-          const to = snapTarget(pt.x);
-          return to && to.id === from.id && d.away < SELF_OUT ? null : to;
-        };
-        const click = () => { hidePlus(); select(null); };   // a click on a lifeline (or on the + on it) selects nothing: the bar belongs to the pill
-        return {
-          move(pt, d) {
-            hidePlus();
-            d.to = landing(pt, d);
-            lightLifeline(d.to && d.to.id);
-            showRubber(from.x, y, pt.x, y);   // always level: a message is drawn along its row
-            showDropLine(y, slot.frame);
-          },
-          drop(pt, d) {
-            const to = landing(pt, d);
-            if (Math.hypot(d.dx, d.dy) < MIN_DRAW) { click(); render(); return; }
-            if (!to) { render(); return; }
-            const kind = drawnKind(from.id, to.id, index);
-            expandFramesHiding([from.id, to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
-            const m = { id: seqUid('m'), from: from.id, to: to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
-            chartData.messages.splice(index, 0, m);
-            joinFrames(slot, m.id);
-            pendingDrawEdges.add(m.id);
-            editCreated('message', m.id);
-          },
-          click
-        };
-      }
-      // The kind of a message added from `from` to `to` at `index` (drawn, or added by the dock's Message button): the reply of the latest call from `to` to `from`
-      // that is still open there (no reply to it yet, and `to` has sent `from` nothing since); otherwise a call
-      function drawnKind(from, to, index) {
-        if (from === to) return 'sync';
-        const ms = chartData.messages;
-        for (let i = index - 1; i >= 0; i--) {
-          const m = ms[i];
-          if (m.from === from && m.to === to && m.kind === 'reply') return 'sync';   // already answered
-          if (m.from === to && m.to === from) return (m.kind || 'sync') === 'sync' ? 'reply' : 'sync';
-        }
-        return 'sync';
-      }
-
-      // --- STRETCH AN ACTIVATION BAR ---
-      // The handle at a bar's bottom end (shown on hover, and on the selected message that opens the bar) drags to a
-      // message row: the opening message gets "until" there. Later sync calls to the same participant inside the
-      // stretched range would open bars of their own, so they get "activate": false and it stays one bar. Nothing
-      // else is saved: dropping back at the natural end, or "Reset bar", clears "until" and "activate": false on
-      // every sync call to that participant inside the old range (one set by hand there goes too).
-      const callsTo = (m, k) => chartData.messages.slice(msgIndex(m.id) + 1, k + 1).filter((x) => x.to === m.to && x.from !== x.to && (x.kind || 'sync') === 'sync');
-      function clearBar(m) {
-        callsTo(m, m.until === undefined ? -1 : msgIndex(m.until)).forEach((x) => { delete x.activate; });
-        delete m.until;
-      }
-      // The row the pointer is nearest (a message after the opening one), or why there is none
-      function barTarget(m, y) {
-        if (y < m.y) return { why: 'A bar cannot end above the call that opens it' };
-        const later = chartData.messages.slice(msgIndex(m.id) + 1).filter((x) => !x.hidden);
-        if (!later.length) return { why: 'No later message to end the bar at' };
-        const t = later.reduce((b, x) => (Math.abs(x.y + 6 - y) < Math.abs(b.y + 6 - y) ? x : b));
-        const sp = chartData.lifespans ? seqSpan(m.to, true) : null;
-        if (sp && msgIndex(t.id) > sp[1]) return { why: 'A bar cannot run past the end of its lifeline' };
-        return { msg: t };
-      }
-      function setBar(m, t) {
-        const before = JSON.stringify(chartData.messages);
-        clearBar(m);
-        const nat = seqActivations().find((b) => b.mid === m.id);
-        if (nat && t.y + 6 > nat.y2 + 0.5) {
-          m.until = t.id;
-          callsTo(m, msgIndex(t.id)).forEach((x) => { x.activate = false; });
-        }
-        if (JSON.stringify(chartData.messages) === before) { render(); return; }
-        seqSel = { kind: 'message', id: m.id };
-        relayout();
-      }
-      function addBarHandle(mid) {
-        const b = seqBars.find((x) => x.mid === mid), m = msgById(mid), p = b && partById(b.pid);
-        if (!p || !m || m.hidden || seqHtml.querySelector(`.seq-barend[data-id="${mid}"]`)) return;
-        addHandle('barend', mid, p.x + b.depth * ACT_STEP, b.y2, 'seq-edge seq-barend');
-      }
-      function hoverBarHandle(t) {
-        const mid = t.classList.contains('seq-activation') ? t.dataset.mid : t.classList.contains('seq-barend') ? t.dataset.id : null;
-        seqHtml.querySelectorAll('.seq-barend').forEach((el) => { if (el.dataset.id !== mid && !(seqSel && seqSel.kind === 'message' && seqSel.id === el.dataset.id)) el.remove(); });
-        if (mid) addBarHandle(mid);
-      }
-
-      // --- HANDLES ON THE SELECTION ---
-      // Retarget: drag a message end to another lifeline. Frame range: drag its top or bottom edge to a row gap.
-      // Note: stretch it over a second lifeline from its right edge.
-      function handleDrag(h) {
-        const role = h.dataset.role;
-        if (role === 'from' || role === 'to') {
-          const m = msgById(h.dataset.id);
-          const fixed = partById(role === 'from' ? m.to : m.from);
-          return {
-            move(pt, d) {
-              const p = nearestParticipant(pt.x);
-              d.target = p;
-              lightLifeline(p && p.id);
-              if (role === 'to') showRubber(fixed.x, m.y, pt.x, m.y); else showRubber(pt.x, m.y, fixed.x, m.y);
-            },
-            drop(pt, d) {
-              if (!d.target || d.target.id === m[role]) { render(); return; }
-              m[role] = d.target.id;
-              relayout();
-            }
-          };
-        }
-        if (role === 'top' || role === 'bottom') {
-          const f = fragById(h.dataset.id);
-          return {
-            move(pt, d) {
-              d.slot = nearestSlot(plainSlots(), pt.y);
-              showDropLine(d.slot.y, null);
-            },
-            drop(pt, d) {
-              const ms = chartData.messages;
-              let [a, b] = fragRange(f);
-              if (role === 'top') a = d.slot.index; else b = d.slot.index - 1;
-              if (a > b || a < 0 || b >= ms.length || crossesFrame(a, b, f.id)) { render(); return; }
-              const brs = branchList(f);
-              f.from = ms[a].id;
-              f.to = ms[b].id;
-              setBranches(f, brs);   // a branch now outside the frame goes
-              relayout();
-            }
-          };
-        }
-        if (role === 'barend') {
-          const m = msgById(h.dataset.id), open = msgIndex(m.id);
-          h.classList.add('is-drag');
-          return {
-            move(pt, d) {
-              d.target = barTarget(m, pt.y);
-              if (d.target.msg) { showDropLine(d.target.msg.y + 6, null); seqHint(`Busy until ${msgIndex(d.target.msg.id) + 1}${d.target.msg.label ? `. ${d.target.msg.label}` : ''}`); }
-              else { seqDrop.style.display = 'none'; seqHint(d.target.why); }
-            },
-            drop(pt, d) {
-              if (!d.target.msg) { render(); return; }
-              setBar(m, d.target.msg);
-            }
-          };
-        }
-        if (role === 'pstart' || role === 'pend') {
-          const p = partById(h.dataset.id);
-          return {
-            move(pt, d) {
-              d.slot = nearestSlot(plainSlots(), pt.y);
-              showDropLine(d.slot.y, null);
-            },
-            drop(pt, d) {
-              const ms = chartData.messages, sp = seqSpan(p.id, false), was = { start: p.start, end: p.end };
-              if (!sp) { render(); return; }
-              // Only outward from the derived span: a drop inside it clears the override
-              if (role === 'pstart') {
-                const k = d.slot.index;
-                if (k < sp[0] && ms[k]) p.start = ms[k].id; else delete p.start;
-              } else {
-                const k = d.slot.index - 1;
-                if (k > sp[1] && ms[k]) p.end = ms[k].id; else delete p.end;
-              }
-              const clash = columnClash(p);
-              if (clash) {
-                if (was.start === undefined) delete p.start; else p.start = was.start;
-                if (was.end === undefined) delete p.end; else p.end = was.end;
-                seqHint(clash);
-                render();
-                return;
-              }
-              if (p.start === was.start && p.end === was.end) { render(); return; }
-              relayout();
-            }
-          };
-        }
-        if (role === 'stretch') {
-          const n = noteById(h.dataset.id);
-          const card = seqHtml.querySelector(`.note[data-note-id="${n.id}"]`);
-          const firstId = Array.isArray(n.over) ? n.over[0] : n.over;
-          const firstP = firstId ? partById(firstId) : null;
-          h.classList.add('is-drag');
-          return {
-            move(pt, d) {
-              const p = nearestParticipant(pt.x);
-              d.target = p;
-              lightLifeline(p && p.id);
-              if (card && p) {
-                const lo = firstP ? Math.min(firstP.x, p.x) : p.x, hi = firstP ? Math.max(firstP.x, p.x) : p.x;
-                let x, w;
-                if (hi > lo) {
-                  w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
-                  x = Math.round((lo + hi) / 2 - w / 2);
-                } else {
-                  x = Math.round(lo - SQ.NOTE_W / 2);
-                  const nextX = (chartData.participants || []).map((q) => q.x).filter((qx) => qx > lo + 1).sort((a, b) => a - b)[0];
-                  w = sqNoteSingleW(n.text, x, nextX);
-                }
-                card.style.left = px(x);
-                card.style.width = px(w);
-                h.style.left = px(x + w);
-                const nt = card.querySelector('.note-text');
-                if (nt) nt.textContent = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
-              }
-            },
-            drop(pt, d) {
-              const first = Array.isArray(n.over) ? n.over[0] : n.over;
-              if (!d.target) { render(); return; }
-              if (first === undefined) { delete n.place; n.over = d.target.id; relayout(); return; }   // a free note snaps to it
-              const over = d.target.id === first ? first : [first, d.target.id];
-              if (JSON.stringify(over) === JSON.stringify(n.over)) { render(); return; }
-              n.over = over;
-              relayout();
-            }
-          };
-        }
-        return null;
-      }
-
-      // Move a note: vertically to another row gap, sideways to another lifeline (a stretched note keeps its span)
-      function noteDrag(id, el) {
-        const n = noteById(id);
-        return {
-          move(pt, d) {
-            el.classList.add('dragging');
-            el.style.transform = `translate(${d.dx}px, ${d.dy}px) scale(1.02)`;
-            d.slot = nearestSlot(rowSlots().filter((s) => s.note), pt.y);
-            showDropLine(d.slot.y, d.slot.frame);
-            const p = snapLifeline(pt.x);
-            lightLifeline(p && p.id);
-          },
-          drop(pt, d) {
-            const ps = chartData.participants;
-            delete n.after;
-            delete n.before;
-            Object.assign(n, d.slot.note);
-            // A single-lifeline or free note goes where it is dropped: over a lifeline it is near, or free between them
-            if (!Array.isArray(n.over)) { setNoteSpot(n, pt.x); relayout(); return; }
-            const over = n.over;
-            const centre = nearestParticipant(pt.x);
-            const was = nearestParticipant(pt.x - d.dx);
-            const shift = ps.indexOf(centre) - ps.indexOf(was);
-            const idx = over.map((pid) => Math.max(0, Math.min(ps.length - 1, ps.findIndex((p) => p.id === pid) + shift)));
-            n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
-            relayout();
-          }
-        };
-      }
-
-      // Move a branch divider to another row gap inside its frame
-      function dividerDrag(fid, at) {
-        const f = fragById(fid);
-        return {
-          move(pt, d) {
-            d.slot = nearestSlot(plainSlots(), pt.y);
-            showDropLine(d.slot.y, f);
-          },
-          drop(pt, d) {
-            const ms = chartData.messages, [a, b] = fragRange(f), k = d.slot.index;
-            const brs = branchList(f);
-            if (k <= a || k > b || !ms[k] || brs.some((br) => br.at === ms[k].id)) { render(); return; }
-            brs.forEach((br) => { if (br.at === at) br.at = ms[k].id; });
-            setBranches(f, brs);
-            seqSel = { kind: 'divider', id: fid, at: ms[k].id };
-            relayout();
-          }
-        };
-      }
-
-      // Shift + drag on blank canvas: a marquee selects every message it touches, as one range
-      function marqueeDrag(e) {
-        const start = canvasPoint(e);
-        const box = htmlEl('div', 'seq-marquee');
-        box.dataset.exportSkip = '';
-        seqHtml.appendChild(box);
-        const rect = (pt) => ({ x: Math.min(start.x, pt.x), y: Math.min(start.y, pt.y), w: Math.abs(pt.x - start.x), h: Math.abs(pt.y - start.y) });
-        return {
-          move(pt) {
-            const r = rect(pt);
-            Object.assign(box.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
-          },
-          drop(pt) {
-            motion.ghostExit(box, { duration: 90, transform: 'scale(0.92)' });
-            box.remove();
-            const r = rect(pt);
-            const byId = {};
-            chartData.participants.forEach((p) => { byId[p.id] = p; });
-            const ids = chartData.messages.filter((m) => {
-              if (m.hidden || !byId[m.from] || !byId[m.to]) return false;
-              const lo = Math.min(byId[m.from].x, byId[m.to].x), hi = Math.max(byId[m.from].x, byId[m.to].x) + (m.from === m.to ? SQ.SELF_LOOP : 0);
-              return m.y >= r.y && m.y <= r.y + r.h && hi >= r.x && lo <= r.x + r.w;
-            }).map((m) => m.id);
-            if (ids.length) selectRange(ids[0], ids[ids.length - 1]); else select(null);
-          },
-          click() { box.remove(); }
-        };
-      }
-      // A range of messages from anchor to id (in time order, inclusive)
-      function selectRange(anchor, id) {
-        const ms = chartData.messages, a = msgIndex(anchor), b = msgIndex(id);
-        const lo = Math.min(a, b), hi = Math.max(a, b);
-        const ids = ms.slice(lo, hi + 1).filter((m) => !m.hidden || m.id === anchor || m.id === id).map((m) => m.id);
-        select('message', id, ids.length > 1 ? { ids, anchor } : {});
-      }
-
-      function onSeqPointerDown(e) {
-        if (isPresent() || e.button > 0) return;
-        if (e.target.isContentEditable) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
-        const handle = e.target.closest('.seq-handle');
-        if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
-        if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
-        // DRAW FROM A LIFELINE: a drag from a lifeline or an activation bar draws a message from the nearest row gap
-        const src = e.target.closest('.seq-life-hit, .seq-activation');
-        if (src) {
-          e.stopPropagation();
-          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, nearestSlot(rowSlots(), canvasPoint(e).y), true));
-          return;
-        }
-        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
-        if (!hit) {
-          // Shift + drag on blank canvas draws a marquee instead of panning
-          if (e.shiftKey && (e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band'))) {
-            e.stopPropagation();
-            beginDrag(e, marqueeDrag(e));
-          }
-          return;
-        }
-        const cl = hit.classList;
-        if (cl.contains('seq-participant')) {
-          select('participant', hit.dataset.nodeId);
-          beginDrag(e, participantDrag(hit.dataset.nodeId, hit));
-        } else if (cl.contains('frame-tag') || cl.contains('seq-frag-hit')) {
-          select('fragment', hit.dataset.fragId);
-        } else if (cl.contains('seq-div-hit') || cl.contains('seq-frag-branch-label') || cl.contains('seq-frag-else-label')) {
-          select('divider', hit.dataset.fragId, { at: hit.dataset.at });
-          beginDrag(e, dividerDrag(hit.dataset.fragId, hit.dataset.at));
-        } else if (cl.contains('note')) {
-          select('note', hit.dataset.noteId);
-          beginDrag(e, noteDrag(hit.dataset.noteId, hit));
-        } else {
-          const id = hit.dataset.edgeId;
-          if (e.shiftKey && seqSel && seqSel.kind === 'message') { selectRange(seqSel.anchor || seqSel.id, id); return; }
-          select('message', id);
-          beginDrag(e, messageDrag(id));
-        }
-      }
-
-      // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
-      const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
-      function addHandle(role, id, x, y, extraClass) {
-        const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
-        h.dataset.role = role;
-        h.dataset.id = id;
-        h.dataset.exportSkip = '';
-        seqHtml.appendChild(h);
-      }
-      // The selection's delete button: an icon only, its tooltip says what goes
-      const delButton = (title, icon = 'trash') => ui.abButton('seq-ab-btn', 'delete', ui.icon(icon), title, undefined, undefined, 'is-danger');
-      const delSep = () => ui.abSep('seq-ab-sep');
-      function drawSelectionTools(sel) {
-        if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-        const oldBar = seqHtml.querySelector('.seq-actionbar');
-        pendingBarRect = null;
-        const barKey = sel.kind ? JSON.stringify([sel.kind, sel.id, sel.ids || null, sel.at || null]) : null;
-        const sameBar = barKey !== null && barKey === lastBarKey;
-        lastBarKey = barKey;
-        if (!sel.kind || isPresent()) {
-          if (oldBar) motion.hideBar(oldBar);
-          seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
-          return;
-        }
-        if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
-        const bar = ui.actionBar('seq-actionbar');
-        let at = null;
-        const byId = {};
-        chartData.participants.forEach((p) => { byId[p.id] = p; });
-        if (sel.kind === 'message' && !sel.ids) {
-          const m = msgById(sel.id), a = byId[m && m.from], b = byId[m && m.to];
-          if (!m || !a || !b || m.hidden) return;
-          bar.setAttribute('aria-label', 'Message');
-          // Kind follows from the flow (see drawnKind), so the one choice left is a call nobody answers
-          if ((m.kind || 'sync') !== 'reply') {
-            bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
-            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          }
-          if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
-          if (m.until !== undefined) bar.appendChild(abButton('resetbar', '<span>Reset bar</span>', 'Draw this call\'s bar to its natural end again (clears "until" and the "activate": false it set on later calls)'));
-          bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
-          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}`, 'Add the reply under this call (or under the last message of its bar)'));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note under this message, over its sender'));
-          bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected message (or Shift+click range) in a frame'));
-          bar.appendChild(delSep());
-          bar.appendChild(delButton('Delete this message (Delete key)'));
-          const self = m.from === m.to;
-          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24 - (self ? 0 : ((m.lab || 1) - 1) * SQ.LABEL_LINE), bottom: m.y + 10 };
-          addBarHandle(m.id);
-          // End handles: drag one to another lifeline to move that end
-          if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
-          else { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, b.x, m.y, 'seq-end'); }
-        } else if (sel.kind === 'participant') {
-          const p = byId[sel.id];
-          if (!p) return;
-          bar.setAttribute('aria-label', 'Participant');
-          if (p.rail) {
-            bar.appendChild(abButton('show', `${ui.icon('eye')}`, 'Expand the frames that hide this participant'));
-            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          }
-          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(swatchPicker(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', white: WHITE }));
-          if (p.column) {
-            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-            bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
-          }
-          bar.appendChild(delSep());
-          bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
-          // With lifespans: drag the start box or the cap outward to make the lifeline begin earlier or end later
-          const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
-          if (sp && sp[0] > 0) addHandle('pstart', p.id, p.x, p.top, 'seq-edge');
-          if (sp) addHandle('pend', p.id, p.x, p.bottom, 'seq-edge');
-          const pTop = p.top === undefined ? SQ.TOP : p.top;
-          at = { x: p.x, top: pTop, bottom: pTop + (p.rail ? SQ.RAIL_H : SQ.BOX_H), pill: true };
-        } else if (sel.kind === 'fragment') {
-          const f = fragById(sel.id);
-          if (!f || f.x === undefined) return;
-          bar.setAttribute('aria-label', 'Frame');
-          FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
-          bar.appendChild(delSep());
-          bar.appendChild(swatchPicker(swatchOf(f) || '', (slot) => {
-            if ((f.color || '') === slot) return;
-            pendingColorAnim = slot ? captureColorStyles('fragment', f.id) : null;
-            if (slot) f.color = slot; else delete f.color;
-            relayout();
-          }, { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', act: 'color' }));
-          bar.appendChild(delSep());
-          bar.appendChild(ui.abButton('seq-ab-btn', 'delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)', undefined, undefined, 'is-danger'));
-          // Focus lives in the frame's tag only. Clear of the tag and the top handle
-          at = { x: f.x + 150, top: f.y, bottom: f.y + 30 };
-          if (!f.collapsed) {
-            addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
-            addHandle('bottom', f.id, f.x + f.w / 2, f.y + f.h, 'seq-edge');
-            if (f.kind === 'alt' || f.kind === 'par') {
-              const add = htmlEl('button', 'seq-add-branch', { left: px(f.x + f.w / 2 + 24), top: px(f.y + f.h) });
-              add.type = 'button';
-              add.dataset.exportSkip = '';
-              add.dataset.fragId = f.id;
-              add.textContent = '+ branch';
-              add.title = 'Add a branch above the frame\'s last message';
-              seqHtml.appendChild(add);
-            }
-          }
-        } else if (sel.kind === 'note') {
-          const n = noteById(sel.id);
-          if (!n || n.x === undefined) return;
-          addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
-          bar.setAttribute('aria-label', 'Note');
-          bar.appendChild(delButton('Delete this note (Delete key)'));
-          at = { x: n.x + n.w / 2, top: n.y, bottom: n.y + n.h };
-        } else if (sel.kind === 'message' && sel.ids) {
-          // A range of messages: frame it, or delete it
-          const ms = sel.ids.map(msgById).filter((m) => m && !m.hidden);
-          if (!ms.length) return;
-          bar.setAttribute('aria-label', 'Messages');
-          bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected messages in a frame'));
-          bar.appendChild(delSep());
-          bar.appendChild(delButton('Delete the selected messages (Delete key)'));
-          const top = ms.reduce((u, v) => (v.y < u.y ? v : u)), a = byId[top.from], b = byId[top.to];
-          at = { x: a && b ? (a.x + b.x) / 2 : top.y, top: top.y - 24, bottom: top.y + 10 };
-        } else if (sel.kind === 'divider') {
-          const f = fragById(sel.id), dv = f && (f.dividers || []).find((d) => d.at === sel.at);
-          if (!dv) return;
-          bar.setAttribute('aria-label', 'Branch');
-          bar.appendChild(delButton('Remove this branch divider (Delete key)'));
-          at = { x: f.x + f.w / 2, top: dv.y, bottom: dv.y + 10 };
-        } else {
-          return;
-        }
-        bar.style.left = px(Math.round(at.x));   // before measuring: how far it has to the right edge decides how it wraps
-        seqHtml.appendChild(bar);
-        if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
-        // Over the anchor, or under it when there is no room above in the window (by where it is on screen: a pill rides the pinned row)
-        const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
-        const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
-        if (at.pill) {
-          bar.classList.add('is-pill');
-          if (chartData.lifespans) {
-            const p = partById(sel.id);
-            const pinDy = parseFloat(seqCanvas.style.getPropertyValue('--pin-dy')) || 0;
-            const pinTop = SQ.TOP + (seqCanvas.classList.contains('seq-pinned') ? pinDy : 0);
-            const own = p ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-            bar.style.setProperty('--pin-dy', `${own}px`);
-          }
-        }
-        bar.classList.toggle('is-below', !above);
-        const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
-        bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
-        if (!sameBar) motion.showBar(bar);
-      }
-
-      seqHtml.addEventListener('click', (e) => {
-        const add = e.target.closest('.seq-add-branch');
-        if (add) { e.stopPropagation(); addBranch(add.dataset.fragId); return; }
-        const ins = e.target.closest('.seq-insert');
-        if (ins) { e.stopPropagation(); pendingOriginRect = ins.getBoundingClientRect(); insertParticipant(+ins.dataset.index); return; }
-        const b = e.target.closest('.seq-ab-btn');
-        if (!b || !seqSel) return;
-        e.stopPropagation();
-        runAction(b.dataset.act, b.dataset.value, b);
-      });
-      function runAction(act, value, el) {
-        const sel = seqSel;
-        if (act === 'delete') { deleteSelection(el); return; }
-        if (act === 'note') { btnAddNote.click(); return; }
-        if (act === 'frame') { btnFrame.click(); return; }
-        if (sel.kind === 'message') {
-          const m = msgById(sel.id);
-          if (!m) return;
-          if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
-          else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
-          else if (act === 'resetbar') { clearBar(m); relayout(); }
-          else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; pendingDrawEdges.add(m.id); relayout(); }
-          else if (act === 'reply') addReply(m);
-        } else if (sel.kind === 'participant') {
-          const p = partById(sel.id);
-          if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
-          else if (p && act === 'own') { delete p.column; relayout(); }
-          else if (p && act === 'show') { expandFramesHiding([p.id]); relayout(); }
-        } else if (sel.kind === 'fragment') {
-          const f = fragById(sel.id);
-          if (!f) return;
-          if (act === 'fkind' && f.kind !== value) {
-            const brs = branchList(f);
-            f.kind = value;
-            setBranches(f, brs);   // away from alt/par the branches go, in the same undo step
-            relayout();
-          } else if (act === 'color' && (f.color || '') !== value) {
-            pendingColorAnim = value ? captureColorStyles('fragment', f.id) : null;
-            if (value) f.color = value; else delete f.color;
-            relayout();
-          } else if (act === 'focus') {
-            focusFrame(f.id);
-          } else if (act === 'delete-frame') {
-            // One bin, two outcomes: the frame alone (its messages stay), or the frame with its messages
-            const [a, b] = fragRange(f), n = b - a + 1;
-            ui.confirm(el, {
-              title: 'Delete this frame?',
-              message: `"${f.label || f.kind}" covers ${n} message${n === 1 ? '' : 's'}.`,
-              label: 'Delete frame',
-              alt: { text: 'Frame only', onClick: () => deleteSelection(el) },
-              ok: `Frame and ${n} message${n === 1 ? '' : 's'}`
-            }, () => {
-              chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
-              removeMessages(chartData.messages.slice(a, b + 1).map((x) => x.id));
-              seqSel = null;
-              relayout();
-            });
-          }
-        }
-      }
-      // Reply: the reverse dashed message under the call, or under the last message of its bar
-      function addReply(m) {
-        const ms = chartData.messages, i = ms.indexOf(m);
-        let at = i + 1;
-        // Inside the bar: everything until the callee next answers or the caller calls it again
-        for (let j = i + 1; j < ms.length; j++) {
-          const r = ms[j];
-          if ((r.from === m.from && r.to === m.to) || (r.kind === 'reply' && r.from === m.to && r.to === m.from)) break;
-          if (r.from === m.to || r.to === m.to) at = j + 1; else break;
-        }
-        const reply = { id: seqUid('m'), from: m.to, to: m.from, label: 'Reply', kind: 'reply' };
-        ms.splice(at, 0, reply);
-        // It stays in the frames its call is in: a frame that ended at the last message of the bar grows
-        chartData.fragments.forEach((f) => { if (msgIndex(f.to) === at - 1 && msgIndex(f.from) <= i) f.to = reply.id; });
-        pendingDrawEdges.add(reply.id);
-        editCreated('message', reply.id);
-      }
-      // + branch: a divider above the frame's last message that does not start a branch yet
-      function addBranch(fid) {
-        const f = fragById(fid);
-        if (!f) return;
-        const [a, b] = fragRange(f), brs = branchList(f), ms = chartData.messages;
-        let k = b;
-        while (k > a && brs.some((br) => br.at === ms[k].id)) k--;
-        if (k <= a) return;
-        brs.push({ at: ms[k].id, label: 'condition' });
-        setBranches(f, brs);
-        seqSel = { kind: 'divider', id: fid, at: ms[k].id };
-        relayout();
-        editBranch(fid, ms[k].id);
-      }
-
-      // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
-      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. A message label takes Shift+Enter for a line break too; Tab in it
-      // moves on to its detail; an empty detail removes it.
-      const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
-      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
-      function applyText(el, value) {
-        const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
-        if (!value || !owner) return false;
-        if (owner.dataset.nodeId) { const p = partById(owner.dataset.nodeId); if (p && p.name !== value) { p.name = value; return true; } }
-        else if (owner.dataset.edgeId) { const m = msgById(owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; return true; } }
-        else if (owner.dataset.fragId) { const f = fragById(owner.dataset.fragId); if (f && f.label !== value) { f.label = value; return true; } }
-        return false;
-      }
-      function beginEdit(el, opts = {}) {
-        if (!el || el.isContentEditable) return;
-        const multi = !!opts.multiline;
-        // A wrapped label or detail is edited at the width it was drawn at, so it breaks where it did, not where the browser would
-        const wrapBox = el.closest('.is-wrapped');
-        if (wrapBox) wrapBox.style.width = `${wrapBox.offsetWidth + 2}px`;   // 2px of slack: a line that just fit must not tip over
-        const shown = el.textContent;   // what is drawn (a wrapped text has its line breaks), put back if nothing changes
-        if (opts.raw !== undefined) el.textContent = opts.raw;
-        el.contentEditable = multi ? 'plaintext-only' : 'true';
-        el.focus();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-        const original = el.textContent;
-        let tabbed = false;
-        const commit = () => {
-          el.removeEventListener('blur', commit);
-          el.removeEventListener('keydown', onKey);
-          document.removeEventListener('pointerdown', onOutside, true);
-          if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
-          el.contentEditable = 'false';
-          const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
-          const changed = (opts.apply || applyText)(el, value);
-          if (changed) relayout();
-          else if (wrapBox) { el.textContent = shown; wrapBox.style.width = ''; }   // no redraw: the box must not move
-          else if (opts.restore) render();
-          else el.textContent = original;
-          if (tabbed && opts.onTab) opts.onTab();
-        };
-        const onKey = (ke) => {
-          // The keys an edit uses stop here: an Enter that reached the window would open the selection's edit again
-          if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
-          if (ke.key === 'Enter' && multi && ke.shiftKey) { ke.preventDefault(); document.execCommand('insertText', false, '\n'); }
-          else if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
-          else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
-          else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
-        };
-        // A press on the edit box's padding puts the caret in the text (at its start or end, whichever is nearer) instead of leaving the edit
-        const box = el.closest('.seq-msg-label, .seq-msg-detail, .note, .seq-participant, .frame-tag');
-        const onBoxDown = (pe) => {
-          if (pe.target === el || el.contains(pe.target)) return;
-          pe.preventDefault(); pe.stopPropagation();
-          // The caret goes to the text nearest the press: the press point pulled onto the text's own box
-          const r = el.getBoundingClientRect();
-          const px = Math.min(Math.max(pe.clientX, r.left + 1), r.right - 1), py = Math.min(Math.max(pe.clientY, r.top + 1), r.bottom - 1);
-          let rg = null;
-          if (document.caretPositionFromPoint) {
-            const cp = document.caretPositionFromPoint(px, py);
-            if (cp && el.contains(cp.offsetNode)) { rg = document.createRange(); rg.setStart(cp.offsetNode, cp.offset); rg.collapse(true); }
-          } else if (document.caretRangeFromPoint) {
-            rg = document.caretRangeFromPoint(px, py);
-            if (rg && !el.contains(rg.startContainer)) rg = null;
-          }
-          if (!rg) { rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(false); }
-          const sel = window.getSelection();
-          sel.removeAllRanges(); sel.addRange(rg);
-          el.focus();
-        };
-        const onBoxMouse = (me) => { if (me.target !== el && !el.contains(me.target)) me.preventDefault(); };
-        if (box) { box.addEventListener('pointerdown', onBoxDown); box.addEventListener('mousedown', onBoxMouse); }
-        // A press anywhere outside the edit ends it first (capture phase), whatever the target does with the press:
-        // a lifeline, a bar or the canvas may swallow it and so keep the focus here
-        const onOutside = (pe) => { if (!(box || el).contains(pe.target)) el.blur(); };
-        document.addEventListener('pointerdown', onOutside, true);
-        el.addEventListener('blur', commit);
-        el.addEventListener('keydown', onKey);
-      }
-      function editMessage(id) {
-        const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
-      }
-      // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
-      function editDetail(id) {
-        const m = msgById(id);
-        if (!m || m.hidden) return;
-        let el = seqHtml.querySelector(`.seq-msg-detail[data-edge-id="${id}"] .seq-msg-detail-text`);
-        if (!el) {
-          const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
-          if (!label) return;
-          const box = htmlEl('div', `seq-msg-detail is-editing${m.from === m.to ? ' is-self' : ''}`, {
-            left: label.style.left, top: px(m.from === m.to ? m.y + 24 : m.y + 3) });
-          box.dataset.edgeId = id;
-          el = htmlEl('span', 'seq-msg-detail-text');
-          box.appendChild(el);
-          seqHtml.appendChild(box);
-          if (motion.enabled()) motion.anim(box, [
-            { transform: 'translateY(-4px) scale(0.94)', clipPath: 'inset(0 0 100% 0)' },
-            { transform: 'none', clipPath: 'inset(0 0 0 0)' }
-          ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-out') });
-        }
-        beginEdit(el, {
-          raw: m.detail || '', restore: true,
-          apply: (e, value) => {
-            if ((m.detail || '') === value) return false;
-            if (value) m.detail = value.replace(/\s*\n\s*/g, ' '); else delete m.detail;
-            return true;
-          }
-        });
-      }
-      function editNote(id) {
-        const n = noteById(id);
-        const el = seqHtml.querySelector(`.note[data-note-id="${id}"] .note-text`);
-        if (!n || !el) return;
-        beginEdit(el, {
-          multiline: true, raw: n.text || '', restore: true,
-          apply: (e, value) => { if (!value || value === n.text) return false; n.text = value; return true; }
-        });
-      }
-      // A branch's condition. An "else" (no label) is given a label element for the edit
-      function editBranch(fid, at) {
-        const f = fragById(fid);
-        if (!f || f.x === undefined) return;
-        const d = (f.dividers || []).find((x) => x.at === at);
-        if (!d) return;
-        let el = seqHtml.querySelector(`.seq-frag-branch-label[data-frag-id="${fid}"][data-at="${at}"] .seq-branch-text`);
-        if (!el) {
-          seqHtml.querySelectorAll(`.seq-frag-else-label[data-frag-id="${fid}"][data-at="${at}"]`).forEach((x) => x.remove());
-          const box = htmlEl('div', 'seq-frag-branch-label is-editing', { left: px(f.x + 10), top: px(d.y + 3) });
-          box.dataset.fragId = fid;
-          box.dataset.at = at;
-          el = htmlEl('span', 'seq-branch-text');
-          box.appendChild(el);
-          seqHtml.appendChild(box);
-        }
-        const brs = branchList(f), br = brs.find((x) => x.at === at);
-        beginEdit(el, {
-          raw: br ? br.label : '', restore: true,
-          apply: (e, value) => {
-            if (!br || br.label === value) return false;
-            br.label = value;
-            setBranches(f, brs);
-            return true;
-          }
-        });
-      }
-      // A colour key label: double-click. An empty label is allowed (it stays a prompt)
-      function editKey(el) {
-        const color = el.dataset.color;
-        el.classList.remove('is-empty');
-        beginEdit(el, {
-          raw: (chartData.colorKey && chartData.colorKey[color]) || '', restore: true,
-          apply: (e, value) => {
-            const was = (chartData.colorKey && chartData.colorKey[color]) || '';
-            if (value === was) return false;
-            chartData.colorKey = chartData.colorKey || {};
-            chartData.colorKey[color] = value.replace(/\s*\n\s*/g, ' ');
-            return true;
-          }
-        });
-      }
-      function editSelection() {
-        const sel = seqSel;
-        if (!sel) return;
-        if (sel.kind === 'message') editMessage(sel.id);
-        else if (sel.kind === 'note') editNote(sel.id);
-        else if (sel.kind === 'divider') editBranch(sel.id, sel.at);
-        else {
-          const box = seqHtml.querySelector(EDIT_OWNER[sel.kind].replace('ID', sel.id));
-          beginEdit(box && box.querySelector(EDIT_TEXT));
-        }
-      }
-      function onSeqDblClick(e) {
-        if (isPresent()) return;
-        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
-        const kl = e.target.closest('.color-key-label');
-        if (kl) { e.stopPropagation(); editKey(kl); return; }
-        const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
-        if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
-        const note = e.target.closest('.note');
-        if (note) { e.stopPropagation(); editNote(note.dataset.noteId); return; }
-        const det = e.target.closest('.seq-msg-detail');
-        if (det) { e.stopPropagation(); editDetail(det.dataset.edgeId); return; }
-        const lab = e.target.closest('.seq-msg-label');
-        if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
-        const box = e.target.closest('.seq-participant, .frame-tag');
-        if (box && box.classList.contains('is-rail')) return;   // a rail's name is written downwards: Show it to rename
-        const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
-        if (!el) return;
-        e.stopPropagation();
-        beginEdit(el);
-      }
-      seqHtml.addEventListener('dblclick', onSeqDblClick);
-
-      // Bring an element into the viewport (a created object can land below or right of the screen)
-      function settledRect(el) {
-        const hr = seqHtml.getBoundingClientRect();
-        const x = el.offsetLeft - (el.classList.contains('seq-msg-label') && !el.classList.contains('is-self') ? el.offsetWidth / 2 : 0);
-        const ty = parseFloat((el.style.translate || '').split(/\s+/)[1]) || 0;
-        const y = el.offsetTop + ty;
-        return {
-          left: hr.left + x * scale,
-          top: hr.top + y * scale,
-          right: hr.left + (x + el.offsetWidth) * scale,
-          bottom: hr.top + (y + el.offsetHeight) * scale
-        };
-      }
-      function panIntoView(el) {
-        if (!el) return;
-        const r = motion.enabled() ? settledRect(el) : el.getBoundingClientRect();
-        const v = viewport.getBoundingClientRect(), pad = 60;
-        const dock = document.querySelector('.dock-area .toolbar-center');
-        const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
-        // The pinned participant row (or floating corner pills) covers the top of the viewport
-        const top = v.top + (ui.chromeTop ? ui.chromeTop() : 0) + (seqCanvas.classList.contains('seq-pinned') ? (topRowH() + 24) * scale : 0);
-        let dx = 0, dy = 0;
-        if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
-        if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
-        if (!dx && !dy) return;
-        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 200), easing: 'curve-out' });
-      }
-      // Create means name: a new object is selected, on screen, and its placeholder text is in edit
-      function editCreated(kind, id) {
-        seqSel = { kind, id };
-        relayout();
-        if (kind === 'note') {
-          panIntoView(seqHtml.querySelector(`.note[data-note-id="${id}"]`));
-          editNote(id);
-          return;
-        }
-        const box = seqHtml.querySelector(EDIT_OWNER[kind].replace('ID', id));
-        panIntoView(box);
-        if (kind === 'message') editMessage(id); else beginEdit(box && box.querySelector(EDIT_TEXT));
-      }
-
-      seqHtml.addEventListener('pointerdown', onSeqPointerDown);
-      seqSvg.addEventListener('pointerdown', onSeqPointerDown);
-      // Shift + drag on blank canvas: the canvas itself is the target there
-      seqCanvas.addEventListener('pointerdown', (e) => { if (e.target === seqCanvas) onSeqPointerDown(e); });
-
-      // --- COLLAPSE AND EXPAND (the chevron in a frame tag, or a collapsed frame's summary row) ---
-      // "collapsed" is saved, so an author can ship a page that opens as an overview. In ?present it is how a
-      // presenter walks the audience through the flow phase by phase: there it changes the view only (no undo
-      // step, no unsaved badge).
-      function toggleCollapsed(fid) {
-        const f = fragById(fid);
-        if (!f) return;
-        if (f.collapsed) delete f.collapsed; else f.collapsed = true;
-        commitView(fid);
-      }
-      // A change of what is shown: in ?present the view only, otherwise one undo step with the frame selected
-      function commitView(fid) {
-        if (isPresent()) { layoutDiagram(chartData); render(); return; }
-        if (fid) seqSel = { kind: 'fragment', id: fid };
-        relayout();
-      }
-      // --- FOCUS: collapse every other top-level frame, expand this one and the frames around it ---
-      // The participants those phases leave behind become rails (the diagram sets "rails"), so it gets narrower.
-      // Only top-level frames fold: a frame that crosses another one's edge is left alone (it could not be collapsed
-      // without cutting that frame in half). Pressing Focus on the focused frame shows everything again.
-      function frameSpans() {
-        return chartData.fragments.map((f) => ({ f, a: msgIndex(f.from), b: msgIndex(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
-      }
-      function focusState(fid) {
-        const rs = frameSpans(), me = rs.find((r) => r.f.id === fid);
-        if (!me) return null;
-        const encloses = (o, i) => o !== i && o.a <= i.a && i.b <= o.b && (o.b - o.a > i.b - i.a || (o.b - o.a === i.b - i.a && rs.indexOf(o) < rs.indexOf(i)));
-        const crossing = (r) => rs.some((o) => o !== r && ((o.a < r.a && r.a <= o.b && o.b < r.b) || (r.a < o.a && o.a <= r.b && r.b < o.b)));
-        const tops = rs.filter((r) => !rs.some((o) => encloses(o, r)));
-        const keep = rs.filter((r) => r === me || encloses(r, me));
-        const toCollapse = tops.filter((r) => !keep.includes(r) && !crossing(r));
-        return { me, keep, toCollapse };
-      }
-      const isFocused = (st) => st.keep.every((r) => !r.f.collapsed) && st.toCollapse.length > 0 && st.toCollapse.every((r) => r.f.collapsed);
-      function focusFrame(fid) {
-        const st = focusState(fid);
-        if (!st) return;
-        if (isFocused(st)) { chartData.fragments.forEach((f) => { delete f.collapsed; }); delete chartData.rails; }
-        else {
-          st.keep.forEach((r) => { delete r.f.collapsed; });
-          st.toCollapse.forEach((r) => { r.f.collapsed = true; });
-          chartData.rails = true;
-        }
-        commitView(fid);
-        panIntoView(seqHtml.querySelector(`.frame-tag[data-frag-id="${fid}"]`));
-      }
-      function showAll() {
-        chartData.fragments.forEach((f) => { delete f.collapsed; });
-        commitView(null);
-      }
-      // Expand every collapsed frame that hides a message of (or a note over) one of these participants
-      function expandFramesHiding(pids) {
-        const ms = chartData.messages;
-        frameSpans().forEach((r) => {
-          if (!r.f.collapsed) return;
-          if (ms.slice(r.a, r.b + 1).some((m) => pids.includes(m.from) || pids.includes(m.to))) delete r.f.collapsed;
-        });
-      }
-      btnShowAll.addEventListener('click', showAll);
-      seqHtml.addEventListener('click', (e) => {
-        if (e.target.isContentEditable) return;
-        const btn = e.target.closest(isPresent()
-          ? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
-          : '.frame-chev, .frame-summary, .seq-frag-focus');
-        if (!btn) return;
-        e.stopPropagation();
-        const fid = btn.closest('[data-frag-id]').dataset.fragId;
-        if (btn.classList.contains('seq-frag-focus')) focusFrame(fid); else toggleCollapsed(fid);
-      });
-
-      // --- EDITS ---
-      // Remove messages and keep every reference valid: a frame shrinks to the messages it still has (or goes), a
-      // branch moves to the next message of its frame (or goes, if that would leave a branch empty), a note moves
-      // to a neighbour
-      function removeMessages(ids) {
-        const gone = new Set(ids);
-        const order = chartData.messages.map((m) => m.id);
-        const pos = (id) => order.indexOf(id);
-        const survivor = (id, dir) => {
-          let i = pos(id);
-          while (i >= 0 && i < order.length && gone.has(order[i])) i += dir;
-          return i >= 0 && i < order.length ? order[i] : null;
-        };
-        chartData.fragments = chartData.fragments.filter((f) => {
-          const from = survivor(f.from, 1), to = survivor(f.to, -1);
-          if (!from || !to || pos(from) > pos(to)) return false;
-          f.from = from;
-          f.to = to;
-          const fixAt = (at) => {
-            const e = survivor(at, 1);
-            return e && pos(e) > pos(from) && pos(e) <= pos(to) ? e : null;
-          };
-          if (f.elseAt !== undefined) {
-            const e = fixAt(f.elseAt);
-            if (e) f.elseAt = e; else delete f.elseAt;
-          }
-          if (Array.isArray(f.branches)) {
-            const seen = new Set();
-            f.branches = f.branches.filter((br) => {
-              const e = fixAt(br.at);
-              if (!e || seen.has(e)) return false;
-              seen.add(e);
-              br.at = e;
-              return true;
-            });
-            if (!f.branches.length) delete f.branches;
-          }
-          return true;
-        });
-        (chartData.notes || []).forEach((n) => {
-          ['after', 'before'].forEach((key) => {
-            if (n[key] === undefined || !gone.has(n[key])) return;
-            const next = key === 'after' ? survivor(n[key], -1) : survivor(n[key], 1);
-            const other = key === 'after' ? survivor(n[key], 1) : survivor(n[key], -1);
-            delete n[key];
-            if (next) n[key] = next;
-            else if (other) n[key === 'after' ? 'before' : 'after'] = other;
-          });
-        });
-        // A bar stretched to a deleted message goes back to its natural end, and the calls it silenced get their bars back
-        chartData.messages.forEach((m) => { if (!gone.has(m.id) && m.until !== undefined && gone.has(m.until)) clearBar(m); });
-        chartData.messages = chartData.messages.filter((m) => !gone.has(m.id));
-      }
-
-      // A participant leaves the notes over it: a note stretched over two keeps the other lifeline
-      function removeParticipantNotes(pid) {
-        if (!chartData.notes) return;
-        chartData.notes = chartData.notes.filter((n) => {
-          if (n.over === undefined) return true;   // a free note belongs to no participant
-          const over = Array.isArray(n.over) ? n.over.filter((id) => id !== pid) : n.over === pid ? [] : [n.over];
-          if (!over.length) return false;
-          n.over = over.length === 1 ? over[0] : over;
-          return true;
-        });
-        if (!chartData.notes.length) delete chartData.notes;
-      }
-      function deleteParticipant(id) {
-        removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
-        removeParticipantNotes(id);
-        chartData.participants = chartData.participants.filter((p) => p.id !== id);
-        normalizeColumns();
-        seqSel = null;
-        relayout();
-      }
-
-      // Deleting a participant with messages is confirmed first, in a small bubble at the button (or the box)
-      function confirmDeleteParticipant(p, count, anchorEl) {
-        ui.confirm(anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`), {
-          message: `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`,
-          label: 'Delete participant',
-        }, () => deleteParticipant(p.id));
-      }
-
-      function deleteSelection(anchorEl) {
-        const sel = seqSel;
-        if (!sel) return;
-        if (sel.kind === 'participant') {
-          const p = partById(sel.id);
-          if (!p) return;
-          const count = chartData.messages.filter((m) => m.from === p.id || m.to === p.id).length;
-          if (count) { confirmDeleteParticipant(p, count, anchorEl); return; }
-          deleteParticipant(p.id);
-          return;
-        }
-        if (sel.kind === 'message') removeMessages(selIds(sel));
-        else if (sel.kind === 'note') {
-          chartData.notes = (chartData.notes || []).filter((n) => n.id !== sel.id);
-          if (!chartData.notes.length) delete chartData.notes;
-        } else if (sel.kind === 'divider') {
-          // The messages of the branch merge into the branch above
-          const f = fragById(sel.id);
-          if (f) setBranches(f, branchList(f).filter((br) => br.at !== sel.at));
-        } else {
-          chartData.fragments = chartData.fragments.filter((f) => f.id !== sel.id);
-        }
-        seqSel = null;
-        relayout();
-      }
-
-      // --- CREATE (dock buttons and the + between participant boxes) ---
-      function insertParticipant(index) {
-        ensureModel();
-        const p = { id: seqUid('p'), name: `Participant ${chartData.participants.length + 1}`, kind: 'system' };
-        chartData.participants.splice(Math.max(0, Math.min(index, chartData.participants.length)), 0, p);
-        editCreated('participant', p.id);
-      }
-      btnAddParticipant.addEventListener('click', () => {
-        ensureModel();
-        const i = seqSel && seqSel.kind === 'participant' ? chartData.participants.findIndex((p) => p.id === seqSel.id) : -1;
-        insertParticipant(i >= 0 ? i + 1 : chartData.participants.length);
-      });
-
-      // The keyboard and touch path to a new message: after the selected message (same two ends), or at the
-      // first row from the selected participant to its neighbour
-      btnAddMessage.addEventListener('click', () => {
-        ensureModel();
-        const ps = chartData.participants, ms = chartData.messages;
-        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
-        let m;
-        if (seqSel.kind === 'message') {
-          const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
-          if (!last) return;
-          const i = ms.indexOf(last), kind = drawnKind(last.from, last.to, i + 1);
-          m = { id: seqUid('m'), from: last.from, to: last.to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
-          ms.splice(i + 1, 0, m);
-          // A frame that ended at the selected message takes the new one in
-          chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
-        } else {
-          const i = ps.findIndex((p) => p.id === seqSel.id);
-          const to = (ps[i + 1] || ps[i - 1] || ps[i]).id, kind = drawnKind(ps[i].id, to, 0);
-          m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
-          ms.unshift(m);
-        }
-        pendingDrawEdges.add(m.id);
-        editCreated('message', m.id);
-      });
-
-      btnFrame.addEventListener('click', () => {
-        ensureModel();
-        const fc = frameCandidate();
-        if (!fc || !fc.ok) { ui.toast(frameHint(fc)); return; }
-        const ms = chartData.messages;
-        const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[fc.a].id, to: ms[fc.b].id };
-        chartData.fragments.push(f);
-        editCreated('fragment', f.id);
-      });
-
-      btnAddNote.addEventListener('click', () => {
-        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) { ui.toast(NOTE_HINT); return; }
-        const n = { id: seqUid('n'), text: 'Note' };
-        if (seqSel.kind === 'message') {
-          const ids = selIds(seqSel), m = msgById(ids[ids.length - 1]);
-          if (!m) return;
-          n.over = m.from;
-          n.after = m.id;
-        } else {
-          n.over = seqSel.id;
-          if (chartData.messages.length) n.before = chartData.messages[0].id;
-        }
-        chartData.notes = chartData.notes || [];
-        chartData.notes.push(n);
-        editCreated('note', n.id);
-      });
-
-      // --- DRAG A FRAME OR A NOTE FROM THE DOCK ---
-      // Drag the dock's Frame or Note button onto the diagram. A frame previews as an outline around the arrow nearest
-      // the pointer and wraps that arrow on drop (then drag its edges or add branches); a note lands in the row under
-      // the pointer, over the lifeline it is dropped near, or free where it is dropped. A press without a drag is a click.
-      // The box a one-message frame around message m would take (canvas px), for the drag preview
-      function frameBoxFor(m) {
-        const a = partById(m.from), b = partById(m.to);
-        let x1 = Math.min(a.x, b.x) - SQ.FRAG_PAD, x2 = Math.max(a.x, b.x) + SQ.FRAG_PAD;
-        const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${m.id}"]`);
-        if (label) x2 = Math.max(x2, label.offsetLeft + label.offsetWidth + 12);
-        const below = (m.from === m.to ? 44 : 16) + (m.detail && chartData.showDetails !== false ? 16 : 0);
-        return { x: x1, y: m.y - 46, w: x2 - x1, h: 46 + below };
-      }
-      const nearestMessage = (y) => chartData.messages.filter((m) => !m.hidden && m.y !== undefined)
-        .reduce((best, m) => (!best || Math.abs(m.y - y) < Math.abs(best.y - y) ? m : best), null);
-      function dockDrag(btn, kind) {
-        let start = null, ghost = null, spot = null, dragged = false, outline = null;
-        const overCanvas = (e) => { const r = seqCanvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
-        const clear = () => {
-          if (ghost) ghost.remove();
-          if (outline) outline.remove();
-          ghost = null; spot = null; outline = null;
-          seqDrop.style.display = 'none';
-          lightLifeline(null);
-          document.body.classList.remove('seq-dragging');
-        };
-        function onMove(e) {
-          if (!start) return;
-          if (!ghost) {
-            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
-            dragged = true;
-            // The ghost looks like what is dragged: an empty frame with its tag, or a note card
-            ghost = htmlEl('div', `seq-dock-ghost is-${kind}`);
-            ghost.innerHTML = kind === 'frame' ? '<span>opt</span>' : '<span>Note</span>';
-            document.body.appendChild(ghost);
-            document.body.classList.add('seq-dragging');
-            hidePlus();
-          }
-          // The cursor holds the frame by its tag, the note by its middle
-          Object.assign(ghost.style, kind === 'frame' ? { left: `${e.clientX - 12}px`, top: `${e.clientY - 10}px` } : { left: `${e.clientX}px`, top: `${e.clientY}px` });
-          ghost.style.visibility = '';
-          spot = null;
-          seqDrop.style.display = 'none';
-          lightLifeline(null);
-          if (outline) outline.style.display = 'none';
-          if (!overCanvas(e) || !chartData.layout) return;
-          const pt = canvasPoint(e);
-          if (kind === 'frame') {
-            const m = nearestMessage(pt.y);
-            if (!m) return;
-            const box = frameBoxFor(m);
-            if (!outline) { outline = htmlEl('div', 'seq-frame-ghost'); outline.dataset.exportSkip = ''; outline.innerHTML = '<span>opt</span>'; seqHtml.appendChild(outline); }
-            Object.assign(outline.style, { display: 'block', left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
-            ghost.style.visibility = 'hidden';   // the outline around the arrow is the frame now
-            spot = { pt, msg: m, box };
-            return;
-          }
-          const slots = kind === 'note' ? rowSlots().filter((sl) => sl.note) : rowSlots();
-          if (!slots.length) return;
-          spot = { pt, slot: nearestSlot(slots, pt.y) };
-          showDropLine(spot.slot.y, spot.slot.frame);
-          if (kind === 'note') { const p = snapLifeline(pt.x); lightLifeline(p && p.id); }
-        }
-        function onUp() {
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          const at = spot;
-          const noteRect = kind === 'note' && at && ghost ? ghost.getBoundingClientRect() : null;
-          const tagSpan = kind === 'frame' && at && outline ? outline.querySelector('span') : null;
-          const frameTagRect = tagSpan ? tagSpan.getBoundingClientRect() : null;
-          clear();
-          start = null;
-          if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
-          if (!dragged || !at) return;
-          ensureModel();
-          if (kind === 'note') {
-            const n = Object.assign({ id: seqUid('n'), text: 'Note' }, at.slot.note);
-            setNoteSpot(n, at.pt.x);
-            chartData.notes = chartData.notes || [];
-            chartData.notes.push(n);
-            pendingNoteOriginRect = noteRect;
-            pendingNoteId = n.id;
-            editCreated('note', n.id);
-            return;
-          }
-          const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: at.msg.id, to: at.msg.id };
-          chartData.fragments.push(f);
-          pendingOriginRect = frameTagRect;
-          pendingFrameBox = at.box;
-          pendingFrameId = f.id;
-          editCreated('fragment', f.id);
-        }
-        btn.addEventListener('pointerdown', (e) => {
-          if (e.button !== 0 || isPresent()) return;
-          start = { x: e.clientX, y: e.clientY };
-          dragged = false;
-          window.addEventListener('pointermove', onMove);
-          window.addEventListener('pointerup', onUp);
-        });
-        // The click that ends a drag is not a click on the button
-        btn.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopImmediatePropagation(); } }, true);
-      }
-      dockDrag(btnFrame, 'frame');
-      dockDrag(btnAddNote, 'note');
-
-      btnNumbers.addEventListener('click', () => {
-        if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
-        relayout();
-      });
-      btnLifespans.addEventListener('click', () => {
-        if (chartData.lifespans) { delete chartData.lifespans; chartData.participants.forEach((p) => { delete p.column; }); }
-        else chartData.lifespans = true;
-        relayout();
-      });
-      btnDetails.addEventListener('click', () => {
-        if (chartData.showDetails === false) delete chartData.showDetails; else chartData.showDetails = false;
-        relayout();
-      });
-
-      // --- KEYBOARD ---
-      // Enter or F2 edits; Escape cancels the edit, then clears the selection; Up/Down walk the messages,
-      // Left/Right the participants; Alt+Up/Down move a message; Shift+Up/Down grow the range.
-      window.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape' || seqDrag || !seqSel) return;
-        if (document.activeElement && document.activeElement.isContentEditable) return;
-        if (ui.closeConfirm()) return;
-        select(null);
-      }, true);
-      window.addEventListener('keydown', (e) => {
-        if (isPresent() || seqDrag || e.ctrlKey || e.metaKey) return;
-        const a = document.activeElement;
-        if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a.tagName === 'BUTTON' && e.key === 'Enter'))) return;
-        if ((e.key === 'Enter' || e.key === 'F2') && seqSel) { e.preventDefault(); editSelection(); return; }
-        const ms = chartData.messages.filter((m) => !m.hidden), ps = chartData.participants;
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-          const dir = e.key === 'ArrowUp' ? -1 : 1;
-          if (!ms.length) return;
-          e.preventDefault();
-          if (e.altKey && seqSel && seqSel.kind === 'message' && !seqSel.ids) {
-            const vi = ms.findIndex((m) => m.id === seqSel.id), other = ms[vi + dir];
-            if (!other) return;
-            // In the list without the moving message, past the neighbour in that direction is the neighbour's own
-            // index both ways (down: it moved up one; up: it is still there)
-            if (moveMessage(seqSel.id, { index: msgIndex(other.id), join: [] })) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
-            return;
-          }
-          if (e.shiftKey && seqSel && seqSel.kind === 'message') {
-            const cur = seqSel.id, vi = ms.findIndex((m) => m.id === cur), next = ms[vi + dir];
-            if (next) selectRange(seqSel.anchor || cur, next.id);
-            return;
-          }
-          let next;
-          if (seqSel && seqSel.kind === 'message') { const vi = ms.findIndex((m) => m.id === seqSel.id); next = ms[Math.max(0, Math.min(ms.length - 1, vi + dir))]; }
-          else if (seqSel && seqSel.kind === 'participant') next = ms.find((m) => m.from === seqSel.id || m.to === seqSel.id) || ms[0];
-          else next = dir > 0 ? ms[0] : ms[ms.length - 1];
-          select('message', next.id);
-          panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${next.id}"]`));
-          return;
-        }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-          if (!ps.length || e.altKey) return;
-          e.preventDefault();
-          const dir = e.key === 'ArrowLeft' ? -1 : 1;
-          let next;
-          if (seqSel && seqSel.kind === 'participant') { const i = ps.findIndex((p) => p.id === seqSel.id); next = ps[Math.max(0, Math.min(ps.length - 1, i + dir))]; }
-          else if (seqSel && seqSel.kind === 'message') { const m = msgById(seqSel.id); next = partById(dir < 0 ? m.from : m.to); }
-          else next = dir > 0 ? ps[0] : ps[ps.length - 1];
-          if (!next) return;
-          select('participant', next.id);
-          panIntoView(seqHtml.querySelector(`.seq-participant[data-node-id="${next.id}"]`));
-        }
-      });
-
-      // --- DISK FORMAT (the page's data block) ---
-      // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
-      // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
-      // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
-      // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
-      const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden', 'lab', 'det']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
-      // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
-      // p_<name slug>, f<N>, n<N>; every reference follows. Ids an author chose are never touched.
-      const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;
-      function slug(text, sep = '_') {
-        let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-        s = s.replace(/[^a-z0-9]+/g, sep).replace(new RegExp(`^${sep}+|${sep}+$`, 'g'), '');
-        if (s.length > 30) s = s.slice(0, 30).replace(new RegExp(`${sep}+$`), '');
-        return s;
-      }
-      function renameGeneratedIds(d) {
-        const ps = d.participants || [], ms = d.messages || [], fs = d.fragments || [], ns = d.notes || [];
-        const used = new Set([...ps, ...ms, ...fs, ...ns].map((o) => o.id));
-        const rename = new Map();
-        const take = (base) => {
-          let id = base, k = 2;
-          while (used.has(id)) id = `${base}_${k++}`;
-          used.add(id);
-          return id;
-        };
-        const numbered = (list, prefix) => {
-          let count = 1;
-          list.forEach((o) => {
-            if (!GENERATED_ID.test(String(o.id || ''))) return;
-            while (used.has(`${prefix}${count}`)) count++;
-            rename.set(o.id, take(`${prefix}${count}`));
-          });
-        };
-        ps.forEach((p) => { if (GENERATED_ID.test(String(p.id || ''))) rename.set(p.id, take('p_' + (slug(p.name) || 'participant'))); });
-        numbered(ms, 'm');
-        numbered(fs, 'f');
-        numbered(ns, 'n');
-        if (!rename.size) return;
-        const r = (id) => (rename.has(id) ? rename.get(id) : id);
-        [...ps, ...ms, ...fs, ...ns].forEach((o) => { o.id = r(o.id); });
-        ms.forEach((m) => ['from', 'to'].forEach((k) => { if (k in m) m[k] = r(m[k]); }));
-        ps.forEach((q) => ['column', 'start', 'end'].forEach((k) => { if (k in q) q[k] = r(q[k]); }));
-        fs.forEach((f) => {
-          ['from', 'to', 'elseAt'].forEach((k) => { if (k in f) f[k] = r(f[k]); });
-          if (Array.isArray(f.branches)) f.branches.forEach((b) => { if ('at' in b) b.at = r(b.at); });
-        });
-        ns.forEach((n) => {
-          if (Array.isArray(n.over)) n.over = n.over.map(r); else if ('over' in n) n.over = r(n.over);
-          ['after', 'before'].forEach((k) => { if (k in n) n[k] = r(n[k]); });
-        });
-      }
-      function toDisk(data) {
-        const d = JSON.parse(JSON.stringify(data));
-        delete d.layout;   // canvas size, derived by the engine
-        slotColors(d, 'participants', 'fragments');
-        renameGeneratedIds(d);
-        DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
-        // The colour key keeps only the swatches a participant still uses
-        if (d.colorKey) {
-          const inUse = new Set((d.participants || []).map((q) => q.color));
-          Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k)) delete d.colorKey[k]; });
-          if (!Object.keys(d.colorKey).length) delete d.colorKey;
-        }
-        const out = {};
-        DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
-        Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
-        return out;
-      }
-
-      function fromDisk(data) {
-        const d = JSON.parse(JSON.stringify(data));
-        slotColors(d, 'participants', 'fragments');
-        return d;
-      }
-
-      // --- REGISTER WITH THE SHELL ---
-      registerDiagramPlugin({
-        id: 'sequence',
-        defaultTitle: 'Interactive Sequence Diagram',
-        toDisk,
-        fromDisk,
-        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
-        fromMermaid,
-        contentEl: seqCanvas,
-        report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
-        render,
-        isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
-        clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
-        cancelInteraction() {
-          if (ui.closeConfirm()) return true;
-          if (!seqDrag) return false;
-          endSeqDrag();
-          render();
-          return true;
-        },
-        hasSelection: () => !!seqSel,
-        onViewChange() { ui.closeConfirm(); pinParticipants(); },
-        // The colour key sits above the card
-        contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
-        deleteSelection,
-        // Search: participants left to right, then messages and fragment titles top to bottom. Notes (always in the DOM) sit at their own top.
-        searchItems() {
-          const out = [];
-          const add = (prefix, id, el, textEl) => {
-            const text = (textEl.textContent || '').replace(/\s+/g, ' ').trim();
-            if (text) out.push({ id: `${prefix}:${id}`, text, el });
-          };
-          seqHtml.querySelectorAll('.seq-participant').forEach((el) => add('participant', el.dataset.nodeId, el, el));
-          const rows = [];
-          seqHtml.querySelectorAll('.seq-msg-label').forEach((el) => rows.push([parseFloat(el.style.top) + 26, 'msg', el.dataset.edgeId, el, el]));
-          seqHtml.querySelectorAll('.frame-tag').forEach((el) => rows.push([parseFloat(el.style.top), 'frag', el.dataset.fragId, el, el.querySelector('.seq-frag-text')]));
-          seqHtml.querySelectorAll('.note').forEach((el) => rows.push([parseFloat(el.style.top), 'note', el.dataset.noteId, el, el.querySelector('.note-text')]));
-          rows.sort((a, b) => a[0] - b[0]).forEach((r) => add(r[1], r[2], r[3], r[4]));
-          return out;
-        }
-      });
+tail.forEach(({ p, s }) => createIdx.set(p.id, s));
+ps.forEach((p) => {
+const e = same(p.end) ? mIdx.get(p.end) : undefined;
+if (e !== undefined && (ms[e].from === p.id || ms[e].to === p.id) && ![...destroyIdx].some(([, v]) => v === e)) destroyIdx.set(p.id, e);
+});
+const text = (s) => mmdSeqEsc(s);
+const ind = (n) => '  '.repeat(n);
+const decl = (p, kw) => {
+const id = pid(p.id), type = MMD_SEQ_KIND_TYPE[p.kind];
+const alias = p.name === id ? '' : ' as ' + text(p.name).trimEnd();
+if (p.kind === 'actor') return (kw ? 'create ' : '') + 'actor ' + id + alias;
+return (kw ? 'create ' : '') + 'participant ' + id + (type ? '@{ "type": "' + type + '" }' : '') + alias;
+};
+if (data.title) out.push('---', 'title: ' + (/[:#"'\[\]{}&*!|>%@`,]|^[\s?-]|\s$/.test(data.title) ? JSON.stringify(String(data.title)) : data.title), '---');
+out.push('sequenceDiagram');
+const top = (s) => out.push(ind(1) + s);
+if (data.schemaVersion != null) top('%% @schemaVersion ' + data.schemaVersion);
+const ck = data.colorKey || {};
+Object.keys(ck).sort((a, b) => a - b).forEach((k) => top('%% @colorKey ' + k + ' ' + text(ck[k])));
+const stripAutoCols = data.lifespans === true && !ps.some((p) => p.start != null || p.end != null) && (() => {
+const cols = ps.filter((p) => same(p.column));
+if (cols.length < 2) return false;
+const auto = mmdSeqAutoColumns(ps, ms, ns);
+return !!auto && cols.length === Object.keys(auto).length && cols.every((p) => auto[p.id] === p.column);
+})();
+[flag('showDetails', data.showDetails), data.participantOrder ? '%% @participantOrder ' + data.participantOrder : null,
+flag('rails', data.rails), stripAutoCols ? null : flag('lifespans', data.lifespans)].forEach((s) => { if (s) top(s); });
+if (data.numbered === true) top('autonumber'); else if (data.numbered === false) top('autonumber off');
+const slotOf = (p) => (/^[1-9]$/.test(String(p.color)) ? String(p.color) : null);
+const keyLabelOk = (s) => {
+const label = ck[s];
+if (typeof label !== 'string' || !label || label !== label.trim() || Object.keys(ck).filter((k) => ck[k] === label).length !== 1) return false;
+return mmdText(text(label)) === label && (mmdSeqCss(s, palette) || !mmdSeqSplitColour(text(label)).colour);
+};
+const boxed = (p) => !createIdx.has(p.id) && slotOf(p) && keyLabelOk(slotOf(p));
+const tops = ps.filter((p) => !createIdx.has(p.id));
+const extra = [];
+for (let i = 0; i < tops.length;) {
+const s = slotOf(tops[i]);
+if (boxed(tops[i])) {
+let j = i;
+while (j < tops.length && slotOf(tops[j]) === s) j++;
+const css = mmdSeqCss(s, palette);
+top('%% @color ' + s);
+top('box ' + (css ? css + ' ' : '') + text(ck[s]));
+for (let k = i; k < j; k++) top(ind(1) + decl(tops[k]));
+top('end');
+i = j;
+} else { top(decl(tops[i])); i++; }
+}
+ps.forEach((p) => {
+const k = p.kind;
+if (k && !['system', 'actor', 'ui', 'database', 'queue'].includes(k)) extra.push('%% @kind ' + pid(p.id) + ' ' + k);
+if (p.color != null && p.color !== '' && !boxed(p)) extra.push('%% @color ' + pid(p.id) + ' ' + p.color);
+if (!stripAutoCols && same(p.column) && sid.has(p.column)) extra.push('%% @column ' + pid(p.id) + ' ' + pid(p.column));
+if (same(p.start) && !createIdx.has(p.id) && step(p.start)) extra.push('%% @start ' + pid(p.id) + ' ' + step(p.start));
+if (same(p.end) && !destroyIdx.has(p.id) && step(p.end)) extra.push('%% @end ' + pid(p.id) + ' ' + step(p.end));
+});
+extra.forEach(top);
+const noteSlots = { before: new Map(), after: new Map() };
+const noteLines = ns.map((n) => {
+const over = (Array.isArray(n.over) ? n.over : n.over == null ? [] : [n.over]).slice(0, 2);
+let at = over.length ? over : null, place = null;
+if (!over.length && typeof n.place === 'number' && ps.length) {
+place = n.place;
+at = [ps[Math.round(Math.max(0, Math.min(ps.length - 1, n.place)))].id];
+}
+if (!at || at.some((id) => !sid.has(id))) return null;
+const kind = n.after != null ? 'after' : n.before != null ? 'before' : 'free';
+const k = kind === 'free' ? 0 : mIdx.get(n[kind]);
+if (k === undefined || k === null) return null;
+return { n, kind, k, place, text: 'Note over ' + at.map(pid).join(',') + ': ' + text(n.text) };
+}).filter(Boolean);
+noteLines.forEach((r) => {
+const map = r.kind === 'after' ? noteSlots.after : noteSlots.before;
+if (!map.has(r.k)) map.set(r.k, []);
+map.get(r.k).push(r);
+});
+let depth = 0, prev = 'none';
+const line = (s) => out.push(ind(depth + 1) + s);
+const emitNote = (r) => {
+if (r.place !== null) line('%% @place ' + r.place);
+if (r.kind === 'before' && prev === 'msg') line('%% @before');
+line(r.text);
+};
+const stack = [];
+ms.forEach((m, k) => {
+const t = stack[stack.length - 1];
+if (t) t.br.filter((x) => x.e === k).forEach((x) => { depth--; line(((t.f.kind === 'par' ? 'and ' : 'else ') + text(x.label)).trimEnd()); depth++; prev = 'else'; });
+(noteSlots.before.get(k) || []).forEach(emitNote);
+nested.filter((r) => r.a === k).forEach((r) => {
+const f = r.f, label = text(f.label || '');
+if (same(f.color) && String(f.color) !== '') line('%% @color ' + f.color);
+if (f.collapsed !== undefined) line(flag('collapsed', f.collapsed));
+if (f.kind === 'group') {
+const css = same(f.color) ? mmdSeqCss(f.color, palette) : '';
+line('rect' + (css ? ' ' + css : ''));
+if (label && ps.length) out.push(ind(depth + 2) + 'Note over ' + pid(ps[0].id) + (ps.length > 1 ? ',' + pid(ps[ps.length - 1].id) : '') + ': ' + label);
+} else line((['alt', 'opt', 'loop', 'par', 'break'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
+stack.push(r);
+depth++;
+prev = 'open';
+});
+if (m.activate === false) line('%% @activate false');
+if (same(m.until) && step(m.until)) line('%% @until ' + step(m.until));
+ps.forEach((p) => {
+if (createIdx.get(p.id) === k) line(decl(p, true));
+if (destroyIdx.get(p.id) === k) line('destroy ' + pid(p.id));
+});
+const label = mmdSeqEsc(m.label, '#10;'), detail = same(m.detail) ? mmdSeqEsc(m.detail, '#10;') : '';
+line(pid(m.from) + MMD_SEQ_ARROW_OF[m.kind || 'sync'] + pid(m.to) + ':' + (label || detail ? ' ' + label + (detail ? '<br><small>' + detail + '</small>' : '') : ''));
+prev = 'msg';
+(noteSlots.after.get(k) || []).forEach(emitNote);
+while (stack.length && stack[stack.length - 1].b === k) { stack.pop(); depth--; line('end'); prev = 'end'; }
+});
+if (!ms.length) (noteSlots.before.get(0) || []).forEach(emitNote);
+return out.join('\n') + '\n';
+}
+const seqCanvas = document.getElementById('seq-canvas');
+const seqSvg = document.getElementById('seq-svg');
+const seqHtml = document.getElementById('seq-html');
+seqHtml.style.setProperty('--seq-label-max', `${SQ.LABEL_MAX_W}px`);   // the edit box wraps where the engine does
+const seqFragG = document.getElementById('seq-fragments');
+const seqLifeG = document.getElementById('seq-lifelines');
+const seqActG = document.getElementById('seq-activations');
+const seqMsgG = document.getElementById('seq-messages');
+const seqDrop = document.getElementById('seq-drop-line');
+const btnAddParticipant = document.getElementById('btn-add-participant');
+const btnAddMessage = document.getElementById('btn-add-message');
+const btnAddNote = document.getElementById('btn-add-note');
+const btnFrame = document.getElementById('btn-frame');
+const btnNumbers = document.getElementById('btn-numbers');
+const btnDetails = document.getElementById('btn-details');
+const btnShowAll = document.getElementById('btn-show-all');
+const btnLifespans = document.getElementById('btn-lifespans');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const ACT_HALF = 6;      // half width of an activation bar
+const ACT_STEP = 5;      // sideways offset per nested activation
+const FRAG_KINDS = ['opt', 'alt', 'loop', 'par', 'break', 'group'];
+let seqSel = null;
+let seqBars = [];        // the bars of the last render (see seqActivations)
+let seqDrag = null;      // active drag (see beginDrag)
+let seqCounter = 0;
+let seqSelStash = null;  // { sel, data }: the selection the shell cleared, and the model it belonged to
+function svgEl(name, attrs) {
+const el = document.createElementNS(SVG_NS, name);
+Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
+return el;
+}
+function htmlEl(tag, className, styles) {
+const el = document.createElement(tag);
+el.className = className;
+if (styles) Object.assign(el.style, styles);
+return el;
+}
+const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
+const px = (v) => `${v}px`;
+const WHITE = '#ffffff';   // tokens-ok: the stored value of a white participant (a custom colour in the data, not styling)
+const swatchOf = (p) => {
+const c = p && p.color ? colorSlot(p.color) : null;
+return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
+};
+function paintSwatch(el, color) {
+if (!color) return el;
+setSwatch(el, color);
+return el;
+}
+const drawnSwatch = (p) => swatchOf(p) || SWATCHES[Math.max(0, chartData.participants.indexOf(p)) % SWATCHES.length].slot;
+const swatchName = (color) => (paletteOf(color) || {}).name || color;
+function ensureModel() {
+chartData.participants = chartData.participants || [];
+chartData.messages = chartData.messages || [];
+chartData.fragments = chartData.fragments || [];
+}
+function seqActivations() {
+const ms = chartData.messages, bars = [], STUB = 20;
+const kindOf = (pid) => (partById(pid) || {}).kind;
+const yOf = (id) => { const m = msgById(id); return m ? m.y : null; };
+const stacks = {};
+const stack = (pid) => (stacks[pid] = stacks[pid] || []);
+const finish = (ex, y2) => {
+if (ex.async && ex.lastOut === null) return;   // an async target that did nothing visible
+const end = ex.until !== null ? ex.until : y2;
+if (!ex.visible) return;
+bars.push({ pid: ex.pid, mid: ex.mid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
+};
+const closeAt = (pid, k, y2, by) => {
+const st = stack(pid);
+while (st.length > k) { const ex = st.pop(); ex.closedBy = st.length === k ? by : null; if (by && !by.hidden) ex.visible = true; finish(ex, ex.lastOut !== null && st.length >= k ? Math.max(y2, ex.lastOut) : y2); }
+};
+const touch = (pid, y, hidden) => { stack(pid).forEach((ex) => { if (!hidden) ex.visible = true; if (ex.lastOut === null || y > ex.lastOut) ex.lastOut = y; }); };
+ms.forEach((m, i) => {
+const from = m.from, to = m.to;
+if (!partById(from) || !partById(to)) return;
+const self = from === to;
+if (m.kind === 'reply') {
+const st = stack(from);
+let k = -1;
+for (let j = st.length - 1; j >= 0; j--) if (st[j].caller === to && !st[j].async) { k = j; break; }
+if (k >= 0) { closeAt(from, k, m.y + 6, m); touch(to, m.y + 6, m.hidden); return; }
+const prev = bars.slice().reverse().find((b) => b.pid === from && b.caller === to && b.closedBy);
+if (prev) {
+const between = ms.slice(ms.indexOf(prev.closedBy) + 1, i);
+if (!between.some((x) => x.from === to && x.to === from)) { prev.y2 = Math.max(prev.y2, m.y + 6); prev.closedBy = m; }
+}
+touch(from, m.y, m.hidden); touch(to, m.y + 6, m.hidden);
+return;
+}
+const depth = stack(from).length;
+Object.keys(stacks).forEach((pid) => {
+const st = stacks[pid];
+const k = st.findIndex((ex) => ex.caller === from && !ex.async && ex.callerDepth === depth && ex.open);
+if (k >= 0 && pid !== from) closeAt(pid, k, (st[k].lastOut !== null ? st[k].lastOut : st[k].y1 + STUB), null);
+});
+if (!depth && kindOf(from) !== 'actor' && !self && !bars.some((b) => b.pid === from && b.y1 <= m.y && m.y <= b.y2)) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, visible: !m.hidden });
+touch(from, m.y, m.hidden);
+if (m.activate === false) return;
+if (self) {
+if (!m.hidden && m.kind !== 'async') bars.push({ pid: from, y1: m.y + 22, y2: m.y + 48 });   // the loop returns onto it
+return;
+}
+const tst = stack(to);
+if (tst.length === 1 && tst[0].initiator) closeAt(to, 0, tst[0].lastOut, null);
+stack(to).push({ pid: to, mid: m.id, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
+until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', visible: !m.hidden });
+});
+Object.keys(stacks).forEach((pid) => closeAt(pid, 0, 0, null));
+bars.forEach((b) => { delete b.caller; delete b.callerDepth; delete b.closedBy; });
+bars.sort((a, b) => a.y1 - b.y1);
+const open = {};
+bars.forEach((b) => {
+const stack = (open[b.pid] = (open[b.pid] || []).filter((o) => o.y2 > b.y1));
+b.depth = stack.length;
+stack.push(b);
+});
+return bars;
+}
+const kindIconName = (kind) => (kind === 'actor' ? 'user' : `kind-${kind || 'system'}`);
+const hasKindIcon = (kind) => !!kind && kind !== 'system' && !!ICONS[kindIconName(kind)];   // no kind = a plain service: a blank pill
+const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
+const KIND_TITLES = {
+system: 'Service: a back-end service or app that is none of the kinds below (the default)',
+actor: 'Actor: a person (no activation bar when they start the flow)',
+ui: 'UI: a screen or front end', database: 'Database', queue: 'Queue: a message bus or topic',
+external: 'External: a third-party system (dashed outline)'
+};
+function kindIcon(kind, size) {
+return ui.iconEl(hasKindIcon(kind) ? kindIconName(kind) : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
+}
+const SEQ_FLIP_SPECS = [
+{ selector: '.seq-participant[data-node-id]', key: 'nodeId', mode: 'clip' },
+{ selector: '.seq-msg-label[data-edge-id]', key: 'edgeId' },
+{ selector: '.seq-msg-detail[data-edge-id]', key: 'edgeId' },
+{ selector: '.frame-tag[data-frag-id]', key: 'fragId', mode: 'clip' },
+{ selector: '.frame-summary[data-frag-id]', key: (el) => 'sum:' + el.dataset.fragId },
+{ selector: '.seq-frag-branch-label[data-frag-id][data-at]', key: (el) => el.dataset.fragId + ':' + el.dataset.at },
+{ selector: '.note[data-note-id]', key: 'noteId', mode: 'clip' },
+{ selector: '.color-key-item', key: (el) => { const c = el.querySelector('[data-color]'); return c ? c.dataset.color : ''; } }
+];
+let pendingDrawEdges = new Set();
+let pendingOriginRect = null;
+let pendingFrameBox = null, pendingFrameId = null;
+let pendingNoteOriginRect = null, pendingNoteId = null;
+let pendingColorAnim = null;
+let retiringSvgEls = [];
+let barGhostAnim = null;
+let pendingBarRect = null;
+let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
+function seqLinePts(d) {
+const pts = [], re = /([MLHV])\s*([-\d.]+)(?:\s+([-\d.]+))?/gi;
+let cx = 0, cy = 0, m;
+while ((m = re.exec(d || ''))) {
+const cmd = m[1].toUpperCase(), a = +m[2], b = m[3] !== undefined ? +m[3] : 0;
+if (cmd === 'M' || cmd === 'L') { cx = a; cy = b; }
+else if (cmd === 'H') cx = a;
+else if (cmd === 'V') cy = a;
+pts.push(cx, cy);
+}
+return pts;
+}
+function ptsDiff(a, b) {
+if (!a || !b || a.length !== b.length) return true;
+for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.5) return true;
+return false;
+}
+const svgNums = (el, attrs) => attrs.map((a) => +el.getAttribute(a));
+const participantKindOf = (el) => PARTICIPANT_KINDS.find((k) => k !== 'system' && el.classList.contains(`is-${k}`)) || 'system';
+function captureColorStyles(kind, id) {
+if (!motion.enabled()) return null;
+const read = (el, props) => {
+if (!el) return null;
+const cs = getComputedStyle(el), out = {};
+props.forEach((p) => { out[p] = cs[p]; });
+return out;
+};
+if (kind === 'participant') {
+return {
+kind, id,
+box: read(seqHtml.querySelector(`.seq-participant[data-node-id="${id}"]`), ['backgroundColor', 'borderColor', 'color']),
+life: read(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${id}"]`), ['stroke']),
+cap: read(seqLifeG.querySelector(`.seq-cap[data-node-id="${id}"]`), ['stroke']),
+act: read(seqActG.querySelector(`.seq-activation[data-node-id="${id}"]`), ['fill', 'stroke'])
+};
+}
+return {
+kind, id,
+box: read(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${id}"]`), ['fill', 'stroke']),
+tag: read(seqHtml.querySelector(`.frame-tag[data-frag-id="${id}"]`), ['backgroundColor', 'borderColor'])
+};
+}
+function playColorAnim(info) {
+if (!info) return;
+const opts = { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-inout') };
+const tween = (el, old) => {
+if (!el || !old) return;
+const cs = getComputedStyle(el), next = {};
+let diff = false;
+Object.keys(old).forEach((p) => { next[p] = cs[p]; if (next[p] !== old[p]) diff = true; });
+if (diff) motion.anim(el, [old, next], opts);
+};
+if (info.kind === 'participant') {
+tween(seqHtml.querySelector(`.seq-participant[data-node-id="${info.id}"]`), info.box);
+tween(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${info.id}"]`), info.life);
+tween(seqLifeG.querySelector(`.seq-cap[data-node-id="${info.id}"]`), info.cap);
+seqActG.querySelectorAll(`.seq-activation[data-node-id="${info.id}"]`).forEach((el) => tween(el, info.act));
+} else {
+tween(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${info.id}"]`), info.box);
+tween(seqHtml.querySelector(`.frame-tag[data-frag-id="${info.id}"]`), info.tag);
+}
+}
+function render() {
+ensureModel();
+retiringSvgEls.forEach((el) => el.remove());
+retiringSvgEls = [];
+if (seqSelStash && seqSelStash.data !== chartData && !seqSel && selExists(seqSelStash.sel)) seqSel = seqSelStash.sel;
+seqSelStash = null;
+if (seqSel && !selExists(seqSel)) seqSel = null;
+const ps = chartData.participants, ms = chartData.messages, fs = chartData.fragments, ns = chartData.notes || [];
+const missing = !chartData.layout || ps.some((p) => p.x === undefined) || ms.some((m) => m.y === undefined);
+if (missing) layoutDiagram(chartData);
+const L = chartData.layout;
+const byId = {};
+ps.forEach((p) => { byId[p.id] = p; });
+const showDetails = chartData.showDetails !== false;
+const stepOf = {};
+ms.forEach((m, i) => { stepOf[m.id] = i + 1; });
+const canAnim = motion.enabled() && document.documentElement.dataset.diagramSettled === '1';
+if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
+const oldBar = seqHtml.querySelector('.seq-actionbar');
+pendingBarRect = oldBar && canAnim && seqSel && !isPresent() ? oldBar.getBoundingClientRect() : null;
+if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
+let snap = null, exitSnap = null;
+const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
+const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
+let prevNumbered = false, prevRails = false;
+if (canAnim) {
+snap = motion.capture(seqHtml, SEQ_FLIP_SPECS);
+prevNumbered = !!seqHtml.querySelector('.seq-msg-num');
+prevRails = !!seqHtml.querySelector('.seq-participant.is-rail');
+seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => prevCollapsed.set(el.dataset.fragId, el.classList.contains('is-collapsed')));
+seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => prevKinds.set(el.dataset.nodeId, participantKindOf(el)));
+seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => prevLife.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => prevCap.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+const anonCnt = {};
+seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
+const pid = el.dataset.nodeId, mid = el.dataset.mid;
+const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt[pid] = (anonCnt[pid] || 0) + 1)}`;
+prevAct.set(k, { rect: svgNums(el, ['x', 'y', 'width', 'height']), sw: el.dataset.sw || el.style.getPropertyValue('--swatch-color'), pid });
+});
+seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => prevLine.set(el.dataset.edgeId, seqLinePts(el.getAttribute('d'))));
+seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => prevFragBox.set(el.dataset.fragId, svgNums(el, ['x', 'y', 'width', 'height'])));
+seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => prevDiv.set(`${el.dataset.fragId}:${el.dataset.at}`, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+const nextMsgs = new Set(ms.filter((m) => !m.hidden && byId[m.from] && byId[m.to]).map((m) => m.id));
+const nextFrags = new Set(fs.filter((f) => f.x !== undefined).map((f) => f.id));
+const nextNotes = new Set(ns.filter((n) => n.x !== undefined).map((n) => n.id));
+const nextDetails = new Set(showDetails ? ms.filter((m) => !m.hidden && m.detail && byId[m.from] && byId[m.to]).map((m) => m.id) : []);
+const nextParts = new Set(ps.map((p) => p.id));
+const collapsedOwners = fs.filter((f) => f.collapsed && f.x !== undefined).map((f) => ({ id: f.id, a: stepOf[f.from], b: stepOf[f.to] })).filter((r) => r.a && r.b);
+const ownerAtStep = (s) => collapsedOwners.find((r) => r.a <= s && s <= r.b);
+let hasExits = false;
+const markExit = (el, key, targetFid) => { el.dataset.motionExit = key; hasExits = true; if (targetFid) exitToFrag.set(key, targetFid); };
+seqHtml.querySelectorAll('.seq-msg-label[data-edge-id]').forEach((el) => {
+const id = el.dataset.edgeId;
+if (!nextMsgs.has(id)) markExit(el, `m:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
+});
+seqHtml.querySelectorAll('.seq-msg-detail[data-edge-id]').forEach((el) => {
+const id = el.dataset.edgeId;
+if (!nextDetails.has(id)) markExit(el, `d:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
+});
+seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => {
+const id = el.dataset.fragId;
+if (!nextFrags.has(id)) {
+const f = fragById(id), ow = f && stepOf[f.from] ? ownerAtStep(stepOf[f.from]) : null;
+markExit(el, `f:${id}`, ow && ow.id !== id ? ow.id : null);
+}
+});
+seqHtml.querySelectorAll('.note[data-note-id]').forEach((el) => {
+const id = el.dataset.noteId;
+if (!nextNotes.has(id)) {
+const n = noteById(id), mid = n && (n.after !== undefined ? n.after : n.before);
+markExit(el, `n:${id}`, mid ? (ownerAtStep(stepOf[mid]) || {}).id : null);
+}
+});
+seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => {
+const id = el.dataset.nodeId;
+if (!nextParts.has(id)) markExit(el, `p:${id}`, null);
+});
+seqHtml.querySelectorAll('.frame-summary[data-frag-id]').forEach((el) => {
+const id = el.dataset.fragId, f = fragById(id);
+if (!f || !f.collapsed || !nextFrags.has(id)) markExit(el, `sum:${id}`, nextFrags.has(id) ? id : null);
+});
+if (hasExits) exitSnap = motion.capture(seqHtml, [{ selector: '[data-motion-exit]', key: 'motionExit' }], { ghosts: true });
+fs.forEach((f) => {
+if (prevCollapsed.get(f.id) !== true || f.collapsed || f.x === undefined) return;
+const a = stepOf[f.from], b = stepOf[f.to];
+if (!a || !b) return;
+ms.forEach((m) => { if (!m.hidden && stepOf[m.id] >= a && stepOf[m.id] <= b && !snap._raw.has(m.id)) fromKey.set(m.id, f.id); });
+fs.forEach((o) => { if (o !== f && o.x !== undefined && stepOf[o.from] >= a && stepOf[o.to] <= b && !snap._raw.has(o.id)) fromKey.set(o.id, f.id); });
+ns.forEach((n) => {
+if (n.x === undefined || snap._raw.has(n.id)) return;
+const k = stepOf[n.after !== undefined ? n.after : n.before];
+if (k && k >= a && k <= b) fromKey.set(n.id, f.id);
+});
+});
+}
+seqCanvas.style.width = px(L.width);
+seqCanvas.style.height = px(L.height);
+seqSvg.setAttribute('width', L.width);
+seqSvg.setAttribute('height', L.height);
+[seqFragG, seqLifeG, seqActG, seqMsgG].forEach((g) => { g.textContent = ''; });
+seqHtml.textContent = '';
+fs.forEach((f) => {
+if (f.x === undefined) return;
+const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
+seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
+seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
+const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
+tag.dataset.fragId = f.id;
+const chev = htmlEl('button', 'frame-chev');
+chev.type = 'button';
+chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
+chev.setAttribute('aria-label', chev.title);
+chev.setAttribute('aria-expanded', String(!f.collapsed));
+chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
+tag.appendChild(chev);
+if (f.kind !== 'group') {
+const kind = htmlEl('span', 'seq-frag-kind');
+kind.textContent = f.kind;
+tag.appendChild(kind);
+}
+const text = htmlEl('span', 'seq-frag-text');
+text.textContent = f.label || (f.kind === 'group' ? 'phase' : 'condition');
+tag.appendChild(text);
+const foc = focusState(f.id);
+if (foc && foc.toCollapse.length) {
+const on = isFocused(foc);
+const fb = htmlEl('button', 'seq-frag-focus');
+fb.type = 'button';
+fb.title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
+fb.setAttribute('aria-label', fb.title);
+fb.setAttribute('aria-pressed', String(on));
+fb.innerHTML = ui.icon('focus', { size: 'sm', bold: true });
+tag.appendChild(fb);
+}
+seqHtml.appendChild(tag);
+(f.dividers || []).forEach((d) => {
+seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
+seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
+if (d.label) {
+const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
+el.dataset.fragId = f.id;
+el.dataset.at = d.at;
+const t = htmlEl('span', 'seq-branch-text');
+t.textContent = d.label;
+el.appendChild(t);
+seqHtml.appendChild(el);
+} else if (f.kind === 'alt') {
+const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(d.y + 3) });
+el.dataset.fragId = f.id;
+el.dataset.at = d.at;
+el.textContent = 'else';
+seqHtml.appendChild(el);
+}
+});
+if (f.collapsed) {
+const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
+if (inside.length) {
+const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
+const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y) });
+sum.type = 'button';
+sum.dataset.fragId = f.id;
+sum.title = 'Expand this frame';
+sum.textContent = `${inside.length} message${inside.length === 1 ? '' : 's'} hidden (step${a === b ? ` ${a}` : `s ${a}–${b}`})`;
+seqHtml.appendChild(sum);
+}
+}
+});
+ps.forEach((p) => {
+const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
+const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
+const sw = drawnSwatch(p);
+seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
+seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
+if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
+const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
+box.dataset.nodeId = p.id;
+paintSwatch(box, sw);
+if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
+const name = htmlEl('span', 'seq-participant-name');
+name.textContent = p.name;
+box.appendChild(name);
+if (rail) {
+const tip = htmlEl('span', 'seq-rail-tip');
+tip.textContent = p.name;
+tip.dataset.exportSkip = '';
+box.appendChild(tip);
+}
+seqHtml.appendChild(box);
+if (rail) {
+name.dataset.tip = p.name;
+} else if (name.scrollHeight > name.clientHeight + 2 || name.scrollWidth > name.clientWidth + 2) {
+name.dataset.tip = p.name;
+box.title = p.name;
+}
+});
+const half = (p) => (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2;
+[-1].concat(ps.map((p, i) => i)).forEach((i) => {
+const x = i < 0 ? ps[0].x - half(ps[0]) - 26 : i + 1 < ps.length ? (ps[i].x + ps[i + 1].x) / 2 : ps[i].x + half(ps[i]) + 26;
+const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
+ins.type = 'button';
+ins.dataset.index = i + 1;   // -1 is the left end: index 0
+ins.dataset.exportSkip = '';
+ins.title = i >= 0 && i + 1 < ps.length ? 'Insert a participant here' : `Add a participant at the ${i < 0 ? 'left' : 'right'} end`;
+ins.setAttribute('aria-label', ins.title);
+ins.textContent = '+';
+seqHtml.appendChild(ins);
+});
+const bars = seqBars = seqActivations();
+bars.forEach((b) => {
+const p = byId[b.pid];
+if (!p) return;
+seqActG.appendChild(paintSwatch(svgEl('rect', Object.assign({ class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }, b.mid ? { 'data-mid': b.mid } : {})), drawnSwatch(p)));
+});
+const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
+const edgeX = (p, y, dir) => {
+const d = activeDepth(p.id, y);
+return d < 0 ? p.x : p.x + dir * (ACT_HALF + d * ACT_STEP);
+};
+ms.forEach((m) => {
+const a = byId[m.from], b = byId[m.to];
+if (!a || !b || m.hidden) return;
+const self = a === b;
+let d, labelStyle, detailStyle;
+if (self) {
+const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
+d = `M ${xs} ${m.y} H ${xs + SQ.SELF_LOOP} V ${m.y + 28} H ${xe}`;
+labelStyle = { left: px(xs + SQ.SELF_LOOP + 8), top: px(m.y + 4) };
+detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24 + ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
+} else {
+const dir = b.x > a.x ? 1 : -1;
+const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
+d = `M ${x1} ${m.y} H ${x2}`;
+labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 28 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
+detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
+}
+const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
+seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
+seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
+const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
+label.dataset.edgeId = m.id;
+if (chartData.numbered) {
+const num = htmlEl('span', 'seq-msg-num');
+num.textContent = stepOf[m.id];
+label.appendChild(num);
+}
+const maxW = self ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
+const text = htmlEl('span', 'seq-msg-label-text');
+text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, maxW).join('\n') : (m.label || '');
+label.appendChild(text);
+if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
+seqHtml.appendChild(label);
+if (m.detail && showDetails) {
+const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
+det.dataset.edgeId = m.id;
+const dt = htmlEl('span', 'seq-msg-detail-text');
+dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, maxW).join('\n') : m.detail;
+det.appendChild(dt);
+seqHtml.appendChild(det);
+}
+});
+ns.forEach((n) => {
+if (n.x === undefined) return;
+const { card, text } = ui.noteCard(n, {});
+Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h), minHeight: px(n.h) });
+text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
+seqHtml.appendChild(card);
+});
+const used = [];
+ps.forEach((p) => { const sw = swatchOf(p); if (sw && swatchSlot(sw) && !used.includes(sw)) used.push(sw); });   // a white (hex) is no legend entry
+const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
+if (key) seqHtml.appendChild(key);
+applySelection();
+seqPinCache = null;
+pinParticipants();
+if (canAnim) {
+const railShift = prevRails !== ps.some((p) => p.rail);
+const hasCollapseChange = fs.some((f) => prevCollapsed.has(f.id) && prevCollapsed.get(f.id) !== !!f.collapsed);
+const layoutDur = railShift ? 250 : hasCollapseChange ? 220 : motion.dur('dur-layout', 210);
+const skipKeys = pendingNoteOriginRect && pendingNoteId ? new Set([pendingNoteId]) : null;
+motion.play(snap, seqHtml, SEQ_FLIP_SPECS, {
+duration: layoutDur, easing: 'curve-spring-settle', fromKey, originRect: pendingOriginRect, skipKeys
+});
+if (pendingNoteOriginRect && pendingNoteId) {
+const noteEl = seqHtml.querySelector(`.note[data-note-id="${pendingNoteId}"]`);
+if (noteEl) motion.morphRect(pendingNoteOriginRect, noteEl, { duration: 180, easing: 'curve-spring-settle' });
+}
+if (exitSnap) {
+motion.play(exitSnap, seqHtml, [{ selector: '.frame-tag[data-frag-id]', key: 'fragId' }], {
+enter: false, toKey: exitToFrag, ghostExit: true, duration: 190, easing: 'curve-in'
+});
+}
+const svgTracks = [];
+seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => {
+const prev = prevLife.get(el.dataset.nodeId), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
+});
+seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => {
+const id = el.dataset.nodeId, to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+const prev = prevCap.get(id);
+if (prev) { if (ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to }); }
+else {
+const pl = prevLife.get(id);
+if (pl) svgTracks.push({ type: 'line', el, from: [pl[0] - 7, pl[3], pl[2] + 7, pl[3]], to });
+}
+});
+const newActKeys = new Set(), anonCnt2 = {};
+seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
+const pid = el.dataset.nodeId, mid = el.dataset.mid;
+const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt2[pid] = (anonCnt2[pid] || 0) + 1)}`;
+newActKeys.add(k);
+const to = svgNums(el, ['x', 'y', 'width', 'height']), prev = prevAct.get(k);
+if (prev) { if (ptsDiff(prev.rect, to)) svgTracks.push({ type: 'rect', el, from: prev.rect, to }); }
+else if (mid && !fromKey.has(mid)) svgTracks.push({ type: 'rect', el, from: [to[0], to[1], to[2], 0], to });
+});
+const collapsedPids = new Set();
+fs.forEach((f) => { if (f.collapsed && prevCollapsed.get(f.id) === false) ms.forEach((m) => { if (m.hidden) { collapsedPids.add(m.from); collapsedPids.add(m.to); } }); });
+prevAct.forEach((old, k) => {
+if (newActKeys.has(k) || !byId[old.pid] || collapsedPids.has(old.pid)) return;
+const rEl = paintSwatch(svgEl('rect', { class: 'seq-activation', x: old.rect[0], y: old.rect[1], width: old.rect[2], height: old.rect[3], rx: 2, 'data-export-skip': '' }), old.sw);
+rEl.style.pointerEvents = 'none';
+seqActG.appendChild(rEl);
+retiringSvgEls.push(rEl);
+svgTracks.push({ type: 'rect', el: rEl, from: old.rect, to: [old.rect[0], old.rect[1], old.rect[2], 0] });
+});
+seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => {
+const id = el.dataset.edgeId;
+if (pendingDrawEdges.has(id) || fromKey.has(id)) {
+motion.drawPath(el, { duration: motion.dur('dur-fast', 140), easing: 'curve-out' });
+return;
+}
+const prev = prevLine.get(id), to = seqLinePts(el.getAttribute('d'));
+if (prev && ptsDiff(prev, to)) svgTracks.push({ type: prev.length === 4 && to.length === 4 ? 'line' : 'polyline', el, from: prev, to });
+});
+seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => {
+const id = el.dataset.fragId, to = svgNums(el, ['x', 'y', 'width', 'height']);
+if (pendingFrameBox && id === pendingFrameId) {
+svgTracks.push({ type: 'rect', el, from: [pendingFrameBox.x, pendingFrameBox.y, pendingFrameBox.w, pendingFrameBox.h], to });
+} else {
+const prev = prevFragBox.get(id);
+if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'rect', el, from: prev, to });
+}
+});
+seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => {
+const prev = prevDiv.get(`${el.dataset.fragId}:${el.dataset.at}`), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
+});
+if (svgTracks.length) {
+motion.tweenSvg(svgTracks, {
+duration: layoutDur, easing: 'curve-spring-settle',
+onComplete: () => { retiringSvgEls.forEach((el) => el.remove()); retiringSvgEls = []; }
+});
+}
+fs.forEach((f) => {
+if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
+const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
+if (chev) motion.anim(chev, [
+{ transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
+{ transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
+], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-inout') });
+});
+if (!prevNumbered && chartData.numbered) {
+seqHtml.querySelectorAll('.seq-msg-num').forEach((num) => motion.anim(num, [
+{ transform: 'scale(0.4)', clipPath: 'inset(0 50% 0 50%)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0)' }
+], { duration: motion.dur('dur-fast', 140), easing: motion.curve('curve-spring-tactile') }));
+}
+ps.forEach((p) => {
+const oldK = prevKinds.get(p.id), newK = p.kind || 'system';
+if (!oldK || oldK === newK) return;
+const box = seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
+const ic = box && box.querySelector('.seq-kind-icon');
+if (ic) motion.anim(ic, [{ transform: 'scale(0.65)' }, { transform: 'none' }], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+if (box && (oldK === 'external' || newK === 'external')) motion.anim(box, [{ transform: 'scale(0.97)' }, { transform: 'none' }], { duration: 150, easing: motion.curve('curve-spring-tactile') });
+});
+if (pendingColorAnim) playColorAnim(pendingColorAnim);
+}
+pendingDrawEdges.clear();
+pendingOriginRect = null;
+pendingFrameBox = null; pendingFrameId = null;
+pendingNoteOriginRect = null; pendingNoteId = null;
+pendingColorAnim = null;
+}
+const PIN_INSET = 8;
+const topRowH = () => (chartData.participants.some((p) => p.rail) ? SQ.RAIL_H : SQ.BOX_H);
+let seqPinCache = null;
+function pinParticipants() {
+const L = chartData.layout;
+if (!L) return;
+if (!seqPinCache) {
+const top = seqCanvas.offsetTop + seqCanvas.clientTop;
+const partEls = [...seqHtml.querySelectorAll('.seq-participant')].map((el) => ({
+el,
+p: partById(el.dataset.nodeId)
+}));
+const fragTags = chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).map((f) => {
+const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
+if (!tag) return null;
+return { f, tag, textEl: tag.querySelector('.seq-frag-text'), h: tag.offsetHeight || 22 };
+}).filter(Boolean);
+seqPinCache = { top, partEls, fragTags };
+}
+const { top, partEls, fragTags } = seqPinCache;
+const visTop = -panY / scale - top;                        // viewport's top edge in canvas coords
+const safeTop = visTop + (ui.chromeTop ? ui.chromeTop() / scale : 0);
+const on = safeTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
+const dy = Math.min(safeTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
+const pinned = on && dy > 0;
+const wasPinned = seqCanvas.classList.contains('seq-pinned');
+if (!wasPinned && !pinned) {
+seqCanvas.style.setProperty('--pin-dy', '0px');
+return;
+}
+seqCanvas.classList.toggle('seq-pinned', pinned);
+seqCanvas.style.setProperty('--pin-dy', `${pinned ? dy : 0}px`);
+const pinTop = SQ.TOP + (pinned ? dy : 0);
+for (let i = 0; i < partEls.length; i++) {
+const { el, p } = partEls[i];
+if (!p || !pinned) { el.style.translate = ''; el.classList.remove('is-gone'); continue; }
+if (!chartData.lifespans) continue;
+const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
+el.style.translate = own > 0 ? `0 ${own}px` : 'none';
+el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
+}
+if (chartData.lifespans && seqSel && seqSel.kind === 'participant') {
+const bar = seqHtml.querySelector('.seq-actionbar.is-pill');
+const p = partById(seqSel.id);
+if (bar && p) {
+const own = pinned ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
+bar.style.setProperty('--pin-dy', `${own}px`);
+}
+}
+let below = pinTop + topRowH() + PIN_INSET;
+for (let i = 0; i < fragTags.length; i++) {
+const { f, tag, textEl, h } = fragTags[i];
+const shift = pinned && f.y < below && f.y + f.h > below + h + 4 ? below - f.y : 0;   // a frame already gone keeps its tag
+tag.style.translate = shift > 0 ? `0 ${shift}px` : '';
+tag.classList.toggle('is-riding', shift > 0);
+if (textEl && !textEl.isContentEditable) {
+const activeDiv = shift > 0 && (f.dividers || []).filter((d) => d.y <= below + h).pop();
+const want = activeDiv ? (activeDiv.label || (f.kind === 'alt' ? 'else' : 'branch')) : (f.label || (f.kind === 'group' ? 'phase' : 'condition'));
+if (textEl.textContent !== want) textEl.textContent = want;
+}
+if (shift > 0) below = f.y + shift + h + 4;
+}
+}
+const isPresent = () => document.body.classList.contains('presentation');
+const msgById = (id) => chartData.messages.find((m) => m.id === id);
+const fragById = (id) => chartData.fragments.find((f) => f.id === id);
+const noteById = (id) => (chartData.notes || []).find((n) => n.id === id);
+const partById = (id) => chartData.participants.find((p) => p.id === id);
+const msgIndex = (id) => chartData.messages.findIndex((m) => m.id === id);
+const selIds = (sel) => (sel && sel.kind === 'message' ? (sel.ids || [sel.id]) : []);
+function canvasPoint(e) {
+const r = seqHtml.getBoundingClientRect();
+return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+}
+const NOTE_SNAP = 40;
+function snapLifeline(x) {
+const p = nearestParticipant(x);
+return p && Math.abs(p.x - x) <= NOTE_SNAP ? p : null;
+}
+function placeOf(x) {
+const ps = chartData.participants;
+if (ps.length < 2 || x <= ps[0].x) return 0;
+for (let i = 0; i < ps.length - 1; i++) {
+if (x <= ps[i + 1].x) return Math.round((i + (x - ps[i].x) / (ps[i + 1].x - ps[i].x)) * 100) / 100;
+}
+return ps.length - 1;
+}
+function setNoteSpot(n, x) {
+const p = snapLifeline(x);
+if (p) { n.over = p.id; delete n.place; } else { delete n.over; n.place = placeOf(x); }
+}
+function nearestParticipant(x) {
+let best = null;
+chartData.participants.forEach((p) => { if (!best || Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
+return best;
+}
+function branchList(f) {
+if (Array.isArray(f.branches)) return f.branches.map((b) => ({ at: b.at, label: b.label || '' }));
+return f.elseAt === undefined ? [] : [{ at: f.elseAt, label: '' }];
+}
+function setBranches(f, list) {
+const order = chartData.messages.map((m) => m.id);
+const a = order.indexOf(f.from), b = order.indexOf(f.to), seen = new Set();
+list = list.filter((br) => { const i = order.indexOf(br.at); if (i <= a || i > b || seen.has(i)) return false; seen.add(i); return true; })
+.sort((u, v) => order.indexOf(u.at) - order.indexOf(v.at));
+delete f.elseAt;
+delete f.branches;
+if (!list.length || (f.kind !== 'alt' && f.kind !== 'par')) return;
+if (f.kind === 'alt' && list.length === 1 && !list[0].label) f.elseAt = list[0].at;
+else f.branches = list.map((br) => ({ at: br.at, label: br.label || '' }));
+}
+const fragRange = (f) => [msgIndex(f.from), msgIndex(f.to)];
+function crossesFrame(a, b, skipId) {
+return chartData.fragments.some((o) => {
+if (o.id === skipId) return false;
+const [oa, ob] = fragRange(o);
+return (oa < a && a <= ob && ob < b) || (a < oa && oa <= b && b < ob);
+});
+}
+function rowSlots(skipId) {
+const ms = chartData.messages.filter((m) => m.id !== skipId);
+const vis = [];
+ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
+if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT, plain: true, frame: null, join: [], note: {} }];
+const spans = drawnSpans(skipId), bottom = (s) => s.f.y + s.f.h;
+let last = vis[vis.length - 1].i + 1;
+while (last < ms.length && ms[last].hidden) last++;
+const slots = [];
+for (let k = 0; k <= vis.length; k++) {
+const A = vis[k - 1] || null, B = vis[k] || null, index = B ? B.i : last;
+const closing = A ? spans.filter((s) => s.b === A.i).sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
+const opening = B ? spans.filter((s) => s.a === B.i).sort((u, v) => u.f.y - v.f.y) : [];           // outer first
+closing.forEach((s, i) => slots.push({
+index, y: bottom(s) - 10, plain: false, frame: s.f, join: closing.slice(i).map((c) => ({ id: c.f.id, edge: 'to' })), note: i === 0 ? { after: A.m.id } : null
+}));
+let y;
+if (closing.length && opening.length) y = (bottom(closing[closing.length - 1]) + opening[0].f.y) / 2;
+else if (closing.length) y = bottom(closing[closing.length - 1]) + 12;
+else if (opening.length) y = A ? (A.m.y + 22 + opening[0].f.y) / 2 : opening[0].f.y - 14;
+else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
+const drawn = (n) => n.y !== undefined && !n.hidden;
+const afterA = A ? (chartData.notes || []).filter((n) => n.after === A.m.id && drawn(n)) : [];
+const beforeB = B ? (chartData.notes || []).filter((n) => n.before === B.m.id && drawn(n)) : [];
+const toAfter = afterA.map((n) => ({ id: n.id, key: 'after' })), toBefore = beforeB.map((n) => ({ id: n.id, key: 'before' }));
+if (afterA.length) {
+slots.push({ index, y: (A.m.y + afterA[0].y) / 2 + 6, plain: false, frame: frameAtSlot(index, skipId) || (closing[0] && closing[0].f) || null,
+join: closing.map((c) => ({ id: c.f.id, edge: 'to' })), renote: toAfter, note: null });
+}
+const divs = [];
+if (B) spans.forEach((sp) => branchList(sp.f).forEach((br, bi) => {
+const dv = (sp.f.dividers || []).find((d) => d.at === br.at);
+if (br.at === B.m.id && dv) divs.push({ f: sp.f, bi, y: dv.y });
+}));
+if (divs.length) y = Math.min(y, divs[0].y - 12);
+else if (beforeB.length) y = Math.min(y, beforeB[0].y - 8);
+const nextId = B ? B.m.id : A && A.i + 1 < ms.length ? ms[A.i + 1].id : null;
+const note = nextId ? { before: nextId } : closing.length ? null : { after: A.m.id };
+slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note: divs.length ? { after: A.m.id } : note });
+divs.forEach((dv) => slots.push({
+index, y: dv.y + 20, plain: false, frame: dv.f, join: [{ id: dv.f.id, edge: 'branch', branch: dv.bi }], note: null
+}));
+if (beforeB.length && !opening.length) {
+const lastN = beforeB[beforeB.length - 1];
+slots.push({ index, y: (lastN.y + lastN.h + B.m.y) / 2 - 6, plain: false, frame: frameAtSlot(index, skipId), join: [], renote: toBefore, note: null });
+}
+opening.forEach((s, j) => slots.push({
+index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), renote: toBefore, note: null
+}));
+}
+return slots;
+}
+const nearestSlot = (slots, y) => slots.reduce((b, s) => (Math.abs(s.y - y) < Math.abs(b.y - y) ? s : b), slots[0]);
+function drawnSpans(skipId) {
+const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
+const full = chartData.messages.map((m) => m.id);
+const out = [];
+chartData.fragments.forEach((f) => {
+if (f.x === undefined) return;
+let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
+while (fa <= fb && full[fa] === skipId) fa++;
+while (fb >= fa && full[fb] === skipId) fb--;
+if (fa > fb) return;
+out.push({ f, a: order.indexOf(full[fa]), b: order.indexOf(full[fb]) });
+});
+return out;
+}
+function frameAtSlot(index, skipId) {
+let best = null;
+drawnSpans(skipId).forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
+return best && best.f;
+}
+const plainSlots = () => rowSlots().filter((s) => s.plain);
+function joinFrames(slot, id) {
+slot.join.forEach((j) => {
+const f = fragById(j.id);
+if (!f) return;
+if (j.edge === 'branch') { const list = branchList(f); if (list[j.branch]) { list[j.branch].at = id; setBranches(f, list); } } else f[j.edge] = id;
+});
+(slot.renote || []).forEach((r) => {
+const n = noteById(r.id);
+if (!n) return;
+delete n.after; delete n.before;
+n[r.key] = id;
+});
+}
+function animateDropLine(axis) {
+if (!motion.enabled() || seqDrop.style.display === 'block') return;
+motion.anim(seqDrop, [
+{ transform: axis === 'y' ? 'scaleY(0.25)' : 'scaleX(0.25)' },
+{ transform: 'none' }
+], { duration: 90, easing: motion.curve('curve-out') });
+}
+function showDropLine(y, frame) {
+const L = chartData.layout;
+const x1 = frame ? frame.x + 6 : 8, x2 = frame ? frame.x + frame.w - 6 : L.width - 8;
+Object.entries({ x1, x2, y1: y, y2: y }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+animateDropLine('x');
+seqDrop.style.display = 'block';
+}
+function applySelection() {
+const sel = seqSel || {};
+const ids = selIds(sel);
+document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
+document.querySelectorAll('.seq-life-hit, .seq-activation').forEach((el) => {
+el.toggleAttribute('data-touch-drag', sel.kind === 'participant' && (el.dataset.pid || el.dataset.nodeId) === sel.id);
+});
+document.querySelectorAll('.seq-cap').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
+document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
+document.querySelectorAll('.frame-tag, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+document.querySelectorAll('.note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
+const isDiv = (el) => sel.kind === 'divider' && el.dataset.fragId === sel.id && el.dataset.at === sel.at;
+document.querySelectorAll('.seq-frag-else, .seq-frag-branch-label, .seq-frag-else-label').forEach((el) => el.classList.toggle('selected', isDiv(el)));
+const byMsg = {};
+chartData.messages.forEach((m) => { byMsg[m.id] = m; });
+document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => {
+const m = byMsg[el.dataset.edgeId];
+el.classList.toggle('is-dim', sel.kind === 'participant' && !!m && m.from !== sel.id && m.to !== sel.id);
+});
+const lit = new Set();
+ids.forEach((id) => { const m = byMsg[id]; if (m) { lit.add(m.from); lit.add(m.to); } });
+document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('linked', lit.has(el.dataset.nodeId)));
+drawSelectionTools(sel);
+refreshDock();
+}
+function setDockButton(btn, enabled, title) {
+btn.disabled = !enabled;
+btn.title = title;
+}
+const NOTE_HINT = 'Drag Note onto the diagram: near a lifeline it sits over it, elsewhere it stays where you drop it. Or click a message or a participant, then press Note';
+const frameHint = (fc) => (fc ? 'A frame edge cuts through the selection: select whole frames only'
+: 'Drag Frame onto the diagram to wrap the message there, then drag its edges to cover more. Or click a message, Shift+click another, then press Frame');
+function frameCandidate() {
+const ids = selIds(seqSel);
+if (!ids.length) return null;
+const idx = ids.map(msgIndex).filter((i) => i >= 0).sort((u, v) => u - v);
+if (!idx.length) return null;
+const a = idx[0], b = idx[idx.length - 1];
+return { a, b, ok: !crossesFrame(a, b) };
+}
+function refreshDock() {
+const kind = seqSel && seqSel.kind;
+btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
+btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
+const hasDetails = chartData.messages.some((m) => m.detail);
+btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
+setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
+: chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
+btnLifespans.setAttribute('aria-checked', String(!!chartData.lifespans));
+btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
+const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
+if (btnShowAll.hidden !== !anyCollapsed) {
+if (!anyCollapsed) motion.ghostExit(btnShowAll, { duration: 110, transform: 'scale(0.85)' });
+motion.flipDock(() => { btnShowAll.hidden = !anyCollapsed; });
+}
+btnShowAll.title = 'Expand every collapsed frame';
+setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
+const msgOk = kind === 'participant' || kind === 'message';
+setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
+: chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
+const fc = frameCandidate();
+setDockButton(btnFrame, true, fc && fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : frameHint(fc));
+const noteOk = kind === 'participant' || kind === 'message';
+setDockButton(btnAddNote, true, noteOk ? (kind === 'message' ? 'Add a note under the selected message, over its sender' : 'Add a note over the selected participant, above the first message')
+: NOTE_HINT);
+}
+function select(kind, id, extra) {
+seqSel = kind ? Object.assign({ kind, id }, extra || {}) : null;
+applySelection();
+}
+function selExists(sel) {
+if (!sel) return false;
+if (sel.kind === 'participant') return !!partById(sel.id);
+if (sel.kind === 'message') return selIds(sel).every((id) => !!msgById(id));
+if (sel.kind === 'note') return !!noteById(sel.id);
+const f = fragById(sel.id);
+if (sel.kind === 'divider') return !!f && branchList(f).some((b) => b.at === sel.at);
+return !!f;
+}
+function relayout() {
+normalizeSpans();
+layoutDiagram(chartData);
+render();
+updateStatus(true);
+}
+function seqSpan(pid, widen) {
+const ms = chartData.messages, p = partById(pid);
+let lo = Infinity, hi = -1;
+const see = (k) => { if (k >= 0) { lo = Math.min(lo, k); hi = Math.max(hi, k); } };
+ms.forEach((m, k) => { if (m.from === pid || m.to === pid) see(k); });
+(chartData.notes || []).forEach((n) => {
+if (!(Array.isArray(n.over) ? n.over : [n.over]).includes(pid)) return;
+see(n.after !== undefined ? msgIndex(n.after) : n.before !== undefined ? msgIndex(n.before) : ms.length ? 0 : -1);
+});
+if (hi < 0) return null;
+if (widen && p) { lo = Math.min(lo, msgIndex(p.start) < 0 ? lo : msgIndex(p.start)); hi = Math.max(hi, msgIndex(p.end)); }
+return [lo, hi];
+}
+function overlapAt(a, b) {
+const x = seqSpan(a, true), y = seqSpan(b, true);
+if (!x || !y) return -1;
+const lo = Math.max(x[0], y[0]);
+return lo <= Math.min(x[1], y[1]) ? lo : -1;
+}
+const columnMembers = (p) => {
+const root = p.column ? partById(p.column) || p : p;
+return chartData.participants.filter((q) => q === root || q.column === root.id);
+};
+function clashText(a, b, at) {
+const ps = chartData.participants, [u, v] = ps.indexOf(a) < ps.indexOf(b) ? [a, b] : [b, a];
+return `${u.name} and ${v.name} are both active at step ${at + 1}`;
+}
+function columnClash(p) {
+for (const q of columnMembers(p)) {
+if (q === p) continue;
+const at = overlapAt(p.id, q.id);
+if (at >= 0) return clashText(p, q, at);
+}
+return null;
+}
+function normalizeColumns() {
+const ps = chartData.participants;
+ps.forEach((p, i) => {
+if (p.column === undefined) return;
+const h = ps.findIndex((q) => q.id === p.column);
+if (h < 0 || h >= i) delete p.column;
+else if (ps[h].column !== undefined) p.column = ps[h].column;
+});
+}
+function normalizeSpans() {
+chartData.participants.forEach((p) => {
+const sp = seqSpan(p.id, false);
+[['start', (k) => k >= sp[0]], ['end', (k) => k <= sp[1]]].forEach(([key, useless]) => {
+if (p[key] === undefined) return;
+const k = msgIndex(p[key]);
+if (k < 0 || (sp && useless(k))) delete p[key];
+});
+});
+}
+function shareColumn(idA, idB) {
+const ps = chartData.participants;
+const ia = ps.findIndex((q) => q.id === idA), ib = ps.findIndex((q) => q.id === idB);
+const guest = ps[Math.max(ia, ib)], first = ps[Math.min(ia, ib)];
+const host = first.column ? partById(first.column) : first;
+if (guest.column === host.id) { render(); return; }
+const guests = ps.filter((q) => q === guest || q.column === guest.id), hosts = ps.filter((q) => q === host || q.column === host.id);
+for (const g of guests) for (const h of hosts) {
+const at = overlapAt(g.id, h.id);
+if (at >= 0) { seqHint(clashText(h, g, at)); render(); return; }
+}
+guests.forEach((g) => { g.column = host.id; });
+seqSel = { kind: 'participant', id: guest.id };
+relayout();
+}
+function setParticipantColor(pid, slot) {
+const p = partById(pid);
+if (!p || (p.color || '') === slot) return;
+pendingColorAnim = slot ? captureColorStyles('participant', pid) : null;
+if (slot) {
+p.color = slot;
+if (swatchSlot(slot)) {   // a white (hex) is no legend entry
+chartData.colorKey = chartData.colorKey || {};
+if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
+}
+} else delete p.color;
+relayout();
+}
+let seqHintTimer = 0;
+function seqHint(text) {
+let hint = document.querySelector('.hint');
+if (!hint) {
+hint = htmlEl('div', 'hint');
+hint.setAttribute('role', 'status');
+hint.dataset.exportSkip = '';
+document.body.appendChild(hint);
+}
+hint.textContent = text;
+clearTimeout(seqHintTimer);
+seqHintTimer = setTimeout(() => motion.hideHint(hint), 3200);
+}
+function beginDrag(e, d) {
+seqDrag = Object.assign({ startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, moved: false }, d);
+window.addEventListener('pointermove', onDragMove);
+window.addEventListener('pointerup', onDragUp);
+}
+function onDragMove(e) {
+const d = seqDrag;
+if (!d) return;
+d.dx = (e.clientX - d.startX) / scale;
+d.dy = (e.clientY - d.startY) / scale;
+if (!d.moved && Math.abs(d.dx) < 4 && Math.abs(d.dy) < 4) return;
+if (!d.moved) { d.moved = true; document.body.classList.add('seq-dragging'); }
+if (d.move) d.move(canvasPoint(e), d);
+}
+function endSeqDrag() {
+window.removeEventListener('pointermove', onDragMove);
+window.removeEventListener('pointerup', onDragUp);
+document.body.classList.remove('seq-dragging');
+seqDrop.style.display = 'none';
+seqRubber.style.display = 'none';
+document.querySelectorAll('.seq-lifeline.is-target').forEach((el) => el.classList.remove('is-target'));
+const d = seqDrag;
+seqDrag = null;
+return d;
+}
+function onDragUp(e) {
+const d = endSeqDrag();
+if (!d) return;
+if (!d.moved) { if (d.click) d.click(); else applySelection(); return; }
+if (d.drop) d.drop(canvasPoint(e), d); else render();
+}
+const seqRubber = svgEl('line', { id: 'seq-rubber', x1: 0, y1: 0, x2: 0, y2: 0, 'marker-end': 'url(#seq-arrow-drag)' });
+seqSvg.appendChild(seqRubber);
+function showRubber(x1, y1, x2, y2) {
+Object.entries({ x1, y1, x2, y2 }).forEach(([k, v]) => seqRubber.setAttribute(k, v));
+seqRubber.style.display = 'block';
+}
+function lightLifeline(pid) {
+document.querySelectorAll('.seq-lifeline').forEach((el) => el.classList.toggle('is-target', el.dataset.nodeId === pid));
+}
+function participantDrag(id, el) {
+return {
+move(pt, d) {
+el.classList.add('dragging');
+el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
+const ps = chartData.participants, me = partById(id), L = chartData.layout;
+const others = ps.filter((p) => p.id !== id);
+d.share = chartData.lifespans ? others.find((p) => p.x !== me.x && Math.abs(p.x - (me.x + d.dx)) < 40) : null;
+lightLifeline(d.share && d.share.id);
+if (d.share) { seqDrop.style.display = 'none'; return; }
+d.index = others.filter((p) => p.x < me.x + d.dx).length;
+const left = others[d.index - 1], right = others[d.index];
+const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right ? right.x - SQ.BOX_W / 2 - 16 : me.x;
+Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+animateDropLine('y');
+seqDrop.style.display = 'block';
+},
+drop(pt, d) {
+if (d.share) { shareColumn(id, d.share.id); return; }
+const ps = chartData.participants, from = ps.findIndex((p) => p.id === id);
+if (d.index === undefined || d.index === from) { render(); return; }
+const [p] = ps.splice(from, 1);
+delete p.column;   // moved away from the column it shared
+ps.splice(d.index, 0, p);
+normalizeColumns();
+relayout();
+}
+};
+}
+function detachMessage(id) {
+const order = chartData.messages.map((m) => m.id), i = order.indexOf(id);
+chartData.fragments = chartData.fragments.filter((f) => {
+const brs = branchList(f);
+let a = order.indexOf(f.from), b = order.indexOf(f.to);
+if (a === i && b === i) return false;
+if (a === i) { f.from = order[i + 1]; a = i + 1; }
+if (b === i) { f.to = order[i - 1]; b = i - 1; }
+const next = brs.map((br) => {
+if (br.at !== id) return br;
+const n = i + 1;
+return n <= b && !brs.some((o) => o.at === order[n]) ? { at: order[n], label: br.label } : null;
+}).filter(Boolean);
+const kept = next.filter((br) => order.indexOf(br.at) > a);
+if (kept.length !== brs.length || next.some((br, k) => br.at !== brs[k].at)) {
+const short = f.elseAt !== undefined;
+delete f.elseAt; delete f.branches;
+if (kept.length) { if (short && kept.length === 1 && !kept[0].label) f.elseAt = kept[0].at; else f.branches = kept; }
+}
+return true;
+});
+}
+function moveMessage(id, slot) {
+const ms = chartData.messages, from = msgIndex(id);
+if (from < 0) return false;
+const was = JSON.stringify(chartData.fragments);
+detachMessage(id);
+const [m] = ms.splice(from, 1);
+ms.splice(Math.max(0, Math.min(slot.index, ms.length)), 0, m);
+joinFrames(slot, id);
+return slot.index !== from || JSON.stringify(chartData.fragments) !== was;
+}
+function messageDrag(id) {
+return {
+move(pt, d) {
+const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
+if (el) {
+el.classList.add('dragging');
+el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
+}
+const m = msgById(id);
+d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
+showDropLine(d.slot.y, d.slot.frame);
+},
+drop(pt, d) {
+if (d.slot && moveMessage(id, d.slot)) relayout(); else render();
+}
+};
+}
+const seqPlus = htmlEl('div', 'seq-plus');
+seqPlus.dataset.exportSkip = '';
+seqPlus.title = 'Drag to another lifeline to add a message here (or drag from any lifeline or activation bar)';
+seqPlus.textContent = '+';
+function hidePlus() { seqPlus.style.display = 'none'; }
+function onCanvasHover(e) {
+if (seqDrag || isPresent() || !chartData.layout || document.body.classList.contains('seq-dragging')) { hidePlus(); return; }
+hoverBarHandle(e.target);
+const pt = canvasPoint(e);
+const inRow = pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0;
+let near = null;
+seqHtml.querySelectorAll('.seq-insert').forEach((el) => {
+const d = Math.abs(parseFloat(el.style.left) - pt.x);
+if (inRow && d < 40 && (!near || d < near.d)) near = { el, d };
+el.classList.remove('is-near');
+});
+if (near) near.el.classList.add('is-near');
+if (e.target === seqPlus) return;
+const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
+|| e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit')
+|| e.target.classList.contains('seq-life-hit') || e.target.classList.contains('seq-activation');
+const slots = rowSlots();
+const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < slots[slots.length - 1].y + 24 ? nearestParticipant(pt.x) : null;
+if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
+const slot = nearestSlot(slots, pt.y);
+const wasHidden = seqPlus.style.display !== 'flex';
+if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
+seqPlus.style.display = 'flex';
+seqPlus.style.translate = `${p.x}px ${slot.y}px`;
+if (wasHidden && motion.enabled()) {
+motion.anim(seqPlus, [{ transform: 'scale(0.6)' }, { transform: 'none' }], {
+duration: motion.dur('dur-micro', 100), easing: motion.curve('curve-spring-tactile')
+});
+}
+seqPlus.dataset.pid = p.id;
+seqPlus.dataset.slot = slots.indexOf(slot);
+}
+seqCanvas.addEventListener('pointermove', onCanvasHover);
+seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqHtml.querySelectorAll('.seq-insert.is-near').forEach((el) => el.classList.remove('is-near')); });
+const SNAP_MAX = 40, SELF_OUT = 60, MIN_DRAW = 8;
+function snapTarget(x) {
+const p = nearestParticipant(x);
+if (!p) return null;
+const gap = Math.min(...chartData.participants.filter((o) => o !== p).map((o) => Math.abs(o.x - p.x)), Infinity);
+return Math.abs(p.x - x) <= Math.min(SNAP_MAX, gap / 3) ? p : null;
+}
+function connectDrag(pid = seqPlus.dataset.pid, slot = rowSlots()[+seqPlus.dataset.slot], fromLine = false) {
+const from = partById(pid), index = slot.index, y = slot.y;
+const landing = (pt, d) => {
+d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
+const to = snapTarget(pt.x);
+return to && to.id === from.id && d.away < SELF_OUT ? null : to;
+};
+const click = () => { hidePlus(); select(null); };   // a click on a lifeline (or on the + on it) selects nothing: the bar belongs to the pill
+return {
+move(pt, d) {
+hidePlus();
+d.to = landing(pt, d);
+lightLifeline(d.to && d.to.id);
+showRubber(from.x, y, pt.x, y);   // always level: a message is drawn along its row
+showDropLine(y, slot.frame);
+},
+drop(pt, d) {
+const to = landing(pt, d);
+if (Math.hypot(d.dx, d.dy) < MIN_DRAW) { click(); render(); return; }
+if (!to) { render(); return; }
+const kind = drawnKind(from.id, to.id, index);
+expandFramesHiding([from.id, to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
+const m = { id: seqUid('m'), from: from.id, to: to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+chartData.messages.splice(index, 0, m);
+joinFrames(slot, m.id);
+pendingDrawEdges.add(m.id);
+editCreated('message', m.id);
+},
+click
+};
+}
+function drawnKind(from, to, index) {
+if (from === to) return 'sync';
+const ms = chartData.messages;
+for (let i = index - 1; i >= 0; i--) {
+const m = ms[i];
+if (m.from === from && m.to === to && m.kind === 'reply') return 'sync';   // already answered
+if (m.from === to && m.to === from) return (m.kind || 'sync') === 'sync' ? 'reply' : 'sync';
+}
+return 'sync';
+}
+const callsTo = (m, k) => chartData.messages.slice(msgIndex(m.id) + 1, k + 1).filter((x) => x.to === m.to && x.from !== x.to && (x.kind || 'sync') === 'sync');
+function clearBar(m) {
+callsTo(m, m.until === undefined ? -1 : msgIndex(m.until)).forEach((x) => { delete x.activate; });
+delete m.until;
+}
+function barTarget(m, y) {
+if (y < m.y) return { why: 'A bar cannot end above the call that opens it' };
+const later = chartData.messages.slice(msgIndex(m.id) + 1).filter((x) => !x.hidden);
+if (!later.length) return { why: 'No later message to end the bar at' };
+const t = later.reduce((b, x) => (Math.abs(x.y + 6 - y) < Math.abs(b.y + 6 - y) ? x : b));
+const sp = chartData.lifespans ? seqSpan(m.to, true) : null;
+if (sp && msgIndex(t.id) > sp[1]) return { why: 'A bar cannot run past the end of its lifeline' };
+return { msg: t };
+}
+function setBar(m, t) {
+const before = JSON.stringify(chartData.messages);
+clearBar(m);
+const nat = seqActivations().find((b) => b.mid === m.id);
+if (nat && t.y + 6 > nat.y2 + 0.5) {
+m.until = t.id;
+callsTo(m, msgIndex(t.id)).forEach((x) => { x.activate = false; });
+}
+if (JSON.stringify(chartData.messages) === before) { render(); return; }
+seqSel = { kind: 'message', id: m.id };
+relayout();
+}
+function addBarHandle(mid) {
+const b = seqBars.find((x) => x.mid === mid), m = msgById(mid), p = b && partById(b.pid);
+if (!p || !m || m.hidden || seqHtml.querySelector(`.seq-barend[data-id="${mid}"]`)) return;
+addHandle('barend', mid, p.x + b.depth * ACT_STEP, b.y2, 'seq-edge seq-barend');
+}
+function hoverBarHandle(t) {
+const mid = t.classList.contains('seq-activation') ? t.dataset.mid : t.classList.contains('seq-barend') ? t.dataset.id : null;
+seqHtml.querySelectorAll('.seq-barend').forEach((el) => { if (el.dataset.id !== mid && !(seqSel && seqSel.kind === 'message' && seqSel.id === el.dataset.id)) el.remove(); });
+if (mid) addBarHandle(mid);
+}
+function handleDrag(h) {
+const role = h.dataset.role;
+if (role === 'from' || role === 'to') {
+const m = msgById(h.dataset.id);
+const fixed = partById(role === 'from' ? m.to : m.from);
+return {
+move(pt, d) {
+const p = nearestParticipant(pt.x);
+d.target = p;
+lightLifeline(p && p.id);
+if (role === 'to') showRubber(fixed.x, m.y, pt.x, m.y); else showRubber(pt.x, m.y, fixed.x, m.y);
+},
+drop(pt, d) {
+if (!d.target || d.target.id === m[role]) { render(); return; }
+m[role] = d.target.id;
+relayout();
+}
+};
+}
+if (role === 'top' || role === 'bottom') {
+const f = fragById(h.dataset.id);
+return {
+move(pt, d) {
+d.slot = nearestSlot(plainSlots(), pt.y);
+showDropLine(d.slot.y, null);
+},
+drop(pt, d) {
+const ms = chartData.messages;
+let [a, b] = fragRange(f);
+if (role === 'top') a = d.slot.index; else b = d.slot.index - 1;
+if (a > b || a < 0 || b >= ms.length || crossesFrame(a, b, f.id)) { render(); return; }
+const brs = branchList(f);
+f.from = ms[a].id;
+f.to = ms[b].id;
+setBranches(f, brs);   // a branch now outside the frame goes
+relayout();
+}
+};
+}
+if (role === 'barend') {
+const m = msgById(h.dataset.id), open = msgIndex(m.id);
+h.classList.add('is-drag');
+return {
+move(pt, d) {
+d.target = barTarget(m, pt.y);
+if (d.target.msg) { showDropLine(d.target.msg.y + 6, null); seqHint(`Busy until ${msgIndex(d.target.msg.id) + 1}${d.target.msg.label ? `. ${d.target.msg.label}` : ''}`); }
+else { seqDrop.style.display = 'none'; seqHint(d.target.why); }
+},
+drop(pt, d) {
+if (!d.target.msg) { render(); return; }
+setBar(m, d.target.msg);
+}
+};
+}
+if (role === 'pstart' || role === 'pend') {
+const p = partById(h.dataset.id);
+return {
+move(pt, d) {
+d.slot = nearestSlot(plainSlots(), pt.y);
+showDropLine(d.slot.y, null);
+},
+drop(pt, d) {
+const ms = chartData.messages, sp = seqSpan(p.id, false), was = { start: p.start, end: p.end };
+if (!sp) { render(); return; }
+if (role === 'pstart') {
+const k = d.slot.index;
+if (k < sp[0] && ms[k]) p.start = ms[k].id; else delete p.start;
+} else {
+const k = d.slot.index - 1;
+if (k > sp[1] && ms[k]) p.end = ms[k].id; else delete p.end;
+}
+const clash = columnClash(p);
+if (clash) {
+if (was.start === undefined) delete p.start; else p.start = was.start;
+if (was.end === undefined) delete p.end; else p.end = was.end;
+seqHint(clash);
+render();
+return;
+}
+if (p.start === was.start && p.end === was.end) { render(); return; }
+relayout();
+}
+};
+}
+if (role === 'stretch') {
+const n = noteById(h.dataset.id);
+const card = seqHtml.querySelector(`.note[data-note-id="${n.id}"]`);
+const firstId = Array.isArray(n.over) ? n.over[0] : n.over;
+const firstP = firstId ? partById(firstId) : null;
+h.classList.add('is-drag');
+return {
+move(pt, d) {
+const p = nearestParticipant(pt.x);
+d.target = p;
+lightLifeline(p && p.id);
+if (card && p) {
+const lo = firstP ? Math.min(firstP.x, p.x) : p.x, hi = firstP ? Math.max(firstP.x, p.x) : p.x;
+let x, w;
+if (hi > lo) {
+w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
+x = Math.round((lo + hi) / 2 - w / 2);
+} else {
+x = Math.round(lo - SQ.NOTE_W / 2);
+const nextX = (chartData.participants || []).map((q) => q.x).filter((qx) => qx > lo + 1).sort((a, b) => a - b)[0];
+w = sqNoteSingleW(n.text, x, nextX);
+}
+card.style.left = px(x);
+card.style.width = px(w);
+h.style.left = px(x + w);
+const nt = card.querySelector('.note-text');
+if (nt) nt.textContent = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
+}
+},
+drop(pt, d) {
+const first = Array.isArray(n.over) ? n.over[0] : n.over;
+if (!d.target) { render(); return; }
+if (first === undefined) { delete n.place; n.over = d.target.id; relayout(); return; }   // a free note snaps to it
+const over = d.target.id === first ? first : [first, d.target.id];
+if (JSON.stringify(over) === JSON.stringify(n.over)) { render(); return; }
+n.over = over;
+relayout();
+}
+};
+}
+return null;
+}
+function noteDrag(id, el) {
+const n = noteById(id);
+return {
+move(pt, d) {
+el.classList.add('dragging');
+el.style.transform = `translate(${d.dx}px, ${d.dy}px) scale(1.02)`;
+d.slot = nearestSlot(rowSlots().filter((s) => s.note), pt.y);
+showDropLine(d.slot.y, d.slot.frame);
+const p = snapLifeline(pt.x);
+lightLifeline(p && p.id);
+},
+drop(pt, d) {
+const ps = chartData.participants;
+delete n.after;
+delete n.before;
+Object.assign(n, d.slot.note);
+if (!Array.isArray(n.over)) { setNoteSpot(n, pt.x); relayout(); return; }
+const over = n.over;
+const centre = nearestParticipant(pt.x);
+const was = nearestParticipant(pt.x - d.dx);
+const shift = ps.indexOf(centre) - ps.indexOf(was);
+const idx = over.map((pid) => Math.max(0, Math.min(ps.length - 1, ps.findIndex((p) => p.id === pid) + shift)));
+n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
+relayout();
+}
+};
+}
+function dividerDrag(fid, at) {
+const f = fragById(fid);
+return {
+move(pt, d) {
+d.slot = nearestSlot(plainSlots(), pt.y);
+showDropLine(d.slot.y, f);
+},
+drop(pt, d) {
+const ms = chartData.messages, [a, b] = fragRange(f), k = d.slot.index;
+const brs = branchList(f);
+if (k <= a || k > b || !ms[k] || brs.some((br) => br.at === ms[k].id)) { render(); return; }
+brs.forEach((br) => { if (br.at === at) br.at = ms[k].id; });
+setBranches(f, brs);
+seqSel = { kind: 'divider', id: fid, at: ms[k].id };
+relayout();
+}
+};
+}
+function marqueeDrag(e) {
+const start = canvasPoint(e);
+const box = htmlEl('div', 'seq-marquee');
+box.dataset.exportSkip = '';
+seqHtml.appendChild(box);
+const rect = (pt) => ({ x: Math.min(start.x, pt.x), y: Math.min(start.y, pt.y), w: Math.abs(pt.x - start.x), h: Math.abs(pt.y - start.y) });
+return {
+move(pt) {
+const r = rect(pt);
+Object.assign(box.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
+},
+drop(pt) {
+motion.ghostExit(box, { duration: 90, transform: 'scale(0.92)' });
+box.remove();
+const r = rect(pt);
+const byId = {};
+chartData.participants.forEach((p) => { byId[p.id] = p; });
+const ids = chartData.messages.filter((m) => {
+if (m.hidden || !byId[m.from] || !byId[m.to]) return false;
+const lo = Math.min(byId[m.from].x, byId[m.to].x), hi = Math.max(byId[m.from].x, byId[m.to].x) + (m.from === m.to ? SQ.SELF_LOOP : 0);
+return m.y >= r.y && m.y <= r.y + r.h && hi >= r.x && lo <= r.x + r.w;
+}).map((m) => m.id);
+if (ids.length) selectRange(ids[0], ids[ids.length - 1]); else select(null);
+},
+click() { box.remove(); }
+};
+}
+function selectRange(anchor, id) {
+const ms = chartData.messages, a = msgIndex(anchor), b = msgIndex(id);
+const lo = Math.min(a, b), hi = Math.max(a, b);
+const ids = ms.slice(lo, hi + 1).filter((m) => !m.hidden || m.id === anchor || m.id === id).map((m) => m.id);
+select('message', id, ids.length > 1 ? { ids, anchor } : {});
+}
+function onSeqPointerDown(e) {
+if (isPresent() || e.button > 0) return;
+if (e.target.isContentEditable) return;
+if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+const handle = e.target.closest('.seq-handle');
+if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
+if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
+const src = e.target.closest('.seq-life-hit, .seq-activation');
+if (src) {
+e.stopPropagation();
+beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, nearestSlot(rowSlots(), canvasPoint(e).y), true));
+return;
+}
+const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
+if (!hit) {
+if (e.shiftKey && (e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band'))) {
+e.stopPropagation();
+beginDrag(e, marqueeDrag(e));
+}
+return;
+}
+const cl = hit.classList;
+if (cl.contains('seq-participant')) {
+select('participant', hit.dataset.nodeId);
+beginDrag(e, participantDrag(hit.dataset.nodeId, hit));
+} else if (cl.contains('frame-tag') || cl.contains('seq-frag-hit')) {
+select('fragment', hit.dataset.fragId);
+} else if (cl.contains('seq-div-hit') || cl.contains('seq-frag-branch-label') || cl.contains('seq-frag-else-label')) {
+select('divider', hit.dataset.fragId, { at: hit.dataset.at });
+beginDrag(e, dividerDrag(hit.dataset.fragId, hit.dataset.at));
+} else if (cl.contains('note')) {
+select('note', hit.dataset.noteId);
+beginDrag(e, noteDrag(hit.dataset.noteId, hit));
+} else {
+const id = hit.dataset.edgeId;
+if (e.shiftKey && seqSel && seqSel.kind === 'message') { selectRange(seqSel.anchor || seqSel.id, id); return; }
+select('message', id);
+beginDrag(e, messageDrag(id));
+}
+}
+const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
+function addHandle(role, id, x, y, extraClass) {
+const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+h.dataset.role = role;
+h.dataset.id = id;
+h.dataset.exportSkip = '';
+seqHtml.appendChild(h);
+}
+const delButton = (title, icon = 'trash') => ui.abButton('seq-ab-btn', 'delete', ui.icon(icon), title, undefined, undefined, 'is-danger');
+const delSep = () => ui.abSep('seq-ab-sep');
+function drawSelectionTools(sel) {
+if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
+const oldBar = seqHtml.querySelector('.seq-actionbar');
+pendingBarRect = null;
+const barKey = sel.kind ? JSON.stringify([sel.kind, sel.id, sel.ids || null, sel.at || null]) : null;
+const sameBar = barKey !== null && barKey === lastBarKey;
+lastBarKey = barKey;
+if (!sel.kind || isPresent()) {
+if (oldBar) motion.hideBar(oldBar);
+seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+return;
+}
+if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
+seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+const bar = ui.actionBar('seq-actionbar');
+let at = null;
+const byId = {};
+chartData.participants.forEach((p) => { byId[p.id] = p; });
+if (sel.kind === 'message' && !sel.ids) {
+const m = msgById(sel.id), a = byId[m && m.from], b = byId[m && m.to];
+if (!m || !a || !b || m.hidden) return;
+bar.setAttribute('aria-label', 'Message');
+if ((m.kind || 'sync') !== 'reply') {
+bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+}
+if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
+if (m.until !== undefined) bar.appendChild(abButton('resetbar', '<span>Reset bar</span>', 'Draw this call\'s bar to its natural end again (clears "until" and the "activate": false it set on later calls)'));
+bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
+if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}`, 'Add the reply under this call (or under the last message of its bar)'));
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note under this message, over its sender'));
+bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected message (or Shift+click range) in a frame'));
+bar.appendChild(delSep());
+bar.appendChild(delButton('Delete this message (Delete key)'));
+const self = m.from === m.to;
+at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24 - (self ? 0 : ((m.lab || 1) - 1) * SQ.LABEL_LINE), bottom: m.y + 10 };
+addBarHandle(m.id);
+if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
+else { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, b.x, m.y, 'seq-end'); }
+} else if (sel.kind === 'participant') {
+const p = byId[sel.id];
+if (!p) return;
+bar.setAttribute('aria-label', 'Participant');
+if (p.rail) {
+bar.appendChild(abButton('show', `${ui.icon('eye')}`, 'Expand the frames that hide this participant'));
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+}
+PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+bar.appendChild(swatchPicker(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', white: WHITE }));
+if (p.column) {
+bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
+}
+bar.appendChild(delSep());
+bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
+const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
+if (sp && sp[0] > 0) addHandle('pstart', p.id, p.x, p.top, 'seq-edge');
+if (sp) addHandle('pend', p.id, p.x, p.bottom, 'seq-edge');
+const pTop = p.top === undefined ? SQ.TOP : p.top;
+at = { x: p.x, top: pTop, bottom: pTop + (p.rail ? SQ.RAIL_H : SQ.BOX_H), pill: true };
+} else if (sel.kind === 'fragment') {
+const f = fragById(sel.id);
+if (!f || f.x === undefined) return;
+bar.setAttribute('aria-label', 'Frame');
+FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
+bar.appendChild(delSep());
+bar.appendChild(swatchPicker(swatchOf(f) || '', (slot) => {
+if ((f.color || '') === slot) return;
+pendingColorAnim = slot ? captureColorStyles('fragment', f.id) : null;
+if (slot) f.color = slot; else delete f.color;
+relayout();
+}, { triggerClass: 'seq-ab-btn', btnClass: 'seq-ab-swatch', act: 'color' }));
+bar.appendChild(delSep());
+bar.appendChild(ui.abButton('seq-ab-btn', 'delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)', undefined, undefined, 'is-danger'));
+at = { x: f.x + 150, top: f.y, bottom: f.y + 30 };
+if (!f.collapsed) {
+addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
+addHandle('bottom', f.id, f.x + f.w / 2, f.y + f.h, 'seq-edge');
+if (f.kind === 'alt' || f.kind === 'par') {
+const add = htmlEl('button', 'seq-add-branch', { left: px(f.x + f.w / 2 + 24), top: px(f.y + f.h) });
+add.type = 'button';
+add.dataset.exportSkip = '';
+add.dataset.fragId = f.id;
+add.textContent = '+ branch';
+add.title = 'Add a branch above the frame\'s last message';
+seqHtml.appendChild(add);
+}
+}
+} else if (sel.kind === 'note') {
+const n = noteById(sel.id);
+if (!n || n.x === undefined) return;
+addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
+bar.setAttribute('aria-label', 'Note');
+bar.appendChild(delButton('Delete this note (Delete key)'));
+at = { x: n.x + n.w / 2, top: n.y, bottom: n.y + n.h };
+} else if (sel.kind === 'message' && sel.ids) {
+const ms = sel.ids.map(msgById).filter((m) => m && !m.hidden);
+if (!ms.length) return;
+bar.setAttribute('aria-label', 'Messages');
+bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected messages in a frame'));
+bar.appendChild(delSep());
+bar.appendChild(delButton('Delete the selected messages (Delete key)'));
+const top = ms.reduce((u, v) => (v.y < u.y ? v : u)), a = byId[top.from], b = byId[top.to];
+at = { x: a && b ? (a.x + b.x) / 2 : top.y, top: top.y - 24, bottom: top.y + 10 };
+} else if (sel.kind === 'divider') {
+const f = fragById(sel.id), dv = f && (f.dividers || []).find((d) => d.at === sel.at);
+if (!dv) return;
+bar.setAttribute('aria-label', 'Branch');
+bar.appendChild(delButton('Remove this branch divider (Delete key)'));
+at = { x: f.x + f.w / 2, top: dv.y, bottom: dv.y + 10 };
+} else {
+return;
+}
+bar.style.left = px(Math.round(at.x));   // before measuring: how far it has to the right edge decides how it wraps
+seqHtml.appendChild(bar);
+if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
+const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
+const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
+if (at.pill) {
+bar.classList.add('is-pill');
+if (chartData.lifespans) {
+const p = partById(sel.id);
+const pinDy = parseFloat(seqCanvas.style.getPropertyValue('--pin-dy')) || 0;
+const pinTop = SQ.TOP + (seqCanvas.classList.contains('seq-pinned') ? pinDy : 0);
+const own = p ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
+bar.style.setProperty('--pin-dy', `${own}px`);
+}
+}
+bar.classList.toggle('is-below', !above);
+const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
+bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
+if (!sameBar) motion.showBar(bar);
+}
+seqHtml.addEventListener('click', (e) => {
+const add = e.target.closest('.seq-add-branch');
+if (add) { e.stopPropagation(); addBranch(add.dataset.fragId); return; }
+const ins = e.target.closest('.seq-insert');
+if (ins) { e.stopPropagation(); pendingOriginRect = ins.getBoundingClientRect(); insertParticipant(+ins.dataset.index); return; }
+const b = e.target.closest('.seq-ab-btn');
+if (!b || !seqSel) return;
+e.stopPropagation();
+runAction(b.dataset.act, b.dataset.value, b);
+});
+function runAction(act, value, el) {
+const sel = seqSel;
+if (act === 'delete') { deleteSelection(el); return; }
+if (act === 'note') { btnAddNote.click(); return; }
+if (act === 'frame') { btnFrame.click(); return; }
+if (sel.kind === 'message') {
+const m = msgById(sel.id);
+if (!m) return;
+if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
+else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
+else if (act === 'resetbar') { clearBar(m); relayout(); }
+else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; pendingDrawEdges.add(m.id); relayout(); }
+else if (act === 'reply') addReply(m);
+} else if (sel.kind === 'participant') {
+const p = partById(sel.id);
+if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
+else if (p && act === 'own') { delete p.column; relayout(); }
+else if (p && act === 'show') { expandFramesHiding([p.id]); relayout(); }
+} else if (sel.kind === 'fragment') {
+const f = fragById(sel.id);
+if (!f) return;
+if (act === 'fkind' && f.kind !== value) {
+const brs = branchList(f);
+f.kind = value;
+setBranches(f, brs);   // away from alt/par the branches go, in the same undo step
+relayout();
+} else if (act === 'color' && (f.color || '') !== value) {
+pendingColorAnim = value ? captureColorStyles('fragment', f.id) : null;
+if (value) f.color = value; else delete f.color;
+relayout();
+} else if (act === 'focus') {
+focusFrame(f.id);
+} else if (act === 'delete-frame') {
+const [a, b] = fragRange(f), n = b - a + 1;
+ui.confirm(el, {
+title: 'Delete this frame?',
+message: `"${f.label || f.kind}" covers ${n} message${n === 1 ? '' : 's'}.`,
+label: 'Delete frame',
+alt: { text: 'Frame only', onClick: () => deleteSelection(el) },
+ok: `Frame and ${n} message${n === 1 ? '' : 's'}`
+}, () => {
+chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
+removeMessages(chartData.messages.slice(a, b + 1).map((x) => x.id));
+seqSel = null;
+relayout();
+});
+}
+}
+}
+function addReply(m) {
+const ms = chartData.messages, i = ms.indexOf(m);
+let at = i + 1;
+for (let j = i + 1; j < ms.length; j++) {
+const r = ms[j];
+if ((r.from === m.from && r.to === m.to) || (r.kind === 'reply' && r.from === m.to && r.to === m.from)) break;
+if (r.from === m.to || r.to === m.to) at = j + 1; else break;
+}
+const reply = { id: seqUid('m'), from: m.to, to: m.from, label: 'Reply', kind: 'reply' };
+ms.splice(at, 0, reply);
+chartData.fragments.forEach((f) => { if (msgIndex(f.to) === at - 1 && msgIndex(f.from) <= i) f.to = reply.id; });
+pendingDrawEdges.add(reply.id);
+editCreated('message', reply.id);
+}
+function addBranch(fid) {
+const f = fragById(fid);
+if (!f) return;
+const [a, b] = fragRange(f), brs = branchList(f), ms = chartData.messages;
+let k = b;
+while (k > a && brs.some((br) => br.at === ms[k].id)) k--;
+if (k <= a) return;
+brs.push({ at: ms[k].id, label: 'condition' });
+setBranches(f, brs);
+seqSel = { kind: 'divider', id: fid, at: ms[k].id };
+relayout();
+editBranch(fid, ms[k].id);
+}
+const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
+const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
+function applyText(el, value) {
+const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
+if (!value || !owner) return false;
+if (owner.dataset.nodeId) { const p = partById(owner.dataset.nodeId); if (p && p.name !== value) { p.name = value; return true; } }
+else if (owner.dataset.edgeId) { const m = msgById(owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; return true; } }
+else if (owner.dataset.fragId) { const f = fragById(owner.dataset.fragId); if (f && f.label !== value) { f.label = value; return true; } }
+return false;
+}
+function beginEdit(el, opts = {}) {
+if (!el || el.isContentEditable) return;
+const multi = !!opts.multiline;
+const wrapBox = el.closest('.is-wrapped');
+if (wrapBox) wrapBox.style.width = `${wrapBox.offsetWidth + 2}px`;   // 2px of slack: a line that just fit must not tip over
+const shown = el.textContent;   // what is drawn (a wrapped text has its line breaks), put back if nothing changes
+if (opts.raw !== undefined) el.textContent = opts.raw;
+el.contentEditable = multi ? 'plaintext-only' : 'true';
+el.focus();
+const range = document.createRange();
+range.selectNodeContents(el);
+const s = window.getSelection();
+s.removeAllRanges();
+s.addRange(range);
+const original = el.textContent;
+let tabbed = false;
+const commit = () => {
+el.removeEventListener('blur', commit);
+el.removeEventListener('keydown', onKey);
+document.removeEventListener('pointerdown', onOutside, true);
+if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
+el.contentEditable = 'false';
+const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
+const changed = (opts.apply || applyText)(el, value);
+if (changed) relayout();
+else if (wrapBox) { el.textContent = shown; wrapBox.style.width = ''; }   // no redraw: the box must not move
+else if (opts.restore) render();
+else el.textContent = original;
+if (tabbed && opts.onTab) opts.onTab();
+};
+const onKey = (ke) => {
+if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
+if (ke.key === 'Enter' && multi && ke.shiftKey) { ke.preventDefault(); document.execCommand('insertText', false, '\n'); }
+else if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
+else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
+else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
+};
+const box = el.closest('.seq-msg-label, .seq-msg-detail, .note, .seq-participant, .frame-tag');
+const onBoxDown = (pe) => {
+if (pe.target === el || el.contains(pe.target)) return;
+pe.preventDefault(); pe.stopPropagation();
+const r = el.getBoundingClientRect();
+const px = Math.min(Math.max(pe.clientX, r.left + 1), r.right - 1), py = Math.min(Math.max(pe.clientY, r.top + 1), r.bottom - 1);
+let rg = null;
+if (document.caretPositionFromPoint) {
+const cp = document.caretPositionFromPoint(px, py);
+if (cp && el.contains(cp.offsetNode)) { rg = document.createRange(); rg.setStart(cp.offsetNode, cp.offset); rg.collapse(true); }
+} else if (document.caretRangeFromPoint) {
+rg = document.caretRangeFromPoint(px, py);
+if (rg && !el.contains(rg.startContainer)) rg = null;
+}
+if (!rg) { rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(false); }
+const sel = window.getSelection();
+sel.removeAllRanges(); sel.addRange(rg);
+el.focus();
+};
+const onBoxMouse = (me) => { if (me.target !== el && !el.contains(me.target)) me.preventDefault(); };
+if (box) { box.addEventListener('pointerdown', onBoxDown); box.addEventListener('mousedown', onBoxMouse); }
+const onOutside = (pe) => { if (!(box || el).contains(pe.target)) el.blur(); };
+document.addEventListener('pointerdown', onOutside, true);
+el.addEventListener('blur', commit);
+el.addEventListener('keydown', onKey);
+}
+function editMessage(id) {
+const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
+beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
+}
+function editDetail(id) {
+const m = msgById(id);
+if (!m || m.hidden) return;
+let el = seqHtml.querySelector(`.seq-msg-detail[data-edge-id="${id}"] .seq-msg-detail-text`);
+if (!el) {
+const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
+if (!label) return;
+const box = htmlEl('div', `seq-msg-detail is-editing${m.from === m.to ? ' is-self' : ''}`, {
+left: label.style.left, top: px(m.from === m.to ? m.y + 24 : m.y + 3) });
+box.dataset.edgeId = id;
+el = htmlEl('span', 'seq-msg-detail-text');
+box.appendChild(el);
+seqHtml.appendChild(box);
+if (motion.enabled()) motion.anim(box, [
+{ transform: 'translateY(-4px) scale(0.94)', clipPath: 'inset(0 0 100% 0)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0)' }
+], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-out') });
+}
+beginEdit(el, {
+raw: m.detail || '', restore: true,
+apply: (e, value) => {
+if ((m.detail || '') === value) return false;
+if (value) m.detail = value.replace(/\s*\n\s*/g, ' '); else delete m.detail;
+return true;
+}
+});
+}
+function editNote(id) {
+const n = noteById(id);
+const el = seqHtml.querySelector(`.note[data-note-id="${id}"] .note-text`);
+if (!n || !el) return;
+beginEdit(el, {
+multiline: true, raw: n.text || '', restore: true,
+apply: (e, value) => { if (!value || value === n.text) return false; n.text = value; return true; }
+});
+}
+function editBranch(fid, at) {
+const f = fragById(fid);
+if (!f || f.x === undefined) return;
+const d = (f.dividers || []).find((x) => x.at === at);
+if (!d) return;
+let el = seqHtml.querySelector(`.seq-frag-branch-label[data-frag-id="${fid}"][data-at="${at}"] .seq-branch-text`);
+if (!el) {
+seqHtml.querySelectorAll(`.seq-frag-else-label[data-frag-id="${fid}"][data-at="${at}"]`).forEach((x) => x.remove());
+const box = htmlEl('div', 'seq-frag-branch-label is-editing', { left: px(f.x + 10), top: px(d.y + 3) });
+box.dataset.fragId = fid;
+box.dataset.at = at;
+el = htmlEl('span', 'seq-branch-text');
+box.appendChild(el);
+seqHtml.appendChild(box);
+}
+const brs = branchList(f), br = brs.find((x) => x.at === at);
+beginEdit(el, {
+raw: br ? br.label : '', restore: true,
+apply: (e, value) => {
+if (!br || br.label === value) return false;
+br.label = value;
+setBranches(f, brs);
+return true;
+}
+});
+}
+function editKey(el) {
+const color = el.dataset.color;
+el.classList.remove('is-empty');
+beginEdit(el, {
+raw: (chartData.colorKey && chartData.colorKey[color]) || '', restore: true,
+apply: (e, value) => {
+const was = (chartData.colorKey && chartData.colorKey[color]) || '';
+if (value === was) return false;
+chartData.colorKey = chartData.colorKey || {};
+chartData.colorKey[color] = value.replace(/\s*\n\s*/g, ' ');
+return true;
+}
+});
+}
+function editSelection() {
+const sel = seqSel;
+if (!sel) return;
+if (sel.kind === 'message') editMessage(sel.id);
+else if (sel.kind === 'note') editNote(sel.id);
+else if (sel.kind === 'divider') editBranch(sel.id, sel.at);
+else {
+const box = seqHtml.querySelector(EDIT_OWNER[sel.kind].replace('ID', sel.id));
+beginEdit(box && box.querySelector(EDIT_TEXT));
+}
+}
+function onSeqDblClick(e) {
+if (isPresent()) return;
+if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
+const kl = e.target.closest('.color-key-label');
+if (kl) { e.stopPropagation(); editKey(kl); return; }
+const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
+if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
+const note = e.target.closest('.note');
+if (note) { e.stopPropagation(); editNote(note.dataset.noteId); return; }
+const det = e.target.closest('.seq-msg-detail');
+if (det) { e.stopPropagation(); editDetail(det.dataset.edgeId); return; }
+const lab = e.target.closest('.seq-msg-label');
+if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
+const box = e.target.closest('.seq-participant, .frame-tag');
+if (box && box.classList.contains('is-rail')) return;   // a rail's name is written downwards: Show it to rename
+const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
+if (!el) return;
+e.stopPropagation();
+beginEdit(el);
+}
+seqHtml.addEventListener('dblclick', onSeqDblClick);
+function settledRect(el) {
+const hr = seqHtml.getBoundingClientRect();
+const x = el.offsetLeft - (el.classList.contains('seq-msg-label') && !el.classList.contains('is-self') ? el.offsetWidth / 2 : 0);
+const ty = parseFloat((el.style.translate || '').split(/\s+/)[1]) || 0;
+const y = el.offsetTop + ty;
+return {
+left: hr.left + x * scale,
+top: hr.top + y * scale,
+right: hr.left + (x + el.offsetWidth) * scale,
+bottom: hr.top + (y + el.offsetHeight) * scale
+};
+}
+function panIntoView(el) {
+if (!el) return;
+const r = motion.enabled() ? settledRect(el) : el.getBoundingClientRect();
+const v = viewport.getBoundingClientRect(), pad = 60;
+const dock = document.querySelector('.dock-area .toolbar-center');
+const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
+const top = v.top + (ui.chromeTop ? ui.chromeTop() : 0) + (seqCanvas.classList.contains('seq-pinned') ? (topRowH() + 24) * scale : 0);
+let dx = 0, dy = 0;
+if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
+if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
+if (!dx && !dy) return;
+animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 200), easing: 'curve-out' });
+}
+function editCreated(kind, id) {
+seqSel = { kind, id };
+relayout();
+if (kind === 'note') {
+panIntoView(seqHtml.querySelector(`.note[data-note-id="${id}"]`));
+editNote(id);
+return;
+}
+const box = seqHtml.querySelector(EDIT_OWNER[kind].replace('ID', id));
+panIntoView(box);
+if (kind === 'message') editMessage(id); else beginEdit(box && box.querySelector(EDIT_TEXT));
+}
+seqHtml.addEventListener('pointerdown', onSeqPointerDown);
+seqSvg.addEventListener('pointerdown', onSeqPointerDown);
+seqCanvas.addEventListener('pointerdown', (e) => { if (e.target === seqCanvas) onSeqPointerDown(e); });
+function toggleCollapsed(fid) {
+const f = fragById(fid);
+if (!f) return;
+if (f.collapsed) delete f.collapsed; else f.collapsed = true;
+commitView(fid);
+}
+function commitView(fid) {
+if (isPresent()) { layoutDiagram(chartData); render(); return; }
+if (fid) seqSel = { kind: 'fragment', id: fid };
+relayout();
+}
+function frameSpans() {
+return chartData.fragments.map((f) => ({ f, a: msgIndex(f.from), b: msgIndex(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
+}
+function focusState(fid) {
+const rs = frameSpans(), me = rs.find((r) => r.f.id === fid);
+if (!me) return null;
+const encloses = (o, i) => o !== i && o.a <= i.a && i.b <= o.b && (o.b - o.a > i.b - i.a || (o.b - o.a === i.b - i.a && rs.indexOf(o) < rs.indexOf(i)));
+const crossing = (r) => rs.some((o) => o !== r && ((o.a < r.a && r.a <= o.b && o.b < r.b) || (r.a < o.a && o.a <= r.b && r.b < o.b)));
+const tops = rs.filter((r) => !rs.some((o) => encloses(o, r)));
+const keep = rs.filter((r) => r === me || encloses(r, me));
+const toCollapse = tops.filter((r) => !keep.includes(r) && !crossing(r));
+return { me, keep, toCollapse };
+}
+const isFocused = (st) => st.keep.every((r) => !r.f.collapsed) && st.toCollapse.length > 0 && st.toCollapse.every((r) => r.f.collapsed);
+function focusFrame(fid) {
+const st = focusState(fid);
+if (!st) return;
+if (isFocused(st)) { chartData.fragments.forEach((f) => { delete f.collapsed; }); delete chartData.rails; }
+else {
+st.keep.forEach((r) => { delete r.f.collapsed; });
+st.toCollapse.forEach((r) => { r.f.collapsed = true; });
+chartData.rails = true;
+}
+commitView(fid);
+panIntoView(seqHtml.querySelector(`.frame-tag[data-frag-id="${fid}"]`));
+}
+function showAll() {
+chartData.fragments.forEach((f) => { delete f.collapsed; });
+commitView(null);
+}
+function expandFramesHiding(pids) {
+const ms = chartData.messages;
+frameSpans().forEach((r) => {
+if (!r.f.collapsed) return;
+if (ms.slice(r.a, r.b + 1).some((m) => pids.includes(m.from) || pids.includes(m.to))) delete r.f.collapsed;
+});
+}
+btnShowAll.addEventListener('click', showAll);
+seqHtml.addEventListener('click', (e) => {
+if (e.target.isContentEditable) return;
+const btn = e.target.closest(isPresent()
+? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
+: '.frame-chev, .frame-summary, .seq-frag-focus');
+if (!btn) return;
+e.stopPropagation();
+const fid = btn.closest('[data-frag-id]').dataset.fragId;
+if (btn.classList.contains('seq-frag-focus')) focusFrame(fid); else toggleCollapsed(fid);
+});
+function removeMessages(ids) {
+const gone = new Set(ids);
+const order = chartData.messages.map((m) => m.id);
+const pos = (id) => order.indexOf(id);
+const survivor = (id, dir) => {
+let i = pos(id);
+while (i >= 0 && i < order.length && gone.has(order[i])) i += dir;
+return i >= 0 && i < order.length ? order[i] : null;
+};
+chartData.fragments = chartData.fragments.filter((f) => {
+const from = survivor(f.from, 1), to = survivor(f.to, -1);
+if (!from || !to || pos(from) > pos(to)) return false;
+f.from = from;
+f.to = to;
+const fixAt = (at) => {
+const e = survivor(at, 1);
+return e && pos(e) > pos(from) && pos(e) <= pos(to) ? e : null;
+};
+if (f.elseAt !== undefined) {
+const e = fixAt(f.elseAt);
+if (e) f.elseAt = e; else delete f.elseAt;
+}
+if (Array.isArray(f.branches)) {
+const seen = new Set();
+f.branches = f.branches.filter((br) => {
+const e = fixAt(br.at);
+if (!e || seen.has(e)) return false;
+seen.add(e);
+br.at = e;
+return true;
+});
+if (!f.branches.length) delete f.branches;
+}
+return true;
+});
+(chartData.notes || []).forEach((n) => {
+['after', 'before'].forEach((key) => {
+if (n[key] === undefined || !gone.has(n[key])) return;
+const next = key === 'after' ? survivor(n[key], -1) : survivor(n[key], 1);
+const other = key === 'after' ? survivor(n[key], 1) : survivor(n[key], -1);
+delete n[key];
+if (next) n[key] = next;
+else if (other) n[key === 'after' ? 'before' : 'after'] = other;
+});
+});
+chartData.messages.forEach((m) => { if (!gone.has(m.id) && m.until !== undefined && gone.has(m.until)) clearBar(m); });
+chartData.messages = chartData.messages.filter((m) => !gone.has(m.id));
+}
+function removeParticipantNotes(pid) {
+if (!chartData.notes) return;
+chartData.notes = chartData.notes.filter((n) => {
+if (n.over === undefined) return true;   // a free note belongs to no participant
+const over = Array.isArray(n.over) ? n.over.filter((id) => id !== pid) : n.over === pid ? [] : [n.over];
+if (!over.length) return false;
+n.over = over.length === 1 ? over[0] : over;
+return true;
+});
+if (!chartData.notes.length) delete chartData.notes;
+}
+function deleteParticipant(id) {
+removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
+removeParticipantNotes(id);
+chartData.participants = chartData.participants.filter((p) => p.id !== id);
+normalizeColumns();
+seqSel = null;
+relayout();
+}
+function confirmDeleteParticipant(p, count, anchorEl) {
+ui.confirm(anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`), {
+message: `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`,
+label: 'Delete participant',
+}, () => deleteParticipant(p.id));
+}
+function deleteSelection(anchorEl) {
+const sel = seqSel;
+if (!sel) return;
+if (sel.kind === 'participant') {
+const p = partById(sel.id);
+if (!p) return;
+const count = chartData.messages.filter((m) => m.from === p.id || m.to === p.id).length;
+if (count) { confirmDeleteParticipant(p, count, anchorEl); return; }
+deleteParticipant(p.id);
+return;
+}
+if (sel.kind === 'message') removeMessages(selIds(sel));
+else if (sel.kind === 'note') {
+chartData.notes = (chartData.notes || []).filter((n) => n.id !== sel.id);
+if (!chartData.notes.length) delete chartData.notes;
+} else if (sel.kind === 'divider') {
+const f = fragById(sel.id);
+if (f) setBranches(f, branchList(f).filter((br) => br.at !== sel.at));
+} else {
+chartData.fragments = chartData.fragments.filter((f) => f.id !== sel.id);
+}
+seqSel = null;
+relayout();
+}
+function insertParticipant(index) {
+ensureModel();
+const p = { id: seqUid('p'), name: `Participant ${chartData.participants.length + 1}`, kind: 'system' };
+chartData.participants.splice(Math.max(0, Math.min(index, chartData.participants.length)), 0, p);
+editCreated('participant', p.id);
+}
+btnAddParticipant.addEventListener('click', () => {
+ensureModel();
+const i = seqSel && seqSel.kind === 'participant' ? chartData.participants.findIndex((p) => p.id === seqSel.id) : -1;
+insertParticipant(i >= 0 ? i + 1 : chartData.participants.length);
+});
+btnAddMessage.addEventListener('click', () => {
+ensureModel();
+const ps = chartData.participants, ms = chartData.messages;
+if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+let m;
+if (seqSel.kind === 'message') {
+const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
+if (!last) return;
+const i = ms.indexOf(last), kind = drawnKind(last.from, last.to, i + 1);
+m = { id: seqUid('m'), from: last.from, to: last.to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+ms.splice(i + 1, 0, m);
+chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
+} else {
+const i = ps.findIndex((p) => p.id === seqSel.id);
+const to = (ps[i + 1] || ps[i - 1] || ps[i]).id, kind = drawnKind(ps[i].id, to, 0);
+m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+ms.unshift(m);
+}
+pendingDrawEdges.add(m.id);
+editCreated('message', m.id);
+});
+btnFrame.addEventListener('click', () => {
+ensureModel();
+const fc = frameCandidate();
+if (!fc || !fc.ok) { ui.toast(frameHint(fc)); return; }
+const ms = chartData.messages;
+const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[fc.a].id, to: ms[fc.b].id };
+chartData.fragments.push(f);
+editCreated('fragment', f.id);
+});
+btnAddNote.addEventListener('click', () => {
+if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) { ui.toast(NOTE_HINT); return; }
+const n = { id: seqUid('n'), text: 'Note' };
+if (seqSel.kind === 'message') {
+const ids = selIds(seqSel), m = msgById(ids[ids.length - 1]);
+if (!m) return;
+n.over = m.from;
+n.after = m.id;
+} else {
+n.over = seqSel.id;
+if (chartData.messages.length) n.before = chartData.messages[0].id;
+}
+chartData.notes = chartData.notes || [];
+chartData.notes.push(n);
+editCreated('note', n.id);
+});
+function frameBoxFor(m) {
+const a = partById(m.from), b = partById(m.to);
+let x1 = Math.min(a.x, b.x) - SQ.FRAG_PAD, x2 = Math.max(a.x, b.x) + SQ.FRAG_PAD;
+const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${m.id}"]`);
+if (label) x2 = Math.max(x2, label.offsetLeft + label.offsetWidth + 12);
+const below = (m.from === m.to ? 44 : 16) + (m.detail && chartData.showDetails !== false ? 16 : 0);
+return { x: x1, y: m.y - 46, w: x2 - x1, h: 46 + below };
+}
+const nearestMessage = (y) => chartData.messages.filter((m) => !m.hidden && m.y !== undefined)
+.reduce((best, m) => (!best || Math.abs(m.y - y) < Math.abs(best.y - y) ? m : best), null);
+function dockDrag(btn, kind) {
+let start = null, ghost = null, spot = null, dragged = false, outline = null;
+const overCanvas = (e) => { const r = seqCanvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+const clear = () => {
+if (ghost) ghost.remove();
+if (outline) outline.remove();
+ghost = null; spot = null; outline = null;
+seqDrop.style.display = 'none';
+lightLifeline(null);
+document.body.classList.remove('seq-dragging');
+};
+function onMove(e) {
+if (!start) return;
+if (!ghost) {
+if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
+dragged = true;
+ghost = htmlEl('div', `seq-dock-ghost is-${kind}`);
+ghost.innerHTML = kind === 'frame' ? '<span>opt</span>' : '<span>Note</span>';
+document.body.appendChild(ghost);
+document.body.classList.add('seq-dragging');
+hidePlus();
+}
+Object.assign(ghost.style, kind === 'frame' ? { left: `${e.clientX - 12}px`, top: `${e.clientY - 10}px` } : { left: `${e.clientX}px`, top: `${e.clientY}px` });
+ghost.style.visibility = '';
+spot = null;
+seqDrop.style.display = 'none';
+lightLifeline(null);
+if (outline) outline.style.display = 'none';
+if (!overCanvas(e) || !chartData.layout) return;
+const pt = canvasPoint(e);
+if (kind === 'frame') {
+const m = nearestMessage(pt.y);
+if (!m) return;
+const box = frameBoxFor(m);
+if (!outline) { outline = htmlEl('div', 'seq-frame-ghost'); outline.dataset.exportSkip = ''; outline.innerHTML = '<span>opt</span>'; seqHtml.appendChild(outline); }
+Object.assign(outline.style, { display: 'block', left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
+ghost.style.visibility = 'hidden';   // the outline around the arrow is the frame now
+spot = { pt, msg: m, box };
+return;
+}
+const slots = kind === 'note' ? rowSlots().filter((sl) => sl.note) : rowSlots();
+if (!slots.length) return;
+spot = { pt, slot: nearestSlot(slots, pt.y) };
+showDropLine(spot.slot.y, spot.slot.frame);
+if (kind === 'note') { const p = snapLifeline(pt.x); lightLifeline(p && p.id); }
+}
+function onUp() {
+window.removeEventListener('pointermove', onMove);
+window.removeEventListener('pointerup', onUp);
+const at = spot;
+const noteRect = kind === 'note' && at && ghost ? ghost.getBoundingClientRect() : null;
+const tagSpan = kind === 'frame' && at && outline ? outline.querySelector('span') : null;
+const frameTagRect = tagSpan ? tagSpan.getBoundingClientRect() : null;
+clear();
+start = null;
+if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
+if (!dragged || !at) return;
+ensureModel();
+if (kind === 'note') {
+const n = Object.assign({ id: seqUid('n'), text: 'Note' }, at.slot.note);
+setNoteSpot(n, at.pt.x);
+chartData.notes = chartData.notes || [];
+chartData.notes.push(n);
+pendingNoteOriginRect = noteRect;
+pendingNoteId = n.id;
+editCreated('note', n.id);
+return;
+}
+const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: at.msg.id, to: at.msg.id };
+chartData.fragments.push(f);
+pendingOriginRect = frameTagRect;
+pendingFrameBox = at.box;
+pendingFrameId = f.id;
+editCreated('fragment', f.id);
+}
+btn.addEventListener('pointerdown', (e) => {
+if (e.button !== 0 || isPresent()) return;
+start = { x: e.clientX, y: e.clientY };
+dragged = false;
+window.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+});
+btn.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopImmediatePropagation(); } }, true);
+}
+dockDrag(btnFrame, 'frame');
+dockDrag(btnAddNote, 'note');
+btnNumbers.addEventListener('click', () => {
+if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
+relayout();
+});
+btnLifespans.addEventListener('click', () => {
+if (chartData.lifespans) { delete chartData.lifespans; chartData.participants.forEach((p) => { delete p.column; }); }
+else chartData.lifespans = true;
+relayout();
+});
+btnDetails.addEventListener('click', () => {
+if (chartData.showDetails === false) delete chartData.showDetails; else chartData.showDetails = false;
+relayout();
+});
+window.addEventListener('keydown', (e) => {
+if (e.key !== 'Escape' || seqDrag || !seqSel) return;
+if (document.activeElement && document.activeElement.isContentEditable) return;
+if (ui.closeConfirm()) return;
+select(null);
+}, true);
+window.addEventListener('keydown', (e) => {
+if (isPresent() || seqDrag || e.ctrlKey || e.metaKey) return;
+const a = document.activeElement;
+if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a.tagName === 'BUTTON' && e.key === 'Enter'))) return;
+if ((e.key === 'Enter' || e.key === 'F2') && seqSel) { e.preventDefault(); editSelection(); return; }
+const ms = chartData.messages.filter((m) => !m.hidden), ps = chartData.participants;
+if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+const dir = e.key === 'ArrowUp' ? -1 : 1;
+if (!ms.length) return;
+e.preventDefault();
+if (e.altKey && seqSel && seqSel.kind === 'message' && !seqSel.ids) {
+const vi = ms.findIndex((m) => m.id === seqSel.id), other = ms[vi + dir];
+if (!other) return;
+if (moveMessage(seqSel.id, { index: msgIndex(other.id), join: [] })) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
+return;
+}
+if (e.shiftKey && seqSel && seqSel.kind === 'message') {
+const cur = seqSel.id, vi = ms.findIndex((m) => m.id === cur), next = ms[vi + dir];
+if (next) selectRange(seqSel.anchor || cur, next.id);
+return;
+}
+let next;
+if (seqSel && seqSel.kind === 'message') { const vi = ms.findIndex((m) => m.id === seqSel.id); next = ms[Math.max(0, Math.min(ms.length - 1, vi + dir))]; }
+else if (seqSel && seqSel.kind === 'participant') next = ms.find((m) => m.from === seqSel.id || m.to === seqSel.id) || ms[0];
+else next = dir > 0 ? ms[0] : ms[ms.length - 1];
+select('message', next.id);
+panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${next.id}"]`));
+return;
+}
+if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+if (!ps.length || e.altKey) return;
+e.preventDefault();
+const dir = e.key === 'ArrowLeft' ? -1 : 1;
+let next;
+if (seqSel && seqSel.kind === 'participant') { const i = ps.findIndex((p) => p.id === seqSel.id); next = ps[Math.max(0, Math.min(ps.length - 1, i + dir))]; }
+else if (seqSel && seqSel.kind === 'message') { const m = msgById(seqSel.id); next = partById(dir < 0 ? m.from : m.to); }
+else next = dir > 0 ? ps[0] : ps[ps.length - 1];
+if (!next) return;
+select('participant', next.id);
+panIntoView(seqHtml.querySelector(`.seq-participant[data-node-id="${next.id}"]`));
+}
+});
+const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
+const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden', 'lab', 'det']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
+const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;
+function slug(text, sep = '_') {
+let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+s = s.replace(/[^a-z0-9]+/g, sep).replace(new RegExp(`^${sep}+|${sep}+$`, 'g'), '');
+if (s.length > 30) s = s.slice(0, 30).replace(new RegExp(`${sep}+$`), '');
+return s;
+}
+function renameGeneratedIds(d) {
+const ps = d.participants || [], ms = d.messages || [], fs = d.fragments || [], ns = d.notes || [];
+const used = new Set([...ps, ...ms, ...fs, ...ns].map((o) => o.id));
+const rename = new Map();
+const take = (base) => {
+let id = base, k = 2;
+while (used.has(id)) id = `${base}_${k++}`;
+used.add(id);
+return id;
+};
+const numbered = (list, prefix) => {
+let count = 1;
+list.forEach((o) => {
+if (!GENERATED_ID.test(String(o.id || ''))) return;
+while (used.has(`${prefix}${count}`)) count++;
+rename.set(o.id, take(`${prefix}${count}`));
+});
+};
+ps.forEach((p) => { if (GENERATED_ID.test(String(p.id || ''))) rename.set(p.id, take('p_' + (slug(p.name) || 'participant'))); });
+numbered(ms, 'm');
+numbered(fs, 'f');
+numbered(ns, 'n');
+if (!rename.size) return;
+const r = (id) => (rename.has(id) ? rename.get(id) : id);
+[...ps, ...ms, ...fs, ...ns].forEach((o) => { o.id = r(o.id); });
+ms.forEach((m) => ['from', 'to'].forEach((k) => { if (k in m) m[k] = r(m[k]); }));
+ps.forEach((q) => ['column', 'start', 'end'].forEach((k) => { if (k in q) q[k] = r(q[k]); }));
+fs.forEach((f) => {
+['from', 'to', 'elseAt'].forEach((k) => { if (k in f) f[k] = r(f[k]); });
+if (Array.isArray(f.branches)) f.branches.forEach((b) => { if ('at' in b) b.at = r(b.at); });
+});
+ns.forEach((n) => {
+if (Array.isArray(n.over)) n.over = n.over.map(r); else if ('over' in n) n.over = r(n.over);
+['after', 'before'].forEach((k) => { if (k in n) n[k] = r(n[k]); });
+});
+}
+function toDisk(data) {
+const d = JSON.parse(JSON.stringify(data));
+delete d.layout;   // canvas size, derived by the engine
+slotColors(d, 'participants', 'fragments');
+renameGeneratedIds(d);
+DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
+if (d.colorKey) {
+const inUse = new Set((d.participants || []).map((q) => q.color));
+Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k)) delete d.colorKey[k]; });
+if (!Object.keys(d.colorKey).length) delete d.colorKey;
+}
+const out = {};
+DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
+Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
+return out;
+}
+function fromDisk(data) {
+const d = JSON.parse(JSON.stringify(data));
+slotColors(d, 'participants', 'fragments');
+return d;
+}
+registerDiagramPlugin({
+id: 'sequence',
+defaultTitle: 'Interactive Sequence Diagram',
+toDisk,
+fromDisk,
+toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+fromMermaid,
+contentEl: seqCanvas,
+report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
+render,
+isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
+clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
+cancelInteraction() {
+if (ui.closeConfirm()) return true;
+if (!seqDrag) return false;
+endSeqDrag();
+render();
+return true;
+},
+hasSelection: () => !!seqSel,
+onViewChange() { ui.closeConfirm(); pinParticipants(); },
+contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
+deleteSelection,
+searchItems() {
+const out = [];
+const add = (prefix, id, el, textEl) => {
+const text = (textEl.textContent || '').replace(/\s+/g, ' ').trim();
+if (text) out.push({ id: `${prefix}:${id}`, text, el });
+};
+seqHtml.querySelectorAll('.seq-participant').forEach((el) => add('participant', el.dataset.nodeId, el, el));
+const rows = [];
+seqHtml.querySelectorAll('.seq-msg-label').forEach((el) => rows.push([parseFloat(el.style.top) + 26, 'msg', el.dataset.edgeId, el, el]));
+seqHtml.querySelectorAll('.frame-tag').forEach((el) => rows.push([parseFloat(el.style.top), 'frag', el.dataset.fragId, el, el.querySelector('.seq-frag-text')]));
+seqHtml.querySelectorAll('.note').forEach((el) => rows.push([parseFloat(el.style.top), 'note', el.dataset.noteId, el, el.querySelector('.note-text')]));
+rows.sort((a, b) => a[0] - b[0]).forEach((r) => add(r[1], r[2], r[3], r[4]));
+return out;
+}
+});
       loadInitialData();
     })();
