@@ -31,7 +31,7 @@
 
       // --- STATE ---
       let selIds = [];            // selected actors and use cases (primary last)
-      let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
+      let selOther = null;        // { kind: 'link' | 'subject' | 'note' | 'key', id }
       let hoverLinkId = null;
       let linkBarAvoid = null;    // { id, x, y }: pointer position of the press that selected a link, so the bar flips away from it
       let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
@@ -354,6 +354,7 @@
         if (o.kind === 'link') return !!linkOf(o.id);
         if (o.kind === 'subject') return !!subjectOf(o.id);
         if (o.kind === 'note') return !!noteOf(o.id);
+        if (o.kind === 'key') return ucKeyColors().includes(o.id);
         return false;
       }
 
@@ -594,27 +595,46 @@
         });
       }
 
-      // The colour key as a legend under the diagram
+      // The colour key as a legend under the diagram: auto-populated from explicit colours in use
       let legendEl = null;
+      function ucKeyColors() {
+        const used = [];
+        const add = (c) => { if (c && swatchSlot(c) && !used.includes(c)) used.push(c); };
+        cases().forEach((u) => add(u.color));
+        actors().forEach((a) => add(a.color));
+        return used;
+      }
       function renderLegend() {
+        html.querySelectorAll('.uc-key').forEach((el) => el.remove());
         legendEl = null;
-        const key = chartData.colorKey && typeof chartData.colorKey === 'object' ? chartData.colorKey : {};
-        const slots = Object.keys(key).filter((k) => key[k] && swatchSlot(k));
-        if (!slots.length) return;
+        const el = ui.colorKey(ucKeyColors(), chartData.colorKey || {}, { prompts: true, cls: 'uc-key' });
+        if (!el) return;
         const C = chartData.canvas || { height: 0 };
-        legendEl = htmlEl('div', 'uc-legend');
-        legendEl.setAttribute('role', 'list');
-        legendEl.setAttribute('aria-label', 'Colour key');
-        legendEl.style.top = px(C.height + 12);
-        slots.forEach((k) => {
-          const item = htmlEl('span', 'uc-legend-item t-detail');
-          item.setAttribute('role', 'listitem');
-          const dot = htmlEl('span', 'swatch-dot');
-          setSwatch(dot, k);
-          item.append(dot, document.createTextNode(String(key[k])));
-          legendEl.appendChild(item);
-        });
+        el.style.top = px(C.height + 12);
+        legendEl = el;
         html.appendChild(legendEl);
+      }
+      function setKeyLabel(color, value) {
+        const v = String(value == null ? '' : value).trim();
+        const was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        if (v === was) return false;
+        if (v) (chartData.colorKey = chartData.colorKey || {})[color] = v;
+        else if (chartData.colorKey) {
+          delete chartData.colorKey[color];
+          if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey;
+        }
+        return true;
+      }
+      function editKey(el) {
+        if (!el || presenting()) return;
+        const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        el.classList.remove('is-empty');
+        beginEdit(el, {
+          raw: was,
+          restore: was,
+          apply: (value) => setKeyLabel(color, value),
+          onCancel: () => { if (!was) el.classList.add('is-empty'); }
+        });
       }
 
       // --- SELECTION ---
@@ -641,6 +661,7 @@
         if (!selIds.length) { const first = els.items.values().next().value; if (first) first.tabIndex = 0; }
         canvas.classList.toggle('is-multi', selIds.length > 1);
         els.subjects.forEach((el, id) => el.classList.toggle('selected', !!selOther && selOther.kind === 'subject' && selOther.id === id));
+        html.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!selOther && selOther.kind === 'key' && selOther.id === l.dataset.color));
         applyLinkState();
         applyNoteSelection();
         applyFocus();
@@ -1319,7 +1340,7 @@
           else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.chevron')) selectOther('subject', st.parentNode.dataset.subjectId); }
           return;
         }
-        if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note')) return;
+        if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note, .uc-key')) return;
         closeMenu();
         const grip = t.closest('.uc-subject-tab');
         if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
@@ -1670,6 +1691,7 @@
         const o = selOther;
         if (o && o.kind === 'note') { removeNote(o.id); return; }
         if (o && o.kind === 'link') { deleteLink(o.id); return; }
+        if (o && o.kind === 'key') { if (setKeyLabel(o.id, '')) { selOther = null; commit(false); } return; }
         if (o && o.kind === 'subject') {
           const n = cases().filter((u) => caseSubjectId(u) === o.id).length;
           const s = subjectOf(o.id);
@@ -1948,6 +1970,13 @@
       }
       html.addEventListener('click', (e) => {
         const t = e.target;
+        const kl = t instanceof Element && t.closest('.uc-key .color-key-label');
+        if (kl) {
+          if (kl.isContentEditable || presenting()) return;
+          e.stopPropagation();
+          selectOther('key', kl.dataset.color);
+          return;
+        }
         const chev = t instanceof Element && t.closest('.uc-subject-title > .chevron');
         if (chev) { e.stopPropagation(); toggleCollapsed(chev.parentNode.parentNode.dataset.subjectId); return; }
         const badge = t instanceof Element && t.closest('.uc-actor > .note-badge, .uc-case > .note-badge');
@@ -2131,6 +2160,7 @@
         if (selOther && selOther.kind === 'note') { editNote(selOther.id); return; }
         if (selOther && selOther.kind === 'subject') { editSubjectName(selOther.id); return; }
         if (selOther && selOther.kind === 'link') { editLinkCondition(selOther.id); return; }
+        if (selOther && selOther.kind === 'key') { editKey(html.querySelector(`.uc-key .color-key-label[data-color="${selOther.id}"]`)); return; }
         if (selIds.length === 1) editName(selIds[0]);
       }
       html.addEventListener('dblclick', (e) => {
@@ -2145,6 +2175,8 @@
         if (presenting()) return;
         const t = e.target;
         if (t.closest('.uc-actionbar, .chevron, .note-badge, .port, .note') || t.isContentEditable) return;
+        const kl = t.closest('.uc-key .color-key-label');
+        if (kl) { e.stopPropagation(); editKey(kl); return; }
         const ep = t.closest('.uc-ep');
         const item = t.closest('.uc-actor, .uc-case');
         if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }
@@ -2368,6 +2400,11 @@
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));
         DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
+        if (d.colorKey && typeof d.colorKey === 'object') {
+          const inUse = new Set([...(d.useCases || []), ...(d.actors || [])].map((q) => q.color).filter(Boolean));
+          Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k) || !String(d.colorKey[k] || '').trim()) delete d.colorKey[k]; });
+          if (!Object.keys(d.colorKey).length) delete d.colorKey;
+        }
         const layout = {};
         ['actors', 'useCases'].forEach((list) => (d[list] || []).forEach((o) => {
           if (isNum(o.x) && isNum(o.y)) { layout[o.id] = { x: o.x, y: o.y }; delete o.x; delete o.y; }

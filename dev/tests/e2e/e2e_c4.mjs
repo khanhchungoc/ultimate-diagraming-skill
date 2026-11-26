@@ -347,16 +347,16 @@ try {
     const p = await t.at(await sel('Web API'));
     await t.mouse('mouseMoved', p.x, p.y);
     await sleep(200);
-    const st = await t.ev(`({ lit: document.querySelectorAll('.edge-line.hl-in, .edge-line.hl-out').length, dimNodes: [...document.querySelectorAll('.c4-node.is-dim .c4-name')].map((e) => e.textContent), litNodes: [...document.querySelectorAll('.c4-node:not(.is-dim) .c4-name')].map((e) => e.textContent).sort() })`);
-    t.check('hovering Web API lights its 3 arrows and dims nothing it is connected to', st.lit === 3 && st.dimNodes.length === 0, J(st));
+    const st = await t.ev(`({ lit: document.querySelectorAll('.edge-line.hl-in, .edge-line.hl-out').length, dimNodes: [...document.querySelectorAll('.c4-node.is-dim .c4-name')].map((e) => e.textContent), hoverNodes: [...document.querySelectorAll('.c4-node.is-hover .c4-name')].map((e) => e.textContent).sort().join(',') })`);
+    t.check('hovering Web API lights its 3 arrows and neighbor tiles without dimming anything', st.lit === 3 && st.dimNodes.length === 0 && st.hoverNodes === 'Customer,Mail Gateway,Order Store', J(st));
     const q = await t.at(await sel('Order Store'));
     await t.mouse('mouseMoved', q.x, q.y);
     await sleep(200);
-    const st2 = await t.ev(`({ lit: document.querySelectorAll('.edge-line.hl-in, .edge-line.hl-out').length, dim: [...document.querySelectorAll('.c4-node.is-dim .c4-name')].map((e) => e.textContent).sort().join(',') })`);
-    t.check('hovering Order Store lights 1 arrow and dims the unconnected tiles', st2.lit === 1 && st2.dim === 'Customer,Mail Gateway', J(st2));
+    const st2 = await t.ev(`({ lit: document.querySelectorAll('.edge-line.hl-in, .edge-line.hl-out').length, dim: [...document.querySelectorAll('.c4-node.is-dim .c4-name')].map((e) => e.textContent), hoverNodes: [...document.querySelectorAll('.c4-node.is-hover .c4-name')].map((e) => e.textContent).sort().join(',') })`);
+    t.check('hovering Order Store lights 1 arrow and its linked neighbor without dimming unconnected tiles', st2.lit === 1 && st2.dim.length === 0 && st2.hoverNodes === 'Web API', J(st2));
     await t.mouse('mouseMoved', 5, 5);
     await sleep(150);
-    t.check('moving away clears the highlight', (await count('.is-dim')) === 0 && (await count('.edge-line.hl-in, .edge-line.hl-out')) === 0);
+    t.check('moving away clears the highlight', (await count('.is-hover, .is-dim')) === 0 && (await count('.edge-line.hl-in, .edge-line.hl-out')) === 0);
   });
 
   // --- Render reuse: the boxes, arrows and labels are kept across renders; events reach them through one listener per layer ---

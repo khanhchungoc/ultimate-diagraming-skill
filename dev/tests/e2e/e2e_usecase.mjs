@@ -151,7 +151,7 @@ sys.stdout.write(f.format_json(out))`;
     && (await count('.uc-label')) === 2 && (await text('.uc-label[data-edge-id="l4"] .uc-cond')) === '[customer has a code]'
     && (await t.ev(`getComputedStyle(document.querySelector('.uc-parent .edge-line')).markerEnd`)).includes('uc-mk-tri'));
   t.check('the legend names the colours, the note shows as a badge and not as a card',
-    (await count('.uc-legend-item')) === 3 && (await count('.note-badge')) === 1 && !(await t.ev(`!![...document.querySelectorAll('.note-layer .note')].some((n) => getComputedStyle(n).display !== 'none')`)));
+    (await count('.uc-key .color-key-item')) === 3 && (await count('.note-badge')) === 1 && !(await t.ev(`!![...document.querySelectorAll('.note-layer .note')].some((n) => getComputedStyle(n).display !== 'none')`)));
   t.check('the dock has the Add popover with five tiles, the switches, and no Delete until something is selected',
     (await count('#uc-pop .btn-shape')) === 5 && (await present('#btn-refs')) && (await present('#btn-levels')) && (await present('#btn-notes')) && (await present('#btn-auto-layout'))
     && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));

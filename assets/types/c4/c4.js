@@ -70,7 +70,8 @@
         clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
         render: ({ note, token, reason }) => {
           if (reason === 'text') {
-            noteCard(note.id).setAttribute('aria-label', `Note on ${noteNames(note)}: ${note.text}`);
+            const names = noteNames(note);
+            noteCard(note.id).setAttribute('aria-label', names ? `Note on ${names}: ${note.text}` : `Note: ${note.text}`);
             placeNotes();
             updateNotesButton();
           } else if (reason !== 'same') render({ snap: token.snap, toKey: token.a ? { [note.id]: token.a.id } : undefined, duration: 160 });
@@ -701,7 +702,7 @@
       }
       const select = (s) => setSel(s ? [s] : []);
       // What is lit: the arrows in (amber) and out (blue) of the hovered element, as the flowchart does; a lone selected element
-      // lights its arrows too. A hover also greys out the arrows and elements that are not connected to it.
+      // lights its arrows too. Directly linked neighbor nodes/tiles highlight on hover without dimming unrelated items.
       function applyState() {
         const lone = sel.length === 1 && sel[0].kind !== 'edge' ? sel[0].id : null;
         const focusId = hoverId || lone;
@@ -722,10 +723,6 @@
           rec.g.classList.toggle('hover', hov);
           if (rec.label) { rec.label.classList.toggle('selected', isSel); rec.label.classList.toggle('linked', hov); }
           if (rec.badge) { rec.badge.classList.toggle('selected', isSel); }
-          const dim = !!hoverId && !out && !inn && !isSel;
-          rec.g.classList.toggle('is-dim', dim);
-          if (rec.label) rec.label.classList.toggle('is-dim', dim);
-          if (rec.badge) rec.badge.classList.toggle('is-dim', dim);
         });
         const tags = [...els.groups].filter(([, el]) => !el.classList.contains('is-tile')).map(([id, el]) => [id, el.querySelector('.frame-tag')]).filter(([, t]) => t);
         const items = [...els.nodes, ...[...els.groups].filter(([id]) => isTile(groupOf(id))), ...tags];
@@ -733,7 +730,7 @@
         items.forEach(([id, el]) => {
           const isNode = el.classList.contains('c4-node');
           if (isNode) el.classList.toggle('selected', inSel('element', id));
-          if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-dim', !!hoverId && !near.has(id) && !inSel(isNode ? 'element' : 'group', id));
+          if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-hover', !!hoverId && id !== hoverId && near.has(id));
           const ti = first && first.kind !== 'edge' && first.id === id ? '0' : '-1';
           if (el.getAttribute('tabindex') !== ti) el.setAttribute('tabindex', ti);   // written only when it changes: a write restyles the box
         });
@@ -1171,29 +1168,162 @@
         if (!grp.classList.contains('is-tile') || t.closest('.c4-name')) editName('group', id); else toggleGroup(id);
       });
 
-      // --- Add (the dock): a tile adds the item; one added while a group is selected joins it; it is selected and its name is open ---
-      function addItem(kind) {
+      // --- Add (the dock): a tile clicks or drags onto the canvas; one added while a group is selected (or dropped on one) joins it ---
+      function addItem(kind, drop) {
         if (presenting()) return null;
         const isGroup = kind === 'group';
         if (!isGroup && !KINDS.includes(kind)) throw new RangeError(`unknown element kind "${kind}"`);
         if (isTyping()) document.activeElement.blur();
         motion.cancelAll();
-        const p = primary(), host = sel.length === 1 && p.kind === 'group' ? groupOf(p.id) : null;
+        const p = primary();
+        const host = drop ? (drop.hostId ? groupOf(drop.hostId) : null) : (sel.length === 1 && p.kind === 'group' ? groupOf(p.id) : null);
         const useMotion = motion.enabled() && html.childElementCount > 0;
         const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
         const o = isGroup ? { id: newId('g'), name: 'New group', kind: 'system' } : { id: newId('e'), kind, name: DEFAULT_NAME[kind] };
         if (host) { host.collapsed = false; o[isGroup ? 'parent' : 'group'] = host.id; }
         if (isGroup) (chartData.groups = groups()).push(o); else (chartData.elements = elements()).push(o);
-        lay();
+        let pinned = null;
+        if (drop && !host && drop.pt) {
+          const sz = isGroup ? { w: TOKENS.c4.emptyW, h: TOKENS.c4.emptyH } : c4Card(o.name, '');
+          o.x = Math.max(0, Math.round(drop.pt.x - sz.w / 2));
+          o.y = Math.max(0, Math.round(drop.pt.y - sz.h / 2));
+          chartData._manual = true;
+          pinned = [o.id];
+          routeDiagram(chartData, { pinned });
+        } else {
+          lay();
+        }
         sel = [{ kind: isGroup ? 'group' : 'element', id: o.id }];
-        render({ snap, prevEdges, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
+        render({ snap, prevEdges, pinned, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
         editName(sel[0].kind, o.id, true);
         return o.id;
       }
+
+      let paletteDrag = null;   // { kind, btn, startX, startY, pointerId, ghost, w, h, onCanvas, hostId, dropEl }
+      function buildPaletteGhost(kind) {
+        let el, w, h;
+        if (kind === 'note') {
+          el = htmlEl('div', 'note c4-ghost');
+          el.appendChild(htmlEl('div', 'note-text', 'Note'));
+          w = 160; h = 56;
+        } else if (kind === 'group') {
+          el = htmlEl('div', 'c4-group is-frame c4-ghost');
+          const tag = htmlEl('div', 'frame-tag c4-tag');
+          tag.appendChild(htmlEl('span', 'c4-tag-name', 'New group'));
+          el.appendChild(tag);
+          w = TOKENS.c4.emptyW; h = TOKENS.c4.emptyH;
+          el.style.width = px(w); el.style.height = px(h);
+        } else {
+          const sz = c4Card(DEFAULT_NAME[kind], '');
+          w = sz.w; h = sz.h;
+          el = htmlEl('div', 'c4-node swatch-scope c4-ghost');
+          el.dataset.kind = kind;
+          el.style.width = px(w); el.style.height = px(h);
+          setSwatch(el, KIND_SLOT[kind] || '9');
+          const chip = htmlEl('span', 'c4-disc');
+          chip.innerHTML = ui.icon(KIND_ICON[kind] || 'cloud', { size: 'tile', fine: true });
+          const text = htmlEl('span', 'c4-text');
+          text.appendChild(htmlEl('span', 'c4-name t-title', DEFAULT_NAME[kind]));
+          el.append(chip, text);
+        }
+        document.body.appendChild(el);
+        return { el, w, h };
+      }
+      function hostAtPoint(kind, x, y) {
+        if (kind === 'note') return '';
+        const height = kind === 'group' ? 1 : 0;
+        const hit = groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)
+          && x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h
+          && depthOf(g) + height <= MAX_GROUP_DEPTH)
+          .sort((a, b) => depthOf(b) - depthOf(a))[0];
+        return hit ? hit.id : '';
+      }
+      function setPaletteDrop(pd, hostId) {
+        const next = hostId ? els.groups.get(hostId) || null : null;
+        if (pd.dropEl && pd.dropEl !== next) pd.dropEl.classList.remove('c4-drop');
+        if (next) next.classList.add('c4-drop');
+        pd.dropEl = next;
+        pd.hostId = hostId || '';
+      }
+      function startPaletteDrag(e, kind, btn) {
+        delete btn.dataset.dragged;
+        if (e.button !== 0 || btn.disabled || presenting() || paletteDrag) return;
+        paletteDrag = { kind, btn, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId, ghost: null, w: 0, h: 0, onCanvas: false, hostId: '', dropEl: null };
+        window.addEventListener('pointermove', onPaletteMove);
+        window.addEventListener('pointerup', onPaletteUp);
+        window.addEventListener('pointercancel', cancelPaletteDrag);
+      }
+      function onPaletteMove(e) {
+        const pd = paletteDrag;
+        if (!pd || e.pointerId !== pd.pointerId) return;
+        if (!pd.ghost) {
+          if (Math.hypot(e.clientX - pd.startX, e.clientY - pd.startY) < 4) return;
+          const wrap = pd.btn.closest('.dock-pop-wrap');
+          if (wrap) {
+            wrap.classList.remove('open');
+            const trig = wrap.querySelector('.dock-pop-trigger');
+            if (trig) trig.setAttribute('aria-expanded', 'false');
+          }
+          document.body.classList.add('palette-dragging');
+          const built = buildPaletteGhost(pd.kind);
+          pd.ghost = built.el;
+          pd.w = built.w;
+          pd.h = built.h;
+        }
+        pd.ghost.style.transform = `scale(${scale})`;
+        pd.ghost.style.left = `${e.clientX - (pd.w * scale) / 2}px`;
+        pd.ghost.style.top = `${e.clientY - (pd.h * scale) / 2}px`;
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        pd.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
+        pd.ghost.classList.toggle('off-target', !pd.onCanvas);
+        if (pd.onCanvas && pd.kind !== 'note') {
+          const pt = canvasPoint(e);
+          setPaletteDrop(pd, hostAtPoint(pd.kind, pt.x, pt.y));
+        } else {
+          setPaletteDrop(pd, '');
+        }
+      }
+      function endPaletteDrag() {
+        window.removeEventListener('pointermove', onPaletteMove);
+        window.removeEventListener('pointerup', onPaletteUp);
+        window.removeEventListener('pointercancel', cancelPaletteDrag);
+        const pd = paletteDrag;
+        paletteDrag = null;
+        if (pd) {
+          if (pd.dropEl) pd.dropEl.classList.remove('c4-drop');
+          if (pd.ghost) pd.ghost.remove();
+        }
+        document.body.classList.remove('palette-dragging');
+        return pd;
+      }
+      function onPaletteUp(e) {
+        if (!paletteDrag || e.pointerId !== paletteDrag.pointerId) return;
+        const pd = endPaletteDrag();
+        const dragged = !!(pd && pd.ghost);
+        if (dragged) pd.btn.dataset.dragged = '1';
+        if (!dragged || !pd.onCanvas) return;
+        const pt = canvasPoint(e);
+        if (pd.kind === 'note') {
+          addFreeNoteAt({ x: Math.max(0, Math.round(pt.x - pd.w / 2)), y: Math.max(0, Math.round(pt.y - pd.h / 2)) });
+        } else {
+          addItem(pd.kind, { pt, hostId: pd.hostId });
+        }
+      }
+      function cancelPaletteDrag() {
+        const pd = endPaletteDrag();
+        if (pd && !pd.ghost) delete pd.btn.dataset.dragged;
+        return !!(pd && pd.ghost);
+      }
+
       [...KINDS, 'group'].forEach((k) => {
         const b = document.getElementById(`btn-add-${k}`);
+        if (!b) return;
         // A keyboard or tap pick hands the focus back to the Add button right after this click: open the name a tick later then
-        if (b) b.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k); });
+        b.addEventListener('click', (e) => {
+          if (b.dataset.dragged) { delete b.dataset.dragged; e.preventDefault(); return; }
+          if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k);
+        });
+        b.addEventListener('pointerdown', (e) => startPaletteDrag(e, k, b));
       });
 
       // --- Connect: drag from a port onto another element or group ---
@@ -1358,9 +1488,10 @@
       const noteOf = (id) => notesList().find((n) => n.id === id);
       const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
       const noteTargets = (n) => (n.elements || []).map((id) => ({ kind: 'element', id })).concat((n.groups || []).map((id) => ({ kind: 'group', id })));
+      const isFreeNote = (n) => !!n && !noteTargets(n).length && !!n.pos && typeof n.pos.x === 'number' && typeof n.pos.y === 'number';
       const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
       const noteAnchor = (n) => noteTargets(n).find(targetEl);
-      const noteShown = (n) => !!noteAnchor(n) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
+      const noteShown = (n) => (isFreeNote(n) || !!noteAnchor(n)) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
       const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
 
@@ -1381,7 +1512,8 @@
         card.classList.add('show');
         card.tabIndex = 0;
         card.setAttribute('role', 'note');
-        card.setAttribute('aria-label', `Note on ${noteNames(n)}: ${noteText(n) || 'empty'}`);
+        const names = noteNames(n);
+        card.setAttribute('aria-label', names ? `Note on ${names}: ${noteText(n) || 'empty'}` : `Note: ${noteText(n) || 'empty'}`);
         if (edit) text.addEventListener('blur', () => commitNote(n, text));
         card.addEventListener('pointerdown', (ev) => {
           if (ev.button !== 0 || ev.target.isContentEditable) return;
@@ -1418,7 +1550,15 @@
         const cards = [...notesLayer.children];
         const sizes = cards.map((c) => ({ w: c.offsetWidth, h: c.offsetHeight }));
         cards.forEach((card, i) => {
-          const t = noteAnchor(noteOf(card.dataset.noteId));
+          const n = noteOf(card.dataset.noteId);
+          if (isFreeNote(n)) {
+            const b = { x: Math.round(n.pos.x), y: Math.round(n.pos.y), w: sizes[i].w, h: sizes[i].h };
+            boxes.push(b);
+            card.style.left = px(b.x);
+            card.style.top = px(b.y);
+            return;
+          }
+          const t = noteAnchor(n);
           const b = fitNote(boxOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id)), sizes[i], boxes, segs, C);
           boxes.push(b);   // a placed card is an obstacle for the next
           card.style.left = px(b.x);
@@ -1548,11 +1688,31 @@
         render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
         editNote(note.id);
       }
+      function addFreeNoteAt(pt) {
+        if (presenting()) return;
+        if (isTyping()) document.activeElement.blur();
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null;
+        const note = { id: newId('n'), text: '', pos: { x: Math.max(0, Math.round(pt.x)), y: Math.max(0, Math.round(pt.y)) } };
+        (chartData.notes = notesList()).push(note);
+        noteCtl.begin(note, true);
+        chartData.showNotes = true;
+        sel = [];
+        render({ snap, enterScale: 0.82, duration: 170 });
+        editNote(note.id);
+      }
       function editNote(id) { noteCtl.edit(id); }
       function commitNote(n, text) { noteCtl.commit(n, text); }
       function removeNote(id, step = true) { noteCtl.remove(id, step); }
       const btnAddNote = document.getElementById('btn-add-note');
-      if (btnAddNote) btnAddNote.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(addNote, 0); else addNote(); });
+      if (btnAddNote) {
+        btnAddNote.addEventListener('click', (e) => {
+          if (btnAddNote.dataset.dragged) { delete btnAddNote.dataset.dragged; e.preventDefault(); return; }
+          if (e.detail === 0) setTimeout(addNote, 0); else addNote();
+        });
+        btnAddNote.addEventListener('pointerdown', (e) => startPaletteDrag(e, 'note', btnAddNote));
+      }
 
       // --- Property edits ---
       function setColor(slot) {
@@ -1597,79 +1757,21 @@
         return out;
       };
 
-      // --- Icon picker (#c4-icons): the diagram icons in groups, searched by name; a pack name the page cannot draw is listed as missing ---
-      // The one list of what the picker offers (the registry also holds app chrome: undo, export, shape and type glyphs). A name
-      // missing from assets/icons/default.json fails here, at startup.
-      const ICON_GROUPS = [
-        ['People', ['user', 'users', 'actor', 'headset']],
-        ['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
-        ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
-        ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
-        ['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
-        ['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
-        ['Security', ['lock', 'key', 'shield']]
-      ];
-      ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => { if (ICONS[n] === undefined) throw new Error(`C4 icon picker: "${n}" (${g}) is not in assets/icons/default.json`); }));
-      // `logo:<pack>/<name>` of every local-pack entry this page embeds (the build embeds only the ones a diagram uses)
-      const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+      // --- Icon picker (#c4-icons): shared ui.buildIconPicker in shell.js ---
       function openIcons(anchor, o) {
-        const box = htmlEl('div', 'c4-pop c4-icons');
-        box.id = 'c4-icons';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Icon');
-        const search = htmlEl('input', 'c4-input');
-        search.id = 'c4-icon-search';
-        search.type = 'search';
-        search.placeholder = 'Search icons';
-        search.setAttribute('aria-label', 'Search icons');
-        search.autocomplete = 'off';
-        const list = htmlEl('div', 'c4-icon-list');
-        const note = htmlEl('div', 'c4-icons-note t-detail');
-        note.setAttribute('role', 'status');
         const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined && !ui.hasLogo(String(n).slice(5))))];
-        const pick = (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } };
-        const fill = () => {
-          const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
-          list.textContent = '';
-          let shown = 0;
-          const section = (heading, names) => {
-            if (!names.length) return;
-            if (heading) list.appendChild(htmlEl('div', 'c4-icon-head t-detail', heading));
-            const grid = htmlEl('div', 'c4-icon-grid');
-            grid.setAttribute('role', 'group');
-            grid.setAttribute('aria-label', heading || 'Default');
-            names.forEach((n) => {
-              const b = htmlEl('button', 'c4-icon-opt');
-              b.type = 'button';
-              b.dataset.icon = n;
-              b.title = !n ? `Default for ${KIND_NAME[o.kind] || o.kind}` : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
-              b.setAttribute('aria-label', b.title);
-              b.setAttribute('aria-pressed', String((o.icon || '') === n));
-              if (n.startsWith('logo:')) b.innerHTML = `<span class="c4-icon-logo">${ui.logo(n.slice(5), { size: 'lg' })}</span>`;   // a vendor logo keeps its own colours on a white disc
-              else b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
-              b.addEventListener('click', () => pick(n));
-              grid.appendChild(b);
-            });
-            list.appendChild(grid);
-          };
-          section('', ['']);
-          ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
-          const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
-          const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
-          const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
-          shown += techLogos.length; section('Tech logos', techLogos);
-          shown += localPacks.length; section('Local packs', localPacks);
-          note.textContent = shown ? '' : 'No icon matches.';
-        };
-        search.addEventListener('input', fill);
-        box.append(search, list, note);
-        if (missing.length) {
-          const m = htmlEl('div', 'c4-icons-missing t-detail', `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`);
-          m.setAttribute('role', 'status');
-          box.appendChild(m);
-        }
-        box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); } });
-        fill();
+        const { box, search } = ui.buildIconPicker({
+          id: 'c4-icons',
+          searchId: 'c4-icon-search',
+          current: o.icon || '',
+          defaultIcon: KIND_ICON[o.kind] || 'cloud',
+          defaultLabel: `Default for ${KIND_NAME[o.kind] || o.kind}`,
+          missing,
+          missingText: `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`,
+          classes: { box: 'c4-icons', head: 'c4-icon-head', logo: 'c4-icon-logo', note: 'c4-icons-note', missing: 'c4-icons-missing' },
+          onPick: (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } },
+          onEscape: () => closeFloating('cancel')
+        });
         openFloating(box, anchor);
         search.focus();
       }
@@ -1775,7 +1877,9 @@
 
       function elementBar(bar, o) {
         bar.setAttribute('aria-label', 'Element');
-        bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
+        const iconBtn = abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo');
+        iconBtn.removeAttribute('title');
+        bar.appendChild(iconBtn);
         if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
         bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(colourPicker(o.color));
@@ -1942,6 +2046,7 @@
         if (closeFloating('cancel')) did = true;
         if (cancelDrag()) did = true;
         if (cancelMove()) did = true;
+        if (cancelPaletteDrag()) did = true;
         return did;
       }
       function clearSelectionNow() {
@@ -2243,7 +2348,7 @@
       if (modeBadge && document.getElementById('save-status')) document.getElementById('save-status').after(modeBadge);
       function updateModeUi(announce) {
         const man = manualMode();
-        if (btnTidy) { btnTidy.setAttribute('aria-pressed', String(!man)); btnTidy.title = man ? TIDY_MANUAL : TIDY_AUTO; }
+        if (btnTidy) { btnTidy.removeAttribute('aria-pressed'); btnTidy.title = man ? TIDY_MANUAL : TIDY_AUTO; }
         if (!modeBadge) return;
         const show = man && !presenting(), was = !modeBadge.hidden;
         modeBadge.hidden = !show;

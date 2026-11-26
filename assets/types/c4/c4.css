@@ -207,28 +207,11 @@
     .c4-step-pop { width: 210px; }
     .c4-step-row { display: flex; gap: var(--space-4); align-items: center; }
     .c4-step-pop .c4-step-hint { color: var(--text-muted); font-size: var(--t-overline-size); }
-    .c4-icons-note, .c4-icons-missing { color: var(--text-muted); }
     .c4-input {
       width: 100%; box-sizing: border-box; padding: var(--space-4) var(--space-8); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
     }
     .c4-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-    .c4-icons { width: 300px; }
-    .c4-icon-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
-    .c4-icon-list::-webkit-scrollbar { display: none; }
-    .c4-icon-head { color: var(--text-muted); margin: var(--space-8) 0 var(--space-4); }
-    .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: var(--space-4); }
-    .c4-icon-opt {
-      display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-lg);
-      background: transparent; color: var(--text-soft); cursor: pointer;
-    }
-    .c4-icon-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-round); background: var(--swatch-disc-logo); }
-    .c4-icon-opt:hover { background: var(--bg-hover); color: var(--text-main); }
-    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-      .c4-icon-opt:hover { background: var(--glass-hover); color: var(--text-glass); }
-    }
-    .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
-    .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
     /* ?present: the shell hides the whole dock; the Level and Steps controls stay, nothing else of it does; ?capture hides the dock completely */
     body.presentation:not(.capture) .dock-area .toolbar-center { display: flex !important; }
@@ -299,7 +282,17 @@
     :root[data-theme="dark"] #btn-add-container { --c4-tile-ink: var(--sw-3-line); }
     :root[data-theme="dark"] #btn-add-database { --c4-tile-ink: var(--sw-8-line); }
     :root[data-theme="dark"] #btn-add-queue { --c4-tile-ink: var(--sw-5-line); }
+    #c4-pop .btn-shape { cursor: grab; touch-action: none; }
     #c4-pop .btn-shape:hover .c4-tile-card { border-color: var(--primary); }
     #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--bg-soft) 35%, transparent); stroke: var(--border-dark); stroke-width: var(--ring-thin); }
     #btn-add-group svg > .c4-grp-tag { fill: var(--bg-soft); stroke: var(--border-dark); stroke-width: 1px; }
     #btn-add-group:hover svg > * { stroke: var(--primary); }
+
+    /* Palette drag-to-add ghost preview */
+    .c4-ghost, .c4-node.c4-ghost, .c4-group.c4-ghost, .note.c4-ghost {
+      position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0;
+      opacity: 0.92; box-shadow: var(--shadow-xl);
+      transition: opacity var(--dur-micro) var(--curve-out);
+    }
+    .c4-ghost.off-target { opacity: 0.45; }
+    body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }

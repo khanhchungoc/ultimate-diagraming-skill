@@ -50,6 +50,12 @@ try {
     await t.press('Enter');
     return saved();
   };
+  const openAdd = async () => {
+    const p = await t.at('#btn-add');
+    await t.mouse('mouseMoved', p.x, p.y);
+    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+  };
+  const addTile = async (sel) => { await openAdd(); await t.clickOn(sel); };
   let d, f1Bottom;
 
   await t.section('repair', async () => {
@@ -62,15 +68,15 @@ try {
   // the browser does the hit-testing and makes the click and dblclick events itself.
 
   // --- Repair (step 0) ---
-  t.check('with nothing selected Message is disabled, and Frame and Note stay clickable and say what to select',
-    (await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
+  t.check('with nothing selected Message, Frame and Note stay enabled inside Add and say what to select',
+    !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
       && /click a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   t.check('Note with nothing selected shows a toast that says what to select, and adds nothing',
     /click a message/.test(await t.ev(`(document.querySelector('.toast') || {}).textContent || ''`)) && (await count('.note')) === 0);
   await t.clickOn(`.seq-msg-label[data-edge-id="m6"]`);
   const selected = await t.ev(`!!document.querySelector('.seq-msg-label.selected')`);
-  t.check('selecting a message enables Message, Frame and Note, and shows its action bar',
+  t.check('selecting a message keeps Message, Frame and Note enabled, and shows its action bar',
     !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note')) && (await count('.seq-actionbar .seq-ab-btn[data-act="type"]')) === 0
       && (await count('.seq-actionbar .seq-ab-btn[data-act="async"]')) === 1);
   await t.press('Delete');
@@ -128,20 +134,20 @@ try {
   t.check('Escape in an edit keeps the old text', JSON.parse(await t.ev(labels)).includes('Stock reserved') && (await editing()) === null);
 
   await t.open(page);
-  await t.clickOn('#btn-add-participant');
+  await addTile('#btn-add-participant');
   const newP = await editing();
   await t.type('Ledger');
   await t.press('Enter');
   t.check('a new participant opens in edit, on screen, and takes the typed name',
     /^Participant/.test(newP || '') && JSON.parse(await t.ev(names))[4] === 'Ledger' && (await onScreen('.seq-participant.selected')), `${newP} ${await t.ev(names)}`);
   await t.clickOn('.seq-msg-label[data-edge-id="m7"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   const newM = await editing();
   await t.type('Post entry');
   await t.press('Enter');
   t.check('Message inserts after the selected message, in edit and on screen',
     newM === 'Message' && JSON.parse(await t.ev(labels)).at(-1) === 'Post entry' && (await onScreen('.seq-msg-label.selected')), `${newM} ${await t.ev(labels)}`);
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   const newF = await editing();
   await t.type('ledger enabled');
   await t.press('Enter');
@@ -151,12 +157,12 @@ try {
   // The dock's Message button infers the kind like drawing does: a call, or the reply of an open call
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   await t.clickOn('.seq-ab-btn[data-act="reverse"]');
   let dk = await saved();
   const x1 = dk.messages[1];
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   dk = await saved();
   t.check('Message after a message adds a call; after a call that reopens the other way, the reply of the open call',
@@ -164,7 +170,7 @@ try {
     JSON.stringify(dk.messages.slice(0, 4)));
   await t.open(page);
   await t.clickOn('.seq-participant[data-node-id="p2"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   dk = await saved();
   t.check('Message from a selected participant adds a call at the first row', dk.messages[0].kind === 'sync' && dk.messages[0].from === 'p2', JSON.stringify(dk.messages[0]));
@@ -191,6 +197,7 @@ try {
     plusShown && drawn === 'Message' && d.messages[1].label === 'Check fraud' && d.messages[1].from === 'p3' && d.messages[1].to === 'p2' && d.messages[1].kind === 'sync',
     `plus=${plusShown} edit=${drawn} ${JSON.stringify(d.messages[1])}`);
   // Released on the same lifeline: a self-message (pick a gap clear of f1's frame tag)
+  await t.press('Escape');   // dismiss the new message's action bar so it does not cover the lifeline below
   const yGap2 = await gapY('m2', 'm3');
   const shopB = await lifelineAt('p2', yGap2);
   await t.mouse('mouseMoved', shopB.x, yGap2);
@@ -247,10 +254,12 @@ try {
   await t.press('Enter');
   t.check('the + between two participant boxes inserts one there, name in edit',
     JSON.parse(await t.ev(names)).join() === [order[0].name, order[1].name, 'Fraud', order[2].name, order[3].name].join(), await t.ev(names));
-  // The participant kind from the action bar
+  // The participant icon from the action bar (shared icon picker)
   await t.clickOn('.seq-participant[data-node-id="p3"]');
-  await t.clickOn('.seq-ab-btn[data-value="database"]');
-  t.check('the action bar sets the participant kind (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
+  await t.clickOn('.seq-ab-btn[data-act="icon"]');
+  await t.type('database');
+  await t.clickOn('#seq-icons button[data-icon="database"]');
+  t.check('the action bar sets the participant icon (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
 
   // Delete a participant with messages: asks first
   await t.open(page);
@@ -294,7 +303,7 @@ try {
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m3"]', { modifiers: 8 });
   const rangeSel = await count('.seq-msg-label.selected');
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   await t.type('signed in');
   await t.press('Enter');
   d = await saved();
@@ -304,7 +313,7 @@ try {
   await t.clickOn('.seq-msg-label[data-edge-id="m3"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m5"]', { modifiers: 8 });
   const framesBefore = await count('.frame-tag');
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   t.check('Frame says why, and adds nothing, when a frame edge cuts through the range',
     /cuts through/.test(await t.ev(`document.getElementById('btn-frame').title`)) && (await count('.frame-tag')) === framesBefore
       && /cuts through/.test(await t.ev(`[...document.querySelectorAll('.toast')].map((e) => e.textContent).join(' ')`)));
@@ -366,7 +375,7 @@ try {
   // Notes: add, edit (Shift+Enter breaks a line), move, stretch
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   const noteEdit = await editing();
   await t.type('Held for 15 min');
   await t.press('Enter', { modifiers: 8 });
@@ -389,7 +398,7 @@ try {
   t.check("the note's stretch handle spans it over a second lifeline", JSON.stringify(d.notes[0].over) === '["p3","p4"]', JSON.stringify(d.notes[0]));
   // A long single-lifeline note expands into open space toward the next lifeline, and wraps inside its box in edit mode
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   const longNoteText = 'Start with benefits[].levelCode and resolve overrides before keeping one OPEX per Benefit';
   await t.type(longNoteText);
   await t.press('Enter');
@@ -458,6 +467,7 @@ try {
   const noteIds = async () => new Set(((await saved()).notes || []).map((n) => n.id));
   await t.open(page);
   let had = await noteIds();
+  await openAdd();
   let dockBtn = await t.at('#btn-add-note'), dockRow = await m2Line();
   let a2 = await lifelineAt(order[1].id, dockRow.y - 20), a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, (a2.x + a3.x) / 2, dockRow.y - 20, { steps: 10 });
@@ -468,6 +478,7 @@ try {
     !!nn && nn.over === undefined && nn.place > 1 && nn.place < 2 && (nn.before || nn.after), JSON.stringify(d.notes));
   await t.open(page);
   had = await noteIds();
+  await openAdd();
   dockBtn = await t.at('#btn-add-note'); dockRow = await m2Line();
   a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, a3.x + 10, dockRow.y - 20, { steps: 10 });
@@ -485,6 +496,7 @@ try {
   const moved = d.notes.find((n) => n.id === nn.id);
   t.check('a note dragged away from every lifeline becomes a free note', moved.over === undefined && moved.place > 1 && moved.place < 2, JSON.stringify(moved));
   await t.open(page);
+  await openAdd();
   dockBtn = await t.at('#btn-frame');
   const m7r = await t.at('.seq-line[data-edge-id="m7"]');
   await t.dragTo(dockBtn.x, dockBtn.y, m7r.x, m7r.y - 25, { steps: 10 });
@@ -494,6 +506,7 @@ try {
   t.check('a Frame dragged from the dock onto an arrow wraps that arrow', !!nf2 && nf2.from === 'm7' && nf2.to === 'm7', JSON.stringify(d.fragments));
   // Onto the bottom part of another frame: the arrow there (m6, f1's last), not the next one
   await t.open(page);
+  await openAdd();
   dockBtn = await t.at('#btn-frame');
   const m6r = await t.at('.seq-line[data-edge-id="m6"]');
   await t.mouse('mouseMoved', dockBtn.x, dockBtn.y);
@@ -518,7 +531,7 @@ try {
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-text');
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete-frame"]');
-  const choices = await t.ev(`JSON.stringify([...document.querySelectorAll('.confirm-actions button')].map((b) => b.textContent))`);
+  const choices = await t.ev(`JSON.stringify([...document.querySelectorAll('.confirm .confirm-actions button')].map((b) => b.textContent))`);
   await t.clickOn('.confirm-alt');
   d = await saved();
   t.check('a frame\'s bin offers Frame only, which removes the frame and keeps its messages',
@@ -552,7 +565,7 @@ try {
   // A note at the end of a frame: inside it (after the last message) or just outside (before the next message)
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   await t.press('Enter');
   f1Bottom = await frameEdge('f1', 'bottom');
   let nb2 = await t.at('.note', 0.5, 0);   // a note's drop slot follows its top edge
@@ -759,7 +772,7 @@ try {
   const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
   await t.clickOn('.seq-msg-label[data-edge-id="m17"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m19"]', { modifiers: 8 });
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   await t.type('Status update');
   await t.press('Enter');
   await t.press('Escape');
@@ -1143,6 +1156,36 @@ try {
   const drag = Date.now() - t0;
   await t.press('Escape');
   t.check('a 40-move message drag over the long page runs without page errors', t.errors.length === 0 && drag < 8000, `${drag}ms ${t.errors.join(' | ')}`);
+  });
+
+  // --- Shared C4-style icon picker & note-next-to-delete order ---
+  await t.section('icon-picker-and-note', async () => {
+  await t.open(page);
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  const pActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('participant bar uses the shared Icon button (not inline pkind buttons) and places note right before delete',
+    pActs.includes('icon') && !pActs.includes('pkind') && pActs[pActs.length - 2] === 'note' && pActs[pActs.length - 1] === 'delete', JSON.stringify(pActs));
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  const pickerOpen = await t.ev(`(() => { const p = document.getElementById('seq-icons'); return !!(p && p.querySelector('#seq-icon-search') && p.querySelectorAll('button[data-icon]').length > 20); })()`);
+  t.check('clicking Icon opens the shared #seq-icons picker with search and grouped icons', pickerOpen);
+  await t.type('postgresql');
+  await t.check('searching postgresql shows logo:devicon/postgresql in sequence picker',
+    await t.ev(`!!document.querySelector('#seq-icons button[data-icon="logo:devicon/postgresql"]')`));
+  await t.clickOn('#seq-icons button[data-icon="logo:devicon/postgresql"]');
+  const hasLogo = await t.ev(`!!document.querySelector('.seq-participant[data-node-id="p2"] .seq-kind-icon.is-logo svg')`);
+  d = await saved();
+  t.check('picking a tech logo renders it on the participant pill and saves p.icon',
+    hasLogo && d.participants[1].icon === 'logo:devicon/postgresql', JSON.stringify([hasLogo, d.participants[1]]));
+  // Picking Default clears p.icon
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  await t.clickOn('#seq-icons button[data-icon=""]');
+  d = await saved();
+  t.check('picking Default clears p.icon', d.participants[1].icon === undefined, JSON.stringify(d.participants[1]));
+  // Message bar also puts note right before delete
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  const mActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('message bar places note right before delete',
+    mActs[mActs.length - 2] === 'note' && mActs[mActs.length - 1] === 'delete', JSON.stringify(mActs));
   });
 } catch (err) {
   console.error('[ERROR]', err.message);

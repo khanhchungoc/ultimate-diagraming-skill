@@ -376,11 +376,11 @@
 --dot-edge: rgba(0, 0, 0, 0.18);
 --dot-edge-soft: rgba(0, 0, 0, 0.15);
 --menu-border: #cbd5e1;
---glass-top: rgba(255, 255, 255, 0.62);
---glass-bottom: rgba(255, 255, 255, 0.44);
---glass-bg: rgba(255, 255, 255, 0.53);
---confirm-top: rgba(255, 255, 255, 0.78);
---confirm-bottom: rgba(255, 255, 255, 0.68);
+--glass-top: rgba(255, 255, 255, 0.52);
+--glass-bottom: rgba(255, 255, 255, 0.34);
+--glass-bg: rgba(255, 255, 255, 0.43);
+--confirm-top: rgba(255, 255, 255, 0.68);
+--confirm-bottom: rgba(255, 255, 255, 0.58);
 --glass-border: rgba(255, 255, 255, 0.85);
 --glass-outer-ring: rgba(15, 23, 42, 0.10);
 --glass-rim: rgba(255, 255, 255, 0.96);
@@ -1261,6 +1261,95 @@ right: auto !important;
 transform: translateX(-50%);
 }
 }
+dialog.save-modal {
+width: 400px;
+max-width: calc(100vw - 24px);
+margin: auto;
+padding: var(--space-16);
+box-sizing: border-box;
+border-radius: var(--radius-3xl);
+border: 1px solid var(--border-dark);
+background: var(--bg-panel);
+color: var(--text-main);
+box-shadow: var(--shadow-glass-lg);
+font-size: var(--t-control-size);
+line-height: var(--t-control-leading);
+}
+dialog.save-modal:modal { overscroll-behavior: contain; }
+dialog.save-modal::backdrop {
+background: var(--scrim-bg);
+overflow: hidden;
+overscroll-behavior: contain;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+dialog.save-modal {
+background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+border-color: var(--glass-border);
+backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+}
+}
+@media (prefers-reduced-transparency: reduce) {
+dialog.save-modal {
+background: var(--bg-panel);
+border-color: var(--border-dark);
+backdrop-filter: none;
+-webkit-backdrop-filter: none;
+}
+}
+.save-modal-title { margin: 0 0 var(--space-8); font-weight: var(--weight-semibold); font-size: var(--text-lg); color: var(--text-main); }
+.save-modal-msg { margin: 0 0 var(--space-12); color: var(--text-soft); overflow-wrap: anywhere; }
+.save-modal-check {
+display: flex; align-items: center; gap: var(--space-8); margin: var(--space-8) 0 var(--space-16);
+font-size: var(--text-xs); color: var(--text-soft); cursor: pointer; user-select: none;
+}
+.save-modal-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+dialog.save-modal .btn { padding: var(--space-4) var(--space-12); font-size: var(--t-control-size); white-space: nowrap; }
+.icon-picker {
+position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-8);
+width: 300px; max-width: calc(100vw - 16px); padding: var(--space-8);
+background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl);
+box-shadow: var(--shadow-xl); color: var(--text-main);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+.icon-picker {
+background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+border-color: var(--glass-border);
+backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+box-shadow: var(--shadow-glass-lg);
+color: var(--text-glass);
+}
+}
+@media (prefers-reduced-transparency: reduce) {
+.icon-picker {
+background: var(--bg-panel);
+border-color: var(--border-dark);
+backdrop-filter: none;
+-webkit-backdrop-filter: none;
+}
+}
+.icon-picker-input {
+width: 100%; box-sizing: border-box; padding: var(--space-4) var(--space-8); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+}
+.icon-picker-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.icon-picker-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.icon-picker-list::-webkit-scrollbar { display: none; }
+.icon-picker-head { color: var(--text-muted); margin: var(--space-8) 0 var(--space-4); }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: var(--space-4); }
+.icon-picker-opt {
+display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-lg);
+background: transparent; color: var(--text-soft); cursor: pointer;
+}
+.icon-picker-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-round); background: var(--swatch-disc-logo); }
+.icon-picker-opt:hover { background: var(--bg-hover); color: var(--text-main); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+.icon-picker-opt:hover { background: var(--glass-hover); color: var(--text-glass); }
+}
+.icon-picker-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+.icon-picker-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.icon-picker-note, .icon-picker-missing { color: var(--text-muted); }
 .note {
 position: absolute;
 box-sizing: border-box;
@@ -1649,6 +1738,11 @@ box-shadow: var(--shadow-md);
 scale: var(--ui-scale, 1); transform-origin: 50% 100%;
 }
 :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
+#actionbar-layer { position: absolute; inset: 0; pointer-events: none; z-index: 53; overflow: visible; }
+#actionbar-layer > :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+position: absolute; scale: none; translate: none; pointer-events: auto;
+}
+body.presentation #actionbar-layer, body.exporting #actionbar-layer { display: none !important; }
 .ab-btn {
 display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
 border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
@@ -5693,7 +5787,23 @@ animation: none !important;
         <section id="gantt-table-view" class="gantt-table-view" aria-label="Task table" hidden></section>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
@@ -5782,8 +5892,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -5816,7 +5926,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -5886,7 +5995,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -6203,7 +6312,190 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+const ICON_GROUPS = [
+['People', ['user', 'users', 'actor', 'headset']],
+['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
+['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
+['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
+['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
+['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
+['Security', ['lock', 'key', 'shield']]
+];
+if (typeof ICONS !== 'undefined') {
+ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => {
+if (ICONS[n] === undefined) throw new Error(`Icon picker: "${n}" (${g}) is not in assets/icons/default.json`);
+}));
+}
+const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+function buildIconPicker(opts) {
+const o = opts || {};
+const cls = o.classes || {};
+const mk = (tag, c, text) => {
+const el = document.createElement(tag);
+if (c) el.className = c;
+if (text !== undefined) el.textContent = text;
+return el;
+};
+const box = mk('div', `icon-picker${cls.box ? ` ${cls.box}` : ''}`);
+if (o.id) box.id = o.id;
+box.setAttribute('role', 'dialog');
+box.setAttribute('aria-label', 'Icon');
+const search = mk('input', `icon-picker-input${cls.input ? ` ${cls.input}` : ''}`);
+if (o.searchId) search.id = o.searchId;
+search.type = 'search';
+search.placeholder = 'Search icons';
+search.setAttribute('aria-label', 'Search icons');
+search.autocomplete = 'off';
+const list = mk('div', `icon-picker-list${cls.list ? ` ${cls.list}` : ''}`);
+const note = mk('div', `icon-picker-note t-detail${cls.note ? ` ${cls.note}` : ''}`);
+note.setAttribute('role', 'status');
+const current = o.current || '';
+const defaultIcon = o.defaultIcon || 'cloud';
+const defaultLabel = o.defaultLabel || 'Default';
+const fill = () => {
+const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
+list.textContent = '';
+let shown = 0;
+const section = (heading, names) => {
+if (!names.length) return;
+if (heading) list.appendChild(mk('div', `icon-picker-head t-detail${cls.head ? ` ${cls.head}` : ''}`, heading));
+const grid = mk('div', `icon-picker-grid${cls.grid ? ` ${cls.grid}` : ''}`);
+grid.setAttribute('role', 'group');
+grid.setAttribute('aria-label', heading || 'Default');
+names.forEach((n) => {
+const b = mk('button', `icon-picker-opt${cls.opt ? ` ${cls.opt}` : ''}`);
+b.type = 'button';
+b.dataset.icon = n;
+const label = !n ? defaultLabel : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
+b.setAttribute('aria-label', label);
+b.setAttribute('aria-pressed', String(current === n));
+if (n.startsWith('logo:')) b.innerHTML = `<span class="icon-picker-logo${cls.logo ? ` ${cls.logo}` : ''}">${logo(n.slice(5), { size: 'lg' })}</span>`;
+else b.innerHTML = icon(n || defaultIcon, { size: 'md' });
+b.addEventListener('click', () => { if (o.onPick) o.onPick(n); });
+grid.appendChild(b);
+});
+list.appendChild(grid);
+};
+section('', ['']);
+ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
+const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
+const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
+const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
+shown += techLogos.length; section('Tech logos', techLogos);
+shown += localPacks.length; section('Local packs', localPacks);
+note.textContent = shown ? '' : 'No icon matches.';
+};
+search.addEventListener('input', fill);
+box.append(search, list, note);
+if (o.missing && o.missing.length) {
+const m = mk('div', `icon-picker-missing t-detail${cls.missing ? ` ${cls.missing}` : ''}`, o.missingText || `Missing icon pack: ${o.missing.join(', ')}.`);
+m.setAttribute('role', 'status');
+box.appendChild(m);
+}
+box.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (o.onEscape) o.onEscape(); }
+});
+fill();
+return { box, search };
+}
+let iconPickerEl = null;
+let iconPickerTrigger = null;
+function closeIconPicker(restoreFocus) {
+if (!iconPickerEl) return false;
+const el = iconPickerEl, trig = iconPickerTrigger;
+iconPickerEl = null;
+iconPickerTrigger = null;
+document.removeEventListener('pointerdown', onIconPickerOutside, true);
+if (typeof motion !== 'undefined') motion.ghostExit(el, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: el.style.transformOrigin || 'top left' });
+el.remove();
+if (restoreFocus && trig && trig.isConnected) trig.focus();
+return true;
+}
+function onIconPickerOutside(e) {
+if (iconPickerEl && !iconPickerEl.contains(e.target) && !(iconPickerTrigger && iconPickerTrigger.contains(e.target))) closeIconPicker(false);
+}
+function openIconPicker(anchor, opts) {
+const o = opts || {};
+const sameTrigger = o.trigger && iconPickerTrigger === o.trigger && iconPickerEl;
+closeIconPicker(false);
+if (sameTrigger) return null;
+const { box, search } = buildIconPicker(Object.assign({}, o, {
+onPick: (name) => { closeIconPicker(false); if (o.onPick) o.onPick(name); },
+onEscape: () => closeIconPicker(true)
+}));
+box.dataset.exportSkip = '';
+document.body.appendChild(box);
+iconPickerEl = box;
+iconPickerTrigger = o.trigger || null;
+const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
+box.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - box.offsetWidth - 8)))}px`;
+const below = r.bottom + 6 + box.offsetHeight < innerHeight - 8;
+box.style.top = `${Math.round(below ? r.bottom + 6 : Math.max(8, r.top - 6 - box.offsetHeight))}px`;
+box.style.transformOrigin = below ? 'top left' : 'bottom left';
+if (typeof motion !== 'undefined') {
+motion.anim(box, [
+{ transform: `scale(0.92, 0.86) translateY(${below ? -4 : 4}px)`, clipPath: below ? 'inset(0 0 25% 0 round 8px)' : 'inset(25% 0 0 0 round 8px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: 130, easing: motion.curve('curve-spring-tactile') });
+}
+document.addEventListener('pointerdown', onIconPickerOutside, true);
+search.focus();
+return box;
+}
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, buildIconPicker, openIconPicker, closeIconPicker, isIconPickerOpen: () => !!iconPickerEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -7363,6 +7655,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -7372,6 +7665,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -9024,7 +9318,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -9301,24 +9603,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }

@@ -344,6 +344,7 @@
         renderTabs();
         followTab();
         updateSubButtons();
+        syncLaneBar();
         syncNodeBar();
       }
 
@@ -472,12 +473,41 @@
         placeLaneBar();
       }
 
-      // The selected lane's bar sits over its pill, or under it when the pill is near the top of the window
+      // The selected lane's bar is pinned in #actionbar-layer over its pill (or under it near the top of the window)
+      let lastLaneBarId = null;
+      function syncLaneBar() {
+        const editable = !isPresenting() && chartData.swimlanes !== false;
+        const lane = editable && selectedLaneId ? chartData.lanes.find(l => l.id === selectedLaneId) : null;
+        const pill = lane ? lanesRoot.querySelector(`.swimlane[data-lane-id="${lane.id}"] .lane-pill`) : null;
+        const key = pill ? lane.id : null;
+        const same = key !== null && key === lastLaneBarId;
+        lastLaneBarId = key;
+        document.querySelectorAll('.lane-bar').forEach(b => { if (same) b.remove(); else motion.hideBar(b); });
+        if (!pill) return;
+        const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
+        const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+        bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
+        bar.appendChild(ui.abSep());
+        bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
+        bar.appendChild(ui.abSep());
+        if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+        // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
+        else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
+        ['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
+        bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
+        bar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const b = e.target.closest('.ab-btn');
+          if (!b || b.dataset.act === undefined) return;
+          if (b.dataset.act === 'rename') { if (pill._startRename) pill._startRename(); }
+          else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
+          else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; ui.clearBars(); render(); updateStatus(true); }
+        });
+        ui.pinBar(bar, pill, { gap: 8, align: isTB() ? 'center' : 'left', prefer: 'above', exclusive: true });
+        if (!same && motion.enabled()) motion.showBar(bar);
+      }
       function placeLaneBar() {
-        const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
-        if (!bar) return;
-        const pill = bar.parentElement;
-        bar.classList.toggle('is-below', !ui.roomAbove(pill, bar));
+        ui.repositionBars();
       }
       // A lane's colour: a palette slot, or '' for none (the colour for its position). One undo step.
       function setLaneColor(laneId, slot) {
@@ -570,32 +600,6 @@
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
-          // The lane's action bar (shown while the lane is selected, over the pill; below it near the viewport's top edge):
-          // rename, delete (hide lanes on the only lane), colour (none = the colour for its position)
-          if (editable) {
-            const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
-            const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
-            bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
-            bar.appendChild(ui.abSep());
-            bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
-            bar.appendChild(ui.abSep());
-            if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
-            // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
-            else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
-            // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
-            bar.addEventListener('pointerdown', (e) => e.stopPropagation());
-            bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
-            bar.addEventListener('dblclick', (e) => e.stopPropagation());
-            bar.addEventListener('click', (e) => {
-              e.stopPropagation();
-              const b = e.target.closest('.ab-btn');
-              if (!b || b.dataset.act === undefined) return;
-              if (b.dataset.act === 'rename') startRename();
-              else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
-              else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
-            });
-            pill.appendChild(bar);
-          }
           if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
           function startRename() {
@@ -609,6 +613,7 @@
             sel.removeAllRanges();
             sel.addRange(range);
           }
+          pill._startRename = startRename;
           title.addEventListener('dblclick', (e) => {
             if (!editable) return;
             e.stopPropagation();
@@ -920,7 +925,6 @@
         el.id = `node-${node.id}`;
         el.dataset.nodeId = node.id;
         el.setAttribute('role', 'button');
-        el.dataset.noTip = '';
         const label = document.createElement('div');
         label.className = 'node-label';
         label.spellcheck = false;
@@ -1072,10 +1076,7 @@
         }
         bar.appendChild(btn('label', 'label', 'Label (or double-click the arrow)'));
         bar.appendChild(btn('delete', 'trash', 'Delete the arrow', 'is-danger'));
-        bar.style.left = `${route.midX + (hasLabel ? labelContainer.offsetWidth / 2 : 0) + 8}px`;
-        bar.style.top = `${route.midY}px`;
-        bar.addEventListener('pointerdown', (e) => e.stopPropagation());
-        bar.addEventListener('dblclick', (e) => e.stopPropagation());
+        ['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
         bar.addEventListener('click', (e) => {
           e.stopPropagation();
           const b = e.target.closest('.ab-btn');
@@ -1270,7 +1271,6 @@
         nodeEl.id = `node-${node.id}`;
         nodeEl.dataset.nodeId = node.id;
         nodeEl.dataset.item = '';   // shared hover / selected / dim look (components/item-states.css)
-        nodeEl.dataset.noTip = '';
         // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
         const outline = shapeOutlineSvg(node.type);
         if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
@@ -1279,7 +1279,6 @@
         label.className = 'node-label';
         label.contentEditable = 'false';
         label.spellcheck = false;
-        label.dataset.noTip = '';
         nodeEl.appendChild(label);
         // 4 Anchor Ports
         ['top', 'right', 'bottom', 'left'].forEach(pos => {
@@ -1298,7 +1297,6 @@
           + (selectedNodeIds.has(node.id) ? ' selected' : '') + (sub ? ' has-child' : '');
         placeNodeEl(nodeEl, node);
         nodeEl.style.transformOrigin = '';   // left by an entrance morph; a fresh element has none
-        nodeEl.querySelectorAll(':scope > .node-bar').forEach(b => b.remove());   // syncNodeBar draws it anew, as for a new element
         const label = nodeEl.querySelector('.node-label');
         const text = node.label || '';
         if (label.contentEditable !== 'true' && label.textContent !== text) label.textContent = text;
@@ -1360,11 +1358,12 @@
       });
       lanesRoot.addEventListener('dblclick', (e) => {
         const el = nodeElAt(e.target), node = nodeAt(el);
-        if (!node) return;
+        if (!node || isPresenting()) return;
         if (isConnector(node)) { e.stopPropagation(); editConnectorLabel(el); return; }
         const label = e.target.closest('.node-label');
         if (!label || !el.contains(label)) return;
         e.stopPropagation();
+        el.classList.add('is-editing');
         label.contentEditable = 'true';
         label.focus();
         const range = document.createRange();
@@ -1376,6 +1375,7 @@
       lanesRoot.addEventListener('blur', (e) => {
         const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
         if (!node) return;
+        el.classList.remove('is-editing');
         if (isConnector(node)) {
           if (label.contentEditable !== 'true') return;
           label.contentEditable = 'false';
@@ -1401,6 +1401,12 @@
           e.stopPropagation();
         } else if (e.key === 'Enter') {
           e.preventDefault();
+          label.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          label.textContent = node.label || '';
+          el.classList.remove('is-editing');
           label.blur();
         }
       });
@@ -1499,9 +1505,9 @@
       let lastEdgeBarId = null;
       const edgeEls = new Map();   // edge id -> { path, hit, label, text }: this render's elements of each arrow
       function renderEdges() {
-        const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
+        const oldBars = [...document.querySelectorAll('.edge-bar')];
         const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
-        if (oldBar && barChanged) motion.hideBar(oldBar);   // another arrow: the old bar closes, then the new one opens
+        oldBars.forEach(b => { if (barChanged) motion.hideBar(b); else b.remove(); });   // another arrow: the old bar closes, then the new one opens
         edgeGroup.innerHTML = '';
         edgeLabelsGroup.innerHTML = '';
         edgeEls.clear();
@@ -1594,12 +1600,24 @@
                 }
               });
 
-              const bar = buildEdgeBar(edge, labelContainer, pathD, hasLabel);
-              labelContainer.after(bar);
-              if (popBar && motion.enabled()) {
-                const br = bar.getBoundingClientRect();
-                if (br.width > 0) {
-                  motion.showBar(bar);   // fades and slides in whole (its shadow with it)
+              if (!isPresenting()) {
+                const bar = buildEdgeBar(edge, labelContainer, pathD, hasLabel);
+                const getEdgeAnchor = () => {
+                  if (hasLabel && labelContainer.isConnected) {
+                    const r = labelContainer.getBoundingClientRect();
+                    if (r.width > 0 || r.height > 0) return r;
+                  }
+                  const sr = swimlanesContainer.getBoundingClientRect();
+                  const cx = sr.left + pathD.midX * scale;
+                  const cy = sr.top + pathD.midY * scale;
+                  return { left: cx, right: cx, top: cy, bottom: cy };
+                };
+                ui.pinBar(bar, getEdgeAnchor, { gap: 8, align: 'center', prefer: 'above', exclusive: true });
+                if (popBar && motion.enabled()) {
+                  const br = bar.getBoundingClientRect();
+                  if (br.width > 0) {
+                    motion.showBar(bar);   // fades and slides in whole (its shadow with it)
+                  }
                 }
               }
             }
@@ -2361,19 +2379,12 @@
 
       function selectLane(laneId) {
         const hadEdge = selectedEdgeId;
-        const prevBar = lanesRoot.querySelector('.lane-selected .lane-bar');
         selectedLaneId = laneId;
         clearNodeSelection();
         selectedEdgeId = null;
         if (hadEdge) renderEdges();
         markSelectedLane();
-        const nextBar = lanesRoot.querySelector('.lane-selected .lane-bar');
-        if (nextBar && nextBar !== prevBar && motion.enabled()) {
-          const nr = nextBar.getBoundingClientRect();
-          if (nr.width > 0) {
-            motion.showBar(nextBar);
-          }
-        }
+        syncLaneBar();
       }
 
       // Removes a lane together with its steps and every arrow attached to them (one undo step).
@@ -2473,14 +2484,11 @@
           else if (many) deleteNodes([...selectedNodeIds]);
           else deleteNode(selectedNodeId);
         });
-        el.appendChild(bar);
-        placeNodeBar();
+        ui.pinBar(bar, el, { gap: 10, align: 'center', prefer: 'above', exclusive: true });
         if (!same) motion.showBar(bar);
       }
       function placeNodeBar() {
-        const bar = document.querySelector('.node-bar');
-        if (!bar) return;
-        bar.classList.toggle('is-below', !ui.roomAbove(bar.parentElement, bar));
+        ui.repositionBars();
       }
 
       function clearNodeSelection() {
@@ -3053,14 +3061,14 @@
       // --- LANES ---
       // In no-swimlane mode the Lane button turns swimlanes back on (revealing the single lane's name pill)
       function updateLaneButton() {
-        const label = btnAddLane.querySelector('.btn-label');
+        const label = btnAddLane.querySelector('.tile-caption, .btn-label');
         const off = chartData.swimlanes === false;
         if (label) label.textContent = off ? 'Show lanes' : 'Lane';
-        btnAddLane.title = off ? 'Show swimlanes (name the actor, then add more lanes)' : 'Add a swimlane';
+        btnAddLane.title = off ? 'Show swimlanes (name the actor, then add more lanes)' : 'Add a swimlane (click, or drag onto the canvas)';
         btnAddLane.setAttribute('aria-label', off ? 'Show swimlanes' : 'Lane');
       }
 
-      btnAddLane.addEventListener('click', () => {
+      function addLaneAt(insertIdx) {
         if (chartData.swimlanes === false) {
           withMotion(() => {
             delete chartData.swimlanes;
@@ -3076,10 +3084,80 @@
             icon: 'users',
             height: LE.LANE_MIN
           };
-          chartData.lanes.push(newLane);
+          const idx = insertIdx === undefined ? chartData.lanes.length : Math.max(0, Math.min(insertIdx, chartData.lanes.length));
+          chartData.lanes.splice(idx, 0, newLane);
           relayout();
         }, { duration: 210, skipFreeNotes: true });
+      }
+
+      btnAddLane.addEventListener('click', (e) => {
+        if (btnAddLane.dataset.dragged) { delete btnAddLane.dataset.dragged; e.preventDefault(); return; }
+        if (btnAddLane.disabled || isPresenting()) return;
+        addLaneAt();
       });
+
+      let laneToolDrag = null;   // { startX, startY, ghost, onCanvas, insertIdx }
+      btnAddLane.addEventListener('pointerdown', (e) => {
+        delete btnAddLane.dataset.dragged;
+        if (e.button !== 0 || btnAddLane.disabled || isPresenting()) return;
+        motion.cancelAll();
+        laneToolDrag = { startX: e.clientX, startY: e.clientY, ghost: null, onCanvas: false, insertIdx: chartData.lanes.length };
+        window.addEventListener('pointermove', onLaneToolMove);
+        window.addEventListener('pointerup', onLaneToolUp);
+        window.addEventListener('pointercancel', cancelLaneToolDrag);
+      });
+
+      function onLaneToolMove(e) {
+        const d = laneToolDrag;
+        if (!d) return;
+        if (!d.ghost) {
+          if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+          const wrap = btnAddLane.closest('[data-dock-pop]');
+          if (wrap) {
+            wrap.classList.remove('open');
+            const trig = wrap.querySelector('.dock-pop-trigger');
+            if (trig) trig.setAttribute('aria-expanded', 'false');
+          }
+          d.ghost = document.createElement('div');
+          d.ghost.className = 'palette-ghost lane-ghost';
+          d.ghost.innerHTML = `${ui.icon('lane', { size: 'sm' })}<span>${chartData.swimlanes === false ? 'Show lanes' : 'New lane'}</span>`;
+          document.body.appendChild(d.ghost);
+          document.body.classList.add('palette-dragging');
+        }
+        d.ghost.style.left = `${e.clientX + 12}px`;
+        d.ghost.style.top = `${e.clientY + 12}px`;
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        d.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
+        d.ghost.classList.toggle('off-canvas', !d.onCanvas);
+        if (d.onCanvas && chartData.swimlanes !== false) {
+          d.insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
+          showLaneDropLine(d.insertIdx);
+        } else {
+          laneDropLine.style.display = 'none';
+        }
+      }
+
+      function cancelLaneToolDrag() {
+        const d = laneToolDrag;
+        const had = !!(d && d.ghost);
+        laneToolDrag = null;
+        if (d && d.ghost) d.ghost.remove();
+        document.body.classList.remove('palette-dragging');
+        laneDropLine.style.display = 'none';
+        window.removeEventListener('pointermove', onLaneToolMove);
+        window.removeEventListener('pointerup', onLaneToolUp);
+        window.removeEventListener('pointercancel', cancelLaneToolDrag);
+        return had;
+      }
+
+      function onLaneToolUp() {
+        const d = laneToolDrag;
+        const dragged = !!(d && d.ghost);
+        if (dragged) btnAddLane.dataset.dragged = '1';   // swallow the click that may follow on the tile
+        cancelLaneToolDrag();
+        if (!dragged || !d.onCanvas) return;
+        addLaneAt(d.insertIdx);
+      }
 
       // A whole-diagram layout change (switching direction, Tidy) moves every step at once: slower than a single edit
       const BIG_MS = 520;
@@ -3489,7 +3567,7 @@
       function peekSoon(nodeId, delay) {
         clearTimeout(peekTimer);
         peekTimer = setTimeout(() => {
-          if (draggingNode || noteDrag || noteLink || noteToolDrag || paletteDrag || connectingFromNodeId) return;
+          if (draggingNode || noteDrag || noteLink || noteToolDrag || paletteDrag || laneToolDrag || connectingFromNodeId) return;
           if (peekNodeId !== nodeId) { peekNodeId = nodeId; applyNoteVisibility(); }
         }, delay);
       }
@@ -4640,6 +4718,10 @@
           selectedLaneId = null;
           selectedNoteId = null;
           peekNodeId = null;
+          lastNodeBarKey = null;
+          lastLaneBarId = null;
+          lastEdgeBarId = null;
+          ui.clearBars();
           setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
           markSelectedLane();
           if (hadNodes || hadEdge) renderEdges();
@@ -4667,7 +4749,7 @@
           const wasPicking = notePicking || connectorPicking;
           setNotePicking(false);
           setConnectorPicking(false);
-          return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
+          return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || cancelLaneToolDrag() || wasConnecting || wasPicking;
         },
         // Text search (shell contract): live DOM, in reading order along the flow. Steps and connector letters first
         // (by flow position, then lane, then across), then arrow labels, notes, lane titles. Notes are always in the DOM
@@ -4698,7 +4780,7 @@
           document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
           return items;
         },
-        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); placeNodeBar(); },
+        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); ui.repositionBars(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

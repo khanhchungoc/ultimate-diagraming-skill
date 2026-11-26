@@ -24,7 +24,10 @@ let code = 0;
 // only, so an element in the page is found through the DOM (stubPath), never by a saved generated id.
 async function state() {
   await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(250);
+  for (let i = 0; i < 30; i++) {
+    if (await t.ev(`(() => { const m = document.getElementById('save-modal'); if (!m || !m.open) return false; m.close(); return true; })()`)) break;
+    await sleep(100);
+  }
   const d = JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
   const layout = d.layout || {};
   [...(d.lanes || []), ...d.nodes].forEach(o => Object.assign(o, layout[o.id] || {}));

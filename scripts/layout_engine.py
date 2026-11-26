@@ -1579,7 +1579,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         return expand_icons(text, tokens, icons)
 
     logos = load_logos(logo_refs(data), ICON_DIRS)[0]
-    if kind == "c4" and BUNDLED_LOGOS_DIR.is_dir():
+    if kind in ("c4", "sequence") and BUNDLED_LOGOS_DIR.is_dir():
         logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
     extra_css = [type_dir / name for name in meta.get("extraCss", ())]
     extra_js = [type_dir / name for name in meta.get("extraJs", ())]
@@ -2013,8 +2013,6 @@ def pack_sequence_columns(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
 def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     """Apply sequence CLI defaults (--layout without --keep-layout): auto-numbered, participant order, column packing."""
     notes: List[str] = []
-    if "numbered" not in data and len(data.get("messages") or []) >= 20:
-        data = {**data, "numbered": True}
     for step in (order_sequence_participants, pack_sequence_columns):
         data, note = step(data)
         if note:
