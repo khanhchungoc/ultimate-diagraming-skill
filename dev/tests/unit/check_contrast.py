@@ -38,6 +38,20 @@ def run(theme, strict, as_json, verbose=False):
         for fg, bg, mn in expand(pairs, tokens.get("palette") or []):
             status, why, r = check(colors, fg, bg, mn)
             results.append({"mode": mode, "fg": fg, "bg": bg, "min": mn, "ratio": r and round(r, 2), "status": status, "reason": why})
+    # contrastOver: a translucent surface (the glass panels) composited over a backdrop it can float over, not only bg-panel
+    for mode in ("light", "dark"):
+        colors = colors_for(mode)
+        for fg, bg, mn, back in tokens.get("contrastOver", []):
+            slots = [str(s["slot"]) for s in tokens.get("palette") or []] if "*" in fg + bg + back else [None]
+            for slot in slots:
+                f, b, k = (x.replace("*", slot) if slot else x for x in (fg, bg, back))
+                if k not in colors:
+                    status, why, r = "SKIP", f"missing token {k}", None
+                else:
+                    base = parse_color(colors[k])
+                    solid = {**colors, "bg-panel": "#%02x%02x%02x" % tuple(round(c) for c in base[:3])} if base and base[3] == 1 else None
+                    status, why, r = check(solid, f, b, mn) if solid else ("SKIP", f"unresolvable {k}", None)
+                results.append({"mode": mode, "fg": f, "bg": f"{b} over {k}", "min": mn, "ratio": r and round(r, 2), "status": status, "reason": why})
     if as_json:
         print(json.dumps({"source": source, "results": results}, indent=2))
     else:

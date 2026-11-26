@@ -114,6 +114,15 @@ def _validate(t: Dict[str, Any]) -> None:
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not 1 <= v <= 30: raise _err(f"font.metrics.{k}", v)
     for k, v in t["size"].items():
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
+    for k, v in t["space"].items():  # spacing scale: key = px, value a length ("0", "4px", ...)
+        if not re.fullmatch(r"\d+", k) or not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"space.{k}", v)
+    # interaction sizes: a length, or var(--x) naming a size token (ring-md) or a shadow token (shadow-md)
+    refs = set(t["size"]) | {f"shadow-{k}" for k in t["shadow"]}
+    for k, v in t["interaction"].items():
+        ref = re.fullmatch(r"var\(--([\w-]+)\)", v) if isinstance(v, str) else None
+        if not _KEY.match(k) or not (isinstance(v, str) and (_LENGTH.match(v) or (ref and ref[1] in refs))): raise _err(f"interaction.{k}", v)
+    for k, v in t["primitive"].items():  # raw colour shades the semantic colours point at; plain hex only
+        if not _KEY.match(k) or not (isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{3,8}", v)): raise _err(f"primitive.{k}", v)
     for k, v in t["c4"].items():  # c4 layout sizes in px, read by assets/types/c4/engine.js
         if not _KEY.match(k) or isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 2000: raise _err(f"c4.{k}", v)
     _validate_type(t["type"])
@@ -137,6 +146,10 @@ def _validate(t: Dict[str, Any]) -> None:
             for tone, v in s[mode].items():
                 if tone not in _TONES or not _is_value(v): raise _err(f"palette.{s['slot']}.{mode}.{tone}", v)
     if not isinstance(t["contrast"], list): raise _err("contrast", t["contrast"])
+    # contrastOver: [fg, translucent bg, min, backdrop]; the bg is composited over the backdrop colour (a name; `*` = every palette slot)
+    for row in t.get("contrastOver", []):
+        if not (isinstance(row, list) and len(row) == 4 and all(isinstance(x, str) and re.fullmatch(r"[\w*-]+", x) for x in (row[0], row[1], row[3]))
+                and isinstance(row[2], (int, float)) and not isinstance(row[2], bool)): raise _err("contrastOver", row)
     for mode in ("light", "dark"):
         for k, v in t["color"][mode].items():
             if not re.fullmatch(r"[\w-]+", k) or not _is_value(v): raise _err(f"color.{mode}.{k}", v)
@@ -252,6 +265,19 @@ def _merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
     return base
 
 
+def _expand_primitives(tokens: Dict[str, Any]) -> None:
+    """Replace a colour that is exactly var(--<primitive>) by the primitive's hex, so everything downstream (resolve_colors, the CSS,
+    scripts/extract_tokens.py) sees plain colours and a theme can override a primitive or any semantic colour with its own hex."""
+    prim = tokens.get("primitive")
+    if not isinstance(prim, dict):
+        return
+    for mode in ("light", "dark"):
+        for k, v in tokens["color"][mode].items():
+            m = re.fullmatch(r"var\(--([\w-]+)\)", v) if isinstance(v, str) else None
+            if m and m[1] in prim:
+                tokens["color"][mode][k] = prim[m[1]]
+
+
 def merge_theme(theme: Optional[Dict[str, Any]], source: str = "theme") -> Dict[str, Any]:
     """default.json with a parsed theme deep-merged over it (lists, such as palette, are replaced whole), validated."""
     tokens = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
@@ -259,6 +285,7 @@ def merge_theme(theme: Optional[Dict[str, Any]], source: str = "theme") -> Dict[
         if not isinstance(theme, dict) or theme.get("tokensVersion") != TOKENS_VERSION:
             raise ValueError(f"tokens: unsupported tokensVersion {theme.get('tokensVersion') if isinstance(theme, dict) else theme!r} in {source}")
         _merge(tokens, theme)
+    _expand_primitives(tokens)
     _validate(tokens)
     return tokens
 
@@ -348,7 +375,7 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     light = {**_type_vars(tokens),
              **{f"icon-{k}": f"{v}px" for k, v in tokens["icon"]["size"].items()},
              "c4-label-max-w": f"{tokens['c4']['labelMaxW']}px",
-             **tokens["size"], **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
+             **tokens["size"], **{f"space-{k}": v for k, v in tokens["space"].items()}, **tokens["interaction"], **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
              **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}
     dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}
@@ -430,6 +457,21 @@ if __name__ == "__main__":
     except FileNotFoundError:
         pass
     assert load_tokens(theme({"icon": {"set": "lucide", "stroke": 1.5}}))["icon"]["stroke"] == 1.5
+    # primitives: semantic colours point at them, resolve to plain hex; a theme may retint one or override a semantic colour
+    assert t["color"]["light"]["bg-hover"] == "#f1f5f9" and t["primitive"]["slate-100"] == "#f1f5f9", "primitive refs expand to hex"
+    assert load_tokens(theme({"primitive": {"slate-100": "#eeeeee"}}))["color"]["light"]["bg-hover"] == "#eeeeee", "retinted primitive flows through"
+    assert load_tokens(theme({"color": {"light": {"bg-hover": "#123456"}}}))["color"]["light"]["bg-hover"] == "#123456", "hex over a primitive ref"
+    for want in ("--space-0: 0;", "--space-4: 4px;", "--space-48: 48px;", "--hit-min: 24px;", "--select-ring-w: var(--ring-md);", "--hover-shadow: var(--shadow-md);",
+                 "--chevron-size: 22px;", "--port-size: 12px;", "--port-size-touch: 20px;"):
+        assert want in css, want
+    for bad in ({"primitive": {"x": "red"}}, {"primitive": {"x": "#12345g"}}, {"primitive": {"x": "var(--y)"}}, {"primitive": {"a b": "#fff"}},
+                {"space": {"4": "4px; } a {"}}, {"space": {"x": "4px"}}, {"space": {"4": "wide"}},
+                {"interaction": {"hit-min": "big"}}, {"interaction": {"hover-shadow": "var(--nope)"}}, {"interaction": {"x": "red; } a {"}}):
+        try:
+            load_tokens(theme(bad))
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad}")
     for bad in ({"icon": {"set": "A b"}}, {"icon": {"set": "x/../y"}}, {"icon": {"stroke": 3}}, {"icon": {"stroke": "2"}}):
         try:
             load_tokens(theme(bad))

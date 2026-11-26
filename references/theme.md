@@ -83,6 +83,10 @@ Read the guide yourself. Write only what the guide states; leave everything else
 | Type scale, weights | `type.size`, `type.styles.<style>.weight` | Rarely needed. Sizes you give are clamped (see below); weights use the names `regular`, `medium`, `semibold`, `bold`. |
 | Icon style | `icon.stroke` (1.5 to 2.5), `icon.set` | Only a set that has a registry in `assets/icons/`. Otherwise leave the default set and say so. |
 
+### Base palette and scales
+
+`primitive` holds the raw shades (`slate-100`, `blue-600`, ...) that semantic colours in `color.*` point at as `var(--slate-100)`; the loader swaps each reference for its hex, so a theme may retint a shade (every colour pointing at it follows) or set any semantic colour to its own hex, and a theme file never needs to use `primitive`. `space` (`--space-<px>`) and `interaction` (`--hit-min`, `--select-ring-w`, `--hover-shadow`, `--chevron-size`, `--port-size`, `--port-size-touch`) are sizes; leave them at their defaults unless a guide fixes them.
+
 ### Needed as opaque colours
 
 `bg-page`, `text-main` and `primary`, in either mode, and every entry of `brand.colors`, must be a plain `#rrggbb` or `rgb()` colour. Everything else may use any value the loader accepts.

@@ -15,7 +15,7 @@ that belong in assets/tokens/default.json. Rules by phase (a later phase include
      lane-icon: a name in references/types/flowchart.md "## Lane icons" missing from the registry
 A justified exception goes on the same line: `/* tokens-ok: <reason> */` or `// tokens-ok: <reason>`.
 
-Usage: python dev/check_tokens.py [--phase N] [-v|--verbose]   (default phase 1)   |   --list-rules   |   --self-test
+Usage: python dev/check_tokens.py [--phase N] [-v|--verbose]   (default phase 4)   |   --list-rules   |   --self-test
 Exit codes: 0 clean, 1 findings or self-test failure.
 """
 from __future__ import annotations
@@ -271,7 +271,7 @@ def self_test():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--phase", type=int, default=1)
+    ap.add_argument("--phase", type=int, default=4)
     ap.add_argument("--list-rules", action="store_true")
     ap.add_argument("--self-test", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true", help="print passing rules")

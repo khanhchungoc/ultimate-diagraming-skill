@@ -295,13 +295,13 @@
 /* Roving-tabindex cell focus */
 .gantt-sheet td[data-gt-cell]:focus {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  box-shadow: inset 0 0 0 var(--ring-md) var(--focus-ring);
   background: color-mix(in srgb, var(--primary) 7%, var(--bg-panel));
 }
 
 .gantt-sheet td[data-gt-cell]:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  box-shadow: inset 0 0 0 var(--ring-md) var(--focus-ring);
 }
 
 /* Checkboxes */
@@ -387,7 +387,7 @@
 }
 
 .gt-kind-dot.is-milestone {
-  border-radius: 1px;
+  border-radius: var(--radius-hair);
   transform: rotate(45deg);
 }
 
@@ -482,7 +482,7 @@
 }
 
 .gantt-sheet tbody tr.is-dep-pred td:first-child {
-  box-shadow: inset 3px 0 0 var(--primary);
+  box-shadow: inset var(--ring-lg) 0 0 var(--primary);
 }
 
 .gantt-sheet tbody tr.is-dep-succ td {
@@ -490,7 +490,7 @@
 }
 
 .gantt-sheet tbody tr.is-dep-succ td:first-child {
-  box-shadow: inset 3px 0 0 var(--sw-4-line, var(--primary));
+  box-shadow: inset var(--ring-lg) 0 0 var(--sw-4-line, var(--primary));
 }
 
 /* Selects (Type, Category) */
