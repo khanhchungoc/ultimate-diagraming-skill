@@ -4,9 +4,9 @@
     .swatch-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--space-4);
       max-width: 340px;
-      padding: 4px 11px 4px 9px;
+      padding: var(--pill-pad-y) var(--pill-pad-x);
       border-radius: var(--radius-pill);
       background: var(--sw-pill-bg);
       color: var(--sw-pill-ink);

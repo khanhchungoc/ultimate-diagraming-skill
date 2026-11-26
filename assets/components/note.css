@@ -50,7 +50,7 @@
       width: max-content;
       min-width: 96px;
       max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
-      padding: 6px 10px 7px 10px;
+      padding: var(--space-4) var(--space-8) var(--space-8) var(--space-8);
     }
     .note-layer .note.show, .note-layer .note.peek { display: block; }
     .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }

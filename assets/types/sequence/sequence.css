@@ -1,7 +1,7 @@
     /* Sequence diagram */
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
-      position: relative; margin: 24px;
+      position: relative; margin: var(--space-24);
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-canvas);
     }
@@ -32,8 +32,8 @@
     /* A participant is the shared swatch pill (components/pill.css), BOX_W wide and sitting on the lifeline's top end:
        the pill is shorter than the engine's BOX_H slot, so its top margin makes up the rest; it holds two lines of name */
     .seq-participant {
-      position: absolute; width: 168px; height: 54px; margin-top: 5px; box-sizing: border-box; justify-content: center; text-align: center;
-      padding: 5px 12px; font-size: var(--text-xl); cursor: grab; touch-action: none;
+      position: absolute; width: 168px; height: 54px; margin-top: var(--space-4); box-sizing: border-box; justify-content: center; text-align: center;
+      padding: var(--space-4) var(--space-12); font-size: var(--text-xl); cursor: grab; touch-action: none;
     }
     /* Like an activation bar: the swatch's soft fill and strong outline, no halo */
     .seq-participant.swatch-pill { --halo: 0 0 transparent; border: 2px solid var(--sw-line); }
@@ -41,13 +41,13 @@
     .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }   /* the pill's own hover ring (components/pill.css), kept on select */
     .seq-participant.is-dragging, .seq-msg-label.is-dragging { opacity: 0.75; z-index: 20; }
     .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-20); }
-    .seq-participant:not(.is-rail) .seq-kind-icon { margin-right: 4px; }
+    .seq-participant:not(.is-rail) .seq-kind-icon { margin-right: var(--space-4); }
     .seq-participant:not(.is-rail) .seq-participant-name {
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
       max-height: calc(2 * var(--line-20)); word-break: break-word;
     }
     .seq-msg-label {
-      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
+      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 var(--space-4); border-radius: var(--radius-sm); white-space: nowrap;
       font-size: var(--text-lg); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
       translate: -50% 0; transition: opacity var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-out);
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
@@ -60,12 +60,12 @@
     .seq-msg-label-text { outline: none; }
     [contenteditable="true"], [contenteditable="plaintext-only"] { cursor: text; user-select: text; }
     .seq-msg-label:has([contenteditable="true"], [contenteditable="plaintext-only"]) { cursor: text; height: auto; white-space: pre-wrap; min-width: 60px; width: max-content; max-width: var(--seq-label-max, 320px); background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
-    .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: 6px; }
+    .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: var(--space-4); }
     .seq-frag-text { outline: none; color: var(--text-main); }
     .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; translate: -100% 0; }
     .seq-frag-branch-label {
       position: absolute; height: 18px; line-height: var(--line-18); font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft);
-      white-space: nowrap; user-select: none; cursor: pointer; padding: 0 5px; border-radius: var(--radius-xs); transition: color var(--dur-micro) var(--curve-out);
+      white-space: nowrap; user-select: none; cursor: pointer; padding: 0 var(--space-4); border-radius: var(--radius-xs); transition: color var(--dur-micro) var(--curve-out);
       background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
     }
     .seq-frag-branch-label::before { content: '['; } .seq-frag-branch-label::after { content: ']'; }
@@ -73,12 +73,12 @@
     .seq-frag-branch-label.selected { color: var(--primary); }
     /* Focus: collapse the other phases (the participants they leave become rails) */
     .seq-frag-focus {
-      display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
+      display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 calc(-1 * var(--space-4)) 0 var(--space-4);
       padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
     }
     /* The tag lays its chevron, kind, label and focus button out on one centred row */
     #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
-    #seq-html .frame-tag .chevron { margin: 0 2px 0 -4px; vertical-align: baseline; }
+    #seq-html .frame-tag .chevron { margin: 0 var(--space-2) 0 calc(-1 * var(--space-4)); vertical-align: baseline; }
     #seq-html .frame-summary { translate: -50% -50%; }
     .seq-frag-focus { position: relative; }
     .seq-frag-focus::before {
@@ -94,7 +94,7 @@
     body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
-      position: absolute; height: 18px; line-height: var(--line-18); padding: 0 4px; white-space: nowrap; font-size: var(--text-sm);
+      position: absolute; height: 18px; line-height: var(--line-18); padding: 0 var(--space-4); white-space: nowrap; font-size: var(--text-sm);
       color: var(--text-muted); cursor: pointer; user-select: none; touch-action: none;
       translate: -50% 0; transition: opacity var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-out);
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 4px var(--bg-panel);
@@ -102,25 +102,25 @@
     .seq-msg-detail.is-self { translate: none; }
     .seq-msg-detail-text { outline: none; }
     .seq-msg-num {
-      display: inline-block; min-width: 18px; height: 18px; line-height: var(--line-18); margin-right: 5px; padding: 0 4px;
+      display: inline-block; min-width: 18px; height: 18px; line-height: var(--line-18); margin-right: var(--space-4); padding: 0 var(--space-4);
       box-sizing: border-box; border-radius: var(--radius-lg); background: var(--bg-soft); color: var(--text-soft);
       font-size: var(--text-sm); font-weight: var(--t-overline-weight); text-align: center; vertical-align: 1px; text-shadow: none;
     }
     .seq-msg-label.selected .seq-msg-num { background: var(--primary); color: var(--bg-panel); }
     /* Participant kinds: a small icon before the name (system and actor have none) */
-    .seq-kind-icon { flex: none; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: inherit; }
+    .seq-kind-icon { flex: none; margin-right: var(--space-4); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: inherit; }
     /* A rail: a participant with nothing to show in the expanded part of the diagram. The kind icon, and the name
        written downwards (cut short if long: hover or select the rail for the full name) */
     .seq-participant.is-rail {
-      width: 36px; height: 80px; margin-top: 0; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px;
+      width: 36px; height: 80px; margin-top: 0; flex-direction: column; justify-content: flex-start; padding: var(--space-8) 0 var(--space-4);
       font-size: var(--t-detail-size);
     }
-    .seq-participant.is-rail .seq-kind-icon { margin: 0 0 5px; }
+    .seq-participant.is-rail .seq-kind-icon { margin: 0 0 var(--space-4); }
     .seq-participant.is-rail .seq-participant-name {
       writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0; max-height: 48px;
     }
     .seq-rail-tip {
-      display: none; position: absolute; left: 100%; top: 4px; margin-left: 8px; padding: 3px 8px; z-index: 12;
+      display: none; position: absolute; left: 100%; top: 4px; margin-left: var(--space-8); padding: var(--space-2) var(--space-8); z-index: 12;
       border: 1px solid var(--border-dark); border-radius: var(--radius-md); background: var(--bg-panel); color: var(--text-main);
       font-size: var(--t-detail-size); font-weight: var(--weight-semibold); white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md);
     }
@@ -138,9 +138,9 @@
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; }
     /* The participant action bar has a second row for the swatches */
-    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(360px, calc(100vw - 24px)); row-gap: 2px; }
-    .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
-    .seq-ab-row { display: flex; align-items: center; gap: 2px; }
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(360px, calc(100vw - 24px)); row-gap: var(--space-2); }
+    .seq-actionbar.is-rows { flex-direction: column; row-gap: var(--space-2); }
+    .seq-ab-row { display: flex; align-items: center; gap: var(--space-2); }
     .seq-ab-break { flex-basis: 100%; height: 0; }
     .seq-ab-swatch { height: 30px; width: 30px; }
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
@@ -152,7 +152,7 @@
     /* Notes: the shared card (components/note.css) over one lifeline, or stretched over two. The engine sizes it, so the text
        keeps the engine's line breaks, and the 3px accent edge comes out of the left padding to leave the text area as measured.
        While editing, the unwrapped raw text is shown, so wrap inside the card width and let the card grow vertically if needed. */
-    #seq-canvas .note { padding: 10px 10px 10px 8px; line-height: var(--line-17); overflow: hidden; cursor: pointer; touch-action: none; }
+    #seq-canvas .note { padding: var(--space-8) var(--space-8) var(--space-8) var(--space-8); line-height: var(--line-17); overflow: hidden; cursor: pointer; touch-action: none; }
     #seq-canvas .note-text { white-space: pre; min-height: 0; }
     #seq-canvas .note-text[contenteditable="true"],
     #seq-canvas .note-text[contenteditable="plaintext-only"] { white-space: pre-wrap; overflow-wrap: break-word; min-height: var(--line-17); }
@@ -177,7 +177,7 @@
     .seq-lifeline.is-target { stroke: var(--primary); stroke-width: 2.5; stroke-dasharray: none; }
     .seq-plus, .seq-insert {
       position: absolute; display: none; align-items: center; justify-content: center; width: 20px; height: 20px;
-      margin: -10px 0 0 -10px; padding: 0; border-radius: var(--radius-round); border: 1.5px solid var(--primary); background: var(--bg-panel);
+      margin: -10px 0 0 -10px; /* tokens-ok: centers 20x20 handle */ padding: 0; border-radius: var(--radius-round); border: 1.5px solid var(--primary); background: var(--bg-panel);
       color: var(--primary); font-family: var(--font-ui); font-size: var(--text-xl); font-weight: var(--weight-bold); line-height: var(--leading-none); cursor: crosshair; z-index: 8; touch-action: none; user-select: none;
     }
     .seq-plus {
@@ -191,12 +191,12 @@
     .seq-plus:hover, .seq-insert:hover { background: var(--primary); color: var(--bg-panel); }
     .seq-plus:active, .seq-insert:active { transform: scale(0.92); }
     .seq-actionbar {
-      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      position: absolute; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); z-index: 53;
       translate: -50% 0; white-space: nowrap;
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
@@ -205,11 +205,11 @@
     .seq-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .seq-ab-btn:active { transform: scale(0.94); }
     .seq-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
-    .seq-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    .seq-ab-sep { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--border-color); }
     .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-line); border: 1px solid var(--dot-edge-soft); }
     .seq-swatch.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     .seq-grip {
-      position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; z-index: 9;
+      position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; /* tokens-ok: centers 12x12 grip */ box-sizing: border-box; z-index: 9;
       border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); touch-action: none;
       animation: seq-pop var(--dur-micro) var(--curve-spring-tactile);
     }
@@ -217,11 +217,11 @@
       from { transform: scale(0.5); }
       to   { transform: none; }
     }
-    .seq-grip.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
-    .seq-grip.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
+    .seq-grip.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; /* tokens-ok: centers 22x10 grip */ border-radius: var(--radius-md); cursor: ns-resize; }
+    .seq-grip.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; /* tokens-ok: centers 10x22 grip */ border-radius: var(--radius-md); cursor: ew-resize; }
     body.seq-dragging [data-handle]:not(.is-drag) { display: none; }
     .seq-add-branch {
-      position: absolute; height: 22px; padding: 0 9px; translate: 0 -50%; z-index: 9; border-radius: var(--radius-pill);
+      position: absolute; height: 22px; padding: 0 var(--space-8); translate: 0 -50%; z-index: 9; border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
       font-weight: var(--weight-semibold); cursor: pointer; white-space: nowrap;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
@@ -232,7 +232,7 @@
     body.seq-dragging .seq-actionbar, body.seq-dragging .seq-add-branch, body.seq-dragging .seq-insert { display: none !important; }
     body.presentation .seq-actionbar, body.presentation [data-handle], body.presentation .seq-plus, body.presentation .seq-insert,
     body.presentation .seq-add-branch { display: none !important; }
-    body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
+    body.capture #seq-canvas { margin: 0; padding: var(--space-12); border: none; border-radius: 0; box-shadow: none; }
 
     /* What is dragged from the dock (see dockDrag): an empty frame held by its tag, or a note card held by its middle */
     .seq-dock-ghost { position: fixed; z-index: 1000; box-sizing: border-box; pointer-events: none; font-size: var(--t-detail-size); }
@@ -240,11 +240,11 @@
       width: 200px; height: 72px; border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-dock-ghost.is-frame span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-weight: var(--weight-bold);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 var(--space-8); height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-weight: var(--weight-bold);
       color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }
     .seq-dock-ghost.is-note {
-      width: 150px; padding: 8px 10px; translate: -50% -50%; color: var(--text-soft); background: var(--note-bg); box-shadow: var(--shadow-sm);
+      width: 150px; padding: var(--space-8) var(--space-8); translate: -50% -50%; color: var(--text-soft); background: var(--note-bg); box-shadow: var(--shadow-sm);
       border: 1px solid var(--note-border); border-left: 3px solid var(--note-accent); border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
     }
     #btn-frame, #btn-add-note { touch-action: none; cursor: grab; }
@@ -256,6 +256,6 @@
       border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-frame-ghost span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-size: var(--t-detail-size);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 var(--space-8); height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-size: var(--t-detail-size);
       font-weight: var(--weight-bold); color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }

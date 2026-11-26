@@ -8,7 +8,7 @@
       box-shadow: var(--shadow-canvas);
       border-radius: var(--radius-lg);
       --lane-r: calc(var(--radius-lg) - 1px);
-      margin: 40px;
+      margin: var(--space-40);
       width: fit-content;
       min-width: 1400px;
     }
@@ -45,8 +45,8 @@
       outline: none;
       user-select: none;
       border-radius: var(--radius-sm);
-      padding: 0 2px;
-      margin: 0 -2px;
+      padding: 0 var(--space-2);
+      margin: 0 calc(-1 * var(--space-2));
       border: 1px solid transparent;
     }
     .lane-title[contenteditable="true"] {
@@ -177,7 +177,7 @@
        display scaling, so that is 1px */
     .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out) {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       border-width: 2px;
-      padding: 2px 7px;
+      padding: var(--space-2) var(--space-8);
     }
     .edge-label-text {
       outline: none;
@@ -224,7 +224,7 @@
       --ring-w: var(--node-stroke);   /* hover and selected: components/item-states.css (data-item) */
       border: none;
       border-radius: var(--radius-lg);
-      padding: calc(6px + var(--node-stroke)) calc(8px + var(--node-stroke));
+      padding: calc(var(--space-4) + var(--node-stroke)) calc(var(--space-8) + var(--node-stroke));
       width: 144px;
       height: 64px;
       cursor: move;
@@ -268,7 +268,7 @@
     .flow-node.terminal-dot {
       width: 40px;
       height: 40px;
-      margin: 12px 52px;
+      margin: var(--space-12) 52px; /* tokens-ok: centers 40x40 dot in 144x64 node box */
       padding: 0;
       border-radius: var(--radius-round);
     }
@@ -333,12 +333,12 @@
       position: relative;
       z-index: 2;
     }
-    .flow-node.type-subprocess { padding: 4px 20px; }            /* clear of the + marker */
+    .flow-node.type-subprocess { padding: var(--space-4) var(--space-20); }            /* clear of the + marker */
     .flow-node.type-subprocess.has-child .shape-outline .sub-mark { stroke: var(--primary); }
-    .flow-node.type-io         { padding: 4px 16px; }            /* clear of the slanted sides */
-    .flow-node.type-document   { padding: 3px 8px 11px; }        /* centred above the wave */
-    .flow-node.type-database   { padding: 15px 10px 5px; }       /* below the top rim */
-    .flow-node.type-delay      { padding: 4px 26px 4px 10px; }   /* clear of the arc */
+    .flow-node.type-io         { padding: var(--space-4) var(--space-16); }            /* clear of the slanted sides */
+    .flow-node.type-document   { padding: var(--space-2) var(--space-8) var(--space-12); }        /* centred above the wave */
+    .flow-node.type-database   { padding: var(--space-16) var(--space-8) var(--space-4); }       /* below the top rim */
+    .flow-node.type-delay      { padding: var(--space-4) var(--space-24) var(--space-4) var(--space-8); }   /* clear of the arc */
     /* Ports on the outline, not the box edge, where the two differ at the side's midpoint */
     .flow-node.type-io .port-left { left: 6px; }
     .flow-node.type-io .port-right { left: calc(100% - 6px); }
@@ -440,7 +440,7 @@
       display: flex;
       flex-direction: column;
       min-width: 140px;
-      padding: 4px;
+      padding: var(--space-4);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
@@ -449,7 +449,7 @@
       z-index: 34;
     }
     .edge-split-menu button {
-      padding: 6px 10px;
+      padding: var(--space-4) var(--space-8);
       border: none;
       border-radius: var(--radius-md);
       background: transparent;
@@ -633,7 +633,7 @@
       position: absolute;
       display: none;
       transform: translate(-50%, calc(-100% - 10px));
-      padding: 3px 9px;
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-pill);
       background: var(--primary);
       color: var(--on-primary);
@@ -727,7 +727,7 @@
     /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow sits in the outer
        pill with nested .flow-subtabs trays along the active path; presentation mode glides the tabs up to top: 16px. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: stretch; gap: 3px;
+      display: flex; align-items: stretch; gap: var(--space-2);
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-2xl);
@@ -739,15 +739,15 @@
       z-index: 120;
       max-width: calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
       overflow-x: auto;
-      padding: 3px;
+      padding: var(--space-2);
       border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
       min-width: 0; overflow: hidden;
-      gap: 2px;
-      padding: 2px;
+      gap: var(--space-2);
+      padding: var(--space-2);
       background: color-mix(in srgb, var(--text-main) 2.5%, transparent);
       border-radius: var(--radius-2xl);
       border-color: var(--border-color);
@@ -756,7 +756,7 @@
     .flow-subtabs[data-level="3"] { border-radius: var(--radius-lg); }
     .flow-tab {
       position: relative;
-      flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
+      flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 var(--space-12); box-sizing: border-box;
       background: transparent;
       border: 1px solid transparent;
       border-radius: var(--radius-2xl);
@@ -766,7 +766,7 @@
     }
     .flow-subtabs > .flow-tab {
       min-height: 25px;
-      padding: 0 10px;
+      padding: 0 var(--space-8);
       border-radius: var(--radius-xl);
     }
     .flow-subtabs[data-level="2"] > .flow-tab { border-radius: var(--radius-lg); }
