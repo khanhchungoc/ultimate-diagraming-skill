@@ -24,7 +24,10 @@ let code = 0;
 // only, so an element in the page is found through the DOM (stubPath), never by a saved generated id.
 async function state() {
   await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(250);
+  for (let i = 0; i < 30; i++) {
+    if (await t.ev(`(() => { const m = document.getElementById('save-modal'); if (!m || !m.open) return false; m.close(); return true; })()`)) break;
+    await sleep(100);
+  }
   const d = JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
   const layout = d.layout || {};
   [...(d.lanes || []), ...d.nodes].forEach(o => Object.assign(o, layout[o.id] || {}));
@@ -96,14 +99,24 @@ try {
   const look = await t.ev(`(() => { const s = getComputedStyle(${conn('in')}); return [s.borderTopStyle, s.borderTopWidth]; })()`);
   t.check('a connector wears a solid 2px ring (not the terminator look)', look[0] === 'solid' && look[1] === '2px', JSON.stringify(look));
 
-  // 3. A click pans to the partner (same zoom) and pulses it
-  const zoom0 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
+  // 3. Editing: a click only selects the circle (no pan), so it can be deleted; the partner is reached by hover guide
+  const panBefore = await offCentre(conn('out'));
   await click(conn('in'));
+  await sleep(450);
+  const panAfter = await offCentre(conn('out'));
+  const inSelected = await t.ev(`(${conn('in')}).classList.contains('selected')`);
+  t.check('editing: clicking a connector selects it and does not pan to its partner',
+    inSelected && panBefore[0] === panAfter[0] && panBefore[1] === panAfter[1], JSON.stringify({ panBefore, panAfter, inSelected }));
+  // The selected circle's bar has a Go to partner button: it centres the other circle at the same zoom, with a pulse
+  const goto = `document.querySelector('.node-bar .ab-btn[data-act="goto"]')`;
+  t.check('a selected connector shows a Go to partner button', await t.ev(`!!${goto}`));
+  const zoom0 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
+  await t.ev(`${goto}.click()`);
   await sleep(450);
   const centred = await offCentre(conn('out'));
   const pulsed = await t.ev(`(${conn('out')}).classList.contains('connector-pulse')`);
   const zoom1 = await t.ev(`document.getElementById('viewport')?.dataset.zoom || ''`);
-  t.check('clicking the in-connector centres its out-connector at the same zoom, with a pulse',
+  t.check('Go to partner centres the out-connector at the same zoom, with a pulse',
     Math.abs(centred[0]) <= 3 && Math.abs(centred[1]) <= 3 && pulsed && zoom1 === zoom0, JSON.stringify({ centred, pulsed, zoom0, zoom1 }));
 
   // 4. Rename renames the pair; a letter in use or not a letter is refused

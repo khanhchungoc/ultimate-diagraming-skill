@@ -40,7 +40,49 @@ def main() -> int:
     page = (ROOT / "dev" / "samples" / "example-corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
     laptop = authoring_json("flowchart", read_data_block(page))
     laptop.pop("direction", None)
-    cases = [("loan example, 4 lanes, 17 steps", loan, "LR"), ("laptop sample, 7 lanes, 55 steps", laptop, "TB")]
+    cases = [
+        ("loan example, 4 lanes, 17 steps", loan, "LR"),
+        ("laptop sample, 7 lanes, 55 steps", laptop, "TB"),
+        ("narrow 2-lane long flow, half-screen TB", {
+            "diagramType": "flowchart",
+            "lanes": [
+                {"id": "l1", "name": "Policy Service", "icon": "cpu"},
+                {"id": "l2", "name": "Partner API", "icon": "server"},
+            ],
+            "nodes": [
+                {"id": "s", "laneId": "l1", "type": "start", "label": "Submit"},
+                {"id": "v1", "laneId": "l1", "type": "decision", "label": "Valid Body?"},
+                {"id": "v2", "laneId": "l1", "type": "decision", "label": "Config Found?"},
+                {"id": "q", "laneId": "l1", "type": "database", "label": "Query Pending"},
+                {"id": "c", "laneId": "l1", "type": "decision", "label": "One Record?"},
+                {"id": "t", "laneId": "l2", "type": "task", "label": "Create Task"},
+                {"id": "t_ok", "laneId": "l1", "type": "decision", "label": "Task Created?"},
+                {"id": "p", "laneId": "l2", "type": "task", "label": "Purchase Plan"},
+                {"id": "p_ok", "laneId": "l1", "type": "decision", "label": "Plan 200?"},
+                {"id": "m_ok", "laneId": "l1", "type": "database", "label": "Mark Success"},
+                {"id": "e400", "laneId": "l1", "type": "end", "label": "HTTP 400"},
+                {"id": "e500", "laneId": "l1", "type": "end", "label": "HTTP 500"},
+                {"id": "e200", "laneId": "l1", "type": "end", "label": "HTTP 200"},
+            ],
+            "edges": [
+                {"id": "e1", "from": "s", "to": "v1", "label": ""},
+                {"id": "e2", "from": "v1", "to": "e400", "label": "No"},
+                {"id": "e3", "from": "v1", "to": "v2", "label": "Yes"},
+                {"id": "e4", "from": "v2", "to": "e400", "label": "No"},
+                {"id": "e5", "from": "v2", "to": "q", "label": "Yes"},
+                {"id": "e6", "from": "q", "to": "c", "label": ""},
+                {"id": "e7", "from": "c", "to": "e500", "label": "No"},
+                {"id": "e8", "from": "c", "to": "t", "label": "Yes"},
+                {"id": "e9", "from": "t", "to": "t_ok", "label": ""},
+                {"id": "e10", "from": "t_ok", "to": "e500", "label": "No"},
+                {"id": "e11", "from": "t_ok", "to": "p", "label": "Yes"},
+                {"id": "e12", "from": "p", "to": "p_ok", "label": ""},
+                {"id": "e13", "from": "p_ok", "to": "e500", "label": "No"},
+                {"id": "e14", "from": "p_ok", "to": "m_ok", "label": "Yes"},
+                {"id": "e15", "from": "m_ok", "to": "e200", "label": ""},
+            ],
+        }, "TB"),
+    ]
     # 9 lanes: top to bottom has two more edge crossings (88 against 92); crossings never fail the audit, so TB
     cases += [(f"laptop sample + {k} lanes ({7 + k} lanes)", with_extra_lanes(laptop, k), "TB") for k in (1, 2, 3, 5)]
     failed = 0

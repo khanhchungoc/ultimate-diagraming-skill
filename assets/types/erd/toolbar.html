@@ -1,17 +1,24 @@
       <!-- Editing tools (see EDITING in erd.js) -->
-      <button id="btn-add-table" class="btn" title="Add a table after the selected one, or drag this onto the canvas" aria-label="Table">
-        {{icon:table-add}}<span class="btn-label">Table</span>
-      </button>
-      <button id="btn-add-relationship" class="btn" title="Relationship: click, then drag from a column of one table to another table (or drag from a hovered column's dot)" aria-label="Relationship">
-        {{icon:relationship}}<span class="btn-label">Relationship</span>
-      </button>
-      <button id="btn-add-note" class="btn" title="Add a note to the selected table (N), or drag this onto a table" aria-label="Note">
-        {{icon:note}}<span class="btn-label">Note</span>
-      </button>
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="erd-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="erd-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid" role="group" aria-label="Add">
+            <button id="btn-add-table" class="btn btn-shape" title="Add a table after the selected one, or drag this onto the canvas" aria-label="Table">
+              {{icon:table-add:tile:fine}}<span class="tile-caption">Table</span>
+            </button>
+            <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Add a note to the selected table (N), or drag this onto a table" aria-label="Note">
+              {{icon:note:tile:fine}}<span class="tile-caption">Note</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- What is shown -->
       <!-- Columns: one of three views, so a choice from a popover (a radio group), not a button that cycles. Types below is a plain on/off switch. -->
-      <div class="dock-pop-wrap" data-dock-pop>
+      <div class="dock-pop-wrap" data-dock-pop data-dock-priority="7">
         <button id="btn-columns" class="btn dock-pop-trigger" aria-label="Columns" aria-haspopup="true" aria-expanded="false" aria-controls="columns-pop">
           {{icon:columns}}<span class="btn-label">Columns</span><span class="btn-count">All</span>
           <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
@@ -30,7 +37,7 @@
           </div>
         </div>
       </div>
-      <button id="btn-types" class="btn btn-switch" role="switch" title="Show or hide the column types" aria-label="Types" aria-checked="true">
+      <button id="btn-types" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show or hide the column types" aria-label="Types" aria-checked="true">
         {{icon:types}}<span class="btn-label">Types</span>
       </button>
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">

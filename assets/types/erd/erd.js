@@ -29,7 +29,6 @@
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
       const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
       const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
-      const ERD_CHEVRON_ICON = ui.icon('chevron-down', { size: 'sm', bold: true });
       const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 
       // --- STATE ---
@@ -320,7 +319,7 @@
         } finally { erdInRender = false; }
         if (snap) erdPlay(snap, m);
         if (m && m.collapseId && motion.enabled()) {
-          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.erd-chevron svg');
+          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.chevron svg');
           if (ent && chev) {
             const on = ent.collapsed === true;
             motion.anim(chev, [{ transform: on ? 'rotate(0deg)' : 'rotate(-90deg)' }, { transform: on ? 'rotate(-90deg)' : 'none' }],
@@ -332,7 +331,7 @@
         if (sel.kind === 'entity') return !!erdEntity(sel.id);
         if (sel.kind === 'rel') return !!erdRel(sel.id);
         if (sel.kind === 'col') { const e = erdEntity(sel.entity); return !!e && (e.columns || []).some((c) => c.name === sel.col); }
-        if (sel.kind === 'key') return !!(chartData.colorKey && chartData.colorKey[sel.color]) && erdKeyColors().includes(sel.color);
+        if (sel.kind === 'key') return erdKeyColors().includes(sel.color);
         return false;
       }
 
@@ -345,6 +344,7 @@
         const showTypes = chartData.showTypes !== false;
         const vis = erVisibleColumns(e, chartData);
         const el = erdHtmlEl('div', 'erd-entity');
+        el.dataset.item = '';
         if (asCard) {
           el.classList.add('erd-card-table');
           el.style.minWidth = `${box.w}px`;
@@ -363,17 +363,11 @@
 
         const head = erdHtmlEl('div', 'erd-head');
         const name = erdHtmlEl('span', 'erd-name', erName(e));
-        name.title = erName(e);
         head.appendChild(name);
         if (!asCard) head.appendChild(buildPort(''));
         if (!asCard && (e.columns || []).length && detail !== 'names') {
-          const chev = erdHtmlEl('button', 'erd-chevron');
-          chev.type = 'button';
+          const chev = ui.chevron({ expanded: e.collapsed !== true, label: e.collapsed ? 'Expand this table' : 'Collapse this table to its header' });
           chev.dataset.exportSkip = '';
-          chev.title = e.collapsed ? 'Expand this table' : 'Collapse this table to its header';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(e.collapsed !== true));
-          chev.innerHTML = ERD_CHEVRON_ICON;
           chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
           chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(e.id); });
           head.appendChild(chev);
@@ -401,9 +395,6 @@
             if (col.nullable) t.title = 'Nullable';
             row.appendChild(t);
           }
-          const tip = [col.pk && col.fk ? 'Primary key, foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '',
-            col.unique ? 'unique' : '', col.nullable ? 'nullable' : '', col.note || ''].filter(Boolean).join(' · ');
-          if (tip) row.title = tip;
           el.appendChild(row);
         });
         if (vis.more) {
@@ -484,7 +475,7 @@
           const b = rel.labelBox;
           const text = rel.label === undefined || rel.label === null ? '' : String(rel.label);
           if (!b || !text) return;
-          const el = erdHtmlEl('div', 'edge-label');
+          const el = erdHtmlEl('div', 'edge-label edge-label--single');
           el.dataset.edgeId = rel.id;
           el.style.left = `${b.x}px`;
           el.style.top = `${b.y}px`;
@@ -522,9 +513,21 @@
         }
         return out;
       }
-      const entityEl = (id) => [...erdHtml.querySelectorAll('.erd-entity')].find((el) => el.dataset.nodeId === id);
-      const relEl = (id) => [...erdRels.children].find((el) => el.dataset.edgeId === id);
-      const labelEl = (id) => [...erdHtml.querySelectorAll('.edge-label')].find((el) => el.dataset.edgeId === id);
+      // id -> element lookups through an index built on first use and rebuilt when it misses or holds a removed element
+      // (a render replaces them all), so a hover highlight is not a scan of every table per relationship.
+      // The first element in document order wins, as a find() over the list would.
+      const erdIndex = (list, key) => {
+        let map = null;
+        const build = () => { map = new Map(); for (const el of list()) { const k = el.dataset[key]; if (!map.has(k)) map.set(k, el); } };
+        return (id) => {
+          let el = map && map.get(id);
+          if (!el || !el.isConnected) { build(); el = map.get(id); }
+          return el;
+        };
+      };
+      const entityEl = erdIndex(() => erdHtml.querySelectorAll('.erd-entity'), 'nodeId');
+      const relEl = erdIndex(() => erdRels.children, 'edgeId');
+      const labelEl = erdIndex(() => erdHtml.querySelectorAll('.edge-label'), 'edgeId');
       function markRows(rel, cls) {
         joinedRows(rel).forEach((end) => {
           const el = entityEl(end.id);
@@ -582,18 +585,14 @@
 
       function applyHighlight() {
         erdHtml.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!erdSel && erdSel.kind === 'key' && erdSel.color === l.dataset.color));
-        erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .is-dim')
-          .forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'is-dim'));
+        erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl')
+          .forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl'));
         erdCanvas.querySelectorAll('.ov-show').forEach((el) => el.classList.remove('ov-show'));
-        const keep = new Set();
-        const keepRels = new Set();
         const focus = erdFocusId();
         if (focus) {
-          keep.add(focus);
           erdRelsList().forEach((rel) => {
             const kind = rel.from === focus ? 'out' : rel.to === focus ? 'in' : null;
             if (!kind) return;
-            keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
             const g = relEl(rel.id), label = labelEl(rel.id);
             if (g) g.classList.add(`hl-${kind}`);
             if (label) { label.classList.add(`hl-${kind}`, 'ov-show'); }
@@ -616,16 +615,11 @@
         } else if (hoverRelId) {
           const rel = erdRel(hoverRelId);
           if (rel) {
-            keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
             const g = relEl(rel.id), label = labelEl(rel.id);
             if (g) g.classList.add('hover');
             if (label) label.classList.add('hover', 'ov-show');
             markRows(rel, 'hover');
           }
-        }
-        if (keep.size) {
-          erdHtml.querySelectorAll('.erd-entity').forEach((el) => { if (!keep.has(el.dataset.nodeId)) el.classList.add('is-dim'); });
-          [...erdRels.children, ...erdHtml.querySelectorAll('.edge-label')].forEach((el) => { if (!keepRels.has(el.dataset.edgeId)) el.classList.add('is-dim'); });
         }
         // Selection
         erdCanvas.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
@@ -655,17 +649,17 @@
       // there are no ports: a drag moves them all.
       function markTouchPorts() {
         const many = isMultiSelected();
-        erdCanvas.classList.toggle('erd-multi', many);
-        erdCanvas.querySelectorAll('.erd-port[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
+        erdCanvas.classList.toggle('is-multi', many);
+        erdCanvas.querySelectorAll('.port:not(.port-end)[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
         const id = !many && !erdPresenting() ? erdSelectedEntityId() : null;
         const el = id && entityEl(id);
-        if (el) el.querySelectorAll('.erd-port').forEach((p) => p.setAttribute('data-touch-drag', ''));
+        if (el) el.querySelectorAll('.port:not(.port-end)').forEach((p) => p.setAttribute('data-touch-drag', ''));
         el && el.classList.add('touch-ports');
         erdCanvas.querySelectorAll('.erd-entity.touch-ports').forEach((x) => { if (x !== el) x.classList.remove('touch-ports'); });
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';
       }
       const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
-      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);
+      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);   // .is-touch: the shell
 
       // Selecting changes classes and the tools drawn on the selection, never the tables themselves: the second click
       // of a double-click must land on the element the first one did
@@ -990,9 +984,29 @@
       const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
       const noteById = (id) => notesList().find((n) => n.id === id);
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
-      let editingNoteId = null;      // the note being typed: it counts as live while still empty
+      const noteCtl = createNotes({   // the note being typed counts as live while still empty
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        canEdit: () => !erdPresenting(),
+        openCard: (note) => {
+          cancelDrag();
+          setNotePicking(false);
+          selectNote(note.id);
+          if (!noteCard(note.id)) renderNotes(false);
+          const card = noteCard(note.id);
+          if (!card) return null;
+          card.style.pointerEvents = '';
+          applyNoteVisibility();
+          return card;
+        },
+        afterFocus: (card) => panIntoView(card),
+        clearSelection: (id) => { if (selectedNoteId === id) selectedNoteId = null; },
+        // badges appear or go, and the notes are fitted again around the new size
+        render: (ctx) => (ctx.reason === 'remove' ? render() : render({ skipKeys: new Set([ctx.note.id]), duration: 160 })),
+        onChange: () => updateStatus(true),
+      });
       const isFreeNote = (note) => !(note.entities || []).length;
-      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedEntities(n).length));
+      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedEntities(n).length));
       // A table note has no `column`
       const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
       const erdPresenting = () => document.body.classList.contains('presentation');
@@ -1203,11 +1217,11 @@
             } else {
               const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
               const leader = erdLeaders.querySelector(`.note-leader[data-note-id="${id}"]`);
-              if (editingNoteId !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
+              if (noteCtl.editingId() !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
                 card.style.pointerEvents = 'none';
                 setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
               }
-              if (selectedNoteId === id || editingNoteId === id) {
+              if (selectedNoteId === id || noteCtl.editingId() === id) {
                 // a selected card is about to be dragged from (its link handle): fade in place, never move it
                 motion.anim(card, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: motion.curve('curve-out') });
                 if (leader) motion.drawPath(leader, { duration: 150, easing: 'curve-out' });
@@ -1278,11 +1292,9 @@
       // Every finished edit calls updateStatus(true) once: commit() (structural: tables stay, lines re-route) or a plain render() + updateStatus(true) for colours and notes. Text edits (beginEdit) commit on blur.
       // =====================================================================================================
       const erdBtnAddTable = document.getElementById('btn-add-table');
-      const erdBtnAddRel = document.getElementById('btn-add-relationship');
       const erdBtnAddNote = document.getElementById('btn-add-note');
 
       let erdDrag = null;            // the pointer drag in progress: { startX, startY, dx, dy, moved, move?, drop?, click?, cleanup? }
-      let relArmed = false;          // the Relationship tool waits for a drag from a column
       let notePicking = false;       // the Note tool waits for a table
       let erdUidCounter = 0;
       const erdUid = (prefix) => `${prefix}_${Date.now()}_${erdUidCounter++}`;
@@ -1387,7 +1399,7 @@
         if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
         if (!d.moved) {
           d.moved = true;
-          document.body.classList.add('erd-dragging');
+          document.body.classList.add('erd-dragging', 'is-dragging');
           hoverEntityId = null;
           hoverRelId = null;
           applyHighlight();
@@ -1400,7 +1412,7 @@
         window.removeEventListener('pointermove', onDragMove);
         window.removeEventListener('pointerup', onDragUp);
         window.removeEventListener('pointercancel', cancelDrag);
-        document.body.classList.remove('erd-dragging');
+        document.body.classList.remove('erd-dragging', 'is-dragging');
         erdRubber.style.display = 'none';
         erdDropLine.style.display = 'none';
         erdGuideV.style.display = 'none';
@@ -1428,9 +1440,8 @@
       // --- ACTION BAR, HANDLES, PORTS ---
       // =====================================================================================================
       function buildPort(col) {
-        const p = erdHtmlEl('span', 'erd-port');
+        const p = ui.port('right');
         p.dataset.col = col;
-        p.dataset.exportSkip = '';
         p.title = col ? 'Drag to another table or column to relate them' : 'Drag to another table to relate them';
         return p;
       }
@@ -1461,10 +1472,9 @@
         return at(0.5);   // a line shorter than the gap: the middle
       }
       function addHandle(role, id, x, y) {
-        const h = erdHtmlEl('div', 'erd-handle');
+        const h = ui.port('end');
         h.dataset.role = role;
         h.dataset.id = id;
-        h.dataset.exportSkip = '';
         h.setAttribute('data-touch-drag', '');   // a finger may drag it (the shell's touch rule)
         h.title = role === 'from' ? 'Drag to another table or column to move the child end' : 'Drag to another table or column to move the parent end';
         Object.assign(h.style, { left: erdPx(x), top: erdPx(y) });
@@ -1480,7 +1490,7 @@
         const sameBar = barKey !== null && barKey === lastBarKey;
         lastBarKey = barKey;
         if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
-        erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
+        erdHtml.querySelectorAll('.port-end').forEach((el) => el.remove());
         if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
         if (erdSel.kind !== 'rel') lastHandleRelId = null;
         const bar = ui.actionBar('erd-actionbar');
@@ -1522,14 +1532,13 @@
           bar.setAttribute('aria-label', 'Relationship');
           bar.classList.add('is-wrap', 'is-wide');
           const ends = erRelEnds(rel, chartData);
-          bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
+          const fromEnt = erdEntity(rel.from), toEnt = erdEntity(rel.to);
+          bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (fromEnt ? erName(fromEnt) : '') || rel.from));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-          bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
+          bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (toEnt ? erName(toEnt) : '') || rel.to));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-          bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
-            'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
           bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
           const gap = ERD_HANDLE_GAP * (erdOverview ? 1 / scale : 1);   // the markers grow by 1 / scale in the overview
@@ -1537,7 +1546,7 @@
           addHandle('from', rel.id, hFrom[0], hFrom[1]);
           addHandle('to', rel.id, hTo[0], hTo[1]);
           if (lastHandleRelId !== erdSel.id && motion.enabled()) {
-            erdHtml.querySelectorAll('.erd-handle').forEach((h) => {
+            erdHtml.querySelectorAll('.port-end').forEach((h) => {
               motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-spring-tactile') });
             });
           }
@@ -1621,7 +1630,6 @@
           const ends = erRelEnds(rel, chartData);
           if (act === 'fromEnd' && ends.fromEnd !== value) { rel.fromEnd = value; commit(); }
           else if (act === 'toEnd' && ends.toEnd !== value) { rel.toEnd = value; commit(); }
-          else if (act === 'identifying') { if (rel.identifying === true) delete rel.identifying; else rel.identifying = true; commit(); }
           else if (act === 'reverse') reverseRelationship(rel);
           else if (act === 'label') editRelLabel(rel.id);
         }
@@ -1639,9 +1647,9 @@
       }
 
       // --- COLOUR LEGEND (optional) ---
-      // `colorKey` says what a table colour means. Tinting never asks for it: the legend is drawn only when some colour a table
-      // uses has a label, lists only those, and sits above the top-left corner of the tables. "Name colour" in a tinted table's
-      // bar (or Enter / F2 / a double-click on an entry) edits a label; clearing one removes it, clearing the last removes `colorKey`.
+      // `colorKey` says what a table colour means. In edit mode, every colour a table uses is shown (unnamed ones as
+      // "What does <Colour> mean?"); presentation and export hide unnamed entries (colorkey.css). Enter / F2 / double-click
+      // edits a label; clearing one removes it, clearing the last removes `colorKey`.
       function erdKeyColors() {
         const used = [];
         erdEntities().forEach((e) => { if (e.color && !used.includes(e.color)) used.push(e.color); });
@@ -1652,8 +1660,7 @@
         const snap = !erdInRender && motion.enabled() ? motion.capture(erdHtml, keySpec) : null;
         erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
         const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
-        const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
-        const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
+        const el = boxes.length && ui.colorKey(erdKeyColors(), key, { prompts: true, cls: 'erd-key' });
         if (!el) return;
         el.querySelectorAll('.color-key-item').forEach((it) => { const lbl = it.querySelector('.color-key-label'); if (lbl) it.dataset.color = lbl.dataset.color; });
         Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
@@ -1672,7 +1679,12 @@
         if (!el || erdPresenting()) return;
         const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
         el.classList.remove('is-empty');
-        beginEdit(el, { raw: was, restore: was, apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); } });
+        beginEdit(el, {
+          raw: was,
+          restore: was,
+          apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); },
+          onCancel: () => { if (!was) el.classList.add('is-empty'); }
+        });
         el.addEventListener('blur', () => { if (erdKeyDraft) { erdKeyDraft = null; drawKey(); } });
       }
       function nameColor(color) {
@@ -1697,18 +1709,18 @@
         if (!(t instanceof Element) || t.isContentEditable) return;
         const entEl = t.closest('.erd-entity');
         if (erdPresenting()) {   // read only: selecting a table is all a press does
-          if (entEl && !t.closest('.erd-chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
+          if (entEl && !t.closest('.chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
           return;
         }
-        if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
-        const handle = t.closest('.erd-handle');
+        if (t.closest('.erd-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
+        const handle = t.closest('.port-end');
         if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
         if (!entEl || t.closest('.note')) return;
         const id = entEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); const nr = t.closest('.erd-row'); giveNoteTo(id, nr ? nr.dataset.col : null); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
         // MULTI-SELECT: Ctrl/Cmd/Shift+click adds the table or takes it out; it never starts a drag
-        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port:not(.port-end)')) { e.preventDefault(); toggleEntity(id); return; }
         // A table of several selected: a press anywhere on it (ports are hidden) drags them all
         const group = isMultiSelected() && selectedEntityIds().includes(id) ? selectedEntityIds() : null;
         if (group) {
@@ -1716,13 +1728,12 @@
           beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
           return;
         }
-        const port = t.closest('.erd-port'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
+        const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row');
         if (port) {
           const from = { entity: id, col: port.dataset.col || null };
           beginDrag(e, connectDrag(from, () => (from.col ? selectCol(id, from.col) : selectEntity(id))));
           return;
         }
-        if (relArmed && (row || head)) { beginDrag(e, connectDrag({ entity: id, col: row ? row.dataset.col : null })); return; }
         // A finger on a row of the selected table moves the table (a tap selects the row); a mouse drags the row
         if (row && e.pointerType === 'touch' && erdSel && erdSel.kind === 'entity' && erdSel.id === id) {
           const drag = entityDrag(id, entEl);
@@ -1735,6 +1746,16 @@
         beginDrag(e, entityDrag(id, entEl));
       }
       erdHtml.addEventListener('pointerdown', onErdPointerDown);
+
+      // Identifying: true iff the relationship links from column(s) on the child table and every linked column is part of its PK.
+      // Table-to-table relationships (no columns) default to non-identifying.
+      function syncIdentifying(rel) {
+        if (!rel) return;
+        const from = erdEntity(rel.from);
+        const cols = Array.isArray(rel.columns) ? rel.columns : [];
+        const isId = !!(from && cols.length > 0 && cols.every((n) => (from.columns || []).some((c) => c.name === n && c.pk === true)));
+        if (isId) rel.identifying = true; else delete rel.identifying;
+      }
 
       // --- Draw a relationship: drag from a row's port (or the header's) onto another table or one of its rows ---
       function connectDrag(from, onClick) {
@@ -1749,7 +1770,6 @@
             markTarget(d.target);
           },
           drop(e, d) {
-            if (relArmed) setRelArmed(false);
             if (!d.target) { render(); return; }
             connectEntities(from, d.target);
           }
@@ -1774,7 +1794,7 @@
         if (dstCol && dstCol.name !== erdFirstPk(b)) rel.toColumns = [dstCol.name];
         rel.fromEnd = 'zeroOrMany';
         rel.toEnd = useSrc && srcCol.nullable ? 'zeroOrOne' : 'one';
-        if (useSrc && srcCol.pk) rel.identifying = true;
+        syncIdentifying(rel);
         const same = erdRelsList().find((r) => r.from === rel.from && r.to === rel.to && JSON.stringify(r.columns || null) === JSON.stringify(rel.columns || null)
           && JSON.stringify(r.toColumns || null) === JSON.stringify(rel.toColumns || null));
         if (same) { erdHint('Those two are already related that way'); selectRel(same.id); render(); return false; }
@@ -1818,6 +1838,7 @@
             Object.keys(rel).forEach((k) => delete rel[k]);
             Object.assign(rel, draft);
             if (role === 'from' && col && !col.fk) col.fk = true;
+            syncIdentifying(rel);
             commit();
           }
         };
@@ -1836,6 +1857,7 @@
         if (Array.isArray(rel.toColumns) && rel.toColumns.length) rel.columns = rel.toColumns.slice();
         else if (toCol) rel.columns = [toCol]; else delete rel.columns;
         if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
+        syncIdentifying(rel);
         commit();
         const line = relEl(rel.id)?.querySelector('.edge-line');
         if (line && motion.enabled()) {
@@ -1958,6 +1980,13 @@
       function beginEdit(el, opts = {}) {
         if (!el || el.isContentEditable) return;
         if (opts.raw !== undefined) el.textContent = opts.raw;
+        const card = el.closest('.erd-entity');
+        if (card) {
+          const ent = erdEntity(card.dataset.nodeId);
+          const minW = ent && ent.box ? ent.box.w : card.offsetWidth;
+          card.style.setProperty('--edit-min-w', erdPx(minW));
+          card.classList.add('has-editing');
+        }
         el.classList.add('is-editing');
         el.contentEditable = 'plaintext-only';
         el.spellcheck = false;
@@ -1976,6 +2005,10 @@
           el.removeEventListener('keydown', onKey);
           el.contentEditable = 'false';
           el.classList.remove('is-editing');
+          if (card) {
+            card.classList.remove('has-editing');
+            card.style.removeProperty('--edit-min-w');
+          }
           const value = el.textContent.replace(/\s*\n\s*/g, ' ').trim();
           const changed = value !== original || (how === 'enter' && value === '') ? !!opts.apply(value, how) : false;
           if (changed) commit();
@@ -2085,7 +2118,7 @@
         let box = labelEl(id);
         if (!box) {
           const mid = relMid(rel);
-          box = erdHtmlEl('div', 'edge-label');
+          box = erdHtmlEl('div', 'edge-label edge-label--single');
           box.dataset.edgeId = id;
           box.dataset.exportSkip = '';
           Object.assign(box.style, { left: erdPx(mid.x - 44), top: erdPx(mid.y - 11), width: '88px', height: '22px' });
@@ -2109,7 +2142,7 @@
       erdHtml.addEventListener('dblclick', (e) => {
         if (erdPresenting()) return;
         const t = e.target;
-        if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .erd-port, .erd-handle, .note')) return;
+        if (t.closest('.erd-actionbar, .chevron, .note-badge, .port, .note')) return;
         if (t.isContentEditable) return;
         const label = t.closest('.edge-label');
         if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }
@@ -2148,7 +2181,7 @@
         col.name = to;
         notesList().forEach((n) => { if (n.column === from && (n.entities || [])[0] === e.id) n.column = to; });
         erdRelsList().forEach((r) => {
-          if (r.from === e.id && Array.isArray(r.columns)) r.columns = r.columns.map((n) => (n === from ? to : n));
+          if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.map((n) => (n === from ? to : n)); syncIdentifying(r); }
           if (r.to === e.id && Array.isArray(r.toColumns)) r.toColumns = r.toColumns.map((n) => (n === from ? to : n));
         });
         if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === from) erdSel.col = to;
@@ -2160,7 +2193,7 @@
           if (!chartData.notes.length) delete chartData.notes;
         }
         erdRelsList().forEach((r) => {
-          if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; }
+          if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; syncIdentifying(r); }
           if (r.to === e.id && Array.isArray(r.toColumns)) { r.toColumns = r.toColumns.filter((n) => n !== name); if (!r.toColumns.length) delete r.toColumns; }
         });
         if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === name) erdSel = { kind: 'entity', id: e.id };
@@ -2193,6 +2226,11 @@
         const e = erdEntity(entityId), col = e && (e.columns || []).find((c) => c.name === name);
         if (!col) return;
         if (col[flag]) delete col[flag]; else col[flag] = true;
+        if (flag === 'pk') {
+          erdRelsList().forEach((r) => {
+            if (r.from === entityId && Array.isArray(r.columns) && r.columns.includes(name)) syncIdentifying(r);
+          });
+        }
         commit();
         if (!motion.enabled()) return;
         const row = colEls(entityId).find((r) => r.dataset.col === name);
@@ -2366,62 +2404,9 @@
         drawSelectionTools();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
-      function editNote(id) {
-        const note = noteById(id);
-        if (!note || erdPresenting()) return;
-        cancelDrag();
-        setRelArmed(false);
-        setNotePicking(false);
-        editingNoteId = id;
-        selectNote(id);
-        if (!noteCard(id)) renderNotes(false);
-        const card = noteCard(id);
-        if (!card) return;
-        card.style.pointerEvents = '';
-        applyNoteVisibility();
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        panIntoView(card);
-      }
-      function commitNote(note, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== note.id) return;
-        editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (value) note.text = value;
-        else {
-          chartData.notes = notesList().filter((n) => n !== note);
-          if (!chartData.notes.length) delete chartData.notes;
-          if (selectedNoteId === note.id) selectedNoteId = null;
-        }
-        updateStatus(true);
-        render({ skipKeys: new Set([note.id]), duration: 160 });   // badges appear or go, and the notes are fitted again around the new size
-      }
-      // Clicking anywhere else finishes the note being typed
-      window.addEventListener('pointerdown', (e) => {
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
-        if (text) text.blur();
-        if (text && note) commitNote(note, text);   // no-op if the blur already committed it
-      }, true);
-      function removeNote(id) {
-        if (!noteById(id)) return;
-        chartData.notes = notesList().filter((n) => n.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) editingNoteId = null;
-        if (selectedNoteId === id) selectedNoteId = null;
-        updateStatus(true);
-        render();
-      }
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(note, text) { noteCtl.commit(note, text); }
+      function removeNote(id) { noteCtl.remove(id); }
       // Link a note to a table, or unlink it when it is linked already (a note keeps at least one table). A pinned note
       // whose anchor goes keeps its place, measured from its new anchor.
       function toggleNoteLink(noteId, entityId) {
@@ -2479,7 +2464,6 @@
         if (ev.button !== 0 || ev.target.isContentEditable) return;
         ev.stopPropagation();
         if (erdPresenting()) return;
-        setRelArmed(false);
         selectNote(id);
         const x0 = parseFloat(card.style.left) || 0, y0 = parseFloat(card.style.top) || 0;
         beginDrag(ev, {
@@ -2515,34 +2499,25 @@
         if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
       });
 
-      // --- The dock: Table, Relationship, Note ---
-      function setRelArmed(on) {
-        if (relArmed === on) return;
-        relArmed = on;
-        document.body.classList.toggle('erd-armed', on);
-        if (erdBtnAddRel) erdBtnAddRel.setAttribute('aria-pressed', String(on));
-        if (on) erdHint('Drag from a column to another table or column · <kbd>Esc</kbd> to cancel', true); else if (!notePicking) erdHint(null);
+      // --- The dock: Add (Table, Note) ---
+      function closeDockPop(btn) {
+        const wrap = btn && btn.closest('.dock-pop-wrap');
+        if (!wrap) return;
+        wrap.classList.remove('open');
+        const trigger = wrap.querySelector('.dock-pop-trigger');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
       }
       function setNotePicking(on) {
         if (notePicking === on) return;
         notePicking = on;
         document.body.classList.toggle('note-picking', on);
         if (erdBtnAddNote) erdBtnAddNote.setAttribute('aria-pressed', String(on));
-        if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
+        if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else erdHint(null);
       }
       function giveNoteTo(id, col) {
         setNotePicking(false);
         if (col) selectCol(id, col); else selectEntity(id);
         addNoteTo(id, col);
-      }
-
-      if (erdBtnAddRel) {
-        erdBtnAddRel.setAttribute('aria-pressed', 'false');
-        erdBtnAddRel.addEventListener('click', () => {
-          if (erdPresenting()) return;
-          setNotePicking(false);
-          setRelArmed(!relArmed);
-        });
       }
 
       // Table: a click adds one after the selection; dragging the button onto the canvas drops it there
@@ -2551,7 +2526,6 @@
         erdBtnAddTable.addEventListener('click', (e) => {
           if (erdBtnAddTable.dataset.dragged) { delete erdBtnAddTable.dataset.dragged; e.preventDefault(); return; }
           if (erdPresenting()) return;
-          setRelArmed(false);
           setNotePicking(false);
           addTable();
         });
@@ -2569,6 +2543,7 @@
         if (!d) return;
         if (!d.ghost) {
           if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+          closeDockPop(erdBtnAddTable);
           d.ghost = erdHtmlEl('div', 'erd-entity erd-ghost');
           d.ghost.style.width = erdPx(ER.MIN_W);
           d.ghost.appendChild(erdHtmlEl('div', 'erd-head', ''));
@@ -2621,7 +2596,7 @@
           const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
           if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
           else if (noteId) editNote(noteId);
-          else { setRelArmed(false); setNotePicking(false); addFreeNote(); }
+          else { setNotePicking(false); addFreeNote(); }
         });
         erdBtnAddNote.addEventListener('pointerdown', (e) => {
           delete erdBtnAddNote.dataset.dragged;
@@ -2650,6 +2625,7 @@
         if (!d) return;
         if (!d.ghost) {
           if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+          closeDockPop(erdBtnAddNote);
           setNotePicking(false);
           d.ghost = erdHtmlEl('div', 'note note-ghost');
           d.ghost.appendChild(erdHtmlEl('div', 'note-text', 'Note'));
@@ -2752,7 +2728,6 @@
         if (cancelDrag()) did = true;
         if (cancelTableToolDrag()) did = true;
         if (cancelNoteToolDrag()) did = true;
-        if (relArmed) { setRelArmed(false); did = true; }
         if (notePicking) { setNotePicking(false); did = true; }
         return did;
       }

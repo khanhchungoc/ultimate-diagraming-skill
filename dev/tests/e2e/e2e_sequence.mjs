@@ -50,6 +50,12 @@ try {
     await t.press('Enter');
     return saved();
   };
+  const openAdd = async () => {
+    const p = await t.at('#btn-add');
+    await t.mouse('mouseMoved', p.x, p.y);
+    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+  };
+  const addTile = async (sel) => { await openAdd(); await t.clickOn(sel); };
   let d, f1Bottom;
 
   await t.section('repair', async () => {
@@ -62,15 +68,15 @@ try {
   // the browser does the hit-testing and makes the click and dblclick events itself.
 
   // --- Repair (step 0) ---
-  t.check('with nothing selected Message is disabled, and Frame and Note stay clickable and say what to select',
-    (await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
+  t.check('with nothing selected Message, Frame and Note stay enabled inside Add and say what to select',
+    !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
       && /click a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   t.check('Note with nothing selected shows a toast that says what to select, and adds nothing',
     /click a message/.test(await t.ev(`(document.querySelector('.toast') || {}).textContent || ''`)) && (await count('.note')) === 0);
   await t.clickOn(`.seq-msg-label[data-edge-id="m6"]`);
   const selected = await t.ev(`!!document.querySelector('.seq-msg-label.selected')`);
-  t.check('selecting a message enables Message, Frame and Note, and shows its action bar',
+  t.check('selecting a message keeps Message, Frame and Note enabled, and shows its action bar',
     !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note')) && (await count('.seq-actionbar .seq-ab-btn[data-act="type"]')) === 0
       && (await count('.seq-actionbar .seq-ab-btn[data-act="async"]')) === 1);
   await t.press('Delete');
@@ -128,20 +134,20 @@ try {
   t.check('Escape in an edit keeps the old text', JSON.parse(await t.ev(labels)).includes('Stock reserved') && (await editing()) === null);
 
   await t.open(page);
-  await t.clickOn('#btn-add-participant');
+  await addTile('#btn-add-participant');
   const newP = await editing();
   await t.type('Ledger');
   await t.press('Enter');
   t.check('a new participant opens in edit, on screen, and takes the typed name',
     /^Participant/.test(newP || '') && JSON.parse(await t.ev(names))[4] === 'Ledger' && (await onScreen('.seq-participant.selected')), `${newP} ${await t.ev(names)}`);
   await t.clickOn('.seq-msg-label[data-edge-id="m7"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   const newM = await editing();
   await t.type('Post entry');
   await t.press('Enter');
   t.check('Message inserts after the selected message, in edit and on screen',
     newM === 'Message' && JSON.parse(await t.ev(labels)).at(-1) === 'Post entry' && (await onScreen('.seq-msg-label.selected')), `${newM} ${await t.ev(labels)}`);
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   const newF = await editing();
   await t.type('ledger enabled');
   await t.press('Enter');
@@ -151,12 +157,12 @@ try {
   // The dock's Message button infers the kind like drawing does: a call, or the reply of an open call
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   await t.clickOn('.seq-ab-btn[data-act="reverse"]');
   let dk = await saved();
   const x1 = dk.messages[1];
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   dk = await saved();
   t.check('Message after a message adds a call; after a call that reopens the other way, the reply of the open call',
@@ -164,7 +170,7 @@ try {
     JSON.stringify(dk.messages.slice(0, 4)));
   await t.open(page);
   await t.clickOn('.seq-participant[data-node-id="p2"]');
-  await t.clickOn('#btn-add-message');
+  await addTile('#btn-add-message');
   await t.press('Enter');
   dk = await saved();
   t.check('Message from a selected participant adds a call at the first row', dk.messages[0].kind === 'sync' && dk.messages[0].from === 'p2', JSON.stringify(dk.messages[0]));
@@ -191,6 +197,7 @@ try {
     plusShown && drawn === 'Message' && d.messages[1].label === 'Check fraud' && d.messages[1].from === 'p3' && d.messages[1].to === 'p2' && d.messages[1].kind === 'sync',
     `plus=${plusShown} edit=${drawn} ${JSON.stringify(d.messages[1])}`);
   // Released on the same lifeline: a self-message (pick a gap clear of f1's frame tag)
+  await t.press('Escape');   // dismiss the new message's action bar so it does not cover the lifeline below
   const yGap2 = await gapY('m2', 'm3');
   const shopB = await lifelineAt('p2', yGap2);
   await t.mouse('mouseMoved', shopB.x, yGap2);
@@ -215,7 +222,7 @@ try {
   // Retarget: drag the "to" handle of a selected message to another lifeline
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
-  const toHandle = await t.at('.seq-handle[data-role="to"]');
+  const toHandle = await t.at('[data-handle][data-role="to"]');
   const ware = await lifelineAt('p4', toHandle.y);
   await t.dragTo(toHandle.x, toHandle.y, ware.x, toHandle.y);
   d = await saved();
@@ -247,10 +254,12 @@ try {
   await t.press('Enter');
   t.check('the + between two participant boxes inserts one there, name in edit',
     JSON.parse(await t.ev(names)).join() === [order[0].name, order[1].name, 'Fraud', order[2].name, order[3].name].join(), await t.ev(names));
-  // The participant kind from the action bar
+  // The participant icon from the action bar (shared icon picker)
   await t.clickOn('.seq-participant[data-node-id="p3"]');
-  await t.clickOn('.seq-ab-btn[data-value="database"]');
-  t.check('the action bar sets the participant kind (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
+  await t.clickOn('.seq-ab-btn[data-act="icon"]');
+  await t.type('database');
+  await t.clickOn('#seq-icons button[data-icon="database"]');
+  t.check('the action bar sets the participant icon (icon in the box)', (await count('.seq-participant[data-node-id="p3"] .seq-kind-icon')) === 1);
 
   // Delete a participant with messages: asks first
   await t.open(page);
@@ -294,7 +303,7 @@ try {
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m3"]', { modifiers: 8 });
   const rangeSel = await count('.seq-msg-label.selected');
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   await t.type('signed in');
   await t.press('Enter');
   d = await saved();
@@ -304,7 +313,7 @@ try {
   await t.clickOn('.seq-msg-label[data-edge-id="m3"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m5"]', { modifiers: 8 });
   const framesBefore = await count('.frame-tag');
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   t.check('Frame says why, and adds nothing, when a frame edge cuts through the range',
     /cuts through/.test(await t.ev(`document.getElementById('btn-frame').title`)) && (await count('.frame-tag')) === framesBefore
       && /cuts through/.test(await t.ev(`[...document.querySelectorAll('.toast')].map((e) => e.textContent).join(' ')`)));
@@ -312,18 +321,18 @@ try {
   // Drag a frame's bottom edge down one row
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
-  const bottom = await t.at('.seq-handle[data-role="bottom"]');
+  const bottom = await t.at('[data-handle][data-role="bottom"]');
   await t.dragTo(bottom.x, bottom.y, bottom.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
   t.check("a frame edge cannot be dragged to where the frame would cross another (f2 into f1)", d.fragments.find((f) => f.id === 'f2').to === 'm3', JSON.stringify(d.fragments));
   await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
-  const bottom1 = await t.at('.seq-handle[data-role="bottom"]');
+  const bottom1 = await t.at('[data-handle][data-role="bottom"]');
   await t.dragTo(bottom1.x, bottom1.y, bottom1.x, await gapY('m7'), { steps: 8 });
   d = await saved();
   t.check("dragging a frame's bottom handle down takes in the next message", d.fragments.find((f) => f.id === 'f1').to === 'm7', JSON.stringify(d.fragments));
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
-  const top = await t.at('.seq-handle[data-role="top"]');
+  const top = await t.at('[data-handle][data-role="top"]');
   await t.dragTo(top.x, top.y, top.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
   const f1b = d.fragments.find((f) => f.id === 'f1');
@@ -366,7 +375,7 @@ try {
   // Notes: add, edit (Shift+Enter breaks a line), move, stretch
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   const noteEdit = await editing();
   await t.type('Held for 15 min');
   await t.press('Enter', { modifiers: 8 });
@@ -382,14 +391,14 @@ try {
   d = await saved();
   t.check('dragging a note moves it to another row gap and lifeline', d.notes[0].over === 'p3' && d.notes[0].before === 'm5' && d.notes[0].after === undefined, JSON.stringify(d.notes[0]));
   await t.clickOn('.note');
-  const st = await t.at('.seq-handle[data-role="stretch"]');
+  const st = await t.at('[data-handle][data-role="stretch"]');
   const wh = await lifelineAt('p4', st.y);
   await t.dragTo(st.x, st.y, wh.x, st.y);
   d = await saved();
   t.check("the note's stretch handle spans it over a second lifeline", JSON.stringify(d.notes[0].over) === '["p3","p4"]', JSON.stringify(d.notes[0]));
   // A long single-lifeline note expands into open space toward the next lifeline, and wraps inside its box in edit mode
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   const longNoteText = 'Start with benefits[].levelCode and resolve overrides before keeping one OPEX per Benefit';
   await t.type(longNoteText);
   await t.press('Enter');
@@ -458,6 +467,7 @@ try {
   const noteIds = async () => new Set(((await saved()).notes || []).map((n) => n.id));
   await t.open(page);
   let had = await noteIds();
+  await openAdd();
   let dockBtn = await t.at('#btn-add-note'), dockRow = await m2Line();
   let a2 = await lifelineAt(order[1].id, dockRow.y - 20), a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, (a2.x + a3.x) / 2, dockRow.y - 20, { steps: 10 });
@@ -468,6 +478,7 @@ try {
     !!nn && nn.over === undefined && nn.place > 1 && nn.place < 2 && (nn.before || nn.after), JSON.stringify(d.notes));
   await t.open(page);
   had = await noteIds();
+  await openAdd();
   dockBtn = await t.at('#btn-add-note'); dockRow = await m2Line();
   a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, a3.x + 10, dockRow.y - 20, { steps: 10 });
@@ -485,6 +496,7 @@ try {
   const moved = d.notes.find((n) => n.id === nn.id);
   t.check('a note dragged away from every lifeline becomes a free note', moved.over === undefined && moved.place > 1 && moved.place < 2, JSON.stringify(moved));
   await t.open(page);
+  await openAdd();
   dockBtn = await t.at('#btn-frame');
   const m7r = await t.at('.seq-line[data-edge-id="m7"]');
   await t.dragTo(dockBtn.x, dockBtn.y, m7r.x, m7r.y - 25, { steps: 10 });
@@ -494,6 +506,7 @@ try {
   t.check('a Frame dragged from the dock onto an arrow wraps that arrow', !!nf2 && nf2.from === 'm7' && nf2.to === 'm7', JSON.stringify(d.fragments));
   // Onto the bottom part of another frame: the arrow there (m6, f1's last), not the next one
   await t.open(page);
+  await openAdd();
   dockBtn = await t.at('#btn-frame');
   const m6r = await t.at('.seq-line[data-edge-id="m6"]');
   await t.mouse('mouseMoved', dockBtn.x, dockBtn.y);
@@ -518,7 +531,7 @@ try {
   await t.open(page);
   await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-text');
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete-frame"]');
-  const choices = await t.ev(`JSON.stringify([...document.querySelectorAll('.confirm-actions button')].map((b) => b.textContent))`);
+  const choices = await t.ev(`JSON.stringify([...document.querySelectorAll('.confirm .confirm-actions button')].map((b) => b.textContent))`);
   await t.clickOn('.confirm-alt');
   d = await saved();
   t.check('a frame\'s bin offers Frame only, which removes the frame and keeps its messages',
@@ -552,7 +565,7 @@ try {
   // A note at the end of a frame: inside it (after the last message) or just outside (before the next message)
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
-  await t.clickOn('#btn-add-note');
+  await addTile('#btn-add-note');
   await t.press('Enter');
   f1Bottom = await frameEdge('f1', 'bottom');
   let nb2 = await t.at('.note', 0.5, 0);   // a note's drop slot follows its top edge
@@ -700,7 +713,7 @@ try {
     (await count('.seq-msg-label')) === 42 && (await count('.frame-tag')) === 7 && (await count('.note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
   // Collapse a phase: its messages hide, the numbers stay
   const num = (id) => t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${id}"] .seq-msg-num')?.textContent`);
-  await t.clickOn('.frame-tag[data-frag-id="f1"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .chevron');
   const sum = await t.ev(`document.querySelector('.frame-summary')?.textContent`);
   t.check('collapsing a frame hides its messages behind one summary row and keeps every step number',
     sum === '9 messages hidden (steps 2–10)' && (await count('.seq-msg-label')) === 33 && (await num('m11')) === '11' && (await num('m1')) === '1', `${sum} ${await count('.seq-msg-label')}`);
@@ -759,7 +772,7 @@ try {
   const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
   await t.clickOn('.seq-msg-label[data-edge-id="m17"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m19"]', { modifiers: 8 });
-  await t.clickOn('#btn-frame');
+  await addTile('#btn-frame');
   await t.type('Status update');
   await t.press('Enter');
   await t.press('Escape');
@@ -864,7 +877,7 @@ try {
   const gapAt = (a, b) => gapY(a, b);
   // Start handle: drag the Service Bus's start box up to before step 16 (its own first message is step 19)
   await t.clickOn('.seq-participant[data-node-id="bus"]');
-  const hs = await t.at('.seq-handle[data-role="pstart"]');
+  const hs = await t.at('[data-handle][data-role="pstart"]');
   await t.dragTo(hs.x, hs.y, hs.x, await gapAt('m15', 'm16'), { steps: 8 });
   d = await saved();
   t.check('a start handle drags a lifeline earlier: only outward, onto a message id', d.participants.find((q) => q.id === 'bus').start === 'm16', JSON.stringify(d.participants.find((q) => q.id === 'bus')));
@@ -875,13 +888,13 @@ try {
   t.check('deleting the message a start names drops the override', !d.messages.some((m) => m.id === 'm16') && d.participants.every((q) => q.start === undefined || d.messages.some((m) => m.id === q.start)), JSON.stringify(d.participants.find((q) => q.id === 'bus')));
   await t.press('z', { modifiers: 2 });
   await t.clickOn('.seq-participant[data-node-id="bus"]');
-  const hs2 = await t.at('.seq-handle[data-role="pstart"]');
+  const hs2 = await t.at('[data-handle][data-role="pstart"]');
   await t.dragTo(hs2.x, hs2.y, hs2.x, await gapAt('m22', 'm23'), { steps: 8 });
   d = await saved();
   t.check('dragged back inside its own span, the override goes', d.participants.find((q) => q.id === 'bus').start === undefined);
   // End handle: the SPM lifeline (steps 7-16) ends later, at step 23
   await t.clickOn('.seq-participant[data-node-id="spm"]');
-  const he = await t.at('.seq-handle[data-role="pend"]');
+  const he = await t.at('[data-handle][data-role="pend"]');
   await t.dragTo(he.x, he.y, he.x, await gapAt('m23', 'm24'), { steps: 8 });
   d = await saved();
   t.check('an end handle drags the cap down onto a later message', d.participants.find((q) => q.id === 'spm').end === 'm23', JSON.stringify(d.participants.find((q) => q.id === 'spm')));
@@ -896,7 +909,7 @@ try {
     d.participants.find((q) => q.id === 'job').column === 'spm' && sameCol && (await canvasW()) < widthBefore, `${JSON.stringify(d.participants.find((q) => q.id === 'job'))} ${widthBefore} -> ${await canvasW()}`);
   // The end handle may not reach into the other participant's span
   await t.clickOn('.seq-participant[data-node-id="spm"]');
-  const he2 = await t.at('.seq-handle[data-role="pend"]');
+  const he2 = await t.at('[data-handle][data-role="pend"]');
   await t.dragTo(he2.x, he2.y, he2.x, await gapAt('m29', 'm30'), { steps: 8 });
   d = await saved();
   const hint1 = await t.ev(`document.querySelector('.hint')?.textContent`);
@@ -909,7 +922,7 @@ try {
   const hint2 = await t.ev(`document.querySelector('.hint')?.textContent`);
   d = await saved();
   t.check('dropping a box where the lifespans overlap is refused, and the reason names both and the step',
-    d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.dragging')`)), `${hint2}`);
+    d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.is-dragging')`)), `${hint2}`);
   await t.clickOn('.seq-participant[data-node-id="job"]');
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="own"]');
   d = await saved();
@@ -1013,7 +1026,7 @@ try {
   const dimmed = await count('.search-dim');
   await t.clickOn('#btn-present');
   t.check('sequence: entering Present closes and clears the search', dimmed > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   await t.press('Escape');
   t.check('sequence: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
@@ -1030,7 +1043,7 @@ try {
       && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
   }
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
-  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .chevron');
   const presentCollapsed = await count('.frame-summary');
   const badge = await t.ev(`document.getElementById('save-status').textContent`);
   await t.clickOn('.frame-summary');
@@ -1059,6 +1072,120 @@ try {
       && !/"(x|y|w|h|elseY|layout)":/.test(json) && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
+  });
+
+  // Render path: every item element is kept across renders (identity for the morphs), the layers listen once each
+  // (events reach kept elements), and a drag leaves nothing behind on the element it moved.
+  await t.section('render-reuse', async () => {
+  const KEPT = '.seq-participant[data-node-id], .seq-msg-label[data-edge-id], .seq-line[data-edge-id], .seq-lifeline[data-node-id], .frame-tag[data-frag-id], .seq-frag-box[data-frag-id], .note[data-note-id], .seq-activation';
+  const mark = () => t.ev(`(() => { let n = 0; document.querySelectorAll('${KEPT}').forEach((el, i) => { el.__mark = i; n++; }); return n; })()`);
+  const kept = () => t.ev(`(() => { const els = [...document.querySelectorAll('${KEPT}')]; return { n: els.length, ok: els.filter((el) => el.__mark === undefined).length }; })()`);
+  // Undo / Redo restore a snapshot and render it; one cheap edit (the title) gives them something to restore
+  const rerender = async () => {
+    await t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      h.textContent = 'Reuse check'; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); return true; })()`);
+    await t.ev(`document.getElementById('btn-undo').click(); document.getElementById('btn-redo').click(); true`);
+    await t.settle();
+  };
+  await t.open(long);
+  const n0 = await mark();
+  await rerender();
+  let k = await kept();
+  t.check('a render keeps every participant, lifeline, arrow, label, frame, bar and note element (identity for the morphs)', n0 > 40 && k.n === n0 && k.ok === 0, `${n0} ${JSON.stringify(k)}`);
+
+  // Hover, click and double-click still reach a kept element through the layer listeners
+  const lab = await t.ev(`(() => { const el = document.querySelector('.seq-msg-label[data-edge-id]'); return { id: el.dataset.edgeId }; })()`);
+  await t.clickOn(`.seq-msg-label[data-edge-id="${lab.id}"]`);
+  const sel = await t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${lab.id}"]').classList.contains('selected') && document.querySelector('.seq-line[data-edge-id="${lab.id}"]').classList.contains('selected')`);
+  await t.press('Escape');
+  await t.clickOn(`.seq-msg-label[data-edge-id="${lab.id}"]`, { count: 2 });
+  await sleep(60);
+  const typing = await editing();
+  await t.press('Escape');
+  await t.ev(`document.activeElement && document.activeElement.blur(); true`);
+  t.check('after a render a click selects a kept arrow and its label, a double-click edits the label', sel && typing !== null, `sel=${sel} editing=${typing}`);
+  await rerender();
+  await t.clickOn('#btn-zoom-reset');
+  await t.settle();
+  const noteId = await t.ev(`(document.querySelector('.note[data-note-id]') || {dataset: {}}).dataset.noteId || ''`);
+  await t.clickOn(`.note[data-note-id="${noteId}"]`, { count: 2 });
+  await sleep(60);
+  const noteTyping = await editing();
+  await t.press('Escape');
+  await t.ev(`document.activeElement && document.activeElement.blur(); true`);
+  t.check('a double-click on a kept note edits it', noteId && noteTyping !== null, `${noteId} ${noteTyping}`);
+
+  // A rename changes the text of the one element and keeps all the others
+  await t.open(page);
+  const n1 = await mark();
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  await t.press('Enter');
+  await t.ev(`(() => { const e = document.activeElement; if (e && e.isContentEditable) { e.textContent = 'Renamed once'; e.blur(); } return true; })()`);
+  await t.settle();
+  k = await kept();
+  const text1 = await t.ev(`document.querySelector('.seq-msg-label[data-edge-id="m1"] .seq-msg-label-text').textContent`);
+  t.check('renaming a message rewrites its own label and keeps every element', k.n === n1 && k.ok === 0 && text1 === 'Renamed once', `${n1} ${JSON.stringify(k)} ${text1}`);
+
+  // A delete removes that arrow's elements only
+  await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
+  await t.press('Delete');
+  await t.settle();
+  k = await kept();
+  const gone = (await count('.seq-msg-label[data-edge-id="m2"]')) + (await count('.seq-line[data-edge-id="m2"]'));
+  t.check('deleting a message removes its elements and keeps the others', gone === 0 && k.ok === 0 && k.n < n1, `${gone} ${JSON.stringify(k)} ${n1}`);
+
+  // A drag that ends where it began renders again: the label is back as drawn (no drag class, no inline transform)
+  await t.open(page);
+  await mark();
+  const at = await t.at('.seq-msg-label[data-edge-id="m3"]');
+  await t.dragTo(at.x, at.y, at.x, at.y + 6, { steps: 4 });
+  await t.settle();
+  const left = await t.ev(`(() => { const el = document.querySelector('.seq-msg-label[data-edge-id="m3"]'); return { kept: el.__mark !== undefined, cls: el.classList.contains('is-dragging'), tr: el.style.transform }; })()`);
+  t.check('a drag dropped back in place leaves the label as drawn: same element, no .is-dragging, no transform', left.kept && !left.cls && left.tr === '', JSON.stringify(left));
+  const pbox = await t.at('.seq-participant');
+  await t.dragTo(pbox.x, pbox.y, pbox.x + 6, pbox.y, { steps: 4 });
+  await t.settle();
+  const pleft = await t.ev(`(() => { const el = document.querySelector('.seq-participant'); return { kept: el.__mark !== undefined, cls: el.classList.contains('is-dragging'), tr: el.style.transform }; })()`);
+  t.check('a participant dropped back in place is as drawn too', pleft.kept && !pleft.cls && pleft.tr === '', JSON.stringify(pleft));
+
+  // The drop rows are worked out once per render, not per pointer move: a long drag over the long page stays cheap
+  await t.open(long);
+  const m = await t.at('.seq-msg-label[data-edge-id]');
+  const t0 = Date.now();
+  await t.dragTo(m.x, m.y, m.x, m.y + 120, { steps: 40 });
+  const drag = Date.now() - t0;
+  await t.press('Escape');
+  t.check('a 40-move message drag over the long page runs without page errors', t.errors.length === 0 && drag < 8000, `${drag}ms ${t.errors.join(' | ')}`);
+  });
+
+  // --- Shared C4-style icon picker & note-next-to-delete order ---
+  await t.section('icon-picker-and-note', async () => {
+  await t.open(page);
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  const pActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('participant bar uses the shared Icon button (not inline pkind buttons) and places note right before delete',
+    pActs.includes('icon') && !pActs.includes('pkind') && pActs[pActs.length - 2] === 'note' && pActs[pActs.length - 1] === 'delete', JSON.stringify(pActs));
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  const pickerOpen = await t.ev(`(() => { const p = document.getElementById('seq-icons'); return !!(p && p.querySelector('#seq-icon-search') && p.querySelectorAll('button[data-icon]').length > 20); })()`);
+  t.check('clicking Icon opens the shared #seq-icons picker with search and grouped icons', pickerOpen);
+  await t.type('postgresql');
+  await t.check('searching postgresql shows logo:devicon/postgresql in sequence picker',
+    await t.ev(`!!document.querySelector('#seq-icons button[data-icon="logo:devicon/postgresql"]')`));
+  await t.clickOn('#seq-icons button[data-icon="logo:devicon/postgresql"]');
+  const hasLogo = await t.ev(`!!document.querySelector('.seq-participant[data-node-id="p2"] .seq-kind-icon.is-logo svg')`);
+  d = await saved();
+  t.check('picking a tech logo renders it on the participant pill and saves p.icon',
+    hasLogo && d.participants[1].icon === 'logo:devicon/postgresql', JSON.stringify([hasLogo, d.participants[1]]));
+  // Picking Default clears p.icon
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  await t.clickOn('#seq-icons button[data-icon=""]');
+  d = await saved();
+  t.check('picking Default clears p.icon', d.participants[1].icon === undefined, JSON.stringify(d.participants[1]));
+  // Message bar also puts note right before delete
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  const mActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
+  t.check('message bar places note right before delete',
+    mActs[mActs.length - 2] === 'note' && mActs[mActs.length - 1] === 'delete', JSON.stringify(mActs));
   });
 } catch (err) {
   console.error('[ERROR]', err.message);

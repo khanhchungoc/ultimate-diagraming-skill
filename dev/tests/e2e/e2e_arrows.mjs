@@ -91,8 +91,10 @@ try {
   const apart = await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
     return a.left >= b.right - 1 || a.right <= b.left + 1 || a.top >= b.bottom - 1 || a.bottom <= b.top + 1; })()`);
   t.check('on a labelled arrow a click selects it and the toolbar does not cover the label', apart && !(await editing()));
-  t.check('the toolbar sits just past the label, above midY', await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
-    return a.left - b.right >= 0 && a.left - b.right < 24 && Math.abs((b.top + b.height / 2) - a.bottom - 8) < 3; })()`));
+  t.check('the toolbar sits centered above (or below) the label with an 8px gap', await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
+    const gap = ${bar}.classList.contains('is-below') ? a.top - b.bottom : b.top - a.bottom;
+    const dx = Math.abs((a.left + a.width / 2) - (b.left + b.width / 2));
+    return Math.abs(gap - 8) < 3 && dx < 4; })()`));
 
   // 6. Hidden while an end is dragged, in presentation and in capture
   await deselect();
@@ -158,13 +160,13 @@ try {
   // A touch-only browser (hover: none, as headless Chrome reports) keeps the anchor points on a selected step
   const touch = await t.ev(`matchMedia('(hover: none)').matches`);
   t.check('anchor points are hidden at rest, shown on hover, and on a selected step only without hover', rest === '0' && hovered === '1' && selectedAway === (touch ? '1' : '0'), JSON.stringify({ rest, selectedAway, hovered, touch }));
-  await t.ev(`document.body.classList.add('connecting')`);
+  await t.ev(`document.body.classList.add('connecting', 'is-dragging')`);   // as startConnecting does
   await sleep(300);
   t.check('anchor points stay hidden while connecting', (await portOp()) === '0');
-  await t.ev(`document.body.classList.remove('connecting')`);
+  await t.ev(`document.body.classList.remove('connecting', 'is-dragging')`);
   t.check('a selected step keeps its anchor points only under (hover: none)', await t.ev(`(() => {
     const rules = [];
-    const walk = (list, media) => [...list].forEach(r => { if (r.media) walk(r.cssRules, r.media.mediaText); else if (/\\.port/.test(r.selectorText || '') && /selected/.test(r.selectorText)) rules.push(media); });
+    const walk = (list, media) => [...list].forEach(r => { if (r.media) walk(r.cssRules, r.media.mediaText); else if (/\\.port/.test(r.selectorText || '') && /selected/.test(r.selectorText) && !/\\.is-touch/.test(r.selectorText)) rules.push(media); });   // .is-touch: the last press was a finger
     [...document.styleSheets].forEach(s => { try { walk(s.cssRules, ''); } catch (e) {} });
     return rules.length > 0 && rules.every(m => /hover:\\s*none/.test(m));
   })()`));

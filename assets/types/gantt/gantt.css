@@ -18,15 +18,15 @@
     .gantt-zoom-pills {
       display: inline-flex;
       align-items: center;
-      gap: 2px;
-      padding: 2px;
+      gap: var(--space-2);
+      padding: var(--space-2);
       border-radius: var(--radius-lg);
       background: var(--bg-page);
       border: 1px solid var(--border-color);
     }
     .gantt-zoom-pill {
       min-height: 28px;
-      padding: 6px 9px;
+      padding: var(--space-4) var(--space-8);
       border: 0;
       border-radius: var(--radius-md);
       background: transparent;
@@ -79,18 +79,18 @@
     }
     .toolbar-zoom .gantt-zoom-pill.is-active {
       max-width: 84px;
-      padding: 6px 9px;
+      padding: var(--space-4) var(--space-8);
       opacity: 1;
       pointer-events: auto;
     }
     .toolbar-zoom .gantt-zoom-pills:hover,
     .toolbar-zoom .gantt-zoom-pills:focus-within {
-      gap: 2px;
+      gap: var(--space-2);
     }
     .toolbar-zoom .gantt-zoom-pills:hover .gantt-zoom-pill,
     .toolbar-zoom .gantt-zoom-pills:focus-within .gantt-zoom-pill {
       max-width: 88px;
-      padding: 6px 9px;
+      padding: var(--space-4) var(--space-8);
       opacity: 1;
       pointer-events: auto;
     }
@@ -164,8 +164,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 0 8px 0 10px;
+      gap: var(--space-8);
+      padding: 0 var(--space-8) 0 var(--space-8);
       background: var(--bg-page);
       border-bottom: 1px solid var(--border-color);
       box-shadow: var(--shadow-band);
@@ -181,7 +181,7 @@
     .gantt-sidebar-actions {
       display: inline-flex;
       align-items: center;
-      gap: 2px;
+      gap: var(--space-2);
     }
 
     .gantt-toggle-all,
@@ -224,9 +224,9 @@
       box-sizing: border-box;
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding-left: calc(6px + var(--depth, 0) * 14px);
-      padding-right: 6px;
+      gap: var(--space-4);
+      padding-left: calc(var(--space-8) + var(--depth, 0) * var(--space-12));
+      padding-right: var(--space-4);
       border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
       font-size: var(--t-body-rem-size, 0.875rem);
       font-weight: var(--t-label-weight);
@@ -297,49 +297,6 @@
     .gantt-tree-row.drop-after::after,
     .gantt-row.drop-after::after,
     .gantt-row.drag-over-after::after { bottom: -1px; }
-
-    .gantt-chevron {
-      position: relative;
-      flex: none;
-      width: 20px;
-      height: 20px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      border: 0;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: transform var(--dur-fast) var(--curve-out), background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
-    }
-    .gantt-chevron::after {
-      content: '';
-      position: absolute;
-      inset: -2px;
-    }
-    .gantt-chevron:hover {
-      background: var(--bg-hover);
-      color: var(--text-main);
-    }
-    .gantt-chevron svg {
-      transition: transform var(--dur-fast) var(--curve-out);
-    }
-    .gantt-chevron[aria-expanded="false"] svg {
-      transform: rotate(-90deg);
-    }
-    .gantt-chevron[aria-expanded="false"] svg:has(path[d^="M6 15"]) {
-      transform: rotate(90deg);
-    }
-    .gantt-chevron[aria-expanded="false"]:not(:has(svg)) {
-      transform: rotate(-90deg);
-    }
-    .gantt-chevron-spacer {
-      flex: none;
-      width: 12px;
-      height: 20px;
-    }
 
     .gantt-row-grip {
       position: absolute;
@@ -415,12 +372,12 @@
       background: var(--bg-input);
       outline: 1.5px solid var(--focus-ring);
       border-radius: var(--radius-xs);
-      padding: 1px 4px;
+      padding: var(--space-2) var(--space-4);
     }
 
     .gantt-tree-row:has(.gantt-row-add):is(:hover, .selected, :focus-within) .gantt-tree-label:not(.is-editing),
     .gantt-row:has(.gantt-row-add):is(:hover, .selected, :focus-within) .gantt-row-label:not(.is-editing) {
-      padding-right: 26px;
+      padding-right: var(--space-24);
     }
 
     .gantt-row-add {
@@ -463,7 +420,7 @@
     .gantt-splitter {
       flex: none;
       width: 5px;
-      margin: 0 -2px;
+      margin: 0 calc(-1 * var(--space-2));
       position: relative;
       z-index: 25;
       cursor: col-resize;
@@ -544,7 +501,7 @@
       bottom: 0;
       display: flex;
       align-items: center;
-      padding: 0 8px;
+      padding: 0 var(--space-8);
       border-right: 1px solid var(--border-color);
       white-space: nowrap;
       overflow: hidden;
@@ -566,8 +523,8 @@
     .gantt-tick-bottom.is-day {
       flex-direction: column;
       justify-content: center;
-      gap: 1px;
-      padding: 0 2px;
+      gap: var(--space-2);
+      padding: 0 var(--space-2);
       line-height: var(--leading-tight);
     }
     .gantt-day-num {
@@ -675,7 +632,7 @@
       position: absolute;
       bottom: 3px;
       transform: translateX(-50%);
-      padding: 1px 6px;
+      padding: var(--space-2) var(--space-4);
       border-radius: var(--radius-pill);
       background: var(--status-unsaved-bg);
       color: var(--status-unsaved-text);
@@ -716,8 +673,8 @@
       transform: translateX(-50%);
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
+      gap: var(--space-4);
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-pill);
       background: var(--sw-pill-solid, var(--guide));
       color: var(--sw-on-solid, var(--on-danger));
@@ -751,7 +708,7 @@
       top: 0;
       bottom: 0;
       width: 2px;
-      margin-left: -1px;
+      margin-left: -1px; /* tokens-ok: centers 2px indicator line */
       background: var(--primary);
       pointer-events: none;
     }
@@ -760,7 +717,7 @@
       position: absolute;
       top: 3px;
       transform: translateX(-50%);
-      padding: 1px 7px;
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-pill);
       background: var(--primary);
       color: var(--on-primary);
@@ -862,6 +819,7 @@
     }
 
     .gantt-bar {
+      --ring: var(--bar-border); --ring-w: var(--ring-hair);   /* the rest outline the shared hover and selected states (components/item-states.css) build on */
       --bar-bg: color-mix(in srgb, var(--sw-pill-bg, var(--primary-wash)) 100%, var(--bg-panel));
       --bar-border: var(--sw-line, var(--primary));
       --bar-ink: var(--sw-pill-ink, var(--text-main));
@@ -873,25 +831,19 @@
       border-radius: var(--radius-md);
       background: linear-gradient(var(--bar-bg), var(--bar-bg)), var(--bg-panel);
       color: var(--bar-ink);
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-sm);
+      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-sm);
       pointer-events: auto;
       cursor: grab;
       transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), filter var(--dur-micro) var(--curve-out);
     }
-    .gantt-bar:hover {
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-md);
-    }
-    .gantt-bar.selected {
-      box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
-      z-index: 12;
-    }
+    .gantt-bar.selected { z-index: 12; }
     .gantt-bar.is-dragging {
       cursor: grabbing;
       box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-lg);
       z-index: 15;
     }
     .gantt-bar.is-dep-target {
-      box-shadow: 0 0 0 3px var(--primary-ring), inset 0 0 0 2px var(--primary);
+      box-shadow: var(--shadow-ring), inset 0 0 0 var(--ring-md) var(--primary);
       z-index: 14;
     }
     .gantt-bar:focus-visible {
@@ -923,10 +875,7 @@
       filter: none;
     }
     .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary) {
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-md);
-    }
-    .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary).selected {
-      box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
+      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-md);
     }
 
     .gantt-bar-label {
@@ -934,7 +883,7 @@
       z-index: 2;
       flex: 1;
       min-width: 0;
-      padding: 0 8px;
+      padding: 0 var(--space-8);
       font-size: var(--text-rem-md);
       font-weight: var(--weight-semibold);
       line-height: var(--leading-tight);
@@ -979,59 +928,11 @@
       opacity: 0.75;
     }
 
-    /* Left & right dependency connector grips (24x24 hit area with centered 10px visible dot) */
-    .gantt-port-l,
-    .gantt-port-r {
-      position: absolute;
-      top: 50%;
-      width: 24px;
-      height: 24px;
-      margin-top: -12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      background: transparent;
-      border: 0;
-      opacity: 0;
-      scale: var(--ui-scale, 1);
-      transform: scale(0.75);
-      cursor: crosshair;
-      z-index: 6;
-      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-fast) var(--curve-spring-tactile);
-    }
-    .gantt-port-l::after,
-    .gantt-port-r::after {
-      content: '';
-      width: 10px;
-      height: 10px;
-      box-sizing: border-box;
-      border-radius: var(--radius-round);
-      background: var(--bg-panel);
-      border: var(--ring-md) solid var(--primary);
-      box-shadow: var(--shadow-sm);
-      transition: transform var(--dur-fast) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
-    }
-    .gantt-port-l { left: -16px; }
-    .gantt-port-r { right: -16px; }
-    .gantt-bar:hover .gantt-port-l,
-    .gantt-bar:hover .gantt-port-r,
-    .gantt-bar.selected .gantt-port-l,
-    .gantt-bar.selected .gantt-port-r,
-    .gantt-milestone:hover .gantt-port-l,
-    .gantt-milestone:hover .gantt-port-r,
-    .gantt-milestone.selected .gantt-port-l,
-    .gantt-milestone.selected .gantt-port-r,
-    .gantt-root.is-connecting .gantt-port-l,
-    .gantt-root.is-connecting .gantt-port-r {
-      opacity: 1;
-      transform: scale(1);
-    }
-    .gantt-port-l:hover::after,
-    .gantt-port-r:hover::after {
-      background: var(--primary);
-      transform: scale(1.25);
-    }
+    /* Left & right dependency connector grips: the shared port (components/port.css), set a little outside the bar's ends */
+    .gantt-bar > .port-left, .gantt-milestone > .port-left { left: -4px; z-index: 6; }
+    .gantt-bar > .port-right, .gantt-milestone > .port-right { left: calc(100% + 4px); z-index: 6; }
+    /* While a dependency is being drawn every grip is a target */
+    .gantt-root.is-connecting .port { opacity: 1; pointer-events: auto; transform: scale(1); }   /* components-ok: the connecting tool is this type's state */
 
     /* Note indicator badge at top-left (clear of outgoing right-edge dependency arrows) */
     /* Reuse shared .note-badge from assets/components/note.css; nudge position on slim Gantt bars */
@@ -1043,7 +944,7 @@
     .gantt-bar.gantt-summary,
     .gantt-bar.summary {
       height: var(--gantt-summary-h, 10px) !important;
-      margin-top: 3px;
+      margin-top: var(--space-2);
       border-radius: var(--radius-pill);
       background: color-mix(in srgb, var(--sw-line, var(--text-soft)) 24%, var(--bg-panel));
       color: var(--sw-ink, var(--text-main));
@@ -1100,13 +1001,13 @@
     }
     .gantt-milestone.is-dep-target {
       border-radius: var(--radius-md);
-      box-shadow: 0 0 0 3px var(--primary-ring), inset 0 0 0 2px var(--primary);
+      box-shadow: var(--shadow-ring), inset 0 0 0 var(--ring-md) var(--primary);
       z-index: 14;
     }
     .gantt-ms-label,
     .gantt-milestone-label {
       flex: none;
-      margin-left: 10px;
+      margin-left: var(--space-8);
       font-size: var(--t-body-rem-size, 0.875rem);
       font-weight: var(--weight-semibold);
       color: var(--text-main);
@@ -1122,7 +1023,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2px 10px;
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-md);
       border: 1.5px dashed var(--primary);
       background: var(--primary-wash);
@@ -1143,9 +1044,9 @@
       pointer-events: none;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--space-4);
       min-height: var(--gantt-bar-h, 26px);
-      padding: 2px 12px;
+      padding: var(--space-2) var(--space-12);
       border-radius: var(--radius-md);
       border: 1.5px dashed var(--primary);
       background: color-mix(in srgb, var(--primary-wash) 92%, var(--bg-panel));
@@ -1175,7 +1076,7 @@
       position: fixed;
       z-index: 200;
       pointer-events: none;
-      padding: 3px 8px;
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-md);
       background: var(--text-main);
       color: var(--bg-panel);
@@ -1197,7 +1098,7 @@
     }
     .gantt-actionbar .gantt-ab-input {
       min-height: 28px;
-      padding: 3px 6px;
+      padding: var(--space-2) var(--space-4);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-sm);
       background: var(--bg-input);
@@ -1215,7 +1116,7 @@
       cursor: pointer;
     }
     .gantt-actionbar .gantt-ab-count {
-      padding: 0 6px;
+      padding: 0 var(--space-4);
       font-size: var(--text-rem-md);
       font-weight: var(--weight-semibold);
       color: var(--text-soft);
@@ -1225,10 +1126,10 @@
       position: fixed;
       z-index: 220;
       min-width: 210px;
-      padding: 10px;
+      padding: var(--space-8);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--space-8);
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-xl);
@@ -1240,7 +1141,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: var(--space-8);
     }
     .gantt-pop-lbl {
       flex: none;
@@ -1253,7 +1154,7 @@
       flex: 1;
       min-width: 0;
       min-height: 28px;
-      padding: 4px 8px;
+      padding: var(--space-4) var(--space-8);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-md);
       background: var(--bg-input);
@@ -1268,7 +1169,7 @@
     }
     .gantt-pop-range {
       width: 100%;
-      margin: 2px 0;
+      margin: var(--space-2) 0;
       accent-color: var(--primary);
       cursor: pointer;
     }
@@ -1288,7 +1189,7 @@
     .gantt-pop-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--space-4);
     }
     .gantt-pop-actions .btn {
       flex: 1;
@@ -1316,8 +1217,8 @@
     .gantt-legend-btn {
       position: relative;
       height: 42px;
-      padding: 0 12px;
-      gap: 6px;
+      padding: 0 var(--space-12);
+      gap: var(--space-4);
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-xl);
@@ -1348,10 +1249,10 @@
       z-index: 105;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: var(--space-4);
       min-width: 170px;
       max-width: 240px;
-      padding: 10px 12px;
+      padding: var(--space-8) var(--space-12);
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-xl);
@@ -1377,14 +1278,14 @@
     .gantt-color-key .color-key {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: var(--space-4);
       width: 100%;
       white-space: normal;
     }
     .gantt-color-key .color-key-item {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-8);
       min-width: 0;
     }
     .gantt-color-key .color-key-dot {
@@ -1400,9 +1301,9 @@
     .gantt-key-overlap {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding-top: 6px;
-      margin-top: 2px;
+      gap: var(--space-8);
+      padding-top: var(--space-4);
+      margin-top: var(--space-2);
       border-top: 1px solid var(--border-color);
       font-size: var(--text-rem-md);
       color: var(--danger);
@@ -1444,8 +1345,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 10px 10px 10px 14px;
+      gap: var(--space-8);
+      padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
       border-bottom: 1px solid var(--border-color);
     }
     .gantt-hol-title {
@@ -1470,13 +1371,13 @@
     .gantt-holidays-list {
       max-height: 220px;
       overflow-y: auto;
-      padding: 6px 10px;
+      padding: var(--space-4) var(--space-8);
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: var(--space-4);
     }
     .gantt-hol-empty {
-      padding: 12px 4px;
+      padding: var(--space-12) var(--space-4);
       text-align: center;
       font-size: var(--text-rem-md);
       color: var(--text-muted);
@@ -1486,8 +1387,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 6px 8px;
+      gap: var(--space-8);
+      padding: var(--space-4) var(--space-8);
       border-radius: var(--radius-md);
       background: var(--bg-page);
       font-size: var(--text-rem-md);
@@ -1497,7 +1398,7 @@
       min-width: 0;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-8);
     }
     .gantt-hol-date,
     .gantt-hol-item-date {
@@ -1538,15 +1439,15 @@
     .gantt-hol-form {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding: 10px;
+      gap: var(--space-8);
+      padding: var(--space-8);
       border-top: 1px solid var(--border-color);
       background: var(--bg-page);
     }
     .gantt-hol-dates {
       display: flex;
       align-items: flex-end;
-      gap: 6px;
+      gap: var(--space-4);
       width: 100%;
     }
     .gantt-hol-date-field {
@@ -1554,7 +1455,7 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: var(--space-2);
     }
     .gantt-hol-field-lbl {
       font-size: var(--text-rem-sm);
@@ -1565,19 +1466,19 @@
     }
     .gantt-hol-date-sep {
       flex: none;
-      padding-bottom: 5px;
+      padding-bottom: var(--space-4);
       font-size: var(--text-rem-md);
       color: var(--text-muted);
     }
     .gantt-hol-submit {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--space-4);
       width: 100%;
     }
     .gantt-hol-form input {
       min-height: 30px;
-      padding: 4px 8px;
+      padding: var(--space-4) var(--space-8);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-md);
       background: var(--bg-input);
@@ -1599,7 +1500,7 @@
     .gantt-hol-form .btn {
       flex: none;
       min-height: 30px;
-      padding: 4px 12px;
+      padding: var(--space-4) var(--space-12);
     }
 
     /* --- Dark theme polish --- */
@@ -1638,7 +1539,7 @@
     }
     .gantt-view-pop {
       min-width: 244px;
-      padding: 6px;
+      padding: var(--space-4);
     }
     .gantt-view-menu {
       --menu-icon-size: 16px;
@@ -1648,14 +1549,14 @@
     .gantt-view-menu [role="group"] {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: var(--space-2);
     }
     .gantt-view-opt {
       display: flex;
       align-items: flex-start;
-      gap: 8px;
+      gap: var(--space-8);
       width: 100%;
-      padding: 7px 10px;
+      padding: var(--space-8) var(--space-8);
       border: 1px solid transparent;
       border-radius: var(--radius-md);
       background: transparent;
@@ -1692,7 +1593,7 @@
     .gantt-view-opt-text {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: var(--space-2);
       min-width: 0;
     }
     .gantt-view-opt-title {
@@ -1723,8 +1624,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
-      padding: 6px 10px 6px 14px;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-8) var(--space-4) var(--space-12);
       background: var(--primary-wash);
       border-top: 1px solid var(--primary-ring);
       font-family: var(--font-ui);
@@ -1745,7 +1646,7 @@
     .gantt-filter-bar-reset {
       flex: none;
       min-height: 24px;
-      padding: 3px 8px;
+      padding: var(--space-2) var(--space-8);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-pill, 999px);
       background: var(--bg-panel);
@@ -1773,9 +1674,9 @@
       right: 0;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: var(--space-8);
       width: 100%;
-      padding: 6px 12px 6px 14px;
+      padding: var(--space-4) var(--space-12) var(--space-4) var(--space-12);
       border: 0;
       border-bottom: 1px solid var(--border-color);
       background: color-mix(in srgb, var(--bg-page) 95%, var(--bg-panel));
@@ -1802,7 +1703,7 @@
     .gantt-sticky-phase-dot {
       width: 8px;
       height: 8px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       flex: none;
       background: var(--primary);
     }
@@ -1830,9 +1731,9 @@
       position: absolute;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: var(--space-4);
       min-height: 24px;
-      padding: 4px 9px;
+      padding: var(--space-4) var(--space-8);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-pill, 999px);
       background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
@@ -1859,7 +1760,7 @@
     .gantt-offscreen-dot {
       width: 6px;
       height: 6px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       flex: none;
     }
 
@@ -1873,9 +1774,9 @@
       max-width: calc(100% - 28px);
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 6px 8px 6px 12px;
-      margin: 0 auto 12px;
+      gap: var(--space-8);
+      padding: var(--space-4) var(--space-8) var(--space-4) var(--space-12);
+      margin: 0 auto var(--space-12);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-pill, 999px);
       background: color-mix(in srgb, var(--bg-panel) 96%, var(--primary-wash));
@@ -1898,7 +1799,7 @@
     .gantt-inview-hint-btn {
       flex: none;
       min-height: 24px;
-      padding: 4px 10px;
+      padding: var(--space-4) var(--space-8);
       border: 0;
       border-radius: var(--radius-pill, 999px);
       background: var(--primary);
@@ -1926,7 +1827,7 @@
       justify-content: center;
       padding: 0;
       border: 0;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
@@ -1946,8 +1847,8 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 24px 20px;
+      gap: var(--space-8);
+      padding: var(--space-24) var(--space-20);
       text-align: center;
       font-family: var(--font-ui);
       color: var(--text-muted);
@@ -1964,7 +1865,7 @@
     .gantt-empty-filter-actions {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-8);
     }
 
     /* --- Dense dependency arrow dimming (restores full opacity on hover/selection) --- */
@@ -1978,7 +1879,7 @@
     /* --- Interactive legend filtering --- */
     .gantt-color-key .color-key-item {
       cursor: pointer;
-      padding: 2px 6px;
+      padding: var(--space-2) var(--space-4);
       border-radius: var(--radius-sm);
       border: 1px solid transparent;
       transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
@@ -2015,10 +1916,6 @@
     body.present .gantt-resize-l,
     body.presentation .gantt-resize-r,
     body.present .gantt-resize-r,
-    body.presentation .gantt-port-l,
-    body.present .gantt-port-l,
-    body.presentation .gantt-port-r,
-    body.present .gantt-port-r,
     body.presentation .gantt-actionbar,
     body.present .gantt-actionbar,
     body.presentation .gantt-mini-pop,
@@ -2040,15 +1937,15 @@
     .gantt-mode-switch {
       display: inline-flex;
       align-items: center;
-      gap: 2px;
-      padding: 2px;
+      gap: var(--space-2);
+      padding: var(--space-2);
       border-radius: var(--radius-lg);
       background: var(--bg-page);
       border: 1px solid var(--border-color);
     }
     .gantt-mode-pill {
       min-height: 28px;
-      padding: 6px 10px;
+      padding: var(--space-4) var(--space-8);
       border: 1px solid transparent;
       border-radius: var(--radius-md);
       background: transparent;

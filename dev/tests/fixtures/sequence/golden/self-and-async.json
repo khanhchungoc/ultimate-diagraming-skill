@@ -71,14 +71,14 @@
       "from": "m3",
       "to": "m4",
       "x": 352,
-      "w": 524,
+      "w": 552,
       "y": 308,
       "h": 184
     }
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 932,
+    "width": 960,
     "height": 644
   }
 }

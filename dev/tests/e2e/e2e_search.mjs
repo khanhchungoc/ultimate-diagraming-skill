@@ -159,6 +159,10 @@ try {
     const original = await t.ev(`document.getElementById('diagram-data').textContent`);
     const sameData = (txt) => { try { return JSON.stringify(JSON.parse(txt)) === JSON.stringify(JSON.parse(original)); } catch { return false; } };
     await t.ev(`delete window.showSaveFilePicker; window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }))`);
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const b = document.querySelector('#save-modal[open] button[value="continue"]'); if (!b) return false; b.click(); return true; })()`)) break;
+      await sleep(100);
+    }
     await sleep(1000);
     const saved = (await t.ev(`window.__blobs.splice(0)`)).find((b) => /html/.test(b.type));
     const data = saved ? (/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/.exec(saved.text) || [])[1] || '' : '';

@@ -73,8 +73,8 @@
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
           b.dataset.value = sw.slot;
-          b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-          b.setAttribute('aria-label', b.title);
+          const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+          b.setAttribute('aria-label', swLabel);
           b.setAttribute('aria-pressed', String(now === sw.slot));
           const dot = document.createElement('span');
           dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -109,7 +109,6 @@
           if (slot) setSwatch(dot, slot);
           else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
           const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-          trig.title = label;
           trig.setAttribute('aria-label', label);
         };
         syncTrigger(current);
@@ -181,7 +180,7 @@
           if (r2.left < pad) shift = pad - r2.left;
           else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
           if (shift) {
-            const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+            const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
             pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
           }
           const above = pop.classList.contains('is-above');
@@ -277,6 +276,26 @@
           const tpl = document.createElement('template');
           tpl.innerHTML = icon(name, o);
           return tpl.content.firstChild;
+        }
+        // The collapse toggle every type uses (components/chevron.css): { expanded, label } -> <button class="chevron">. The rotation follows
+        // aria-expanded, so the caller only flips that attribute (and the title) when the state changes; it adds its own click handler.
+        function chevron(o) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chevron';
+          b.title = o.label;
+          b.setAttribute('aria-label', o.label);
+          b.setAttribute('aria-expanded', String(!!o.expanded));
+          b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+          return b;
+        }
+        // The connection handle every type uses (components/port.css): side = top | right | bottom | left, or end (a line's end handle, always shown).
+        // The caller positions it (a type's CSS sets left / top) and adds its own pointer handler; it is never exported.
+        function port(side) {
+          const p = document.createElement('span');
+          p.className = `port port-${side}`;
+          p.dataset.exportSkip = '';
+          return p;
         }
         let confirmEl = null;
         function closeConfirm() {
@@ -521,7 +540,194 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        // Crisp 1:1 viewport-level action bar host (#actionbar-layer, outside #stage zoom).
+        let pinnedBars = [];
+        function placePinnedBar(entry) {
+          const vp = document.getElementById('viewport');
+          if (!vp || !entry.bar.isConnected) return;
+          const anchor = entry.getAnchor;
+          if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+          const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+          if (!raw) return;
+          const vr = vp.getBoundingClientRect();
+          const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+          const { w, h } = barSize(entry.bar);
+          const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+          const topLimit = chromeTop() + 8;
+          const preferBelow = entry.opts.prefer === 'below';
+          const fitsAbove = aTop - gap - h >= topLimit;
+          const fitsBelow = aBottom + gap + h <= vr.height - 8;
+          const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+          entry.bar.classList.toggle('is-below', !above);
+          let top = above ? aTop - gap - h : aBottom + gap;
+          top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+          let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+          left = Math.max(8, Math.min(vr.width - w - 8, left));
+          entry.bar.style.left = `${Math.round(left)}px`;
+          entry.bar.style.top = `${Math.round(top)}px`;
+        }
+        function clearBars() {
+          for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+          pinnedBars = [];
+          const layer = document.getElementById('actionbar-layer');
+          if (layer) layer.innerHTML = '';
+        }
+        function pinBar(bar, getAnchor, opts) {
+          const layer = document.getElementById('actionbar-layer');
+          if (!layer) return bar;
+          const o = opts || {};
+          if (o.exclusive !== false) clearBars();
+          if (bar.parentNode !== layer) layer.appendChild(bar);
+          if (bar.classList.contains('is-wrap')) fitBar(bar);
+          const entry = { bar, getAnchor, opts: o };
+          pinnedBars.push(entry);
+          placePinnedBar(entry);
+          return bar;
+        }
+        function repositionBars() {
+          if (!pinnedBars.length) return;
+          pinnedBars = pinnedBars.filter((e) => {
+            if (!e.bar.isConnected) return false;
+            if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+            placePinnedBar(e);
+            return true;
+          });
+        }
+        window.addEventListener('resize', repositionBars);
+
+        // Shared searchable icon picker (used by C4 and Sequence; styled by components/popover.css).
+        // The one list of diagram icons the picker offers; a name missing from assets/icons/default.json fails at startup.
+        const ICON_GROUPS = [
+          ['People', ['user', 'users', 'actor', 'headset']],
+          ['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
+          ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
+          ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
+          ['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
+          ['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
+          ['Security', ['lock', 'key', 'shield']]
+        ];
+        if (typeof ICONS !== 'undefined') {
+          ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => {
+            if (ICONS[n] === undefined) throw new Error(`Icon picker: "${n}" (${g}) is not in assets/icons/default.json`);
+          }));
+        }
+        const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+        function buildIconPicker(opts) {
+          const o = opts || {};
+          const cls = o.classes || {};
+          const mk = (tag, c, text) => {
+            const el = document.createElement(tag);
+            if (c) el.className = c;
+            if (text !== undefined) el.textContent = text;
+            return el;
+          };
+          const box = mk('div', `icon-picker${cls.box ? ` ${cls.box}` : ''}`);
+          if (o.id) box.id = o.id;
+          box.setAttribute('role', 'dialog');
+          box.setAttribute('aria-label', 'Icon');
+          const search = mk('input', `icon-picker-input${cls.input ? ` ${cls.input}` : ''}`);
+          if (o.searchId) search.id = o.searchId;
+          search.type = 'search';
+          search.placeholder = 'Search icons';
+          search.setAttribute('aria-label', 'Search icons');
+          search.autocomplete = 'off';
+          const list = mk('div', `icon-picker-list${cls.list ? ` ${cls.list}` : ''}`);
+          const note = mk('div', `icon-picker-note t-detail${cls.note ? ` ${cls.note}` : ''}`);
+          note.setAttribute('role', 'status');
+          const current = o.current || '';
+          const defaultIcon = o.defaultIcon || 'cloud';
+          const defaultLabel = o.defaultLabel || 'Default';
+          const fill = () => {
+            const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
+            list.textContent = '';
+            let shown = 0;
+            const section = (heading, names) => {
+              if (!names.length) return;
+              if (heading) list.appendChild(mk('div', `icon-picker-head t-detail${cls.head ? ` ${cls.head}` : ''}`, heading));
+              const grid = mk('div', `icon-picker-grid${cls.grid ? ` ${cls.grid}` : ''}`);
+              grid.setAttribute('role', 'group');
+              grid.setAttribute('aria-label', heading || 'Default');
+              names.forEach((n) => {
+                const b = mk('button', `icon-picker-opt${cls.opt ? ` ${cls.opt}` : ''}`);
+                b.type = 'button';
+                b.dataset.icon = n;
+                const label = !n ? defaultLabel : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
+                b.setAttribute('aria-label', label);
+                b.setAttribute('aria-pressed', String(current === n));
+                if (n.startsWith('logo:')) b.innerHTML = `<span class="icon-picker-logo${cls.logo ? ` ${cls.logo}` : ''}">${logo(n.slice(5), { size: 'lg' })}</span>`;
+                else b.innerHTML = icon(n || defaultIcon, { size: 'md' });
+                b.addEventListener('click', () => { if (o.onPick) o.onPick(n); });
+                grid.appendChild(b);
+              });
+              list.appendChild(grid);
+            };
+            section('', ['']);
+            ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
+            const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
+            const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
+            const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
+            shown += techLogos.length; section('Tech logos', techLogos);
+            shown += localPacks.length; section('Local packs', localPacks);
+            note.textContent = shown ? '' : 'No icon matches.';
+          };
+          search.addEventListener('input', fill);
+          box.append(search, list, note);
+          if (o.missing && o.missing.length) {
+            const m = mk('div', `icon-picker-missing t-detail${cls.missing ? ` ${cls.missing}` : ''}`, o.missingText || `Missing icon pack: ${o.missing.join(', ')}.`);
+            m.setAttribute('role', 'status');
+            box.appendChild(m);
+          }
+          box.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (o.onEscape) o.onEscape(); }
+          });
+          fill();
+          return { box, search };
+        }
+        let iconPickerEl = null;
+        let iconPickerTrigger = null;
+        function closeIconPicker(restoreFocus) {
+          if (!iconPickerEl) return false;
+          const el = iconPickerEl, trig = iconPickerTrigger;
+          iconPickerEl = null;
+          iconPickerTrigger = null;
+          document.removeEventListener('pointerdown', onIconPickerOutside, true);
+          if (typeof motion !== 'undefined') motion.ghostExit(el, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: el.style.transformOrigin || 'top left' });
+          el.remove();
+          if (restoreFocus && trig && trig.isConnected) trig.focus();
+          return true;
+        }
+        function onIconPickerOutside(e) {
+          if (iconPickerEl && !iconPickerEl.contains(e.target) && !(iconPickerTrigger && iconPickerTrigger.contains(e.target))) closeIconPicker(false);
+        }
+        function openIconPicker(anchor, opts) {
+          const o = opts || {};
+          const sameTrigger = o.trigger && iconPickerTrigger === o.trigger && iconPickerEl;
+          closeIconPicker(false);
+          if (sameTrigger) return null;
+          const { box, search } = buildIconPicker(Object.assign({}, o, {
+            onPick: (name) => { closeIconPicker(false); if (o.onPick) o.onPick(name); },
+            onEscape: () => closeIconPicker(true)
+          }));
+          box.dataset.exportSkip = '';
+          document.body.appendChild(box);
+          iconPickerEl = box;
+          iconPickerTrigger = o.trigger || null;
+          const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
+          box.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - box.offsetWidth - 8)))}px`;
+          const below = r.bottom + 6 + box.offsetHeight < innerHeight - 8;
+          box.style.top = `${Math.round(below ? r.bottom + 6 : Math.max(8, r.top - 6 - box.offsetHeight))}px`;
+          box.style.transformOrigin = below ? 'top left' : 'bottom left';
+          if (typeof motion !== 'undefined') {
+            motion.anim(box, [
+              { transform: `scale(0.92, 0.86) translateY(${below ? -4 : 4}px)`, clipPath: below ? 'inset(0 0 25% 0 round 8px)' : 'inset(25% 0 0 0 round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: 130, easing: motion.curve('curve-spring-tactile') });
+          }
+          document.addEventListener('pointerdown', onIconPickerOutside, true);
+          search.focus();
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, buildIconPicker, openIconPicker, closeIconPicker, isIconPickerOpen: () => !!iconPickerEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -1514,6 +1720,14 @@
           updateTransform();
         };
 
+        // .is-touch on the body while the last press was a finger: shared components (port.css) size and show handles for touch
+        window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+
+        // A face can start and finish loading between the first render (whose layout asks for it) and the frame below,
+        // which would then see every font in and skip the re-render: note any load that finishes in that gap
+        let fontLoadedSinceRender = false;
+        const onFontLoaded = () => { fontLoadedSinceRender = true; };
+        if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
         try {
           plugin.render();
           applyInitialView();
@@ -1530,7 +1744,8 @@
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
           syncHeaderCompact();
-          const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+          if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+          const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
             ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
@@ -1561,11 +1776,12 @@
           setHelpOpen(false, false);
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
           if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
+          if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
           presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
         }
         document.body.classList.toggle('presentation', on);
         btnPresent.setAttribute('aria-pressed', String(on));
-        if (!on) syncHeaderCompact();
+        if (!on) { syncHeaderCompact(); if (typeof syncDockOverflow === 'function') syncDockOverflow(); }
         if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
           const e = presentEntry;
           undoStack = e.undo; redoStack = e.redo;
@@ -1784,6 +2000,7 @@
           showZoom();
         }
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+        ui.repositionBars();
       }
 
       // --- HOVER TEXT: an element's data-tip, or the full text of a label cut off with "...", as the native tooltip ---
@@ -1795,6 +2012,7 @@
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+          if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
         }
       });
 
@@ -2403,7 +2621,7 @@
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;
@@ -2511,10 +2729,27 @@
       function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
 
       // A short message that slides in and retracts; used for save and download problems inside an artifact
+      // One persistent live region: toasts are inserted and filled in the same tick, which screen readers often miss.
+      function announce(message) {
+        let r = document.getElementById('sr-announcer');
+        if (!r) {
+          r = document.createElement('div');
+          r.id = 'sr-announcer';
+          r.className = 'visually-hidden';
+          r.setAttribute('role', 'status');
+          r.setAttribute('aria-live', 'polite');
+          r.setAttribute('data-export-skip', '');
+          document.body.appendChild(r);
+        }
+        r.textContent = '';
+        setTimeout(() => { r.textContent = message; }, 50);
+      }
+
       function showToast(message) {
+        announce(message);
         const t = document.createElement('div');
         t.className = 'toast';
-        t.setAttribute('role', 'status');
+        t.setAttribute('aria-hidden', 'true');   // announced through #sr-announcer
         t.textContent = message;
         document.body.appendChild(t);
         setTimeout(() => {
@@ -2714,6 +2949,7 @@
         e.stopPropagation();
         closeMermaidImport();
         setMoreOpen(false);
+        if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
         const opening = exportMenu.hidden;
         setExportOpen(opening);
         if (opening && e.detail === 0) {
@@ -2725,6 +2961,7 @@
         e.stopPropagation();
         closeMermaidImport();
         setExportOpen(false);
+        if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
         const opening = moreMenu.hidden;
         setMoreOpen(opening);
         if (opening && e.detail === 0) {
@@ -2742,12 +2979,14 @@
       document.addEventListener('click', (e) => {
         setExportOpen(false);
         setMoreOpen(false);
+        if (typeof onDocClickDockMore === 'function') onDocClickDockMore(e);
         if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
       });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
         setMoreOpen(false);
+        if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
         closeMermaidImport();
       });
 
@@ -2982,6 +3221,7 @@
           btnDelete.classList.toggle('show', on);
           btnDelete.setAttribute('aria-hidden', String(!on));
           btnDelete.tabIndex = on ? 0 : -1;
+          if (typeof syncDockOverflow === 'function') syncDockOverflow();
         });
       }
       function queueDeleteRefresh() {
@@ -2995,6 +3235,363 @@
         plugin.deleteSelection(btnDelete);
         queueDeleteRefresh();
       });
+
+      // --- DOCK OVERFLOW: fold low-priority dock controls into a trailing More menu when space runs out ---
+      const dockArea = document.querySelector('.dock-area');
+      const dockCenter = document.querySelector('.toolbar-center');
+      let dockMoreWrap = null;
+      let btnDockMore = null;
+      let dockMoreMenu = null;
+      let dockMoreSyncObs = null;
+      let invokingFolded = false;
+      let syncingDock = false;
+      let dockSyncQueued = false;
+
+      function dockControlLabel(el) {
+        const lbl = el.querySelector('.btn-label');
+        const text = (lbl && lbl.textContent.trim()) || el.getAttribute('aria-label') || el.title || el.textContent.trim();
+        return text.trim();
+      }
+      function dockControlIcon(el) {
+        const src = el.querySelector('.dock-pop-trigger > svg, :scope > svg, svg');
+        if (!src) return null;
+        const clone = src.cloneNode(true);
+        clone.removeAttribute('width');
+        clone.removeAttribute('height');
+        clone.setAttribute('aria-hidden', 'true');
+        return clone;
+      }
+      function isDockToggle(el) {
+        return el.hasAttribute('aria-checked') || el.hasAttribute('aria-pressed') || el.getAttribute('role') === 'switch';
+      }
+      function dockToggleChecked(el) {
+        const val = el.hasAttribute('aria-checked') ? el.getAttribute('aria-checked') : el.getAttribute('aria-pressed');
+        return val === 'true';
+      }
+      function isDockSep(el) {
+        return el.classList.contains('dock-sep') || el.classList.contains('toolbar-sep');
+      }
+      function isChildVisible(el) {
+        return !el.hidden && el.dataset.dockFolded !== 'true' && el.dataset.dockSepHidden !== 'true' && getComputedStyle(el).display !== 'none';
+      }
+      function syncDockSeparators() {
+        if (!dockCenter) return;
+        const kids = [...dockCenter.children];
+        kids.forEach((el) => { if (isDockSep(el)) delete el.dataset.dockSepHidden; });
+        const visible = kids.filter((el) => el !== dockMoreWrap && isChildVisible(el));
+        let prevWasSep = true;
+        visible.forEach((el) => {
+          if (isDockSep(el)) {
+            if (prevWasSep) el.dataset.dockSepHidden = 'true';
+            else prevWasSep = true;
+          } else {
+            prevWasSep = false;
+          }
+        });
+        for (let i = visible.length - 1; i >= 0; i--) {
+          const el = visible[i];
+          if (el.dataset.dockSepHidden === 'true') continue;
+          if (isDockSep(el)) el.dataset.dockSepHidden = 'true';
+          else break;
+        }
+      }
+      function invokeFoldedOrig(orig) {
+        invokingFolded = true;
+        try { orig.click(); } finally { invokingFolded = false; }
+      }
+      function buildDockMoreMenu() {
+        if (!dockMoreMenu || !dockCenter) return;
+        if (dockMoreSyncObs) { dockMoreSyncObs.disconnect(); dockMoreSyncObs = null; }
+        dockMoreMenu.replaceChildren();
+        const folded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+        const pairs = [];
+        const syncPairs = () => {
+          pairs.forEach(({ orig, item, kind }) => {
+            item.disabled = !!orig.disabled;
+            if (kind === 'toggle' || kind === 'radio') {
+              item.setAttribute('aria-checked', String(dockToggleChecked(orig)));
+            }
+          });
+        };
+        folded.forEach((el) => {
+          if (el.matches('[data-dock-pop]')) {
+            const trigger = el.querySelector('.dock-pop-trigger');
+            const pop = el.querySelector('.dock-pop');
+            const opts = pop ? [...pop.querySelectorAll('[role="radio"], [role="menuitemradio"], .dock-pop-grid > button')] : [];
+            if (opts.length) {
+              const heading = document.createElement('div');
+              heading.className = 'menu-label';
+              heading.setAttribute('role', 'presentation');
+              heading.textContent = trigger ? dockControlLabel(trigger) : 'Options';
+              dockMoreMenu.appendChild(heading);
+              opts.forEach((opt) => {
+                if (opt.hidden) return;
+                const isRadio = opt.getAttribute('role') === 'radio' || opt.getAttribute('role') === 'menuitemradio';
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.setAttribute('role', isRadio ? 'menuitemradio' : 'menuitem');
+                if (opt.id) item.dataset.dockFor = opt.id;
+                const titleEl = opt.querySelector('.gantt-view-opt-title, .tile-caption');
+                const labelText = (titleEl && titleEl.textContent.trim()) || opt.getAttribute('aria-label') || opt.textContent.trim();
+                const lbl = document.createElement('span');
+                lbl.textContent = labelText;
+                item.appendChild(lbl);
+                if (isRadio) {
+                  item.setAttribute('aria-checked', String(dockToggleChecked(opt)));
+                  item.appendChild(ui.iconEl('check', { size: 'sm', class: 'dock-more-check' }));
+                }
+                item.disabled = !!opt.disabled;
+                item._dockOrig = opt;
+                item._dockKind = isRadio ? 'radio' : 'action';
+                item.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (item.disabled) return;
+                  invokeFoldedOrig(opt);
+                  syncPairs();
+                  setDockMoreOpen(false);
+                });
+                dockMoreMenu.appendChild(item);
+                pairs.push({ orig: opt, item, kind: isRadio ? 'radio' : 'action' });
+              });
+              return;
+            }
+          }
+          const orig = el.matches('button') ? el : el.querySelector('button');
+          if (!orig) return;
+          const toggle = isDockToggle(orig);
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.setAttribute('role', toggle ? 'menuitemcheckbox' : 'menuitem');
+          if (orig.id) item.dataset.dockFor = orig.id;
+          const ic = dockControlIcon(orig);
+          if (ic) item.appendChild(ic);
+          const lbl = document.createElement('span');
+          lbl.textContent = dockControlLabel(orig);
+          item.appendChild(lbl);
+          if (toggle) {
+            item.setAttribute('aria-checked', String(dockToggleChecked(orig)));
+            item.appendChild(ui.iconEl('check', { size: 'sm', class: 'dock-more-check' }));
+          }
+          item.disabled = !!orig.disabled;
+          item._dockOrig = orig;
+          item._dockKind = toggle ? 'toggle' : 'action';
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (item.disabled) return;
+            invokeFoldedOrig(orig);
+            syncPairs();
+            if (!toggle) setDockMoreOpen(false);
+          });
+          dockMoreMenu.appendChild(item);
+          pairs.push({ orig, item, kind: toggle ? 'toggle' : 'action' });
+        });
+        dockMoreMenu._syncPairs = syncPairs;
+        if (pairs.length && typeof MutationObserver !== 'undefined') {
+          dockMoreSyncObs = new MutationObserver(syncPairs);
+          pairs.forEach(({ orig }) => {
+            dockMoreSyncObs.observe(orig, { attributes: true, attributeFilter: ['aria-checked', 'aria-pressed', 'disabled'] });
+          });
+        }
+      }
+      function setDockMoreOpen(open) {
+        if (!dockMoreMenu || !btnDockMore) return;
+        if (!open) {
+          if (dockMoreSyncObs) { dockMoreSyncObs.disconnect(); dockMoreSyncObs = null; }
+          if (!dockMoreMenu.hidden) {
+            if (motion.enabled() && btnDockMore.getClientRects().length) {
+              motion.ghostExit(dockMoreMenu, { duration: 110, toRect: btnDockMore.getBoundingClientRect() });
+            }
+            dockMoreMenu.hidden = true;
+          }
+          btnDockMore.setAttribute('aria-expanded', 'false');
+          return;
+        }
+        buildDockMoreMenu();
+        if (!dockMoreMenu.children.length) return;
+        setExportOpen(false);
+        setMoreOpen(false);
+        closeMermaidImport();
+        const fromRect = btnDockMore.getBoundingClientRect();
+        const wasHidden = dockMoreMenu.hidden;
+        dockMoreMenu.hidden = false;
+        dockMoreMenu.style.right = '';
+        const mr = dockMoreMenu.getBoundingClientRect();
+        if (mr.left < 8) dockMoreMenu.style.right = `${Math.round(mr.left - 8)}px`;
+        btnDockMore.setAttribute('aria-expanded', 'true');
+        if (wasHidden && motion.enabled()) {
+          motion.morphRect(fromRect, dockMoreMenu, { duration: motion.dur('dur-fast', 140), easing: 'curve-out' });
+        }
+      }
+      function onDocClickDockMore(e) {
+        if (invokingFolded || !dockMoreWrap || !dockMoreMenu || dockMoreMenu.hidden) return;
+        if (!dockMoreWrap.contains(e.target)) setDockMoreOpen(false);
+      }
+      function syncDockOverflow() {
+        if (!dockCenter || !dockMoreWrap || syncingDock) return;
+        if (document.body.classList.contains('presentation') || document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return;
+        if (getComputedStyle(dockCenter).display === 'none') return;
+        syncingDock = true;
+        try {
+          const areaW = dockArea ? dockArea.clientWidth : window.innerWidth;
+          if (areaW <= 0) return;
+          let avail = areaW;
+          const zoomDock = dockArea && dockArea.querySelector('.toolbar-zoom');
+          if (zoomDock && getComputedStyle(zoomDock).display !== 'none' && zoomDock.offsetWidth > 0) {
+            const zr = zoomDock.getBoundingClientRect();
+            const cr = dockCenter.getBoundingClientRect();
+            const sameRow = !(zr.bottom <= cr.top + 2 || zr.top >= cr.bottom - 2);
+            if (sameRow) {
+              const gap = parseFloat(getComputedStyle(dockArea).columnGap) || 8;
+              avail = Math.max(0, areaW - zoomDock.offsetWidth - gap);
+            }
+          }
+          const prevFolded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+          // Unfold all candidates to measure natural fit
+          const kids = [...dockCenter.children];
+          kids.forEach((el) => {
+            delete el.dataset.dockFolded;
+            if (isDockSep(el)) delete el.dataset.dockSepHidden;
+          });
+          dockMoreWrap.hidden = true;
+          syncDockSeparators();
+
+          const borderX = dockCenter.offsetWidth - dockCenter.clientWidth;
+          const overflows = () => (dockCenter.scrollWidth + borderX > avail + 1)
+            || (dockCenter.offsetWidth > avail + 1)
+            || (dockCenter.scrollWidth > dockCenter.clientWidth + 1);
+
+          if (overflows()) {
+            const candidates = kids
+              .map((el, idx) => ({ el, idx, prio: Number(el.dataset.dockPriority) }))
+              .filter(({ el, prio }) => el !== dockMoreWrap && Number.isFinite(prio) && el.hasAttribute('data-dock-priority') && isChildVisible(el))
+              .sort((a, b) => (b.prio - a.prio) || (b.idx - a.idx));
+
+            let foldedAny = false;
+            for (const { el } of candidates) {
+              el.dataset.dockFolded = 'true';
+              if (!foldedAny) {
+                dockMoreWrap.hidden = false;
+                foldedAny = true;
+              }
+              syncDockSeparators();
+              if (!overflows()) break;
+            }
+          }
+
+          const nextFolded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+          const foldedChanged = nextFolded.length !== prevFolded.length || nextFolded.some((el, i) => el !== prevFolded[i]);
+          if (dockMoreWrap.hidden && dockMoreMenu && !dockMoreMenu.hidden) {
+            setDockMoreOpen(false);
+          } else if (foldedChanged && dockMoreMenu && !dockMoreMenu.hidden) {
+            buildDockMoreMenu();
+          }
+        } finally {
+          syncingDock = false;
+        }
+      }
+      function queueDockSync() {
+        if (dockSyncQueued) return;
+        dockSyncQueued = true;
+        requestAnimationFrame(() => {
+          dockSyncQueued = false;
+          syncDockOverflow();
+        });
+      }
+      if (dockCenter) {
+        dockMoreWrap = document.createElement('div');
+        dockMoreWrap.className = 'menu-wrap dock-more-wrap';
+        dockMoreWrap.hidden = true;
+        btnDockMore = document.createElement('button');
+        btnDockMore.id = 'btn-dock-more';
+        btnDockMore.type = 'button';
+        btnDockMore.className = 'btn btn-icon dock-more-btn';
+        btnDockMore.title = 'More actions';
+        btnDockMore.setAttribute('aria-label', 'More actions');
+        btnDockMore.setAttribute('aria-haspopup', 'menu');
+        btnDockMore.setAttribute('aria-expanded', 'false');
+        btnDockMore.setAttribute('aria-controls', 'dock-more-menu');
+        btnDockMore.innerHTML = ui.icon('more');
+        dockMoreMenu = document.createElement('div');
+        dockMoreMenu.id = 'dock-more-menu';
+        dockMoreMenu.className = 'menu dock-more-menu';
+        dockMoreMenu.setAttribute('role', 'menu');
+        dockMoreMenu.setAttribute('aria-label', 'More actions');
+        dockMoreMenu.hidden = true;
+        dockMoreWrap.append(btnDockMore, dockMoreMenu);
+        dockCenter.appendChild(dockMoreWrap);
+
+        const enabledMenuItems = () => [...dockMoreMenu.querySelectorAll('[role^="menuitem"]')].filter(
+          (el) => !el.hidden && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && getComputedStyle(el).display !== 'none'
+        );
+        btnDockMore.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const opening = dockMoreMenu.hidden;
+          setDockMoreOpen(opening);
+          if (opening && e.detail === 0) {
+            const first = enabledMenuItems()[0];
+            if (first) first.focus();
+          }
+        });
+        btnDockMore.addEventListener('keydown', (e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          if (dockMoreMenu.hidden) setDockMoreOpen(true);
+          const list = enabledMenuItems();
+          if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
+        });
+        dockMoreMenu.addEventListener('keydown', (e) => {
+          if (dockMoreMenu.hidden) return;
+          if (e.key === 'Tab') { setDockMoreOpen(false); return; }
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setDockMoreOpen(false); btnDockMore.focus(); return; }
+          if (e.key === ' ' || e.key === 'Enter') {
+            const active = document.activeElement;
+            if (active && dockMoreMenu.contains(active) && active.matches('[role^="menuitem"]')) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (active.disabled) return;
+              const orig = active._dockOrig;
+              const role = active.getAttribute('role');
+              if (orig) invokeFoldedOrig(orig);
+              if (dockMoreMenu._syncPairs) dockMoreMenu._syncPairs();
+              if (e.key === ' ' && (role === 'menuitemcheckbox' || role === 'menuitemradio')) return;
+              setDockMoreOpen(false);
+              if (!document.activeElement || document.activeElement === document.body || dockMoreMenu.contains(document.activeElement)) {
+                btnDockMore.focus();
+              }
+            }
+            return;
+          }
+          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+          const list = enabledMenuItems();
+          if (!list.length) return;
+          e.preventDefault();
+          const i = list.indexOf(document.activeElement);
+          const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+            : i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
+            : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+          list[next].focus();
+        });
+
+        if (typeof ResizeObserver !== 'undefined') {
+          const dockRo = new ResizeObserver(() => { if (!syncingDock) queueDockSync(); });
+          if (dockArea) dockRo.observe(dockArea);
+          dockRo.observe(dockCenter);
+        }
+        if (typeof MutationObserver !== 'undefined') {
+          new MutationObserver((records) => {
+            if (syncingDock) return;
+            const relevant = records.some((r) => {
+              if (dockMoreWrap && dockMoreWrap.contains(r.target)) return false;
+              return r.type === 'childList'
+                || (r.attributeName !== 'data-dock-folded' && r.attributeName !== 'data-dock-sep-hidden');
+            });
+            if (relevant) queueDockSync();
+          }).observe(dockCenter, { childList: true, attributes: true, subtree: true, attributeFilter: ['hidden', 'class'] });
+          new MutationObserver(() => queueDockSync()).observe(document.body, { attributes: true, attributeFilter: ['data-gantt-mode', 'class'] });
+        }
+        window.addEventListener('resize', queueDockSync);
+        queueDockSync();
+      }
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       // Remember per-file handles and linked top-level workspace folders (IndexedDB) so reopened or
@@ -3248,7 +3845,15 @@
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
         // as <script id="render-report"[\s\S]*?<\/script> matches this code itself and deletes the rest of
         // the page's main script, so the saved file opens with nothing working.
-        const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+        let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+        if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+          const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+          if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+            fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+          } else {
+            fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+          }
+        }
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
         // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
@@ -3568,29 +4173,127 @@
         });
       }
 
+      const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+      let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+
+      function shouldSkipSaveModal() {
+        if (skipSaveModalFlag) return true;
+        try {
+          if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+        } catch (_) {}
+        return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+      }
+
+      function markSkipSaveModal() {
+        skipSaveModalFlag = true;
+        try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+        if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+          const m = document.createElement('meta');
+          m.name = 'diagram-save-prompt';
+          m.content = 'off';
+          if (document.head) document.head.appendChild(m);
+        }
+      }
+
+      function savePathText(loc) {
+        if (!loc) return { text: '', mac: false };
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        return { text: mac ? loc.folder : loc.file, mac };
+      }
+
+      // Safari fallback for <dialog closedby="any"> light-dismiss
+      (function wireSaveModalLightDismiss() {
+        const modal = document.getElementById('save-modal');
+        if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+        const outside = (e) => {
+          const r = modal.getBoundingClientRect();
+          return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+        };
+        let pressedOutside = false;
+        modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+        modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+      })();
+
+      async function openSaveModal(loc, onContinue) {
+        const modal = document.getElementById('save-modal');
+        const { text, mac } = savePathText(loc);
+        const copied = text ? await copyText(text) : false;
+        if (!modal || typeof modal.showModal !== 'function') {
+          onContinue();
+          return;
+        }
+        const titleEl = document.getElementById('save-modal-title');
+        const msgEl = document.getElementById('save-modal-msg');
+        const pathEl = document.getElementById('save-modal-path');
+        const skipEl = document.getElementById('save-modal-skip');
+        const pasteHint = mac
+          ? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+          : (loc && !loc.win
+            ? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+            : 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+        if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+        if (msgEl) {
+          msgEl.textContent = text
+            ? (copied
+              ? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+              : `Copy the path below, then in the next window ${pasteHint}`)
+            : 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+        }
+        if (pathEl) {
+          pathEl.textContent = text;
+          pathEl.hidden = !text;
+        }
+        if (skipEl) skipEl.checked = false;
+        modal.returnValue = '';
+        const onClose = () => {
+          const rv = modal.returnValue;
+          modal.returnValue = '';
+          if (rv !== 'continue') return;
+          if (skipEl && skipEl.checked) markSkipSaveModal();
+          onContinue();
+        };
+        modal.addEventListener('close', onClose, { once: true });
+        modal.showModal();
+      }
+
       async function writeFile(replacedHtml, picked) {
-        if (canPickSaveFile()) {
-          let pickedNow = false;
+        const usePicker = canPickSaveFile();
+        let loc = null;
+        if (usePicker && !picked) {
           try {
-            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-            const loc = !fileHandle && !picked ? localFilePath() : null;
+            if (!fileHandle) fileHandle = await loadStoredHandle();
+            loc = !fileHandle ? localFilePath() : null;
             if (!fileHandle && loc && canPickDirectory()) {
               fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
               if (fileHandle) storeHandle(fileHandle);
             }
+          } catch (_) {}
+        } else if (!picked) {
+          loc = localFilePath();
+        }
+
+        if (!fileHandle && !picked) {
+          if (!shouldSkipSaveModal()) {
+            await openSaveModal(loc, async () => {
+              const html = skipSaveModalFlag && document.getElementById('diagram-data')
+                ? buildSavedHtml(await loadSourceText())
+                : replacedHtml;
+              await writeFile(html, true);
+            });
+            return;
+          }
+          const { text } = savePathText(loc);
+          if (text) await copyText(text);
+        }
+
+        if (usePicker) {
+          let pickedNow = false;
+          try {
             if (!fileHandle) {
-              if (loc) {
-                // The dialog has to open from a fresh click: the bubble's buttons call back here
-                const linkFolder = canPickDirectory()
-                  ? () => linkFolderAndSave(loc, replacedHtml)
-                  : null;
-                askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
-                return;
-              }
               fileHandle = await pickSaveFile();
               pickedNow = true;
             }
-
             await writeToHandle(fileHandle, replacedHtml);
             if (pickedNow) storeHandle(fileHandle);
             return;

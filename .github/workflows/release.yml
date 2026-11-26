@@ -2,13 +2,23 @@ name: release
 
 # Auto-release when a PR from stg is merged into main, or run manually
 # (via GitHub Actions UI or `gh workflow run release.yml`):
-# bump the patch version, commit it, tag it, publish a release zip and npm package.
+# bump the version (major/minor via `release:major`/`release:minor` PR label or dispatch input, else patch),
+# commit it, tag it, publish a release zip and npm package.
 on:
   pull_request:
     types: [closed]
     branches: [main]
   workflow_dispatch:
     inputs:
+      bump:
+        description: 'Version bump level (ignored if current commit version is not yet tagged)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       notes:
         description: 'Release notes (leave blank to auto-generate from PRs/commits)'
         required: false
@@ -38,9 +48,22 @@ jobs:
           fetch-tags: true
       - name: Bump, commit, and tag
         id: v
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            BUMP_LEVEL="${INPUT_BUMP:-patch}"
+          else
+            case ",${PR_LABELS}," in
+              *,release:major,*|*,major,*) BUMP_LEVEL="major" ;;
+              *,release:minor,*|*,minor,*) BUMP_LEVEL="minor" ;;
+              *) BUMP_LEVEL="patch" ;;
+            esac
+          fi
           for attempt in 1 2 3; do
             git fetch origin main --tags
             git reset --hard origin/main
@@ -48,10 +71,13 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            # Release the committed version as-is if it has no tag yet; otherwise bump past any existing tags.
-            while git rev-parse -q --verify "refs/tags/v$(python3 dev/tools/release.py version)" >/dev/null; do
-              python3 dev/tools/release.py bump
-            done
+            # Release the committed version as-is if it has no tag yet; otherwise bump once by BUMP_LEVEL (and patch past any tag collision).
+            if git rev-parse -q --verify "refs/tags/v$(python3 dev/tools/release.py version)" >/dev/null; then
+              python3 dev/tools/release.py bump "$BUMP_LEVEL"
+              while git rev-parse -q --verify "refs/tags/v$(python3 dev/tools/release.py version)" >/dev/null; do
+                python3 dev/tools/release.py bump patch
+              done
+            fi
             VER="$(python3 dev/tools/release.py version)"
             git add package.json package-lock.json SKILL.md
             git diff --cached --quiet || git commit -m "Release v${VER} [skip ci]"

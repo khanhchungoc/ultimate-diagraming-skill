@@ -62,6 +62,7 @@ function findPython() {
 const TESTS = [
   // Fast checks (< 2s each except subprocess ~6s)
   { id: 'tokens',          file: 'check_tokens.py',          types: ['tokens', 'shell', 'cross'] },
+  { id: 'components',      file: 'check_components.py',      types: ['tokens', 'shell', 'cross', 'sequence', 'erd', 'usecase', 'c4', 'gantt'] },
   { id: 'contrast',        file: 'check_contrast.py',        types: ['tokens', 'theme', 'shell', 'cross'] },
   { id: 'audit_flowchart', file: 'test_audit_flowchart.py',  types: ['flowchart'] },
   { id: 'audit_sequence',  file: 'test_audit_sequence.py',   types: ['sequence'] },
@@ -78,10 +79,14 @@ const TESTS = [
   { id: 'install',         file: 'test_install.py',          types: ['cli'] },
   { id: 'save_helper',     file: 'test_save_helper.py',      types: ['cli'] },
   { id: 'version_check',   file: 'test_version_check.py',    types: ['cli'] },
+  { id: 'release',         file: 'test_release.py',          types: ['cli'] },
+  { id: 'strip_bundle',    file: 'test_strip_bundle.py',     types: ['cross', 'shell'] },
 
   // Heavier / perf-sensitive non-browser checks (included with --all or explicit --only / direct edit)
   { id: 'golden',          file: 'check_golden.py',          types: ['cross', 'flowchart', 'sequence', 'erd', 'usecase', 'c4', 'gantt'], slow: true },
   { id: 'artifact_shape',  file: 'check_artifact_shape.py',  types: ['shell', 'cross'], slow: true },
+  { id: 'router_equiv',    file: 'check_router_equiv.mjs',   types: ['shell', 'flowchart'], slow: true },
+  { id: 'router_perf',     file: 'check_router_perf.mjs',    types: ['shell', 'flowchart'], slow: true, serial: true },
   { id: 'direction',       file: 'check_direction.py',       types: ['flowchart'], slow: true },
   { id: 'extract',         file: 'check_extract.py',         types: ['tokens', 'theme'], slow: true },
   { id: 'cli_mermaid',     file: 'test_cli_mermaid.py',      types: ['mermaid', 'cross'], slow: true },
@@ -163,6 +168,7 @@ function selectByChangedFiles(paths) {
     if (/^scripts\/install\.py$|^bin\//.test(p)) { wantedIds.add('install'); continue; }
     if (/^scripts\/save_helper\.py$/.test(p)) { wantedIds.add('save_helper'); continue; }
     if (/^scripts\/version_check\.py$/.test(p)) { wantedIds.add('version_check'); continue; }
+    if (/^dev\/tools\/release\.py$/.test(p)) { wantedIds.add('release'); continue; }
     if (/^(assets\/|scripts\/)/.test(p)) {
       runAll = true;
       break;

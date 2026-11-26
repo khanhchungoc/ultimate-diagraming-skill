@@ -101,8 +101,19 @@
   let selMarkerId = null;          // selected chart-wide vertical marker ID
   let selDepKey = null;            // selected dependency key `${from}|${to}|${type}`
   let selNoteId = null;            // selected note ID
-  let editingNoteId = null;        // note currently open for typing
-  let noteDraft = null;            // { id, isNew, wasOn, before }
+  const noteCtl = createNotes({    // the note currently open for typing
+    data: () => chartData,
+    cardOf: (id) => els.notes.get(id),
+    anchorEl: (n) => {
+      const bar = els.bars.get(n.target);
+      return (bar && bar.querySelector(':scope > .note-badge')) || bar || els.rows.get(n.target) || null;
+    },
+    canEdit: () => !presenting(),
+    openCard: (n) => els.notes.get(n.id),
+    clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
+    render: ({ reason }) => { if (reason !== 'same') render(); },
+    onChange: () => updateStatus(true),
+  });
   let peekNoteItemId = null;       // item ID whose note is being peeked on hover/click
   let hoveredItemId = null;        // item ID currently hovered for dependency chain spotlight
   let hoveredRowId = null;         // item ID currently hovered for synchronized row highlight
@@ -128,6 +139,7 @@
   let isSyncingScroll = false;
   let didInitialScroll = false;
   let isExtendingTimeline = false;
+  let lastScrollLeft = null;
   let ghostBarEl = null;
   let ghostRowId = null;
 
@@ -513,6 +525,12 @@
     sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)));
     if (sidebar) sidebar.style.width = `${sidebarWidth}px`;
     if (root) root.style.setProperty('--gantt-sidebar-w', `${sidebarWidth}px`);
+    if (splitter) {
+      splitter.setAttribute('aria-valuemin', String(SIDEBAR_MIN));
+      splitter.setAttribute('aria-valuemax', String(SIDEBAR_MAX));
+      splitter.setAttribute('aria-valuenow', String(sidebarWidth));
+      splitter.setAttribute('aria-valuetext', `${sidebarWidth} pixels`);
+    }
   }
 
   function ensureDepsSvg() {
@@ -530,10 +548,70 @@
     return renderedDepsSvg;
   }
 
+  // --- KEYED RENDER HELPERS ---
+  // Render reuses elements instead of rebuilding a layer: items are kept by id in `els`, update in place and are rebuilt
+  // only when their shape changes (see *Shape below), so element identity survives a render and the FLIP morphs that read
+  // it keep working. Events are delegated once per layer (wireLayerEvents), never attached per element per render.
+
+  // Put `nodes` into `parent` in this order starting at `cursor` (default: the first child), moving only the ones out of
+  // place. Returns the node after the last placed one (the first leftover).
+  function placeInOrder(parent, nodes, cursor) {
+    let at = cursor === undefined ? parent.firstChild : cursor;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (n === at) at = at.nextSibling;
+      else parent.insertBefore(n, at);
+    }
+    return at;
+  }
+
+  function removeFrom(node) {
+    while (node) {
+      const next = node.nextSibling;
+      node.remove();
+      node = next;
+    }
+  }
+
+  // Drop the entries of `map` not seen this render, with their elements.
+  function dropUnseen(map, seen, removeFn) {
+    map.forEach((v, k) => {
+      if (seen.has(k)) return;
+      if (removeFn) removeFn(v); else v.remove();
+      map.delete(k);
+    });
+  }
+
+  function setStyle(el, prop, val) {
+    if (el.style[prop] !== val) el.style[prop] = val;
+  }
+
+  function setText(el, text) {
+    if (el.textContent !== text) el.textContent = text;
+  }
+
+  function setTip(el, tip) {
+    if (el.dataset.tip !== tip) el.dataset.tip = tip;
+    if (el.title !== tip) el.title = tip;
+  }
+
+  // Elements without listeners or identity (header ticks, weekend / holiday bands, gridlines) are pooled by position.
+  function pooled(pool, i, make) {
+    return pool[i] || (pool[i] = make());
+  }
+
+  function trimPool(pool, n) {
+    while (pool.length > n) pool.pop().remove();
+  }
+
+  const tickPools = new Map();     // header container -> its tick elements in order
+
   function renderHeader(range, zoomKey, fullW) {
     if (!headerTop || !headerBottom || !headerEl) return;
-    headerTop.textContent = '';
-    headerBottom.textContent = '';
+    const used = new Map([[headerTop, 0], [headerBottom, 0]]);
+    const finishTicks = () => {
+      used.forEach((n, container) => trimPool(tickPools.get(container) || [], n));
+    };
 
     const pxPerDay = range.pxPerDay;
     const totalW = fullW || range.timelineWidth;
@@ -544,15 +622,41 @@
 
     const startDt = ganttParseDate(range.start);
     const endDt = ganttParseDate(range.end);
-    if (!startDt || !endDt) return;
+    if (!startDt || !endDt) {
+      finishTicks();
+      return;
+    }
 
     const gridLines = [];
 
+    // One tick at the next position of `container`; a day tick (two spans) and a text tick never share an element.
+    function nextTick(container, isDay) {
+      let pool = tickPools.get(container);
+      if (!pool) { pool = []; tickPools.set(container, pool); }
+      const i = used.get(container);
+      used.set(container, i + 1);
+      let cell = pool[i];
+      if (cell && (cell.childElementCount === 2) !== isDay) {
+        cell.remove();
+        pool.splice(i, 1);
+        cell = null;
+      }
+      if (!cell) {
+        cell = htmlEl('div', '');
+        if (isDay) cell.append(htmlEl('span', 'gantt-day-num'), htmlEl('span', 'gantt-day-dow'));
+        container.insertBefore(cell, pool[i] || null);
+        pool.splice(i, 0, cell);
+      }
+      return cell;
+    }
+
     function addTick(container, left, width, text, extraCls) {
-      const cell = htmlEl('div', `gantt-tick${extraCls ? ' ' + extraCls : ''}`, text);
-      cell.style.left = `${left}px`;
-      cell.style.width = `${width}px`;
-      container.appendChild(cell);
+      const cell = nextTick(container, false);
+      const cls = `gantt-tick${extraCls ? ' ' + extraCls : ''}`;
+      if (cell.className !== cls) cell.className = cls;
+      setStyle(cell, 'left', `${left}px`);
+      setStyle(cell, 'width', `${width}px`);
+      setText(cell, text);
     }
 
     // Helper: iterate calendar months covering [startDt, endDt]
@@ -600,14 +704,13 @@
         const dow = dt.getUTCDay();
         const isWknd = dow === 0 || dow === 6;
         const left = i * pxPerDay;
-        const cell = htmlEl('div', `gantt-tick gantt-tick-bot is-day${isWknd && showWknd ? ' is-weekend' : ''}`);
-        cell.style.left = `${left}px`;
-        cell.style.width = `${pxPerDay}px`;
-        cell.append(
-          htmlEl('span', 'gantt-day-num', String(dt.getUTCDate())),
-          htmlEl('span', 'gantt-day-dow', WEEKDAY_SHORT[dow])
-        );
-        headerBottom.appendChild(cell);
+        const cell = nextTick(headerBottom, true);
+        const cls = `gantt-tick gantt-tick-bot is-day${isWknd && showWknd ? ' is-weekend' : ''}`;
+        if (cell.className !== cls) cell.className = cls;
+        setStyle(cell, 'left', `${left}px`);
+        setStyle(cell, 'width', `${pxPerDay}px`);
+        setText(cell.firstChild, String(dt.getUTCDate()));
+        setText(cell.lastChild, WEEKDAY_SHORT[dow]);
         gridLines.push({ x: left, major: dt.getUTCDate() === 1 });
       }
     } else if (zoomKey === 'week') {
@@ -677,13 +780,14 @@
       }
     }
 
+    finishTicks();
     return gridLines;
   }
 
+  const gridPools = { weekend: [], holiday: [], line: [] };
+
   function renderGrid(range, zoomKey, visItems, gridLines, fullW) {
     if (!gridEl) return;
-    gridEl.textContent = '';
-    els.rowBgs.clear();
     if (headerMarkers) {
       headerMarkers.querySelectorAll('.gantt-holiday-flag').forEach((n) => n.remove());
     }
@@ -692,81 +796,32 @@
     const totalW = fullW || range.timelineWidth;
     gridEl.style.width = `${totalW}px`;
     gridEl.style.height = `${totalH}px`;
+    const order = [];
 
-    // Horizontal row stripes
-    const edit = !presenting();
+    // Horizontal row stripes (keyed by item id; hover / schedule-drag events are delegated in wireLayerEvents)
+    const seen = new Set();
     visItems.forEach((it, idx) => {
       const isUnscheduledLeaf = !it._bar && it.kind !== 'group' && !it._hasChildren;
-      const rowBg = htmlEl('div', `gantt-row-bg${idx % 2 === 1 ? ' is-alt' : ''}${selItems.has(it.id) ? ' is-selected' : ''}${hoveredRowId === it.id ? ' is-hovered' : ''}${isUnscheduledLeaf ? ' is-unscheduled' : ''}`);
-      rowBg.dataset.rowId = it.id;
-      rowBg.style.top = `${idx * rowH}px`;
-      rowBg.style.height = `${rowH}px`;
-      rowBg.style.width = `${totalW}px`;
-      rowBg.addEventListener('pointerenter', () => setHoveredRow(it.id));
-      rowBg.addEventListener('pointerleave', () => {
-        if (hoveredRowId === it.id) setHoveredRow(null);
-        if (!activeDrag && ghostRowId === it.id) hideGhostBar();
-      });
-      if (edit && isUnscheduledLeaf) {
-        rowBg.addEventListener('pointermove', (ev) => {
-          if (activeDrag || connectState) return;
-          const d = dateFromClientX(ev.clientX);
-          const previewEnd = it.kind === 'milestone' ? d : ganttAddDays(d, 6);
-          showGhostBar(it, d, previewEnd, `+ Schedule · ${formatShortDate(d)}`);
-        });
-        rowBg.addEventListener('pointerdown', (e) => {
-          if (e.button !== 0 || e.shiftKey || activeDrag || connectState) return;
-          e.stopPropagation();
-          const anchorDate = dateFromClientX(e.clientX);
-          const startX = e.clientX;
-          let endDate = anchorDate;
-          let dragged = false;
-          activeDrag = { kind: 'schedule', item: it };
-          removeActionBar();
-          showGhostBar(it, anchorDate, it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6), `+ Schedule · ${formatShortDate(anchorDate)}`);
-
-          const onMove = (ev) => {
-            if (!dragged && Math.abs(ev.clientX - startX) > 4) dragged = true;
-            if (!dragged) return;
-            endDate = dateFromClientX(ev.clientX);
-            const s = anchorDate <= endDate ? anchorDate : endDate;
-            const en = it.kind === 'milestone' ? s : (anchorDate <= endDate ? endDate : anchorDate);
-            showGhostBar(it, s, en);
-            const days = Math.max(1, ganttDiffDays(s, en) + 1);
-            showDragTip(ev.clientX, ev.clientY, `${formatDateRange(s, en)} · ${days}d`);
-          };
-          const onUp = (ev) => {
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-            window.removeEventListener('pointercancel', onUp);
-            activeDrag = null;
-            hideGhostBar();
-            hideDragTip();
-            if (ev.type === 'pointerup') {
-              if (dragged) {
-                const s = anchorDate <= endDate ? anchorDate : endDate;
-                const en = anchorDate <= endDate ? endDate : anchorDate;
-                it.start = s;
-                it.end = it.kind === 'milestone' ? s : en;
-              } else {
-                it.start = anchorDate;
-                it.end = it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6);
-              }
-              selectSingleItem(it.id);
-              render();
-              updateStatus(true);
-            }
-          };
-          window.addEventListener('pointermove', onMove);
-          window.addEventListener('pointerup', onUp);
-          window.addEventListener('pointercancel', onUp);
-        });
+      let rowBg = els.rowBgs.get(it.id);
+      if (!rowBg) {
+        rowBg = htmlEl('div', 'gantt-row-bg');
+        rowBg.dataset.rowId = it.id;
+        els.rowBgs.set(it.id, rowBg);
       }
-      gridEl.appendChild(rowBg);
-      els.rowBgs.set(it.id, rowBg);
+      rowBg.classList.toggle('is-alt', idx % 2 === 1);
+      rowBg.classList.toggle('is-selected', selItems.has(it.id));
+      rowBg.classList.toggle('is-hovered', hoveredRowId === it.id);
+      rowBg.classList.toggle('is-unscheduled', isUnscheduledLeaf);
+      setStyle(rowBg, 'top', `${idx * rowH}px`);
+      setStyle(rowBg, 'height', `${rowH}px`);
+      setStyle(rowBg, 'width', `${totalW}px`);
+      seen.add(it.id);
+      order.push(rowBg);
     });
+    dropUnseen(els.rowBgs, seen);
 
     // Weekend bands (Day / Week only, when showWeekends is enabled)
+    let nWeekend = 0;
     if (showWeekendsActive(zoomKey)) {
       const pxPerDay = range.pxPerDay;
       for (let i = 0; i < range.totalDays; i++) {
@@ -774,328 +829,303 @@
         const dt = ganttParseDate(iso);
         const dow = dt.getUTCDay();
         if (dow === 0 || dow === 6) {
-          const band = htmlEl('div', 'gantt-weekend');
-          band.style.left = `${i * pxPerDay}px`;
-          band.style.width = `${pxPerDay}px`;
-          band.style.height = `${totalH}px`;
-          gridEl.appendChild(band);
+          const band = pooled(gridPools.weekend, nWeekend++, () => htmlEl('div', 'gantt-weekend'));
+          setStyle(band, 'left', `${i * pxPerDay}px`);
+          setStyle(band, 'width', `${pxPerDay}px`);
+          setStyle(band, 'height', `${totalH}px`);
+          order.push(band);
         }
       }
     }
+    trimPool(gridPools.weekend, nWeekend);
 
-    // Holiday bands + header chips
-    (chartData._holidays || []).forEach((h) => {
-      const band = htmlEl('div', 'gantt-holiday');
-      band.style.left = `${h.x}px`;
-      band.style.width = `${Math.max(2, h.w)}px`;
-      band.style.height = `${totalH}px`;
+    // Holiday bands
+    const holidays = chartData._holidays || [];
+    holidays.forEach((h, i) => {
+      const band = pooled(gridPools.holiday, i, () => htmlEl('div', 'gantt-holiday'));
+      setStyle(band, 'left', `${h.x}px`);
+      setStyle(band, 'width', `${Math.max(2, h.w)}px`);
+      setStyle(band, 'height', `${totalH}px`);
       const tip = h.country ? `${h.name || 'Holiday'} (${h.country}) · ${formatDateRange(h.start, h.end)}` : `${h.name || 'Holiday'} · ${formatDateRange(h.start, h.end)}`;
-      band.dataset.tip = tip;
-      band.title = tip;
-      gridEl.appendChild(band);
+      setTip(band, tip);
+      order.push(band);
     });
+    trimPool(gridPools.holiday, holidays.length);
 
     // Vertical gridlines
-    (gridLines || []).forEach((gl) => {
-      const line = htmlEl('div', `gantt-gridline${gl.major ? ' is-major' : ''}`);
-      line.style.left = `${gl.x}px`;
-      line.style.height = `${totalH}px`;
-      gridEl.appendChild(line);
+    const lines = gridLines || [];
+    lines.forEach((gl, i) => {
+      const line = pooled(gridPools.line, i, () => htmlEl('div', 'gantt-gridline'));
+      line.classList.toggle('is-major', Boolean(gl.major));
+      setStyle(line, 'left', `${gl.x}px`);
+      setStyle(line, 'height', `${totalH}px`);
+      order.push(line);
     });
+    trimPool(gridPools.line, lines.length);
+
+    removeFrom(placeInOrder(gridEl, order));
+  }
+
+  // A sidebar row is rebuilt only when this changes; everything else is patched in place.
+  function treeRowShape(it, edit) {
+    return `${edit ? 1 : 0}|${it._hasChildren || it.kind === 'group' ? 1 : 0}|${it.kind || 'task'}`;
+  }
+
+  function buildTreeRow(it, edit) {
+    const row = htmlEl('div', 'gantt-tree-row');
+    row.dataset.itemId = it.id;
+    row.dataset.kind = it.kind || 'task';
+    row.setAttribute('role', 'treeitem');
+    const isParent = Boolean(it._hasChildren || it.kind === 'group');
+    if (isParent) row.classList.add('is-parent');
+    if (edit) {
+      row.draggable = false; // pointer-based row drag
+      const grip = htmlEl('span', 'gantt-row-grip', '⋮');
+      grip.setAttribute('aria-hidden', 'true');
+      grip.setAttribute('data-export-skip', '');
+      row.appendChild(grip);
+    }
+
+    // Collapse/expand chevron (its rotation follows aria-expanded, patched in renderSidebar)
+    if (isParent) {
+      row.appendChild(ui.chevron({ expanded: !it.collapsed, label: '' }));
+    } else {
+      row.appendChild(htmlEl('span', 'chevron-spacer'));
+    }
+
+    // Kind indicator dot / diamond
+    row.appendChild(htmlEl('span', `gantt-tree-dot is-${it.kind || 'task'}`));
+
+    // Label
+    row.appendChild(htmlEl('span', 'gantt-tree-label'));
+
+    // Quick + subtask button on hover
+    if (edit && it.kind !== 'milestone') {
+      const addBtn = htmlEl('button', 'gantt-row-add');
+      addBtn.type = 'button';
+      addBtn.setAttribute('data-export-skip', '');
+      addBtn.innerHTML = ui.icon('plus', { size: 'xs', bold: true });
+      row.appendChild(addBtn);
+    }
+    return row;
   }
 
   function renderSidebar(visItems) {
     if (!treeEl) return;
-    treeEl.textContent = '';
-    els.rows.clear();
     const rowH = GANTT_METRICS.ROW_H;
     const edit = !presenting();
+    const order = [];
+    const seen = new Set();
 
     visItems.forEach((it, idx) => {
-      const row = htmlEl('div', `gantt-tree-row${idx % 2 === 1 ? ' is-alt' : ''}`);
-      row.dataset.itemId = it.id;
-      row.dataset.kind = it.kind || 'task';
-      row.style.height = `${rowH}px`;
-      row.style.paddingLeft = `${6 + (it._depth || 0) * 14}px`;
-      if (it._hasChildren || it.kind === 'group') row.classList.add('is-parent');
-      if (selItems.has(it.id)) row.classList.add('selected');
-      if (hoveredRowId === it.id) row.classList.add('is-hovered');
-      if (edit) {
-        row.draggable = false; // pointer-based row drag
-        const grip = htmlEl('span', 'gantt-row-grip', '⋮');
-        grip.setAttribute('aria-hidden', 'true');
-        grip.setAttribute('data-export-skip', '');
-        row.appendChild(grip);
+      const shape = treeRowShape(it, edit);
+      let row = els.rows.get(it.id);
+      if (!row || row._shape !== shape) {
+        if (row) row.remove();
+        row = buildTreeRow(it, edit);
+        row._shape = shape;
+        els.rows.set(it.id, row);
       }
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      const name = it.label || it.id;
+      row.classList.toggle('is-alt', idx % 2 === 1);
+      row.classList.toggle('selected', selItems.has(it.id));
+      row.classList.toggle('is-hovered', hoveredRowId === it.id);
+      row.setAttribute('aria-level', String((it._depth || 0) + 1));
+      row.setAttribute('aria-selected', String(selItems.has(it.id)));
+      if (isParent) row.setAttribute('aria-expanded', String(!it.collapsed));
+      setStyle(row, 'height', `${rowH}px`);
+      setStyle(row, 'paddingLeft', `${6 + (it._depth || 0) * 14}px`);
 
-      // Collapse/expand chevron
-      if (it._hasChildren || it.kind === 'group') {
-        const chev = htmlEl('button', 'gantt-chevron');
-        chev.type = 'button';
+      const chev = row.querySelector(':scope > .chevron');
+      if (chev) {
+        const chevLabel = it.collapsed ? `Expand ${name}` : `Collapse ${name}`;
         chev.setAttribute('aria-expanded', String(!it.collapsed));
-        chev.setAttribute('aria-label', it.collapsed ? `Expand ${it.label || it.id}` : `Collapse ${it.label || it.id}`);
-        chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
-        if (it.collapsed) chev.classList.add('is-collapsed');
-        chev.addEventListener('pointerdown', (e) => e.stopPropagation());
-        chev.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleCollapse(it.id);
-        });
-        row.appendChild(chev);
-      } else {
-        row.appendChild(htmlEl('span', 'gantt-chevron-spacer'));
+        if (chev.title !== chevLabel) chev.title = chevLabel;
+        chev.setAttribute('aria-label', chevLabel);
       }
-
-      // Kind indicator dot / diamond
-      const dot = htmlEl('span', `gantt-tree-dot is-${it.kind || 'task'}`);
-      setSwatch(dot, effectiveColor(it));
-      row.appendChild(dot);
-
-      // Label
-      const lbl = htmlEl('span', 'gantt-tree-label', it.label || it.id);
-      lbl.title = it.label || it.id;
-      lbl.dataset.tip = it.label || it.id;
-      row.appendChild(lbl);
-
-      // Quick + subtask button on hover
-      if (edit && it.kind !== 'milestone') {
-        const addBtn = htmlEl('button', 'gantt-row-add');
-        addBtn.type = 'button';
-        addBtn.title = `Add subtask under ${it.label || it.id}`;
-        addBtn.setAttribute('aria-label', addBtn.title);
-        addBtn.setAttribute('data-export-skip', '');
-        addBtn.innerHTML = ui.icon('plus', { size: 'xs', bold: true });
-        addBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-        addBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          addSubtask(it.id);
-        });
-        row.appendChild(addBtn);
+      setSwatch(row.querySelector(':scope > .gantt-tree-dot'), effectiveColor(it));
+      const lbl = row.querySelector(':scope > .gantt-tree-label');
+      if (!lbl.isContentEditable) setText(lbl, name);
+      setTip(lbl, name);
+      const addBtn = row.querySelector(':scope > .gantt-row-add');
+      if (addBtn) {
+        const addTitle = `Add subtask under ${name}`;
+        if (addBtn.title !== addTitle) addBtn.title = addTitle;
+        addBtn.setAttribute('aria-label', addTitle);
       }
-
-      row.addEventListener('pointerdown', (e) => onSidebarRowPointerDown(e, it));
-      row.addEventListener('pointerenter', () => onItemHover(it.id, true));
-      row.addEventListener('pointerleave', () => onItemHover(it.id, false));
-      row.addEventListener('dblclick', (e) => {
-        if (!edit) return;
-        e.stopPropagation();
-        startInlineRename(it.id, lbl);
-      });
-
-      treeEl.appendChild(row);
-      els.rows.set(it.id, row);
+      seen.add(it.id);
+      order.push(row);
     });
+    dropUnseen(els.rows, seen);
+    removeFrom(placeInOrder(treeEl, order));
+  }
+
+  function makeNoteBadge() {
+    const badge = htmlEl('button', 'note-badge');
+    badge.type = 'button';
+    badge.setAttribute('data-export-skip', '');
+    badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
+    return badge;
+  }
+
+  function makePorts(host) {
+    const portL = ui.port('left');
+    portL.dataset.port = 'ss';
+    portL.title = 'Drag to connect (Start-to-Start)';
+    const portR = ui.port('right');
+    portR.dataset.port = 'fs';
+    portR.title = 'Drag to connect (Finish-to-Start)';
+    host.append(portL, portR);
+  }
+
+  // 'milestone' | 'group' | 'task', plus edit handles and the note badge: a change rebuilds that one bar.
+  function barKind(it) {
+    if (it.kind === 'milestone' && !it._hasChildren) return 'milestone';
+    return (it._hasChildren || it.kind === 'group') ? 'group' : 'task';
+  }
+
+  function buildBar(it, kind, edit, hasNote) {
+    if (kind === 'milestone') {
+      const ms = htmlEl('div', 'gantt-milestone');
+      ms.dataset.itemId = it.id;
+      ms.dataset.nodeId = it.id;
+      ms.dataset.kind = 'milestone';
+      ms.appendChild(htmlEl('div', 'gantt-ms-diamond'));
+      ms.appendChild(htmlEl('span', 'gantt-ms-label'));
+      if (hasNote) {
+        ms.classList.add('has-note');
+        ms.appendChild(makeNoteBadge());
+      }
+      if (edit) {
+        ms.setAttribute('data-touch-drag', '1');
+        makePorts(ms);
+      }
+      return ms;
+    }
+
+    // Task bar or Parent summary bar (never render task text inside bars; sidebar is frozen)
+    const isParent = kind === 'group';
+    const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
+    if (!isParent) bar.dataset.item = '';   // a summary bar is a bracket, not a box: it keeps its own states
+    bar.dataset.itemId = it.id;
+    bar.dataset.nodeId = it.id;
+    bar.dataset.kind = kind;
+    if (hasNote) {
+      bar.classList.add('has-note');
+      bar.appendChild(makeNoteBadge());
+    }
+    if (edit && !isParent) {
+      bar.setAttribute('data-touch-drag', '1');
+      const resL = htmlEl('span', 'gantt-resize gantt-resize-l');
+      resL.title = 'Resize start date';
+      resL.setAttribute('data-export-skip', '');
+      const resR = htmlEl('span', 'gantt-resize gantt-resize-r');
+      resR.title = 'Resize end date';
+      resR.setAttribute('data-export-skip', '');
+      bar.append(resL, resR);
+    }
+    if (edit) makePorts(bar);
+    return bar;
+  }
+
+  // Geometry, time state and tooltip of one bar; shared by render and drag frames. Skips the writes when nothing moved.
+  function patchBarGeometry(el, it, todayStr) {
+    const b = it._bar;
+    const timeState = getTimeState(it, todayStr);
+    const geomKey = `${b.x}|${b.y}|${b.w}|${b.h}|${it._start}|${it._end}|${timeState}|${it.label}`;
+    if (el._geomKey === geomKey) return;
+    el._geomKey = geomKey;
+    const isMs = el.classList.contains('gantt-milestone');
+    el.dataset.timeState = timeState;
+    setStyle(el, 'left', `${b.x}px`);
+    setStyle(el, 'top', `${b.y}px`);
+    setStyle(el, 'width', `${isMs ? b.w : Math.max(4, b.w)}px`);
+    setStyle(el, 'height', `${b.h}px`);
+    setTip(el, isMs ? `${it.label || it.id} · ${formatShortDate(it._start)}` : formatBarTip(it));
   }
 
   function renderBars(visItems, todayStr) {
     if (!barsEl) return;
     hideGhostBar();
-    barsEl.textContent = '';
-    els.bars.clear();
     const edit = !presenting();
     const hasOutFs = new Set();
     (chartData._deps || []).forEach((d) => {
       if (d && d.from && d.type !== 'ss') hasOutFs.add(d.from);
     });
+    const noteByTarget = new Map();
+    notesList().forEach((n) => { if (n && !noteByTarget.has(n.target)) noteByTarget.set(n.target, n); });
+    const order = [];
+    const seen = new Set();
 
     visItems.forEach((it) => {
       if (!it._bar) return;
-      const b = it._bar;
-      const isParent = Boolean(it._hasChildren || it.kind === 'group');
-      const isMilestone = it.kind === 'milestone' && !it._hasChildren;
-      const note = noteForTarget(it.id);
-      const timeState = getTimeState(it, todayStr);
-
-      if (isMilestone) {
-        const ms = htmlEl('div', 'gantt-milestone');
-        ms.dataset.itemId = it.id;
-        ms.dataset.nodeId = it.id;
-        ms.dataset.kind = 'milestone';
-        ms.dataset.timeState = timeState;
-        ms.style.left = `${b.x}px`;
-        ms.style.top = `${b.y}px`;
-        ms.style.width = `${b.w}px`;
-        ms.style.height = `${b.h}px`;
-        setSwatch(ms, effectiveColor(it));
-        if (selItems.has(it.id)) ms.classList.add('selected');
-        if (note) ms.classList.add('has-note');
-        ms.dataset.tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
-        ms.title = ms.dataset.tip;
-
-        const diamond = htmlEl('div', 'gantt-ms-diamond');
-        ms.appendChild(diamond);
-
-        const lbl = htmlEl('span', 'gantt-ms-label', it.label || it.id);
-        ms.appendChild(lbl);
-
-        if (note) {
-          const badge = htmlEl('button', 'note-badge');
-          badge.type = 'button';
-          badge.setAttribute('data-export-skip', '');
-          badge.setAttribute('aria-label', `Note: ${note.text || ''}`);
-          badge.title = note.text || 'Note';
-          badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
-          badge.addEventListener('pointerdown', (e) => e.stopPropagation());
-          badge.addEventListener('click', (e) => {
-            e.stopPropagation();
-            peekOrEditNote(it.id);
-          });
-          ms.appendChild(badge);
-        }
-
-        if (edit) {
-          ms.setAttribute('data-touch-drag', '1');
-          const portL = htmlEl('span', 'gantt-port gantt-port-l');
-          portL.dataset.port = 'ss';
-          portL.title = 'Drag to connect (Start-to-Start)';
-          portL.setAttribute('data-export-skip', '');
-          portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
-
-          const portR = htmlEl('span', 'gantt-port gantt-port-r');
-          portR.dataset.port = 'fs';
-          portR.title = 'Drag to connect (Finish-to-Start)';
-          portR.setAttribute('data-export-skip', '');
-          portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
-
-          ms.append(portL, portR);
-        }
-
-        ms.addEventListener('pointerdown', (e) => onBarPointerDown(e, it));
-        ms.addEventListener('pointerenter', () => onItemHover(it.id, true));
-        ms.addEventListener('pointerleave', () => onItemHover(it.id, false));
-        ms.addEventListener('dblclick', (e) => {
-          if (!edit) return;
-          e.stopPropagation();
-          const row = els.rows.get(it.id);
-          startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : lbl);
-        });
-
-        barsEl.appendChild(ms);
-        els.bars.set(it.id, ms);
-        return;
+      const kind = barKind(it);
+      const note = noteByTarget.get(it.id) || null;
+      const shape = `${kind}|${edit ? 1 : 0}|${note ? 1 : 0}`;
+      let el = els.bars.get(it.id);
+      if (!el || el._shape !== shape) {
+        if (el) el.remove();
+        el = buildBar(it, kind, edit, Boolean(note));
+        el._shape = shape;
+        els.bars.set(it.id, el);
       }
-
-      // Task bar or Parent summary bar (never render task text inside bars; sidebar is frozen)
-      const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
-      bar.dataset.itemId = it.id;
-      bar.dataset.nodeId = it.id;
-      bar.dataset.kind = isParent ? 'group' : 'task';
-      bar.dataset.timeState = timeState;
-      const barW = Math.max(4, b.w);
-      bar.style.left = `${b.x}px`;
-      bar.style.top = `${b.y}px`;
-      bar.style.width = `${barW}px`;
-      bar.style.height = `${b.h}px`;
-      setSwatch(bar, effectiveColor(it));
-      if (selItems.has(it.id)) bar.classList.add('selected');
-      if (note) bar.classList.add('has-note');
-      if (hasOutFs.has(it.id)) bar.classList.add('has-out-dep');
-
-      const tipText = formatBarTip(it);
-      bar.dataset.tip = tipText;
-      bar.title = tipText;
-
+      patchBarGeometry(el, it, todayStr);
+      setSwatch(el, effectiveColor(it));
+      el.classList.toggle('selected', selItems.has(it.id));
+      if (kind === 'milestone') setText(el.querySelector(':scope > .gantt-ms-label'), it.label || it.id);
+      else el.classList.toggle('has-out-dep', hasOutFs.has(it.id));
       if (note) {
-        const badge = htmlEl('button', 'note-badge');
-        badge.type = 'button';
-        badge.setAttribute('data-export-skip', '');
+        const badge = el.querySelector(':scope > .note-badge');
         badge.setAttribute('aria-label', `Note: ${note.text || ''}`);
-        badge.title = note.text || 'Note';
-        badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
-        badge.addEventListener('pointerdown', (e) => e.stopPropagation());
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          peekOrEditNote(it.id);
-        });
-        bar.appendChild(badge);
+        const noteTitle = note.text || 'Note';
+        if (badge.title !== noteTitle) badge.title = noteTitle;
       }
-
-      if (edit && !isParent) {
-        bar.setAttribute('data-touch-drag', '1');
-        const resL = htmlEl('span', 'gantt-resize gantt-resize-l');
-        resL.title = 'Resize start date';
-        resL.setAttribute('data-export-skip', '');
-        resL.addEventListener('pointerdown', (e) => onResizePointerDown(e, it, 'start'));
-
-        const resR = htmlEl('span', 'gantt-resize gantt-resize-r');
-        resR.title = 'Resize end date';
-        resR.setAttribute('data-export-skip', '');
-        resR.addEventListener('pointerdown', (e) => onResizePointerDown(e, it, 'end'));
-
-        bar.append(resL, resR);
-      }
-
-      if (edit) {
-        const portL = htmlEl('span', 'gantt-port gantt-port-l');
-        portL.dataset.port = 'ss';
-        portL.title = 'Drag to connect (Start-to-Start)';
-        portL.setAttribute('data-export-skip', '');
-        portL.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'ss'));
-
-        const portR = htmlEl('span', 'gantt-port gantt-port-r');
-        portR.dataset.port = 'fs';
-        portR.title = 'Drag to connect (Finish-to-Start)';
-        portR.setAttribute('data-export-skip', '');
-        portR.addEventListener('pointerdown', (e) => onPortPointerDown(e, it.id, 'fs'));
-
-        bar.append(portL, portR);
-      }
-
-      bar.addEventListener('pointerdown', (e) => onBarPointerDown(e, it));
-      bar.addEventListener('pointerenter', () => onItemHover(it.id, true));
-      bar.addEventListener('pointerleave', () => onItemHover(it.id, false));
-      bar.addEventListener('dblclick', (e) => {
-        if (!edit) return;
-        e.stopPropagation();
-        const row = els.rows.get(it.id);
-        startInlineRename(it.id, row ? row.querySelector('.gantt-tree-label') : null);
-      });
-
-      barsEl.appendChild(bar);
-      els.bars.set(it.id, bar);
+      seen.add(it.id);
+      order.push(el);
     });
+    dropUnseen(els.bars, seen);
+    removeFrom(placeInOrder(barsEl, order));
+  }
+
+  function patchMarker(rec, m) {
+    setStyle(rec.line, 'left', `${m.x}px`);
+    setStyle(rec.flag, 'left', `${m.x}px`);
+    setText(rec.flag, m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone'));
   }
 
   function renderMarkers(visItems) {
-    if (markersEl) markersEl.textContent = '';
-    if (headerMarkers) {
-      headerMarkers.querySelectorAll('.gantt-marker-flag').forEach((n) => n.remove());
-    }
-    els.markers.clear();
-
     const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
-    const edit = !presenting();
+    const lines = [];
+    const flags = [];
+    const seen = new Set();
 
     (chartData._markers || []).forEach((m) => {
-      const line = htmlEl('div', 'gantt-marker-line');
-      line.dataset.markerId = m.id;
-      line.style.left = `${m.x}px`;
-      line.style.height = `${totalH}px`;
-      setSwatch(line, m.color || '4');
-      if (selMarkerId === m.id) line.classList.add('selected');
-
-      const flagText = m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone');
-      const flag = htmlEl('div', 'gantt-marker-flag', flagText);
-      flag.dataset.markerId = m.id;
-      flag.style.left = `${m.x}px`;
-      setSwatch(flag, m.color || '4');
-      flag.dataset.tip = `${m.label || 'Milestone'} · ${formatShortDate(m.date)}`;
-      if (selMarkerId === m.id) flag.classList.add('selected');
-
-      if (edit) {
-        line.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
-        flag.addEventListener('pointerdown', (e) => onMarkerPointerDown(e, m.id));
-        flag.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          const raw = markerById(m.id);
-          if (raw) openMarkerRenamePop(flag, raw);
-        });
+      let rec = els.markers.get(m.id);
+      if (!rec) {
+        const line = htmlEl('div', 'gantt-marker-line');
+        line.dataset.markerId = m.id;
+        const flag = htmlEl('div', 'gantt-marker-flag');
+        flag.dataset.markerId = m.id;
+        rec = { line, flag };
+        els.markers.set(m.id, rec);
       }
-
-      if (markersEl) markersEl.appendChild(line);
-      if (headerMarkers) headerMarkers.appendChild(flag);
-      els.markers.set(m.id, { line, flag });
+      const { line, flag } = rec;
+      patchMarker(rec, m);
+      setStyle(line, 'height', `${totalH}px`);
+      setSwatch(line, m.color || '4');
+      setSwatch(flag, m.color || '4');
+      line.classList.toggle('selected', selMarkerId === m.id);
+      flag.classList.toggle('selected', selMarkerId === m.id);
+      const tip = `${m.label || 'Milestone'} · ${formatShortDate(m.date)}`;
+      if (flag.dataset.tip !== tip) flag.dataset.tip = tip;
+      seen.add(m.id);
+      lines.push(line);
+      flags.push(flag);
     });
+    dropUnseen(els.markers, seen, (rec) => { rec.line.remove(); rec.flag.remove(); });
+    if (markersEl) removeFrom(placeInOrder(markersEl, lines));
+    if (headerMarkers) placeInOrder(headerMarkers, flags);
   }
 
   function renderToday(range, visItems, todayStr) {
@@ -1124,87 +1154,97 @@
     }
   }
 
-  function renderDependencies(range, visItems) {
+  let depsDefs = null;               // arrowhead <defs>, built once
+  const depEls = new Map();          // `${depKey}#${n}` -> { g, path, hit, title, d, violated, sel } (n: duplicate count)
+  const depKeyByEl = new WeakMap();  // dependency <g> -> its depKey (pointer delegation)
+
+  // Keyed in place like the bars. `live` (drag frames) skips the chain spotlight unless an arrow changed state.
+  function renderDependencies(range, visItems, live) {
     const svg = ensureDepsSvg();
     if (!svg) return;
-    svg.textContent = '';
     els.deps.clear();
 
     const totalW = range.timelineWidth;
     const totalH = Math.max(1, visItems.length) * GANTT_METRICS.ROW_H;
-    svg.setAttribute('width', String(totalW));
-    svg.setAttribute('height', String(totalH));
-    svg.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
-    svg.style.width = `${totalW}px`;
-    svg.style.height = `${totalH}px`;
+    if (svg.getAttribute('width') !== String(totalW)) svg.setAttribute('width', String(totalW));
+    if (svg.getAttribute('height') !== String(totalH)) svg.setAttribute('height', String(totalH));
+    const vb = `0 0 ${totalW} ${totalH}`;
+    if (svg.getAttribute('viewBox') !== vb) svg.setAttribute('viewBox', vb);
+    setStyle(svg, 'width', `${totalW}px`);
+    setStyle(svg, 'height', `${totalH}px`);
 
     // Arrowhead defs
-    const defs = svgEl('defs');
-    [
-      ['gantt-arr', 'gantt-arr-fill'],
-      ['gantt-arr-warn', 'gantt-arr-warn-fill'],
-      ['gantt-arr-sel', 'gantt-arr-sel-fill']
-    ].forEach(([id, cls]) => {
-      const mk = svgEl('marker', {
-        id,
-        viewBox: '0 0 10 10',
-        refX: '8.5',
-        refY: '5',
-        markerWidth: '7',
-        markerHeight: '7',
-        orient: 'auto-start-reverse'
+    if (!depsDefs) {
+      depsDefs = svgEl('defs');
+      [
+        ['gantt-arr', 'gantt-arr-fill'],
+        ['gantt-arr-warn', 'gantt-arr-warn-fill'],
+        ['gantt-arr-sel', 'gantt-arr-sel-fill']
+      ].forEach(([id, cls]) => {
+        const mk = svgEl('marker', {
+          id,
+          viewBox: '0 0 10 10',
+          refX: '8.5',
+          refY: '5',
+          markerWidth: '7',
+          markerHeight: '7',
+          orient: 'auto-start-reverse'
+        });
+        mk.appendChild(svgEl('path', { d: 'M 1 1.5 L 9 5 L 1 8.5 z', class: cls }));
+        depsDefs.appendChild(mk);
       });
-      mk.appendChild(svgEl('path', { d: 'M 1 1.5 L 9 5 L 1 8.5 z', class: cls }));
-      defs.appendChild(mk);
-    });
-    svg.appendChild(defs);
+    }
 
+    const order = [depsDefs];
+    const seen = new Set();
+    const dupCount = new Map();
+    let changed = false;
     (chartData._deps || []).forEach((dep) => {
       const key = depKeyOf(dep);
+      const n = dupCount.get(key) || 0;
+      dupCount.set(key, n + 1);
+      const slot = `${key}#${n}`;
       const isSel = selDepKey === key;
-      const g = svgEl('g', {
-        class: `gantt-dep-group${dep.violated ? ' violated' : ''}${isSel ? ' selected' : ''}`,
-        'data-from': dep.from,
-        'data-to': dep.to,
-        'data-dep-type': dep.type
-      });
-
-      const tipText = dep.violated
-        ? (dep.type === 'ss' ? 'Starts before prerequisite starts' : 'Starts before prerequisite ends')
-        : `${dep.type.toUpperCase()} dependency`;
-      const titleEl = svgEl('title');
-      titleEl.textContent = tipText;
-      g.appendChild(titleEl);
-
-      const hit = svgEl('path', {
-        d: dep.path,
-        class: 'gantt-dep-hit',
-        fill: 'none',
-        stroke: 'transparent',
-        'stroke-width': '12'
-      });
-      const markerUrl = isSel ? 'url(#gantt-arr-sel)' : dep.violated ? 'url(#gantt-arr-warn)' : 'url(#gantt-arr)';
-      const path = svgEl('path', {
-        d: dep.path,
-        class: `gantt-dep-path${dep.violated ? ' violated' : ''}${isSel ? ' selected' : ''}`,
-        fill: 'none',
-        'marker-end': markerUrl
-      });
-
-      g.append(hit, path);
-      g.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0 || presenting()) return;
-        e.stopPropagation();
-        selectDependency(key);
-      });
-
-      svg.appendChild(g);
-      els.deps.set(key, { g, path, hit });
+      let rec = depEls.get(slot);
+      if (!rec) {
+        const g = svgEl('g', { class: 'gantt-dep-group', 'data-from': dep.from, 'data-to': dep.to, 'data-dep-type': dep.type });
+        const title = svgEl('title');
+        const hit = svgEl('path', { class: 'gantt-dep-hit', fill: 'none', stroke: 'transparent', 'stroke-width': '12' });
+        const path = svgEl('path', { class: 'gantt-dep-path', fill: 'none' });
+        g.append(title, hit, path);
+        depKeyByEl.set(g, key);
+        rec = { g, path, hit, title, d: null, violated: null, sel: null };
+        depEls.set(slot, rec);
+        changed = true;
+      }
+      if (rec.d !== dep.path) {
+        rec.d = dep.path;
+        rec.hit.setAttribute('d', dep.path);
+        rec.path.setAttribute('d', dep.path);
+      }
+      if (rec.violated !== Boolean(dep.violated) || rec.sel !== isSel) {
+        if (rec.violated !== Boolean(dep.violated)) changed = true;
+        rec.violated = Boolean(dep.violated);
+        rec.sel = isSel;
+        rec.g.classList.toggle('violated', rec.violated);
+        rec.g.classList.toggle('selected', isSel);
+        rec.path.classList.toggle('violated', rec.violated);
+        rec.path.classList.toggle('selected', isSel);
+        rec.title.textContent = dep.violated
+          ? (dep.type === 'ss' ? 'Starts before prerequisite starts' : 'Starts before prerequisite ends')
+          : `${dep.type.toUpperCase()} dependency`;
+        rec.path.setAttribute('marker-end', isSel ? 'url(#gantt-arr-sel)' : dep.violated ? 'url(#gantt-arr-warn)' : 'url(#gantt-arr)');
+      }
+      seen.add(slot);
+      order.push(rec.g);
+      els.deps.set(key, rec);
     });
+    dropUnseen(depEls, seen, (rec) => rec.g.remove());
+    placeInOrder(svg, order);
 
     if (depsEl) depsEl.classList.toggle('is-dense', (chartData._deps || []).length > 12);
     syncDepsVisibility();
-    syncDepSpotlight();
+    if (!live || changed) syncDepSpotlight();
   }
 
   function syncDepsVisibility() {
@@ -1410,7 +1450,7 @@
     if (!n || !n.target) return false;
     const it = itemById(n.target);
     if (!it || it._hidden || !it._bar) return false;
-    if (n.id === editingNoteId) return true;
+    if (n.id === noteCtl.editingId()) return true;
     if (chartData.showNotes === true && n.text && n.text.trim()) return true;
     if (peekNoteItemId === n.target && n.text && n.text.trim()) return true;
     return false;
@@ -1521,62 +1561,15 @@
     if (!Array.isArray(chartData.notes)) chartData.notes = [];
     const note = { id: newId('n'), text: '', target: it.id };
     chartData.notes.push(note);
-    noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
-    editingNoteId = note.id;
+    noteCtl.begin(note, true);
     peekNoteItemId = it.id;
     render();
     editNote(note.id);
   }
 
-  function editNote(id) {
-    const n = noteById(id);
-    const card = els.notes.get(id);
-    if (!n || !card || presenting()) return;
-    if (editingNoteId !== id || !noteDraft) {
-      noteDraft = { id, isNew: false, wasOn: chartData.showNotes === true, before: (n.text || '').trim() };
-    }
-    editingNoteId = id;
-    const text = card.querySelector('.note-text');
-    if (!text) return;
-    text.contentEditable = 'true';
-    text.focus();
-    const range = document.createRange();
-    range.selectNodeContents(text);
-    range.collapse(false);
-    const s = window.getSelection();
-    s.removeAllRanges();
-    s.addRange(range);
-  }
-
-  function commitNote(n, textEl) {
-    textEl.contentEditable = 'false';
-    if (editingNoteId !== n.id) return;
-    const draft = noteDraft;
-    editingNoteId = null;
-    noteDraft = null;
-    const val = textEl.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-    if (!val) {
-      removeNote(n.id, !(draft && draft.isNew));
-      return;
-    }
-    if (val === (draft ? draft.before : (n.text || '').trim())) {
-      textEl.textContent = n.text;
-      return;
-    }
-    n.text = val;
-    textEl.textContent = val;
-    render();
-    updateStatus(true);
-  }
-
-  function removeNote(id, pushUndo = true) {
-    chartData.notes = notesList().filter((n) => n && n.id !== id);
-    if (!chartData.notes.length) delete chartData.notes;
-    if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
-    if (selNoteId === id) selNoteId = null;
-    render();
-    if (pushUndo) updateStatus(true);
-  }
+  function editNote(id) { noteCtl.edit(id); }
+  function commitNote(n, textEl) { noteCtl.commit(n, textEl); }
+  function removeNote(id, pushUndo = true) { noteCtl.remove(id, pushUndo); }
 
   function setHoveredRow(id) {
     const next = id || null;
@@ -1606,7 +1599,7 @@
     }
     syncDepSpotlight();
 
-    if (chartData.showNotes === true || editingNoteId) return;
+    if (chartData.showNotes === true || noteCtl.editingId()) return;
     if (entering && noteForTarget(itemId)) {
       if (peekNoteItemId !== itemId) {
         peekNoteItemId = itemId;
@@ -1741,6 +1734,17 @@
     emptyFilterEl.appendChild(actions);
   }
 
+  // Elements are reused across renders, so a FLIP still in flight on one would skew the box read after the render;
+  // drop it first (a rebuilt element never had one). CSS transitions / animations are left alone.
+  function settleMorph(el) {
+    if (!el.getAnimations) return;
+    el.getAnimations().forEach((a) => {
+      if (typeof CSSTransition !== 'undefined' && a instanceof CSSTransition) return;
+      if (typeof CSSAnimation !== 'undefined' && a instanceof CSSAnimation) return;
+      a.cancel();
+    });
+  }
+
   function captureLayoutRects() {
     const bars = new Map();
     els.bars.forEach((el, id) => { bars.set(id, el.getBoundingClientRect()); });
@@ -1758,6 +1762,7 @@
       domMap.forEach((el, id) => {
         const prev = prevMap.get(id);
         if (!prev) return;
+        settleMorph(el);
         const next = el.getBoundingClientRect();
         const dy = prev.top - next.top;
         if (Math.abs(dy) < 0.5) return;
@@ -1823,7 +1828,7 @@
     suppressExtendUntil = performance.now() + 700;
     timeline.scrollTo({
       left: targetLeft,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+      behavior: motion.enabled() ? 'smooth' : 'instant'
     });
   }
 
@@ -2116,7 +2121,8 @@
         targetLeft = Math.max(0, Math.round(anchorX - 48));
       }
       isExtendingTimeline = true;
-      timeline.scrollLeft = targetLeft;
+      timeline.scrollTo({ left: targetLeft, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       requestAnimationFrame(() => {
         isExtendingTimeline = false;
         if (viewMode === 'in-view') render();
@@ -2127,42 +2133,22 @@
     }
   }
 
-  // Fast live geometry refresh during drag/resize without rebuilding the entire DOM
+  // Drag frame: re-runs the (pure, linear) layout, then writes only the bars, markers and arrows whose geometry changed
+  // (the moved bars, their parents' summary bars and the arrows touching them). A full render follows on drop.
   function updateLiveGeometry() {
     applyLayout(true);
     const range = chartData._range;
     const visItems = visibleItems();
     const todayStr = getTodayStr();
-
     visItems.forEach((it) => {
       const el = els.bars.get(it.id);
-      if (!el || !it._bar) return;
-      const b = it._bar;
-      el.style.left = `${b.x}px`;
-      el.style.top = `${b.y}px`;
-      el.style.width = `${Math.max(4, b.w)}px`;
-      el.style.height = `${b.h}px`;
-      el.dataset.timeState = getTimeState(it, todayStr);
-      if (el.classList.contains('gantt-milestone')) {
-        const tip = `${it.label || it.id} · ${formatShortDate(it._start)}`;
-        el.dataset.tip = tip;
-        el.title = tip;
-      } else {
-        const tip = formatBarTip(it);
-        el.dataset.tip = tip;
-        el.title = tip;
-      }
+      if (el && it._bar) patchBarGeometry(el, it, todayStr);
     });
-
     (chartData._markers || []).forEach((m) => {
       const rec = els.markers.get(m.id);
-      if (!rec) return;
-      rec.line.style.left = `${m.x}px`;
-      rec.flag.style.left = `${m.x}px`;
-      rec.flag.textContent = m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone');
+      if (rec) patchMarker(rec, m);
     });
-
-    renderDependencies(range, visItems);
+    renderDependencies(range, visItems, true);
   }
 
   // --- DRAG TOOLTIP ---
@@ -2265,21 +2251,20 @@
       bar.classList.toggle('selected', selItems.has(id));
       bar.classList.toggle('multi-selected', selItems.size > 1 && selItems.has(id));
     });
-    if (gridEl) {
-      gridEl.querySelectorAll('.gantt-row-bg').forEach((bg) => {
-        bg.classList.toggle('is-selected', selItems.has(bg.dataset.rowId));
-      });
-    }
+    els.rowBgs.forEach((bg, id) => bg.classList.toggle('is-selected', selItems.has(id)));
     els.markers.forEach((rec, id) => {
       const on = selMarkerId === id;
       rec.line.classList.toggle('selected', on);
       rec.flag.classList.toggle('selected', on);
     });
+    const violatedByKey = new Map();
+    (chartData._deps || []).forEach((d) => { if (d && !violatedByKey.has(depKeyOf(d))) violatedByKey.set(depKeyOf(d), d); });
     els.deps.forEach((rec, key) => {
       const on = selDepKey === key;
+      rec.sel = on;
       rec.g.classList.toggle('selected', on);
       rec.path.classList.toggle('selected', on);
-      const dep = (chartData._deps || []).find((d) => depKeyOf(d) === key);
+      const dep = violatedByKey.get(key);
       const url = on ? 'url(#gantt-arr-sel)' : (dep && dep.violated) ? 'url(#gantt-arr-warn)' : 'url(#gantt-arr)';
       rec.path.setAttribute('marker-end', url);
     });
@@ -2665,6 +2650,7 @@
     const finish = (cancel) => {
       if (done) return;
       done = true;
+      target.removeEventListener('keydown', onKey);
       target.contentEditable = 'false';
       target.classList.remove('is-editing');
       const next = cancel ? orig : cleanLabel(target.textContent, orig);
@@ -2675,11 +2661,13 @@
         updateStatus(true);
       }
     };
-    target.addEventListener('blur', () => finish(false), { once: true });
-    target.addEventListener('keydown', (e) => {
+    // The label element is reused across renders, so this edit's key handler goes with it
+    const onKey = (e) => {
       if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); target.blur(); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(true); }
-    });
+    };
+    target.addEventListener('blur', () => finish(false), { once: true });
+    target.addEventListener('keydown', onKey);
   }
 
   // --- COLLAPSE / EXPAND ---
@@ -3261,7 +3249,7 @@
       const startX = e.clientX;
       const startScroll = timeline.scrollLeft;
       const onMove = (ev) => {
-        timeline.scrollLeft = startScroll - (ev.clientX - startX);
+        timeline.scrollTo({ left: startScroll - (ev.clientX - startX), behavior: 'instant' });
       };
       const onUp = () => {
         window.removeEventListener('pointermove', onMove);
@@ -3273,6 +3261,215 @@
       window.addEventListener('pointercancel', onUp);
     });
   }
+
+  // --- DELEGATED LAYER EVENTS ---
+  // One listener per layer dispatching by data-* id (elements are reused across renders, so nothing is bound per
+  // element). Enter / leave do not bubble: they are caught in the capture phase and matched on e.target itself.
+  const rowElAt = (t) => {
+    const row = t && t.closest ? t.closest('.gantt-tree-row') : null;
+    return row && els.rows.get(row.dataset.itemId) === row ? row : null;
+  };
+  const rowBgAt = (t) => {
+    const bg = t && t.closest ? t.closest('.gantt-row-bg') : null;
+    return bg && els.rowBgs.get(bg.dataset.rowId) === bg ? bg : null;
+  };
+  const barElAt = (t) => {
+    const el = t && t.closest ? t.closest('.gantt-bar, .gantt-milestone') : null;
+    return el && els.bars.get(el.dataset.itemId) === el ? el : null;
+  };
+  const markerRecAt = (t, cls) => {
+    const el = t && t.closest ? t.closest(cls) : null;
+    const rec = el ? els.markers.get(el.dataset.markerId) : null;
+    return rec && (rec.line === el || rec.flag === el) ? el : null;
+  };
+
+  // Drag across an unscheduled leaf's empty row to give it dates (click: a week from there).
+  function onScheduleRowPointerDown(e, it) {
+    if (e.button !== 0 || e.shiftKey || activeDrag || connectState) return;
+    e.stopPropagation();
+    const anchorDate = dateFromClientX(e.clientX);
+    const startX = e.clientX;
+    let endDate = anchorDate;
+    let dragged = false;
+    activeDrag = { kind: 'schedule', item: it };
+    removeActionBar();
+    showGhostBar(it, anchorDate, it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6), `+ Schedule · ${formatShortDate(anchorDate)}`);
+
+    const onMove = (ev) => {
+      if (!dragged && Math.abs(ev.clientX - startX) > 4) dragged = true;
+      if (!dragged) return;
+      endDate = dateFromClientX(ev.clientX);
+      const s = anchorDate <= endDate ? anchorDate : endDate;
+      const en = it.kind === 'milestone' ? s : (anchorDate <= endDate ? endDate : anchorDate);
+      showGhostBar(it, s, en);
+      const days = Math.max(1, ganttDiffDays(s, en) + 1);
+      showDragTip(ev.clientX, ev.clientY, `${formatDateRange(s, en)} · ${days}d`);
+    };
+    const onUp = (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      activeDrag = null;
+      hideGhostBar();
+      hideDragTip();
+      if (ev.type === 'pointerup') {
+        if (dragged) {
+          const s = anchorDate <= endDate ? anchorDate : endDate;
+          const en = anchorDate <= endDate ? endDate : anchorDate;
+          it.start = s;
+          it.end = it.kind === 'milestone' ? s : en;
+        } else {
+          it.start = anchorDate;
+          it.end = it.kind === 'milestone' ? anchorDate : ganttAddDays(anchorDate, 6);
+        }
+        selectSingleItem(it.id);
+        render();
+        updateStatus(true);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  function wireLayerEvents() {
+    if (gridEl) {
+      gridEl.addEventListener('pointerenter', (e) => {
+        const bg = rowBgAt(e.target);
+        if (bg === e.target) setHoveredRow(bg.dataset.rowId);
+      }, true);
+      gridEl.addEventListener('pointerleave', (e) => {
+        const bg = rowBgAt(e.target);
+        if (bg !== e.target) return;
+        const id = bg.dataset.rowId;
+        if (hoveredRowId === id) setHoveredRow(null);
+        if (!activeDrag && ghostRowId === id) hideGhostBar();
+      }, true);
+      const unscheduledAt = (e) => {
+        const bg = rowBgAt(e.target);
+        if (!bg || !bg.classList.contains('is-unscheduled') || presenting()) return null;
+        return itemById(bg.dataset.rowId);
+      };
+      gridEl.addEventListener('pointermove', (ev) => {
+        if (activeDrag || connectState) return;
+        const it = unscheduledAt(ev);
+        if (!it) return;
+        const d = dateFromClientX(ev.clientX);
+        const previewEnd = it.kind === 'milestone' ? d : ganttAddDays(d, 6);
+        showGhostBar(it, d, previewEnd, `+ Schedule · ${formatShortDate(d)}`);
+      });
+      gridEl.addEventListener('pointerdown', (e) => {
+        const it = unscheduledAt(e);
+        if (it) onScheduleRowPointerDown(e, it);
+      });
+    }
+
+    if (treeEl) {
+      treeEl.addEventListener('pointerdown', (e) => {
+        const row = rowElAt(e.target);
+        if (!row) return;
+        if (e.target.closest('.chevron, .gantt-row-add')) { e.stopPropagation(); return; }
+        const it = itemById(row.dataset.itemId);
+        if (it) onSidebarRowPointerDown(e, it);
+      });
+      treeEl.addEventListener('click', (e) => {
+        const row = rowElAt(e.target);
+        if (!row) return;
+        if (e.target.closest('.chevron')) {
+          e.stopPropagation();
+          toggleCollapse(row.dataset.itemId);
+        } else if (e.target.closest('.gantt-row-add')) {
+          e.stopPropagation();
+          addSubtask(row.dataset.itemId);
+        }
+      });
+      treeEl.addEventListener('dblclick', (e) => {
+        const row = rowElAt(e.target);
+        if (!row || presenting()) return;
+        e.stopPropagation();
+        startInlineRename(row.dataset.itemId, row.querySelector(':scope > .gantt-tree-label'));
+      });
+      treeEl.addEventListener('pointerenter', (e) => {
+        const row = rowElAt(e.target);
+        if (row === e.target) onItemHover(row.dataset.itemId, true);
+      }, true);
+      treeEl.addEventListener('pointerleave', (e) => {
+        const row = rowElAt(e.target);
+        if (row === e.target) onItemHover(row.dataset.itemId, false);
+      }, true);
+    }
+
+    if (barsEl) {
+      barsEl.addEventListener('pointerdown', (e) => {
+        const el = barElAt(e.target);
+        const it = el ? itemById(el.dataset.itemId) : null;
+        if (!it) return;
+        if (e.target.closest('.note-badge')) { e.stopPropagation(); return; }
+        const res = e.target.closest('.gantt-resize');
+        if (res) onResizePointerDown(e, it, res.classList.contains('gantt-resize-l') ? 'start' : 'end');
+        if (e.cancelBubble) return;   // the resize handle took it
+        const port = e.target.closest('.port[data-port]');
+        if (port) onPortPointerDown(e, it.id, port.dataset.port);
+        if (e.cancelBubble) return;   // the port took it
+        onBarPointerDown(e, it);
+      });
+      barsEl.addEventListener('click', (e) => {
+        const el = barElAt(e.target);
+        if (!el || !e.target.closest('.note-badge')) return;
+        e.stopPropagation();
+        peekOrEditNote(el.dataset.itemId);
+      });
+      barsEl.addEventListener('dblclick', (e) => {
+        const el = barElAt(e.target);
+        if (!el || presenting()) return;
+        e.stopPropagation();
+        const id = el.dataset.itemId;
+        const row = els.rows.get(id);
+        const lbl = row ? row.querySelector(':scope > .gantt-tree-label') : null;
+        startInlineRename(id, lbl || (el.classList.contains('gantt-milestone') ? el.querySelector(':scope > .gantt-ms-label') : null));
+      });
+      barsEl.addEventListener('pointerenter', (e) => {
+        const el = barElAt(e.target);
+        if (el === e.target) onItemHover(el.dataset.itemId, true);
+      }, true);
+      barsEl.addEventListener('pointerleave', (e) => {
+        const el = barElAt(e.target);
+        if (el === e.target) onItemHover(el.dataset.itemId, false);
+      }, true);
+    }
+
+    if (markersEl) {
+      markersEl.addEventListener('pointerdown', (e) => {
+        const line = markerRecAt(e.target, '.gantt-marker-line');
+        if (line && !presenting()) onMarkerPointerDown(e, line.dataset.markerId);
+      });
+    }
+    if (headerMarkers) {
+      headerMarkers.addEventListener('pointerdown', (e) => {
+        const flag = markerRecAt(e.target, '.gantt-marker-flag');
+        if (flag && !presenting()) onMarkerPointerDown(e, flag.dataset.markerId);
+      });
+      headerMarkers.addEventListener('dblclick', (e) => {
+        const flag = markerRecAt(e.target, '.gantt-marker-flag');
+        if (!flag || presenting()) return;
+        e.stopPropagation();
+        const raw = markerById(flag.dataset.markerId);
+        if (raw) openMarkerRenamePop(flag, raw);
+      });
+    }
+
+    const svg = ensureDepsSvg();
+    if (svg) {
+      svg.addEventListener('pointerdown', (e) => {
+        const g = e.target && e.target.closest ? e.target.closest('.gantt-dep-group') : null;
+        const key = g ? depKeyByEl.get(g) : null;
+        if (!key || e.button !== 0 || presenting()) return;
+        e.stopPropagation();
+        selectDependency(key);
+      });
+    }
+  }
+  wireLayerEvents();
 
   // --- SIDEBAR ROW DRAG (REORDER / REPARENT) ---
   function onSidebarRowPointerDown(e, it) {
@@ -3441,6 +3638,16 @@
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     });
+    splitter.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 40 : 10;
+      const next = e.key === 'ArrowLeft' ? sidebarWidth - step
+        : e.key === 'ArrowRight' ? sidebarWidth + step
+        : e.key === 'Home' ? SIDEBAR_MIN
+        : e.key === 'End' ? SIDEBAR_MAX : null;
+      if (next == null) return;
+      e.preventDefault();
+      applySidebarWidth(next);
+    });
     splitter.addEventListener('dblclick', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -3454,37 +3661,40 @@
     if (isExtendingTimeline || activeDrag || !timeline || !chartData._range) return;
     if (performance.now() < suppressExtendUntil) return;
     if (timeline.scrollWidth <= timeline.clientWidth) return;
+    const curLeft = timeline.scrollLeft;
+    const scrollingLeft = lastScrollLeft !== null && curLeft < lastScrollLeft;
+    const scrollingRight = lastScrollLeft !== null && curLeft > lastScrollLeft;
     const range = chartData._range;
     const step = EXTEND_DAYS[currentZoom()] || 180;
 
-    if (timeline.scrollLeft < 120) {
+    if (scrollingLeft && curLeft < 120) {
       const oldStart = range.start;
       const baseStart = (chartData._extraStart && chartData._extraStart < oldStart) ? chartData._extraStart : oldStart;
       chartData._extraStart = ganttAddDays(baseStart, -step);
       isExtendingTimeline = true;
-      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollLeft = curLeft;
       const prevScrollTop = timeline.scrollTop;
       render();
       const newStart = chartData._range ? chartData._range.start : oldStart;
       const addedDays = ganttDiffDays(newStart, oldStart);
       const deltaPx = addedDays > 0 ? Math.round(addedDays * chartData._range.pxPerDay) : 0;
       isSyncingScroll = true;
-      timeline.scrollLeft = prevScrollLeft + deltaPx;
-      timeline.scrollTop = prevScrollTop;
+      timeline.scrollTo({ left: prevScrollLeft + deltaPx, top: prevScrollTop, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       if (treeEl) treeEl.scrollTop = prevScrollTop;
       isSyncingScroll = false;
       requestAnimationFrame(() => { isExtendingTimeline = false; });
-    } else if (timeline.scrollLeft + timeline.clientWidth > timeline.scrollWidth - 120) {
+    } else if (scrollingRight && curLeft + timeline.clientWidth > timeline.scrollWidth - 120) {
       const oldEnd = range.end;
       const baseEnd = (chartData._extraEnd && chartData._extraEnd > oldEnd) ? chartData._extraEnd : oldEnd;
       chartData._extraEnd = ganttAddDays(baseEnd, step);
       isExtendingTimeline = true;
-      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollLeft = curLeft;
       const prevScrollTop = timeline.scrollTop;
       render();
       isSyncingScroll = true;
-      timeline.scrollLeft = prevScrollLeft;
-      timeline.scrollTop = prevScrollTop;
+      timeline.scrollTo({ left: prevScrollLeft, top: prevScrollTop, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       if (treeEl) treeEl.scrollTop = prevScrollTop;
       isSyncingScroll = false;
       requestAnimationFrame(() => { isExtendingTimeline = false; });
@@ -3507,6 +3717,7 @@
         isSyncingScroll = false;
       }
       maybeExtendTimeline();
+      lastScrollLeft = timeline.scrollLeft;
       scheduleScrollOverlays();
       scheduleInViewRefresh();
     }, { passive: true });
@@ -3519,7 +3730,7 @@
       if (isSyncingScroll) return;
       isSyncingScroll = true;
       if (timeline.scrollTop !== treeEl.scrollTop) {
-        timeline.scrollTop = treeEl.scrollTop;
+        timeline.scrollTo({ top: treeEl.scrollTop, behavior: 'instant' });
         expectedTimelineScrollTop = timeline.scrollTop;
       }
       if (actionBarEl) removeActionBar();
@@ -3545,6 +3756,7 @@
     els.bars.forEach((el, id) => {
       const prev = oldRects.get(id);
       if (!prev) return;
+      settleMorph(el);
       const next = el.getBoundingClientRect();
       if (!next.width || !next.height) return;
       const dx = prev.left - next.left;
@@ -3584,6 +3796,7 @@
       const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
       isExtendingTimeline = true;
       timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       requestAnimationFrame(() => {
         isExtendingTimeline = false;
         if (viewMode === 'in-view') render();
@@ -3629,8 +3842,11 @@
         const anchorDate = r.contentStart || r.start;
         const anchorX = ganttDiffDays(r.start, anchorDate) * r.pxPerDay;
         const left = Math.max(0, Math.round(anchorX - 48));
+        const smooth = Boolean(animate && motion.enabled());
         isExtendingTimeline = true;
-        timeline.scrollTo({ left, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+        if (smooth) suppressExtendUntil = performance.now() + 700;
+        timeline.scrollTo({ left, top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        lastScrollLeft = timeline.scrollLeft;
         requestAnimationFrame(() => { isExtendingTimeline = false; });
       };
       if (chosen !== currentZoom()) {
@@ -3673,7 +3889,7 @@
     });
     const scrollOpts = {
       left: targetLeft,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+      behavior: motion.enabled() ? 'smooth' : 'instant'
     };
     if (candidates.length && !anyVisibleVert) {
       const firstY = candidates[0]._row * rowH;
@@ -3993,7 +4209,7 @@
       if (!target || target._hidden || typeof target._row !== 'number' || !timeline) return;
       timeline.scrollTo({
         top: Math.max(0, target._row * GANTT_METRICS.ROW_H),
-        behavior: motion.enabled() ? 'smooth' : 'auto'
+        behavior: motion.enabled() ? 'smooth' : 'instant'
       });
     });
   }
@@ -4067,14 +4283,6 @@
     if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
       toggleLegendPop(false, false);
     }
-    if (editingNoteId) {
-      const card = els.notes.get(editingNoteId);
-      if (card && !card.contains(e.target)) {
-        const textEl = card.querySelector('.note-text');
-        const n = noteById(editingNoteId);
-        if (textEl && n) { textEl.blur(); commitNote(n, textEl); }
-      }
-    }
   }, true);
 
   function cancelInteraction() {
@@ -4133,12 +4341,13 @@
   function focusSearchItem(item) {
     const el = item && item.el ? item.el : item;
     if (!el || !el.getBoundingClientRect) return;
-    const smooth = motion.enabled() ? 'smooth' : 'auto';
+    const smooth = motion.enabled() ? 'smooth' : 'instant';
     if (timeline && timeline.contains(el)) {
       const tr = timeline.getBoundingClientRect();
       const er = el.getBoundingClientRect();
       const targetLeft = Math.max(0, Math.round(timeline.scrollLeft + (er.left - tr.left) + er.width / 2 - timeline.clientWidth / 2));
       const targetTop = Math.max(0, Math.round(timeline.scrollTop + (er.top - tr.top) + er.height / 2 - timeline.clientHeight / 2));
+      if (smooth === 'smooth') suppressExtendUntil = performance.now() + 700;
       timeline.scrollTo({ left: targetLeft, top: targetTop, behavior: smooth });
       return;
     }
@@ -4407,6 +4616,7 @@
 
   function fromDisk(data) {
     didInitialScroll = false;
+    lastScrollLeft = null;
     const d = JSON.parse(JSON.stringify(data));
     delete d.layout;
     slotColors(d, 'items', 'markers');
@@ -4475,7 +4685,8 @@
         return sw.solid || sw.border || sw.fill;
       },
       toast: (msg) => ui.toast(msg),
-      icon: (name, opts) => ui.iconEl(name, opts)
+      icon: (name, opts) => ui.iconEl(name, opts),
+      chevron: (o) => ui.chevron(o)
     });
   }
 

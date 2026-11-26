@@ -189,9 +189,9 @@ if (erd) {
   rc = await t.at(`${TB('review')} .erd-head`);
   await tap(rc.x, rc.y);
   t.check('erd: a tap on a table selects it', await tblSel('review'));
-  const portsShown = await t.ev(`(() => { const ps = [...document.querySelectorAll('${TB('review')} .erd-port')]; return ps.length > 1 && ps.every((p) => getComputedStyle(p).display !== 'none' && p.hasAttribute('data-touch-drag') && p.getBoundingClientRect().width >= 20); })()`);
+  const portsShown = await t.ev(`(() => { const ps = [...document.querySelectorAll('${TB('review')} .port:not(.port-end)')]; return ps.length > 1 && ps.every((p) => getComputedStyle(p).display !== 'none' && getComputedStyle(p).pointerEvents !== 'none' && p.hasAttribute('data-touch-drag') && p.getBoundingClientRect().width >= 20); })()`);
   t.check('erd: the selected table shows its row and header ports as finger-sized touch targets', portsShown);
-  t.check('erd: an unselected table shows none', await t.ev(`[...document.querySelectorAll('${TB('product')} .erd-port')].every((p) => getComputedStyle(p).display === 'none')`));
+  t.check('erd: an unselected table shows none', await t.ev(`[...document.querySelectorAll('${TB('product')} .port:not(.port-end)')].every((p) => { const c = getComputedStyle(p); return c.display === 'none' || c.pointerEvents === 'none'; })`));
   // The selected table drags to move (it stays where it is dropped)
   const v5 = await view();
   rc = await t.at(`${TB('review')} .erd-head`);
@@ -215,7 +215,7 @@ if (erd) {
     await drag(10, 300, W / 2 - (a1.x + b1.x) / 2, H / 2 - (a1.y + b1.y) / 2, 10);
   }
   if (!(await tblSel('review'))) { rc = await t.at(`${TB('review')} .erd-head`); await tap(rc.x, rc.y); }
-  const port = await t.at(`${TB('review')} .erd-row[data-col="rating"] .erd-port`);
+  const port = await t.at(`${TB('review')} .erd-row[data-col="rating"] .port:not(.port-end)`);
   const goal = await t.at(`${TB('product')} .erd-row[data-col="id"]`);
   const onScreen = (q) => q && q.x > 0 && q.x < W && q.y > 100 && q.y < H - 120;
   let drawn = false;
@@ -226,11 +226,11 @@ if (erd) {
     drawn = (await relCount()) === n0 + 1 && await t.ev(`!!document.querySelector('.erd-rel.selected[data-from="review"][data-to="product"]:not([data-edge-id="r8"])')`);
   }
   t.check('erd: a drag from a selected table\'s row port to another table\'s row draws a relationship', drawn, `${JSON.stringify(port)} ${JSON.stringify(goal)}`);
-  t.check('erd: the new line is selected and its end handles are touch targets', await t.ev(`document.querySelectorAll('.erd-handle[data-touch-drag]').length`) === 2);
-  t.check('erd: the drawn line is a cubic curve (M P0 C P1 P2 P3) and its end handles sit on its two ends', await t.ev(`(() => { const d = document.querySelector('.erd-rel.selected .edge-line').getAttribute('d'); return /^M [-\\d. ]+ C [-\\d. ]+$/.test(d) && document.querySelectorAll('.erd-handle').length === 2; })()`));
+  t.check('erd: the new line is selected and its end handles are touch targets', await t.ev(`document.querySelectorAll('.port-end[data-touch-drag]').length`) === 2);
+  t.check('erd: the drawn line is a cubic curve (M P0 C P1 P2 P3) and its end handles sit on its two ends', await t.ev(`(() => { const d = document.querySelector('.erd-rel.selected .edge-line').getAttribute('d'); return /^M [-\\d. ]+ C [-\\d. ]+$/.test(d) && document.querySelectorAll('.port-end').length === 2; })()`));
   // Re-point the new line's parent end by touch
   await pinch(W / 2, H / 2, 200, 110);   // zoom out: the neighbours of the two tables come on screen too
-  const h = await t.at('.erd-handle[data-role="to"]');
+  const h = await t.at('.port-end[data-role="to"]');
   const ids2 = await t.ev(`[...document.querySelectorAll('.erd-entity')].map((e) => e.dataset.nodeId).filter((id) => id !== 'review' && id !== 'product')`);
   let goal2 = null, newTo = null;
   for (const id of ids2) { const q = await t.at(`${TB(id)} .erd-head`); if (onScreen(q) && !goal2) { goal2 = q; newTo = id; } }
@@ -238,13 +238,13 @@ if (erd) {
   t.check('erd: dragging a selected line\'s end handle by touch re-points it', !!newTo && await t.ev(`!!document.querySelector('.erd-rel[data-from="review"][data-to="${newTo}"]:not([data-edge-id="r9"])') && document.querySelectorAll('.erd-rel[data-from="review"][data-to="product"]').length === 1`), `${newTo}`);
   // A tap on a line selects it
   await tap(10, 300);
-  t.check('erd: a tap on blank canvas clears the selection', (await nSelected()) === 0 && (await t.ev(`document.querySelectorAll('.erd-handle').length`)) === 0);
+  t.check('erd: a tap on blank canvas clears the selection', (await nSelected()) === 0 && (await t.ev(`document.querySelectorAll('.port-end').length`)) === 0);
   await sleep(400);   // the bar fades out (a bar is not zoomed, so at this zoom it is large)
   const lp = await t.ev(`(() => { const p = document.querySelector('.erd-rel[data-edge-id="r8"] .edge-hit'); const L = p.getTotalLength(), m = p.getScreenCTM();
     for (const f of [0.5, 0.4, 0.6, 0.3, 0.7]) { const q = p.getPointAtLength(L * f), x = m.a * q.x + m.e, y = m.d * q.y + m.f;
       const el = document.elementFromPoint(x, y); if (el && el.closest('.erd-rel[data-edge-id="r8"]') && x > 0 && x < ${W} && y > 100 && y < ${H - 120}) return { x, y }; } return null; })()`);
   if (lp) await tap(lp.x, lp.y);
-  t.check('erd: a tap on a line selects it and shows its two end handles', !!lp && await t.ev(`!!document.querySelector('.erd-rel.selected[data-edge-id="r8"]')`) && await t.ev(`document.querySelectorAll('.erd-handle').length`) === 2, JSON.stringify(lp));
+  t.check('erd: a tap on a line selects it and shows its two end handles', !!lp && await t.ev(`!!document.querySelector('.erd-rel.selected[data-edge-id="r8"]')`) && await t.ev(`document.querySelectorAll('.port-end').length`) === 2, JSON.stringify(lp));
   await tap(10, 300);
   t.check('erd: blank canvas tap clears it again, and a pinch still zooms from here', (await nSelected()) === 0);
   const z0 = await view();

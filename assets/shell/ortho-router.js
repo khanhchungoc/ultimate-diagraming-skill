@@ -31,15 +31,82 @@
           rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
         });
 
+        // Uniform grid over boxes, so "what lies near here" looks at a few cells instead of every node or arrow.
+        // Ids are small integers (an index into the caller's list). Cells span the bounds of `frame` (one node per
+        // cell on average) and clamp at its border, so anything outside lands in a border cell: a lookup returns a
+        // superset and every caller still runs its exact test. `near` returns distinct ids ascending, so callers that
+        // add up penalties or take the first hit visit items in their original order (routes stay byte-identical).
+        const makeGrid = (frame) => {
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+          for (const r of frame) {
+            x0 = Math.min(x0, r.x, r.x + r.w); x1 = Math.max(x1, r.x, r.x + r.w);
+            y0 = Math.min(y0, r.y, r.y + r.h); y1 = Math.max(y1, r.y, r.y + r.h);
+          }
+          if (![x0, y0, x1, y1].every(Number.isFinite)) { x0 = y0 = 0; x1 = y1 = 1; }   // no usable boxes: one cell
+          const cell = Math.max(32, Math.sqrt(((x1 - x0) * (y1 - y0)) / Math.max(1, frame.length)));
+          const cols = Math.min(512, Math.floor((x1 - x0) / cell) + 1), rows = Math.min(512, Math.floor((y1 - y0) / cell) + 1);
+          const cells = Array.from({ length: cols * rows }, () => []);
+          // Cell range of [a, b] on one axis, clamped; NaN widens to the whole axis
+          const lo = (v, o, n) => { const c = Math.floor((v - o) / cell); return c > 0 ? (c < n ? c : n - 1) : 0; };
+          const hi = (v, o, n) => { const c = Math.floor((v - o) / cell); return c < n - 1 ? (c > 0 ? c : 0) : n - 1; };
+          const seen = [];
+          let stamp = 0;
+          // The id lists of the cells under a box. The returned array is reused by the next call: read it before then.
+          const hit = [];
+          const cellsIn = (ax, ay, bx, by) => {
+            const c0 = lo(Math.min(ax, bx), x0, cols), c1 = hi(Math.max(ax, bx), x0, cols);
+            const r0 = lo(Math.min(ay, by), y0, rows), r1 = hi(Math.max(ay, by), y0, rows);
+            hit.length = 0;
+            for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) hit.push(cells[r * cols + c]);
+            return hit;
+          };
+          return {
+            cellsIn,
+            add: (id, ax, ay, bx, by) => { for (const list of cellsIn(ax, ay, bx, by)) list.push(id); },
+            remove: (id, ax, ay, bx, by) => {
+              for (const list of cellsIn(ax, ay, bx, by)) { let j = 0; for (const v of list) if (v !== id) list[j++] = v; list.length = j; }
+            },
+            // distinct ids filed near any of the boxes [ax, ay, bx, by, ...] (grown by pad), ascending, written into `out`
+            near: (boxes, pad = 0, out = []) => {
+              out.length = 0;
+              stamp++;
+              for (let k = 0; k < boxes.length; k += 4) {
+                for (const list of cellsIn(boxes[k] - pad, boxes[k + 1] - pad, boxes[k + 2] + pad, boxes[k + 3] + pad)) {
+                  for (let u = 0; u < list.length; u++) if (seen[list[u]] !== stamp) { seen[list[u]] = stamp; out.push(list[u]); }
+                }
+              }
+              // insertion sort: lookups return a few dozen ids, where it beats Array#sort with a comparator
+              if (out.length > 64) return out.sort((a, b) => a - b);
+              for (let i = 1; i < out.length; i++) {
+                const v = out[i];
+                let j = i - 1;
+                while (j >= 0 && out[j] > v) { out[j + 1] = out[j]; j--; }
+                out[j + 1] = v;
+              }
+              return out;
+            },
+          };
+        };
+        // Segment boxes of a polyline, as `near` takes them
+        const segBoxes = (pts) => {
+          const out = [];
+          for (let i = 0; i < pts.length - 1; i++) out.push(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+          return out;
+        };
+
         // True when an axis-aligned segment keeps 6px clear of every node except `ignore`
-        // (route search calls this hundreds of thousands of times per render, so it is a plain loop)
+        // (route search calls this hundreds of thousands of times per render: grid lookup, any hit wins)
         const rectList = Object.keys(rects).map(id => [id, rects[id]]);
+        const rectGrid = makeGrid(rectList.map(([, r]) => r));
+        rectList.forEach(([, r], k) => rectGrid.add(k, r.x, r.y, r.x + r.w, r.y + r.h));
         const segmentClear = (x1, y1, x2, y2, ignore) => {
           const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
           const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
-          for (let k = 0; k < rectList.length; k++) {
-            const r = rectList[k][1];
-            if (r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY && !ignore.includes(rectList[k][0])) return false;
+          for (const list of rectGrid.cellsIn(minX, minY, maxX, maxY)) {
+            for (let u = 0; u < list.length; u++) {
+              const r = rectList[list[u]][1];
+              if (r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY && !ignore.includes(rectList[list[u]][0])) return false;
+            }
           }
           return true;
         };
@@ -54,6 +121,10 @@
           outEdges[e.from].push(e);
           inEdges[e.to].push(e);
         });
+        // Arrows touching each node, in validEdges order: the per-node passes (5a1-5a3, 5c2) read these instead of every arrow
+        const touching = {};
+        chartData.nodes.forEach(n => { touching[n.id] = []; });
+        validEdges.forEach(e => { touching[e.from].push(e); if (e.to !== e.from) touching[e.to].push(e); });
 
         // 0. Backward arrows (target left of source): pick the exit/entry sides that give the
         // fewest bends over a route that stays clear of every other node. When no candidate is
@@ -527,18 +598,22 @@
           // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
           const a = bboxOf(otherPts);
           let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-          for (const [x, y] of pts) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
+          for (let i = 0; i < pts.length; i++) {
+            const x = pts[i][0], y = pts[i][1];
+            if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+          }
           if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
           let overlap = 0, near = 0, cross = 0;
           const lastI = pts.length - 2, lastJ = otherPts.length - 2;
+          // Plain indexed reads (no destructuring): this loop runs millions of times per render on big diagrams
           for (let i = 0; i < pts.length - 1; i++) {
-            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+            const ax = pts[i][0], ay = pts[i][1], bx = pts[i + 1][0], by = pts[i + 1][1];
             const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
             for (let j = 0; j < otherPts.length - 1; j++) {
               if ((skipFirst && i === 0 && j === 0)
                 || (skipFirstTrunk && lastI >= 2 && lastJ >= 2 && i === 1 && j === 1)
                 || (skipLast && ((i === lastI && j === lastJ) || (lastI >= 2 && lastJ >= 2 && i === lastI - 1 && j === lastJ - 1)))) continue;
-              const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
+              const cx = otherPts[j][0], cy = otherPts[j][1], dx = otherPts[j + 1][0], dy = otherPts[j + 1][1];
               const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
               if (aV && cV) {
                 const run = Math.min(Math.max(ay, by), Math.max(cy, dy)) - Math.max(Math.min(ay, by), Math.min(cy, dy));
@@ -546,11 +621,10 @@
               } else if (aH && cH) {
                 const run = Math.min(Math.max(ax, bx), Math.max(cx, dx)) - Math.max(Math.min(ax, bx), Math.min(cx, dx));
                 if (run > 1) { const gap = Math.abs(ay - cy); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
-              } else if ((aV && cH) || (aH && cV)) {
-                const [vx, vy1, vy2, hy, hx1, hx2] = aV
-                  ? [ax, Math.min(ay, by), Math.max(ay, by), cy, Math.min(cx, dx), Math.max(cx, dx)]
-                  : [cx, Math.min(cy, dy), Math.max(cy, dy), ay, Math.min(ax, bx), Math.max(ax, bx)];
-                if (hx1 + 1 < vx && vx < hx2 - 1 && vy1 + 1 < hy && hy < vy2 - 1) cross += 1;
+              } else if (aV && cH) {
+                if (Math.min(cx, dx) + 1 < ax && ax < Math.max(cx, dx) - 1 && Math.min(ay, by) + 1 < cy && cy < Math.max(ay, by) - 1) cross += 1;
+              } else if (aH && cV) {
+                if (Math.min(ax, bx) + 1 < cx && cx < Math.max(ax, bx) - 1 && Math.min(cy, dy) + 1 < ay && ay < Math.max(cy, dy) - 1) cross += 1;
               }
             }
           }
@@ -566,9 +640,12 @@
             if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
             const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
             let tight = false;
-            for (let k = 0; k < rectList.length && !tight; k++) {
-              const r = rectList[k][1];
-              tight = r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1 && !ids.includes(rectList[k][0]);
+            for (const list of rectGrid.cellsIn(x1, y1, x2, y2)) {
+              for (let u = 0; u < list.length && !tight; u++) {
+                const r = rectList[list[u]][1];
+                tight = r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1 && !ids.includes(rectList[list[u]][0]);
+              }
+              if (tight) break;
             }
             if (tight) d += COST.nearNode;
           }
@@ -598,12 +675,14 @@
           }
           return true;
         };
-        const routeCost = (pts, edge, others, fp, tp, limit = Infinity) => {
-          const ids = [edge.from, edge.to];
+        // isOther(o): whether arrow o counts against this route (the caller's set of settled arrows)
+        const routeCost = (pts, edge, isOther, fp, tp, limit = Infinity) => {
           let len = 0;
           for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
           if ((pts.length - 2) * COST.bend + len >= limit) return Infinity;   // cannot beat the best so far
-          if (!polyClear(pts, ids)) return Infinity;
+          const ids = [edge.from, edge.to];
+          // Every check up to the arrow scan is pure and each failure gives Infinity, so the cheap ones run first
+          // and the node-clearance scan (polyClear) only runs for a route that can still win.
           // A route must not run back through the body of its own source or target node
           if (!ownBodyClear(pts, edge)) return Infinity;
           // Every penalty is non-negative, so once the running cost reaches `limit` this route cannot win: stop
@@ -630,8 +709,14 @@
             if (overY > 0) defect += COST.sideOvershoot + overY * 4;
           }
           if (fixed + defect >= limit) return Infinity;
-          for (let k = 0; k < others.length; k++) {
-            const o = others[k], op = edgePorts[o.id];
+          if (!polyClear(pts, ids)) return Infinity;
+          // Only arrows filed near this route's segments can relate to it (any other adds exactly 0);
+          // ascending index keeps validEdges order, so the costs add up in the same order as a full scan
+          const near = edgeGrid.near(segBoxes(pts), 0, nearBuf);
+          for (let k = 0; k < near.length; k++) {
+            const o = validEdges[near[k]];
+            if (!isOther(o)) continue;
+            const op = edgePorts[o.id];
             const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
             const skipFirst = o.from === edge.from && op && op.fromPort === fp;
             const skipLast = o.to === edge.to && op && op.toPort === tp;
@@ -785,12 +870,28 @@
           const pts = edgePolylines[o.id];
           edgeClear[o.id] = Boolean(pts && polyClear(pts, [o.from, o.to]));
         });
+        // Every arrow's segments, filed grown by RELATE_PAD (relate needs two routes within 18px), refiled when rerouted
+        const RELATE_PAD = 20;
+        const nearBuf = [];   // routeCost's lookup result, reused (routeCost never nests)
+        const edgeGrid = makeGrid(rectList.map(([, r]) => r));
+        const filed = [];
+        const fileEdge = (i, on) => {
+          const pts = on ? edgePolylines[validEdges[i].id] : filed[i];
+          if (!pts) return;
+          const b = segBoxes(pts);
+          for (let k = 0; k < b.length; k += 4) {
+            (on ? edgeGrid.add : edgeGrid.remove)(i, Math.min(b[k], b[k + 2]) - RELATE_PAD, Math.min(b[k + 1], b[k + 3]) - RELATE_PAD,
+              Math.max(b[k], b[k + 2]) + RELATE_PAD, Math.max(b[k + 1], b[k + 3]) + RELATE_PAD);
+          }
+          filed[i] = on ? pts : undefined;
+        };
+        validEdges.forEach((o, i) => fileEdge(i, true));
         const manhattan = e => Math.abs(rects[e.from].cx - rects[e.to].cx) + Math.abs(rects[e.from].cy - rects[e.to].cy);
         [...validEdges].sort((a2, b2) => manhattan(b2) - manhattan(a2)).forEach(e => {
           if (e.to === e.from) return;
           const cur = edgePolylines[e.id];
           if (!cur) return;
-          const others = validEdges.filter(o => o !== e && edgePolylines[o.id] && edgeClear[o.id]);
+          const isOther = o => o !== e && Boolean(edgePolylines[o.id]) && edgeClear[o.id];
           // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
           // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
           // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
@@ -801,7 +902,7 @@
           const branchVertex = s => dstIsDecision && (s === 'top' || s === 'bottom' || s === 'right')
             && (outEdges[e.to] || []).some(o => edgePorts[o.id] && edgePorts[o.id].fromPort === s);
           const entryShare = (fp, tp) => (entryVertex(fp) ? COST.entryShare : 0) + (branchVertex(tp) ? COST.entryShare : 0);
-          const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+          const base = routeCost(cur, e, isOther, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
           const baseEntryShare = entryShare(edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
           // Already clean (clear of nodes, no overlap/crossing/crowding, on its own vertex): keep it
           if (base !== Infinity && base.defect === 0 && baseEntryShare === 0) return;
@@ -810,7 +911,7 @@
           // 3-bend corridor routes are only worth searching when the standard route is in real trouble
           const deep = base === Infinity || base.defect + baseEntryShare >= COST.cross;
           altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
-            const r = routeCost(c.pts, e, others, c.fp, c.tp, best ? best.cost : baseCost - 250);
+            const r = routeCost(c.pts, e, isOther, c.fp, c.tp, best ? best.cost : baseCost - 250);
             if (r === Infinity) return;
             // Changing sides is a bigger visual change than sliding a channel, so it must earn it
             const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
@@ -822,6 +923,7 @@
             edgePolylines[e.id] = best.c.pts;
             edgePorts[e.id] = { fromPort: best.c.fp, toPort: best.c.tp };
             edgeClear[e.id] = true;
+            validEdges.forEach((o, i) => { if (o.id === e.id) { fileEdge(i, false); fileEdge(i, true); } });
           }
         });
 
@@ -849,7 +951,7 @@
               // A decision's outgoing branches each get their own vertex in step 2; incoming fan-in arrows still merge onto one shared arrowhead
               if (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
               const ends = [];
-              validEdges.forEach(e => {
+              touching[nid].forEach(e => {
                 const pts = edgePolylines[e.id];
                 if (!pts) return;
                 const n = pts.length;
@@ -860,7 +962,7 @@
               });
               ends.sort((p1, p2) => p1.x - p2.x);
               const clusterGap = role === 'in' ? SPREAD : 10;
-              const hasOutOnSide = role === 'in' && validEdges.some(o => {
+              const hasOutOnSide = role === 'in' && touching[nid].some(o => {
                 const op = edgePolylines[o.id];
                 return op && o.from === nid && Math.abs(op[0][1] - edgeY) < 1 && Math.abs(op[0][0] - op[1][0]) < 1;
               });
@@ -923,7 +1025,7 @@
           [['top', 0, r.y], ['bottom', 0, r.y + r.h], ['left', 1, r.x], ['right', 1, r.x + r.w]].forEach(([side, ai, edgeCoord]) => {
             const fi = 1 - ai; // ai: coordinate that slides along the side, fi: the fixed one
             const ends = [];
-            validEdges.forEach(e => {
+            touching[nid].forEach(e => {
               const pts = edgePolylines[e.id];
               if (!pts || pts.length < 3) return;       // straight lines stay aligned
               const n = pts.length;
@@ -957,7 +1059,7 @@
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
             const units = new Map();
-            validEdges.forEach(e => {
+            touching[nid].forEach(e => {
               const pts = edgePolylines[e.id];
               if (!pts) return;
               const n = pts.length;
@@ -1330,7 +1432,7 @@
           const JOG = 16, CLEAR_PT = 24;
           const ends = (nid, skipId) => {
             const out = [];
-            validEdges.forEach(o => {
+            touching[nid].forEach(o => {
               if (o.id === skipId) return;
               const op = edgePolylines[o.id];
               if (!op) return;
@@ -1448,14 +1550,34 @@
         const placedLabels = [];
         const allNodeBoxes = Object.values(rects);
         const routes = {};
+        // Grids in screen coordinates (after 5e): node boxes, the vertical segments, and every arrow's segments
+        const nodeGrid = makeGrid(allNodeBoxes);
+        allNodeBoxes.forEach((r, k) => nodeGrid.add(k, r.x, r.y, r.x + r.w, r.y + r.h));
+        const vertGrid = makeGrid(allNodeBoxes);
+        verticalSegments.forEach((v, k) => vertGrid.add(k, v.x, v.yMin, v.x, v.yMax));
+        const segGrid = makeGrid(allNodeBoxes);
+        const segs = [];   // [validEdges index, start point, end point], filed per arrow in validEdges order
+        validEdges.forEach((o, i) => {
+          const pts = edgePolylines[o.id];
+          if (!pts) return;
+          for (let j = 0; j < pts.length - 1; j++) {
+            segGrid.add(segs.length, pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            segs.push([i, pts[j], pts[j + 1]]);
+          }
+        });
+        const edgeById = new Map();
+        chartData.edges.forEach(ed => { if (!edgeById.has(ed.id)) edgeById.set(ed.id, ed); });   // first match, as find() did
 
         validEdges.forEach(e => {
           const p = edgePorts[e.id];
           const points = edgePolylines[e.id];
 
-          const otherObstacles = verticalSegments.filter(obs => {
+          // A hop needs the vertical inside the box of this arrow's points: only those are candidates (in their original order)
+          let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
+          for (const q of points) { bx1 = Math.min(bx1, q[0]); bx2 = Math.max(bx2, q[0]); by1 = Math.min(by1, q[1]); by2 = Math.max(by2, q[1]); }
+          const otherObstacles = vertGrid.near([bx1, by1, bx2, by2], 1).map(k => verticalSegments[k]).filter(obs => {
             if (obs.edgeId === e.id) return false;
-            const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
+            const otherE = edgeById.get(obs.edgeId);
             // Forks (same source) and true merges (same target, same entry side) meet on purpose. Two arrows
             // into one node through different sides are separate lines, so where they cross, one hops.
             // Only exempt them when they really share the contact point: arrows entering one side at
@@ -1469,14 +1591,12 @@
 
           const d = buildCurvedPathWithHops(points, otherObstacles, 8);
 
-          const otherPolylines = [];
-          validEdges.forEach(other => {
-            if (other.id !== e.id && edgePolylines[other.id]) {
-              otherPolylines.push(edgePolylines[other.id]);
-            }
-          });
+          // Lookups for the label search: node boxes, and other arrows' segments, near a box (original order kept)
+          const nodesNear = (x1, y1, x2, y2) => nodeGrid.near([x1, y1, x2, y2]).map(k => allNodeBoxes[k]);
+          const otherSegsNear = (x1, y1, x2, y2) => segGrid.near([x1, y1, x2, y2])
+            .filter(k => validEdges[segs[k][0]].id !== e.id).map(k => segs[k]);
 
-          const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, allNodeBoxes, placedLabels, otherPolylines, labelMaxW);
+          const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, nodesNear, placedLabels, otherSegsNear, labelMaxW);
           if (e.label && e.label.trim()) {
             // Reserve the box the label is drawn in: one line is estimated generously; a wrapped label is as wide
             // as its wrap width and as tall as its lines (a 28px box let the next label sit on its second line)
@@ -1524,9 +1644,9 @@
             const maxX = Math.max(p1[0], p2[0]);
             const goingRight = p2[0] > p1[0];
             // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
-            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (about 14px).
+            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (10px).
             // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
-            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
+            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 10 : 14);
             const lo1 = endRoom(i), lo2 = endRoom(i + 1);
             const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 
@@ -1596,9 +1716,12 @@
         return d;
       }
 
-      const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
+      const ARROWHEAD_LEN = 10;   // the open-chevron arrowhead's length in px (stage.html)
 
-      function pickClearLabelPosition(points, fromPort, labelText, nodeBoxes, placedLabels, otherPolylines, labelMaxW) {
+      // nodesNear(x1, y1, x2, y2): node boxes that may touch that box, in the router's node order.
+      // otherSegsNear(x1, y1, x2, y2): other arrows' segments [_, start, end] that may touch it, in arrow then segment order.
+      // Both may return extra items (every test below is exact); they keep the search off a scan of the whole diagram.
+      function pickClearLabelPosition(points, fromPort, labelText, nodesNear, placedLabels, otherSegsNear, labelMaxW) {
         const FONT_M = TOKENS.font.metrics;
         const candidates = [];
 
@@ -1657,10 +1780,14 @@
             });
           }
           candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
-          candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+          const seg2Len = Math.hypot(p3[0] - p2[0], p3[1] - p2[1]) || 1;
+          const t2 = points.length === 4 ? Math.max(0, seg2Len - ARROWHEAD_LEN) * 0.5 / seg2Len : 0.5;
+          candidates.push({ x: p2[0] + (p3[0] - p2[0]) * t2, y: p2[1] + (p3[1] - p2[1]) * t2 });
           if (points.length >= 5) {
             const p4 = points[4];
-            candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+            const seg3Len = Math.hypot(p4[0] - p3[0], p4[1] - p3[1]) || 1;
+            const t3 = points.length === 5 ? Math.max(0, seg3Len - ARROWHEAD_LEN) * 0.5 / seg3Len : 0.5;
+            candidates.push({ x: p3[0] + (p4[0] - p3[0]) * t3, y: p3[1] + (p4[1] - p3[1]) * t3 });
           }
         }
 
@@ -1686,21 +1813,17 @@
         // Stretches of this arrow that another arrow runs along (collinear overlap): a label there could
         // belong to either arrow, so it must sit on a part of its own line that only it occupies.
         const sharedStretches = [];
-        if (otherPolylines) {
-          for (let i = 0; i < points.length - 1; i++) {
-            const p = points[i], q = points[i + 1];
-            const isV = Math.abs(p[0] - q[0]) < 1, isH = Math.abs(p[1] - q[1]) < 1;
-            if (!isV && !isH) continue;
-            const k = isV ? 0 : 1, m = 1 - k;                       // k: fixed axis, m: running axis
-            const lo = Math.min(p[m], q[m]), hi = Math.max(p[m], q[m]);
-            for (const poly of otherPolylines) {
-              for (let j = 0; j < poly.length - 1; j++) {
-                const c = poly[j], d = poly[j + 1];
-                if (Math.abs(c[k] - d[k]) >= 1 || Math.abs(c[k] - p[k]) >= 2) continue;
-                const a0 = Math.max(lo, Math.min(c[m], d[m])), a1 = Math.min(hi, Math.max(c[m], d[m]));
-                if (a1 - a0 > 2) sharedStretches.push(isV ? { x: p[0], y: a0, w: 0, h: a1 - a0 } : { x: a0, y: p[1], w: a1 - a0, h: 0 });
-              }
-            }
+        for (let i = 0; i < points.length - 1; i++) {
+          const p = points[i], q = points[i + 1];
+          const isV = Math.abs(p[0] - q[0]) < 1, isH = Math.abs(p[1] - q[1]) < 1;
+          if (!isV && !isH) continue;
+          const k = isV ? 0 : 1, m = 1 - k;                       // k: fixed axis, m: running axis
+          const lo = Math.min(p[m], q[m]), hi = Math.max(p[m], q[m]);
+          const near = otherSegsNear(Math.min(p[0], q[0]) - 3, Math.min(p[1], q[1]) - 3, Math.max(p[0], q[0]) + 3, Math.max(p[1], q[1]) + 3);
+          for (const [, c, d] of near) {
+            if (Math.abs(c[k] - d[k]) >= 1 || Math.abs(c[k] - p[k]) >= 2) continue;
+            const a0 = Math.max(lo, Math.min(c[m], d[m])), a1 = Math.min(hi, Math.max(c[m], d[m]));
+            if (a1 - a0 > 2) sharedStretches.push(isV ? { x: p[0], y: a0, w: 0, h: a1 - a0 } : { x: a0, y: p[1], w: a1 - a0, h: 0 });
           }
         }
         // Dense spots along every long segment, so a short clear stretch (e.g. next to the source) is found
@@ -1762,6 +1885,18 @@
           );
         }
 
+        // Keep labels clear of the arrowhead tip on the final segment (works in all 4 directions).
+        let arrowBox = null;
+        if (points.length >= 2) {
+          const tip = points[points.length - 1], prev = points[points.length - 2];
+          const dx = tip[0] - prev[0], dy = tip[1] - prev[1], segLen = Math.hypot(dx, dy);
+          if (segLen > 1) {
+            const depth = Math.min(segLen, ARROWHEAD_LEN + 6);
+            const ex = tip[0] - (dx / segLen) * depth, ey = tip[1] - (dy / segLen) * depth;
+            arrowBox = { x: Math.min(tip[0], ex), y: Math.min(tip[1], ey), w: Math.abs(tip[0] - ex), h: Math.abs(tip[1] - ey) };
+          }
+        }
+
         // The first spot that touches nothing wins. When every spot touches something, take the least bad one
         // (a node or another label is far worse than sitting on another arrow) instead of the first.
         let fallback = null;
@@ -1770,9 +1905,13 @@
           const by = cand.y - lh / 2;
           let penalty = 0;
 
+          if (arrowBox && BoxOverlap(bx, by, lw, lh, arrowBox.x, arrowBox.y, arrowBox.w, arrowBox.h, 4)) {
+            penalty += 900;
+          }
           const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
           const softPad = cand.pad ?? 8;
-          for (const nb of nodeBoxes) {
+          // pads reach 8px at most: anything further from the label box adds nothing
+          for (const nb of nodesNear(bx - 9, by - 9, bx + lw + 9, by + lh + 9)) {
             if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, hardPad)) {
               const ox = Math.min(bx + lw, nb.x + nb.w + hardPad) - Math.max(bx, nb.x - hardPad);
               const oy = Math.min(by + lh, nb.y + nb.h + hardPad) - Math.max(by, nb.y - hardPad);
@@ -1790,16 +1929,12 @@
               penalty += 200;
             }
           }
-          if (otherPolylines) {
-            for (const poly of otherPolylines) {
-              for (let i = 0; i < poly.length - 1; i++) {
-                const sx = Math.min(poly[i][0], poly[i + 1][0]);
-                const sy = Math.min(poly[i][1], poly[i + 1][1]);
-                const sw = Math.abs(poly[i + 1][0] - poly[i][0]);
-                const sh = Math.abs(poly[i + 1][1] - poly[i][1]);
-                if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
-              }
-            }
+          for (const [, c, d] of otherSegsNear(bx - 7, by - 7, bx + lw + 7, by + lh + 7)) {
+            const sx = Math.min(c[0], d[0]);
+            const sy = Math.min(c[1], d[1]);
+            const sw = Math.abs(d[0] - c[0]);
+            const sh = Math.abs(d[1] - c[1]);
+            if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
           }
           for (const st of sharedStretches) {
             if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 600; break; }

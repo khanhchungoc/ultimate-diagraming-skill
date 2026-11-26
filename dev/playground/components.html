@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shared UI elements</title>
+<!-- Component gallery (plan-review-fixes Phase 5 step 8). Built by dev/tools/build_components.py, which fills the three marked spots with the real
+     bundle styles (tokens, then assets/components) and the registry icons. Markup mirrors what ui.chevron and ui.port in assets/shell/shell.js build.
+     Not part of the playground build (build_playground.py reads only dev/playground/<type>.json). Open with ?theme=dark for the dark theme. -->
+<style>
+{{TOKENS_CSS}}
+</style>
+<style>
+{{COMPONENTS_CSS}}
+</style>
+<style>
+  body { margin: 0; padding: var(--space-24); background: var(--bg-page); color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-md); }
+  h1 { margin: 0 0 var(--space-8); font-size: var(--text-xl); }
+  h2 { margin: var(--space-32) 0 var(--space-8); font-size: var(--text-lg); }
+  p.gal-note { margin: 0 0 var(--space-12); color: var(--text-soft); }
+  .row { padding: var(--space-8); display: flex; flex-wrap: wrap; gap: var(--space-24); align-items: flex-start; }
+  .cell { display: flex; flex-direction: column; gap: var(--space-8); align-items: flex-start; }
+  .cell > small { color: var(--text-muted); }
+  .theme-btn { position: fixed; top: var(--space-12); right: var(--space-12); padding: var(--space-4) var(--space-12); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-panel); color: var(--text-main); cursor: pointer; }
+  .head { display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-12); height: 36px; width: 200px; background: var(--bg-soft); border: 1px solid var(--border-color); border-radius: var(--radius-lg); }
+  .box { position: relative; display: flex; align-items: center; justify-content: center; width: 140px; height: 56px; background: var(--node-bg); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 var(--ring-thin) var(--node-border); cursor: pointer; }
+  .box.is-shape { box-shadow: var(--shadow-sm); }
+  .shapes svg { display: block; }
+  .shapes rect { fill: var(--node-bg); stroke: var(--node-border); stroke-width: var(--ring-thin); cursor: pointer; }
+  .labels { position: relative; height: 64px; width: 200px; }
+  .labels .edge-label { position: relative; }
+  .line { stroke: var(--connector); stroke-width: 1.5; }
+</style>
+</head>
+<body>
+<button class="theme-btn" id="theme-toggle" type="button">Dark theme</button>
+<h1>Shared UI elements</h1>
+<p class="gal-note">One definition per element (dev/docs/ui-elements.md). Types place or size these; they never restyle them.</p>
+
+<h2>Chevron (ui.chevron)</h2>
+<div class="row" id="chevrons">
+  <div class="cell"><div class="head"><button class="chevron" type="button" aria-expanded="true" aria-label="Collapse" id="chev-open">{{icon:chevron-down:sm:bold}}</button><span>Expanded</span></div><small>aria-expanded="true"</small></div>
+  <div class="cell"><div class="head"><button class="chevron" type="button" aria-expanded="false" aria-label="Expand" id="chev-closed">{{icon:chevron-down:sm:bold}}</button><span>Collapsed</span></div><small>aria-expanded="false" (turns right)</small></div>
+  <div class="cell"><div class="head"><button class="chevron" type="button" aria-expanded="true" aria-label="Toggle me" id="chev-live">{{icon:chevron-down:sm:bold}}</button><span>Click to toggle</span></div><small>hover and focus show the one hover style</small></div>
+  <div class="cell"><div class="head"><span class="chevron-spacer"></span><span>Leaf row (spacer)</span></div><small>.chevron-spacer keeps rows level</small></div>
+</div>
+
+<h2>Connection port (ui.port)</h2>
+<p class="gal-note">Hover a box to show its ports; the first box shows them always (.is-shown). Ports are hidden while dragging (.is-dragging above them), several selected (.is-multi), editing, exporting, presenting.</p>
+<div class="row" id="ports">
+  <div class="cell"><div class="box" id="port-shown"><span class="port port-top is-shown"></span><span class="port port-right is-shown"></span><span class="port port-bottom is-shown"></span><span class="port port-left is-shown"></span>Shown</div><small>.port.is-shown</small></div>
+  <div class="cell"><div class="box" id="port-hover"><span class="port port-top"></span><span class="port port-right"></span><span class="port port-bottom"></span><span class="port port-left"></span>Hover me</div><small>rest: hidden; hover: shown</small></div>
+  <div class="cell"><div class="box is-dragging" id="port-drag"><span class="port port-right"></span>Dragging</div><small>.is-dragging: no ports</small></div>
+  <div class="cell"><div class="box is-multi" id="port-multi"><span class="port port-right"></span>Several selected</div><small>.is-multi: no ports</small></div>
+  <div class="cell"><div class="box" style="--x: 0"><span class="port port-end" id="port-end" style="left: 50%; top: 50%"></span></div><small>.port-end: a line's end handle</small></div>
+  <div class="cell"><div class="box is-touch" id="port-touch"><span class="port port-right is-shown"></span>Touch size</div><small>.is-touch ancestor: --port-size-touch</small></div>
+</div>
+
+<h2>Edge label</h2>
+<div class="row" id="labels">
+  <div class="cell"><div class="labels"><span class="edge-label">A label that is long enough to wrap onto a second line</span></div><small>.edge-label (wraps, the default)</small></div>
+  <div class="cell"><div class="labels"><span class="edge-label edge-label--wrap">Wrap modifier</span></div><small>.edge-label--wrap</small></div>
+  <div class="cell"><div class="labels" style="width: 160px"><span class="edge-label edge-label--single"><span>One line that ends in an ellipsis when too long</span></span></div><small>.edge-label--single</small></div>
+  <div class="cell"><div class="labels"><span class="edge-label selected">Selected</span></div><small>.selected</small></div>
+  <div class="cell"><div class="labels"><span class="edge-label hl-in">Entering</span></div><small>.hl-in</small></div>
+  <div class="cell"><div class="labels"><span class="edge-label hl-out">Leaving</span></div><small>.hl-out</small></div>
+  <div class="cell"><div class="labels"><span class="edge-label is-dim">Dimmed</span></div><small>.is-dim</small></div>
+</div>
+
+<h2>Item states: HTML items ([data-item])</h2>
+<div class="row" id="items">
+  <div class="cell"><div class="box" data-item id="item-rest">Rest</div><small>rest</small></div>
+  <div class="cell"><div class="box" data-item id="item-hover">Hover me</div><small>:hover</small></div>
+  <div class="cell"><div class="box is-hover" data-item id="item-ishover">.is-hover</div><small>.is-hover (type-driven hover)</small></div>
+  <div class="cell"><div class="box selected" data-item id="item-selected">Selected</div><small>.selected</small></div>
+  <div class="cell"><div class="box is-dim" data-item id="item-dim">Dimmed</div><small>.is-dim</small></div>
+  <div class="cell"><div class="box is-editing" data-item id="item-editing">Editing</div><small>.is-editing (type draws the editor)</small></div>
+  <div class="cell"><div class="box is-dragging" data-item id="item-dragging">Dragging</div><small>.is-dragging</small></div>
+  <div class="cell"><div class="box is-collapsed" data-item id="item-collapsed">Collapsed</div><small>.is-collapsed (type shrinks it)</small></div>
+</div>
+
+<h2>Item states: SVG shapes (.item-shape)</h2>
+<div class="row shapes" id="shapes">
+  <div class="cell"><svg width="120" height="60"><rect class="item-shape" id="shape-rest" x="8" y="8" width="104" height="44" rx="8"/></svg><small>rest</small></div>
+  <div class="cell"><svg width="120" height="60"><rect class="item-shape" id="shape-hover" x="8" y="8" width="104" height="44" rx="8"/></svg><small>hover me</small></div>
+  <div class="cell"><svg width="120" height="60"><rect class="item-shape selected" id="shape-selected" x="8" y="8" width="104" height="44" rx="8"/></svg><small>.selected</small></div>
+  <div class="cell"><svg width="120" height="60"><rect class="item-shape is-dim" id="shape-dim" x="8" y="8" width="104" height="44" rx="8"/></svg><small>.is-dim</small></div>
+</div>
+
+<h2>Dock overflow More menu (.dock-more-wrap)</h2>
+<p class="gal-note">When the bottom dock runs out of room, low-priority controls (highest <code>data-dock-priority</code> first) fold into <code>#btn-dock-more</code> and stay interactive via <code>#dock-more-menu</code>.</p>
+<div class="row" id="dock-more" style="padding-top: 140px;">
+  <div class="cell">
+    <div class="toolbar-center" role="toolbar" aria-label="Sample dock">
+      <button type="button" class="btn">{{icon:plus}}<span class="btn-label">Add</span></button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button type="button" class="btn">{{icon:tidy}}<span class="btn-label">Tidy</span></button>
+      <div class="menu-wrap dock-more-wrap">
+        <button id="gal-dock-more" type="button" class="btn btn-icon dock-more-btn" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="true" aria-controls="gal-dock-more-menu">{{icon:more}}</button>
+        <div id="gal-dock-more-menu" class="menu dock-more-menu" role="menu" aria-label="More actions">
+          <button type="button" role="menuitemcheckbox" aria-checked="true">{{icon:calendar:sm}}<span>Weekends</span>{{icon:check:sm}}</button>
+          <button type="button" role="menuitemcheckbox" aria-checked="false">{{icon:link:sm}}<span>Arrows</span>{{icon:check:sm}}</button>
+          <button type="button" role="menuitem">{{icon:clock:sm}}<span>Today</span></button>
+        </div>
+      </div>
+    </div>
+    <small>open menu above #btn-dock-more (click items to toggle)</small>
+  </div>
+</div>
+
+<script>
+  var root = document.documentElement;
+  function setTheme(t) { root.setAttribute('data-theme', t); document.getElementById('theme-toggle').textContent = t === 'dark' ? 'Light theme' : 'Dark theme'; }
+  setTheme(new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light');
+  document.getElementById('theme-toggle').addEventListener('click', function () { setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); });
+  document.querySelectorAll('.chevron').forEach(function (b) {
+    b.addEventListener('click', function () { b.setAttribute('aria-expanded', String(b.getAttribute('aria-expanded') !== 'true')); });
+  });
+  document.querySelectorAll('[data-item], .item-shape').forEach(function (el) {
+    el.addEventListener('click', function () { el.classList.toggle('selected'); });
+  });
+  var galMoreBtn = document.getElementById('gal-dock-more');
+  var galMoreMenu = document.getElementById('gal-dock-more-menu');
+  if (galMoreMenu) {
+    galMoreMenu.querySelectorAll('button[role="menuitemcheckbox"] > svg:last-child').forEach(function (ic) { ic.classList.add('dock-more-check'); });
+    galMoreMenu.querySelectorAll('button[role="menuitemcheckbox"]').forEach(function (b) {
+      b.addEventListener('click', function () { b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true')); });
+    });
+  }
+  if (galMoreBtn && galMoreMenu) {
+    galMoreBtn.addEventListener('click', function () {
+      var open = galMoreMenu.hidden;
+      galMoreMenu.hidden = !open;
+      galMoreBtn.setAttribute('aria-expanded', String(open));
+    });
+  }
+</script>
+</body>
+</html>

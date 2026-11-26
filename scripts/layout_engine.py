@@ -41,6 +41,7 @@ from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, ru
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
                          handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
+from strip_bundle import strip_css, strip_js
 from version_check import REPO as GITHUB_REPO, check_nonblocking as check_version_nonblocking
 
 
@@ -66,6 +67,7 @@ LANE_BOTTOM_PADDING = 36
 # opens on, less fitView's 80px padding a side and the dock band; and the zoom at which node text (about 13px at 100%)
 # stays at the 11px legibility minimum.
 VIEW_W, VIEW_H = 1920 - 160, 1080 - 160 - 64
+HALF_VIEW_W = 960 - 80  # half-screen agent/split-pane viewport width
 READABLE_ZOOM = 0.84
 TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
 TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
@@ -1548,7 +1550,7 @@ def auto_lane_icons(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
 # Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
 # its `.toolbar-center .btn` rules and `.btn:disabled` have equal weight and the disabled look must win; toggle comes
 # after both so a pressed toggle wins inside the dock.
-COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame", "actionbar", "colorkey", "search")
+COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame", "chevron", "port", "item-states", "actionbar", "colorkey", "search")
 
 
 def components_css() -> str:
@@ -1577,7 +1579,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         return expand_icons(text, tokens, icons)
 
     logos = load_logos(logo_refs(data), ICON_DIRS)[0]
-    if kind == "c4" and BUNDLED_LOGOS_DIR.is_dir():
+    if kind in ("c4", "sequence") and BUNDLED_LOGOS_DIR.is_dir():
         logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
     extra_css = [type_dir / name for name in meta.get("extraCss", ())]
     extra_js = [type_dir / name for name in meta.get("extraJs", ())]
@@ -1598,13 +1600,17 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "SHELL_HELP": html_part(_read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10))),
         "DATA": payload,
         "THEME": theme_script(theme),
-        "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
+        "SHELL_JS": "\n".join(_read_asset(ASSETS_DIR / "shell" / f).rstrip(chr(10)) for f in ("shell.js", "notes.js")),   # notes.js: the shared notes controller, after the shell it builds on
         "TOKENS_JS": tokens_js(tokens, logos),
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
         "TYPE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (*extra_js, type_dir / f"{kind}.js")),
     }
+    for key in ("TOKENS_CSS", "COMPONENTS_CSS", "SHELL_CSS", "TYPE_CSS"):
+        parts[key] = strip_css(parts[key])
+    for key in ("SHELL_JS", "TOKENS_JS", "ENGINE_JS", "MERMAID_JS", "TYPE_JS"):
+        parts[key] = strip_js(parts[key])
     return parts, tokens, icons
 
 
@@ -1726,13 +1732,19 @@ def _choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opt
     """Lay out a flowchart without "direction" in the direction that reads best; return (laid data, audit, report, why)."""
     lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser, tokens=tokens)
     along, across = _flowchart_canvas(lr)
-    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
-    if fit_all >= READABLE_ZOOM:
+    fit_half = min(1.0, HALF_VIEW_W / along, VIEW_H / across)
+    if fit_half >= READABLE_ZOOM:
         return lr, None, None, ""
     tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser, tokens=tokens)
     tb_along, tb_across = _flowchart_canvas(tb)
-    lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
-    if tb_zoom < lr_zoom + TB_MIN_GAIN:
+    lr_zoom = min(1.0, VIEW_H / across)
+    half_tb_zoom = min(1.0, HALF_VIEW_W / tb_across)
+    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
+    tb_zoom = min(1.0, VIEW_W / tb_across)
+    # Half-screen viewports (agent/split-pane workflows): when LR overflows horizontally and TB fits the
+    # half-screen width cleanly (>= READABLE_ZOOM), prefer vertical TB scrolling over sideways panning.
+    half_screen_tb = half_tb_zoom >= READABLE_ZOOM and half_tb_zoom >= lr_zoom - 0.02
+    if not half_screen_tb and (fit_all >= READABLE_ZOOM or tb_zoom < lr_zoom + TB_MIN_GAIN):
         return lr, None, None, ""
     # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
     # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
@@ -1740,11 +1752,13 @@ def _choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opt
     # 11), and a flow turned top to bottom often has a few backward ones that left to right does not flag.
     lr_audit, tb_audit = make_audit(lr, tokens), make_audit(tb, tokens)
     lr_report, tb_report = lr_audit.verify_collisions(), tb_audit.verify_collisions()
+    score_loss = 10 if half_screen_tb else TB_MAX_SCORE_LOSS
     tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
-        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - TB_MAX_SCORE_LOSS
+        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - score_loss
     if tb_quality_ok:
+        shown_zoom = half_tb_zoom if half_screen_tb else tb_zoom
         return tb, tb_audit, tb_report, (
-            f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
+            f"top to bottom: a long flow; lanes fill the screen at {shown_zoom:.0%} "
             f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
             f"({along:.0f} x {across:.0f} px)"
         )
@@ -1999,8 +2013,6 @@ def pack_sequence_columns(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
 def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     """Apply sequence CLI defaults (--layout without --keep-layout): auto-numbered, participant order, column packing."""
     notes: List[str] = []
-    if "numbered" not in data and len(data.get("messages") or []) >= 20:
-        data = {**data, "numbered": True}
     for step in (order_sequence_participants, pack_sequence_columns):
         data, note = step(data)
         if note:

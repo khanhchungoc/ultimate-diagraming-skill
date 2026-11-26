@@ -15,7 +15,7 @@ that belong in assets/tokens/default.json. Rules by phase (a later phase include
      lane-icon: a name in references/types/flowchart.md "## Lane icons" missing from the registry
 A justified exception goes on the same line: `/* tokens-ok: <reason> */` or `// tokens-ok: <reason>`.
 
-Usage: python dev/check_tokens.py [--phase N] [-v|--verbose]   (default phase 1)   |   --list-rules   |   --self-test
+Usage: python dev/check_tokens.py [--phase N] [-v|--verbose]   (default phase 4)   |   --list-rules   |   --self-test
 Exit codes: 0 clean, 1 findings or self-test failure.
 """
 from __future__ import annotations
@@ -35,6 +35,7 @@ RULES = {
     "svg-literal": (4, "inline icon: <svg viewBox=\"0 0 24 24\"> outside assets/icons/ (other <svg is drawing, allowed)"),
     "icon-name": (4, "{{icon:name}} or ui.icon('name') with a name that is not in assets/icons/default.json"),
     "lane-icon": (4, "lane icon name missing from assets/icons/default.json"),
+    "spacing-literal": (4, "literal non-zero px value in padding, margin or gap"),
 }
 HEX = r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])"
 FUNC_RE = re.compile(r"(?<![\w-])(?:rgba?|hsla?)\(")
@@ -44,6 +45,13 @@ JS_HEX = re.compile(r"(?:(?<=['\"`])|(?<=[:(,=])\s*)(?<![\w&])" + HEX)
 CSS_HEX = re.compile(r"(?<![\w&])" + HEX)
 SCALE_RE = re.compile(r"(?<![\w-])(font-size|font-weight|line-height|letter-spacing|border-radius|box-shadow|filter)\s*:\s*([^;}]+)")
 SCALE_OK = {"0", "none", "inherit", "normal"}
+SPACING_RE = re.compile(
+    r"(?<![\w-])("
+    r"(?:padding|margin)(?:-(?:top|right|bottom|left|inline(?:-(?:start|end))?|block(?:-(?:start|end))?))?"
+    r"|(?:grid-)?(?:row-|column-)?gap"
+    r")\s*:\s*([^;}]+)"
+)
+NONZERO_PX_RE = re.compile(r"(?<![\w.])(-?\d+(?:\.\d+)?|\.\d+)px\b")
 FONT_RE = re.compile(r"(?<![\w-])font-family\s*:\s*([^;}]*)")
 CUSTOM_RE = re.compile(r"(?<![\w-])--[\w-]+\s*:")
 # a selector that ends in :root (plus attribute or pseudo-class parts); `:root[data-theme="dark"] .x` is a scoped rule, not a token block
@@ -81,6 +89,12 @@ def scale_literal(prop: str, v: str) -> bool:
     if prop in ("box-shadow", "filter"):
         return bool(has_digit)
     return bool(has_digit) or not v.startswith(("var(", "max(", "min(", "calc(", "clamp(", "0"))
+
+
+def spacing_literal(v: str) -> bool:
+    """Is `v` a spacing value containing a literal non-zero px length outside var(...)?"""
+    rest = strip_calls(v, "var")
+    return any(float(m.group(1)) != 0 for m in NONZERO_PX_RE.finditer(rest))
 
 
 def blank(text: str, pattern: str) -> str:
@@ -149,6 +163,10 @@ def scan_text(kind: str, text: str, phase: int = 1):
                     # tokens only: a value with a number left once var(...) is removed is a literal (max(var(--a), calc(var(--b) * var(--c))) passes)
                     if scale_literal(m.group(1), m.group(2)):
                         add("type-scale-literal", m.group())
+            if phase >= 4:
+                for m in SPACING_RE.finditer(line):
+                    if spacing_literal(m.group(2)):
+                        add("spacing-literal", m.group())
         else:
             for m in JS_HEX.finditer(line):
                 before = line[:m.start()]
@@ -266,12 +284,22 @@ def self_test():
     assert icon_name_findings("js", "ui.iconEl('type-' + cur.id, { size: 'sm' })", known) == []
     assert icon_name_findings("html", "a\n{{icon:nope:xs}}", known) == [(2, "icon-name", "nope")]
     assert icon_name_findings("js", "x = ui.icon('nope')\nlaneIcon('plus')", known) == [(1, "icon-name", "nope")]
+    for ok in ("padding:0", "padding:0px", "margin:0 auto", "padding:var(--space-4) var(--space-12)",
+               "margin-left:calc(-1 * var(--space-4))", "gap:var(--space-8)",
+               "padding-bottom:max(var(--space-16), env(safe-area-inset-bottom, 0px))",
+               "margin:0 10%"):
+        assert rules("css", f"a{{{ok}}}", 4) == [], ok
+    for bad in ("padding:6px 12px", "margin-top:8px", "gap:4px", "row-gap:10px", "column-gap:2px",
+                "padding-inline:12px", "margin-left:-4px", "padding:calc(var(--space-4) + 2px)"):
+        assert rules("css", f"a{{{bad}}}", 4) == ["spacing-literal"], bad
+    assert rules("css", "a{margin-left:-1px /* tokens-ok: centers 2px line */}", 4) == []
+    assert rules("css", "a{padding:8px}", 2) == []
     print("self-test passed")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--phase", type=int, default=1)
+    ap.add_argument("--phase", type=int, default=4)
     ap.add_argument("--list-rules", action="store_true")
     ap.add_argument("--self-test", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true", help="print passing rules")

@@ -113,7 +113,7 @@ try {
     const r = await t.at(item(id), 0.5, 0.5);
     await t.mouse('mouseMoved', r.x, r.y);
     await sleep(80);
-    return t.at(`${item(id)} .uc-port`);
+    return t.at(`${item(id)} .port`);
   };
   const connect = async (from, to) => {
     await t.clickOn('#btn-zoom-reset');   // Fit, so both ends are on screen whatever the earlier steps added
@@ -151,7 +151,7 @@ sys.stdout.write(f.format_json(out))`;
     && (await count('.uc-label')) === 2 && (await text('.uc-label[data-edge-id="l4"] .uc-cond')) === '[customer has a code]'
     && (await t.ev(`getComputedStyle(document.querySelector('.uc-parent .edge-line')).markerEnd`)).includes('uc-mk-tri'));
   t.check('the legend names the colours, the note shows as a badge and not as a card',
-    (await count('.uc-legend-item')) === 3 && (await count('.note-badge')) === 1 && !(await t.ev(`!![...document.querySelectorAll('.note-layer .note')].some((n) => getComputedStyle(n).display !== 'none')`)));
+    (await count('.uc-key .color-key-item')) === 3 && (await count('.note-badge')) === 1 && !(await t.ev(`!![...document.querySelectorAll('.note-layer .note')].some((n) => getComputedStyle(n).display !== 'none')`)));
   t.check('the dock has the Add popover with five tiles, the switches, and no Delete until something is selected',
     (await count('#uc-pop .btn-shape')) === 5 && (await present('#btn-refs')) && (await present('#btn-levels')) && (await present('#btn-notes')) && (await present('#btn-auto-layout'))
     && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
@@ -514,7 +514,7 @@ sys.stdout.write(f.format_json(out))`;
   await sleep(120);
   await t.clickOn(item('checkout'));
   await sleep(120);
-  const portRect = await t.ev(`(() => { const p = document.querySelector('.uc-case[data-node-id="checkout"] > .uc-port'); const r = p.getBoundingClientRect(); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, uiScale: getComputedStyle(document.getElementById('stage')).getPropertyValue('--ui-scale').trim() }; })()`);
+  const portRect = await t.ev(`(() => { const p = document.querySelector('.uc-case[data-node-id="checkout"] > .port'); const r = p.getBoundingClientRect(); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, uiScale: getComputedStyle(document.getElementById('stage')).getPropertyValue('--ui-scale').trim() }; })()`);
   t.check('connection port stays ~12px on screen when zoomed out', Math.abs(portRect.w - 12) <= 1.5 && Math.abs(portRect.h - 12) <= 1.5 && parseFloat(portRect.uiScale) > 1, J(portRect));
   await t.clickOn('#btn-zoom-reset');
   await sleep(100);
@@ -600,8 +600,8 @@ sys.stdout.write(f.format_json(out))`;
   await t.mouse('mouseMoved', 6, 300);
   await sleep(80);
   const subLeft = await subStyle('office');
-  t.check('hovering a subject interior, use case, or title bar applies the hover border/shadow while keeping pointer-events: none',
-    subRest.pe === 'none' && !subRest.hover && subHovInner.hover && subHovInner.border !== subRest.border && subHovInner.shadow !== subRest.shadow
+  t.check('hovering a subject interior, use case, or title bar applies the hover ring and shadow while keeping pointer-events: none',
+    subRest.pe === 'none' && !subRest.hover && subHovInner.hover && subHovInner.shadow !== subRest.shadow
       && subOnCase.hover && subOnTitle.hover && !subLeft.hover,
     `${J(subRest)} | ${J(subHovInner)} | ${J(subOnCase)} | ${J(subOnTitle)} | ${J(subLeft)}`);
   // collapse a subject; expanding it again puts every use case back where it was, with nothing on top of another
@@ -611,15 +611,15 @@ sys.stdout.write(f.format_json(out))`;
   for (const tidy of [true, false]) {
     if (!tidy) await t.clickOn('#btn-auto-layout');
     const before = await boxes();
-    await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
-    await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+    await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
+    await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
     t.check(`collapse then expand (Auto-Tidy ${tidy ? 'on' : 'off'}) puts every use case back, none on top of another`, (await boxes()) === before && (await caseOverlaps()) === 0);
     if (!tidy) await t.clickOn('#btn-auto-layout');
   }
-  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
   d = await saved();
   t.check('the chevron collapses a subject to its name bar, saved as collapsed', byId(d.subjects, 'office').collapsed === true && !(await present(item('pick'))) && (await count('.uc-subject')) === 2);
-  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
   t.check('and expands it again', (await present(item('pick'))) && !('collapsed' in byId((await saved()).subjects, 'office')));
 
   // --- keyboard ------------------------------------------------------------------------------------------------------------------
@@ -701,7 +701,7 @@ sys.stdout.write(f.format_json(out))`;
   await t.press('/');
   t.check('usecase: entering Present hides and clears the search, and / does not open it', matched > 0 && (await count('.search-current')) === 0
     && (await t.ev(`document.getElementById('search-bar').hidden && getComputedStyle(document.getElementById('btn-search')).display === 'none' && document.activeElement.id !== 'search-input'`)));
-  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
   await t.press('Escape');
   t.check('usecase: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
@@ -716,7 +716,7 @@ sys.stdout.write(f.format_json(out))`;
       (await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`)) === n0 && !(await t.ev(`!!document.querySelector('[contenteditable="true"]')`))
       && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
   }
-  t.check('?present: no ports, no dock, no search of editing', (await count('.uc-port')) === 0 && !(await t.ev(`getComputedStyle(document.querySelector('.toolbar-center')).display !== 'none'`)) && (await count('.note-add')) === 0);
+  t.check('?present: no ports, no dock, no search of editing', (await count('.port')) === 0 && !(await t.ev(`getComputedStyle(document.querySelector('.toolbar-center')).display !== 'none'`)) && (await count('.note-add')) === 0);
   await t.clickOn(item('clerk'));
   t.check('?present: a click on an actor still lights what it can reach, with no action bar', (await dimmed()).includes('browse') && !(await dimmed()).includes('pick') && !(await present('.uc-actionbar')));
   await t.clickOn(item('pick'), { count: 2 });
@@ -728,7 +728,7 @@ sys.stdout.write(f.format_json(out))`;
   t.check('?present: a drag moves nothing', Math.abs((await t.at(item('pick'))).x - pm.x) < 2);
   await t.press('a', { modifiers: 2 });
   t.check('?present: Ctrl+A selects nothing', (await count('.uc-actor.selected, .uc-case.selected')) <= 1);
-  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.clickOn('.uc-subject[data-subject-id="office"] .chevron');
   t.check('?present: the chevron still collapses a boundary', !(await present(item('pick'))));
   });
 
@@ -804,6 +804,56 @@ sys.stdout.write(f.format_json(out))`;
   const cu2 = await t.at(item('customer'));
   await t.dragTo(h2.x, h2.y, cu2.x, cu2.y, { steps: 8 });
   t.check('the last link of a note stays (it never becomes free by unlinking)', freeOf(await saved(), 'Dropped free')?.actors?.join() === 'customer');
+  });
+
+  // --- Render reuse: actors, use cases, subjects, links and labels keep DOM identity across renders; events delegate ---
+  await t.section('reuse', async () => {
+    await freshPage();
+    const MARK = `[...document.querySelectorAll('.uc-actor, .uc-case, .uc-subject, .uc-link, .uc-label')]`;
+    const KEY = `(el) => (el.dataset.nodeId || el.dataset.subjectId || el.dataset.edgeId) + ':' + (el.getAttribute('class') || '').split(' ')[0]`;
+    const kept = () => t.ev(`(() => { const k = ${KEY}, els = ${MARK}; return { n: els.length, lost: els.filter((el) => el.__mark !== k(el)).map(k) }; })()`);
+    await t.ev(`(() => { const k = ${KEY}; ${MARK}.forEach((el) => { el.__mark = k(el); }); return true; })()`);
+    // Toggle Refs twice to trigger two full renders without adding/removing items
+    await t.clickOn('#btn-refs'); await t.settle();
+    await t.clickOn('#btn-refs'); await t.settle();
+    const k1 = await kept();
+    t.check('re-rendering keeps every actor, use case, subject, link and label element', k1.n >= 20 && !k1.lost.length, J(k1));
+    // Delegated click on a kept actor selects it and dims unreachable items
+    const cust = await centreOf(item('customer'));
+    await t.click(cust.x, cust.y);
+    t.check('delegated click on a kept actor selects it and dims unreachable items', (await selectedIds()) === 'customer' && (await dimmed()).includes('pick'), `${await selectedIds()} / ${await dimmed()}`);
+    await blank();
+    // Delegated double-click on a kept use case opens inline rename and keeps the element
+    const br = await centreOf(item('browse'));
+    await t.click(br.x, br.y, { count: 2 });
+    await sleep(100);
+    const ed = await editing();
+    await t.press('a', { modifiers: 2 });
+    await t.type('Browse items');
+    await t.press('Enter');
+    await t.settle();
+    const k2 = await kept();
+    t.check('delegated double-click renames a kept use case without replacing DOM elements', ed === 'Browse catalogue' && !k2.lost.length && (await text(`${item('browse')} .uc-name`)) === 'Browse items', `ed=${J(ed)} lost=${J(k2.lost)}`);
+    await undo();
+    // Delegated click on a kept link selects it; hovering its label lights the link
+    const lp = await onLine('l3');
+    if (lp) { await t.click(lp.x, lp.y); await sleep(80); }
+    t.check('delegated click on a kept link selects it', (await present('.uc-link[data-edge-id="l3"].selected')));
+    await blank();
+    const lab = await t.at('.uc-label[data-edge-id="l3"]');
+    await t.mouse('mouseMoved', lab.x, lab.y);
+    await sleep(100);
+    const lit = await present('.uc-link[data-edge-id="l3"].is-hover, .uc-link[data-edge-id="l3"].hover');
+    await t.mouse('mouseMoved', 5, 5);
+    await sleep(80);
+    t.check('delegated hover on a kept link label lights its link and clears on leave', lit && !(await present('.uc-link[data-edge-id="l3"].is-hover, .uc-link[data-edge-id="l3"].hover')));
+    // Dragging a kept use case moves it and keeps every element identity
+    const p0 = await centreOf(item('browse'));
+    await t.dragTo(p0.x, p0.y, p0.x + 28, p0.y + 18, { steps: 6 });
+    await t.settle();
+    const p1 = await centreOf(item('browse'));
+    const k3 = await kept();
+    t.check('dragging a kept use case moves it and preserves element identity', Math.abs(p1.x - p0.x) > 10 && !k3.lost.length, `dx=${Math.round(p1.x - p0.x)} lost=${J(k3.lost)}`);
   });
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

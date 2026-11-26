@@ -96,7 +96,7 @@
         const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
         // What a message needs sideways: the longer of its label (plus the step number) and its detail
         // Both are capped at LABEL_MAX_W: past it the text wraps instead of pushing the lifelines apart
-        const numW = data.numbered ? SQ.NUM_W : 0;
+        const numW = data.numbered !== false ? SQ.NUM_W : 0;
         const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
         const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
         const msgW = (m) => Math.max(labelW(m), detailW(m));

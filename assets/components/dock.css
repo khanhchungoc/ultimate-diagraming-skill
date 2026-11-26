@@ -2,14 +2,14 @@
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
       position: fixed;
-      left: calc(20px + env(safe-area-inset-left, 0px));
-      right: calc(20px + env(safe-area-inset-right, 0px));
-      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      left: calc(var(--dock-inset) + env(safe-area-inset-left, 0px));
+      right: calc(var(--dock-inset) + env(safe-area-inset-right, 0px));
+      bottom: calc(var(--dock-inset) + env(safe-area-inset-bottom, 0px));
       z-index: 100;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: end;
-      gap: 8px;
+      gap: var(--space-8);
       pointer-events: none;
     }
     .dock-area > * { pointer-events: auto; }
@@ -18,20 +18,22 @@
       position: relative;
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px;
+      gap: var(--space-4);
+      padding: var(--dock-pad);
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
+      box-sizing: border-box;
     }
     .toolbar-center {
       grid-column: 2;
       grid-row: 1;
-      flex-wrap: nowrap;   /* one row at every width: the labels go first (see below). Never overflow:auto here, it would clip the popovers that open above the dock */
+      max-width: 100%;
+      flex-wrap: nowrap;   /* one row at every width: labels drop first, then low-priority controls fold into #btn-dock-more. Never overflow:auto here, it would clip popovers */
       justify-content: center;
     }
-    .toolbar-zoom { gap: 2px; }
+    .toolbar-zoom { gap: var(--space-2); }
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
@@ -42,22 +44,83 @@
     /* One fixed button height in both docks, so the bars are always the same height whatever the font */
     .toolbar-center > .btn,
     .dock-pop-trigger,
-    .toolbar-zoom > .btn { height: 32px; }
+    .dock-more-btn,
+    .toolbar-zoom > .btn { height: var(--ctrl-h); }
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
-    .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
+    .dock-pop-trigger > svg:first-child,
+    .dock-more-btn > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
     /* The zoom dock is narrower: square 28px buttons */
-    .toolbar-zoom > .btn { width: 28px; height: 28px; padding: 0; justify-content: center; }
+    .toolbar-zoom > .btn { width: 28px; height: 28px; padding: var(--space-0); justify-content: center; }
     .toolbar-zoom > .btn:disabled, .toolbar-zoom > .btn:disabled:hover { background: transparent; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
       width: 1px;
       align-self: stretch;
-      margin: 4px 2px;
+      margin: var(--space-4) var(--space-2);
       background: var(--border-color);
     }
-    .toolbar-zoom .dock-sep { margin: 4px 3px; }
+    .toolbar-zoom .dock-sep { margin: var(--space-4) var(--space-2); }
+
+    /* Overflow folding into #btn-dock-more (shell.js): folded controls stay in the DOM so handlers and state sync keep working */
+    .toolbar-center > [data-dock-folded="true"],
+    .toolbar-center > [data-dock-sep-hidden="true"] {
+      display: none !important;
+    }
+    .dock-more-wrap {
+      position: relative;
+      display: inline-flex;
+      flex: 0 0 auto;
+    }
+    .dock-more-wrap[hidden] { display: none; }
+    .dock-more-btn {
+      min-width: var(--ctrl-h);
+      padding-inline: var(--space-8);
+      justify-content: center;
+    }
+    .menu.dock-more-menu {
+      top: auto;
+      bottom: calc(100% + var(--space-8));
+      right: var(--space-0);
+      min-width: 180px;
+      max-width: calc(100vw - var(--space-24));
+      max-height: min(60vh, 360px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .menu.dock-more-menu button {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+      min-height: var(--ctrl-h);
+      padding: var(--space-4) var(--space-12);
+      white-space: nowrap;
+    }
+    .menu.dock-more-menu button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .menu.dock-more-menu button:disabled:hover {
+      background: transparent;
+    }
+    .menu.dock-more-menu button > svg:first-child {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+      flex: 0 0 auto;
+    }
+    .menu.dock-more-menu button[role="menuitemcheckbox"]::after { content: none; }
+    .dock-more-check {
+      margin-left: auto;
+      flex: 0 0 auto;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity var(--dur-fast) var(--curve-out), transform var(--dur-fast) var(--curve-spring-tactile);
+    }
+    .menu.dock-more-menu button[aria-checked="true"] > .dock-more-check {
+      opacity: 1;
+      transform: scale(1);
+    }
 
     /* Dock popover (e.g. the flowchart's Shapes): a bubble that blows up from the trigger, above it.
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
@@ -69,16 +132,16 @@
     .dock-pop {
       --pop-shift: 0px;     /* set by shell.js to keep the bubble on screen; the tail stays on the trigger */
       position: absolute;
-      bottom: calc(100% + 14px);
+      bottom: calc(100% + var(--space-12));
       left: 50%;
       z-index: 2;
-      padding: 6px;
+      padding: var(--space-8);
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg);
-      transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
-      transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.82);
+      transform-origin: calc(50% - var(--pop-shift)) calc(100% + var(--space-12));
+      transform: translateX(calc(-50% + var(--pop-shift))) translateY(var(--space-8)) scale(0.82);
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
@@ -99,26 +162,26 @@
       position: absolute;
       top: 100%;
       left: calc(50% - var(--pop-shift));
-      width: 12px; height: 12px;
-      margin: -6px 0 0 -6px;
+      width: var(--space-12); height: var(--space-12);
+      margin: calc(var(--space-12) / -2) var(--space-0) var(--space-0) calc(var(--space-12) / -2);
       background: var(--bg-panel);
       border-right: 1px solid var(--border-color);
       border-bottom: 1px solid var(--border-color);
       transform: rotate(45deg);
-      border-bottom-right-radius: 3px;
+      border-bottom-right-radius: var(--radius-xs);
     }
     .dock-pop::before {
       content: '';
       position: absolute;
-      top: 100%; left: 0; right: 0;
-      height: 18px;
+      top: 100%; left: var(--space-0); right: var(--space-0);
+      height: var(--space-16);
     }
     .dock-pop-grid {
       position: relative;   /* above the tail */
       z-index: 1;
       display: grid;
       grid-template-columns: repeat(var(--pop-cols, 4), minmax(68px, max-content));
-      gap: 6px;
+      gap: var(--space-4);
     }
     /* Only a grid with more rows than fit scrolls (shell.js adds .scrolls); otherwise the tiles' springy
        pop-in would flash a scrollbar while they overshoot */
@@ -132,7 +195,7 @@
       width: auto;
       min-height: 60px;
       height: auto;
-      padding: 6px;
+      padding: var(--space-4);
       justify-content: center;
       color: var(--text-soft);
       border-color: transparent;
@@ -150,9 +213,9 @@
     .btn-note-tool:hover svg > .note-paper { fill: color-mix(in srgb, var(--note-accent) 16%, var(--note-bg)); }
     /* Optional labelled sections: a small heading above each grid */
     .dock-pop-section { position: relative; z-index: 1; }
-    .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
+    .dock-pop-section + .dock-pop-section { margin-top: var(--space-8); padding-top: var(--space-8); border-top: 1px solid var(--border-color); }
     .dock-pop-heading {
-      padding: 0 4px 4px;
+      padding: var(--space-0) var(--space-4) var(--space-4);
       font-size: var(--text-rem-sm);
       font-weight: var(--weight-semibold);
       letter-spacing: var(--t-overline-tracking);
@@ -160,10 +223,10 @@
       color: var(--text-soft);
     }
     /* Optional caption under a tile's icon */
-    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 2px; }
+    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: var(--space-2); }
     .tile-caption {
       max-width: 100%;
-      padding: 0 2px;
+      padding: var(--space-0) var(--space-2);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -176,7 +239,7 @@
       animation-delay: calc(var(--i, 0) * 15ms);
     }
     @keyframes dock-pop-tile {
-      from { opacity: 0; transform: translateY(6px) scale(0.85); }
+      from { opacity: 0; transform: translateY(var(--space-4)) scale(0.85); }
       to   { opacity: 1; transform: none; }
     }
     /* While a tile is being dragged onto the canvas, get the bubble out of the way */
@@ -205,19 +268,20 @@
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
       .dock-area {
-        left: calc(12px + env(safe-area-inset-left, 0px));
-        right: calc(12px + env(safe-area-inset-right, 0px));
-        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        grid-template-columns: 1fr;
+        left: calc(var(--space-12) + env(safe-area-inset-left, 0px));
+        right: calc(var(--space-12) + env(safe-area-inset-right, 0px));
+        bottom: calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
+        z-index: 110;
+        grid-template-columns: minmax(0, 1fr);
       }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 1; grid-row: 2; justify-content: space-evenly; position: relative; z-index: 1; }
-      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 auto; min-width: var(--ctrl-h); justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
     }
     @media (max-width: 560px) {
-      .dock-pop { max-width: calc(100vw - 24px); }
+      .dock-pop { max-width: calc(100vw - var(--space-24)); }
       .dock-pop-grid { grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); }
       .dock-pop-grid > .btn { width: 100%; min-width: 52px; }
     }
@@ -225,7 +289,7 @@
        Between 721px and 1300px the edit dock sits at the bottom-right corner to align with the top-right pill. */
     @media (max-width: 1300px) {
       .toolbar-center .btn-label { display: none; }
-      .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: 8px; }
+      .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: var(--space-8); }
     }
     @media (min-width: 721px) and (max-width: 1300px) {
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
@@ -235,7 +299,9 @@
     @media (pointer: coarse) {
       .toolbar-zoom > .btn { width: 36px; height: 36px; }
       .toolbar-center > .btn,
-      .dock-pop-trigger { height: 40px; }
+      .dock-pop-trigger,
+      .dock-more-btn { height: var(--space-40); }
+      .menu.dock-more-menu button { min-height: var(--space-40); }
     }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .toolbar-center,
@@ -249,7 +315,7 @@
       .toolbar-zoom::before {
         content: '';
         position: absolute;
-        inset: 0;
+        inset: var(--space-0);
         z-index: -1;
         border-radius: inherit;
         pointer-events: none;

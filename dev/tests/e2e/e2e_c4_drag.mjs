@@ -29,7 +29,7 @@ const SELECTORS = {
   frame: '.c4-group.is-frame',                        // an open group (data-group-id)
   tile: '.c4-group.is-tile',                          // a collapsed group
   tagName: '.c4-tag-name',                            // the title text in a frame tag: the grip for dragging a group
-  chevron: '.frame-chev',                             // collapse / expand button
+  chevron: '.chevron',                             // collapse / expand button
   edge: '.c4-edge',                                   // an arrow (g, data-edge-id)
   edgePath: '.edge-hit',                              // its path (geometry only is read)
   edgeLine: '.edge-line',                             // the visible stroke (opacity is read)
@@ -319,7 +319,7 @@ try {
     const r = await t.at(item(id));
     await t.mouse('mouseMoved', r.x, r.y);
     await sleep(120);
-    return t.at(`${item(id).split(',')[0]} .c4-port`);
+    return t.at(`${item(id).split(',')[0]} .port`);
   };
   const clickAct = async (a) => { await t.clickOn(`${A.bar} [data-act="${a}"]`); await sleep(200); };
 

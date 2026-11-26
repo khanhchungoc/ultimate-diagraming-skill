@@ -148,7 +148,7 @@ try {
     URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
     document.querySelector('[data-export="svg"]').click();
   })`);
-  check('an SVG export has no stretch handle', svg.length > 1000 && !/seq-barend|seq-handle/.test(svg));
+  check('an SVG export has no stretch handle', svg.length > 1000 && !/seq-barend|seq-grip|data-handle/.test(svg));
   code = t.finish();
 } catch (e) {
   console.error('[ERROR]', e.message);

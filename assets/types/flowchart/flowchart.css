@@ -8,7 +8,7 @@
       box-shadow: var(--shadow-canvas);
       border-radius: var(--radius-lg);
       --lane-r: calc(var(--radius-lg) - 1px);
-      margin: 40px;
+      margin: var(--space-40);
       width: fit-content;
       min-width: 1400px;
     }
@@ -45,8 +45,8 @@
       outline: none;
       user-select: none;
       border-radius: var(--radius-sm);
-      padding: 0 2px;
-      margin: 0 -2px;
+      padding: 0 var(--space-2);
+      margin: 0 calc(-1 * var(--space-2));
       border: 1px solid transparent;
     }
     .lane-title[contenteditable="true"] {
@@ -155,40 +155,29 @@
     .edge-line.hl-in  { stroke: var(--edge-in);  stroke-width: 2px; }
     .edge-line.hl-out { stroke: var(--edge-out); stroke-width: 2px; }
 
-    .edge-label {
+    /* The pill itself is components/edge.css. Flowchart only: at rest the label is clipped to its text */
+    .edge-label {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       transform: translate(-50%, -50%);
-      padding: 3px 8px;
-      font-size: var(--t-label-size);
-      font-weight: var(--t-label-weight); /* annotation weight: keeps node text the primary layer */
-      white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
-      overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
-      text-align: center;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      line-height: var(--t-label-leading);
-      max-width: var(--edge-label-max-w, 140px); /* keep in sync with LE.LABEL_MAX_W */
-      transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),
+      transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),   /* components-ok: animates the rest clip below */
         clip-path var(--dur-micro) var(--curve-out);
-      /* At rest only the text's own box masks the line: the label is clipped to the text bounds (box = 1.5px border +
-         3px / 8px padding), so there is no pill around it and little of the diagram is covered. Active states
-         grow the clip out to the full pill (morph, not fade); the negative inset leaves room for the glow. */
-      clip-path: inset(4.5px 9.5px round 3px);
+      /* At rest mask only a tight box around the label text (leaving ~5px horizontal padding from the 8px padding
+         + 1.5px border) so the arrow line never touches the glyphs while the pill border stays hidden. Active
+         states grow the clip out to the full pill (morph, not fade); the negative inset leaves room for the glow. */
+      clip-path: inset(3.5px 4.5px round 3px);
     }
-    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .editing, :focus-within) {
+    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .is-editing, :focus-within) {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       clip-path: inset(-12px round var(--radius-lg));
     }
-    .edge-label:is(.editing, :focus-within) {
+    .edge-label:is(.is-editing, :focus-within) {
       max-width: max(var(--edge-label-max-w, 140px), 240px);
       z-index: 40;
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
        display scaling, so that is 1px */
-    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out) {
+    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out) {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       border-width: 2px;
-      padding: 2px 7px;
+      padding: var(--space-2) var(--space-8);
     }
     .edge-label-text {
       outline: none;
@@ -203,7 +192,7 @@
       overflow-wrap: break-word;
       text-align: center;
     }
-    .edge-label:is(.editing, :focus-within) .edge-label-text {
+    .edge-label:is(.is-editing, :focus-within) .edge-label-text {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       -webkit-line-clamp: unset;
       line-clamp: unset;
       overflow: visible;
@@ -213,13 +202,13 @@
     }
     /* An arrow with no label draws nothing at its midpoint; the box shows only while the label is typed */
     .edge-label.empty-placeholder { display: none; }
-    .edge-label.empty-placeholder.editing {
+    .edge-label.empty-placeholder.is-editing {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       display: inline-flex;
       min-width: 28px;
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
     }
-    .edge-label.editing + .edge-bar { display: none; }
+    body:has(.edge-label.is-editing) .edge-bar { display: none; }
     .edge-label.has-label {
       display: inline-flex;
     }
@@ -232,9 +221,10 @@
          pixels (1.5px draws as 1px) but draws shadows and the classic shapes' SVG strokes at their true width, so
          every shape gets the same weight. --ring is the outline colour (hover/selected/type rules change it). */
       --ring: var(--node-border);
+      --ring-w: var(--node-stroke);   /* hover and selected: components/item-states.css (data-item) */
       border: none;
       border-radius: var(--radius-lg);
-      padding: calc(6px + var(--node-stroke)) calc(8px + var(--node-stroke));
+      padding: calc(var(--space-4) + var(--node-stroke)) calc(var(--space-8) + var(--node-stroke));
       width: 144px;
       height: 64px;
       cursor: move;
@@ -249,19 +239,11 @@
       line-height: var(--t-title-leading);
       user-select: none;
     }
-    .flow-node.dragging { z-index: 45; }
+    .flow-node.is-dragging { z-index: 45; }
     .flow-node { --node-accent: var(--task-accent); }
     .flow-node.type-start { --node-accent: var(--start-accent); }
     .flow-node.type-end { --node-accent: var(--end-accent); }
     .flow-node.type-decision { --node-accent: var(--decision-accent); }
-    .flow-node:hover {
-      --ring: var(--node-accent);
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-md);
-    }
-    .flow-node.selected {
-      --ring: var(--node-accent);
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 25%, transparent);
-    }
     .flow-node.selected,
     .flow-node:has(.actionbar) { z-index: 53; }
     .flow-node.connect-target {
@@ -286,7 +268,7 @@
     .flow-node.terminal-dot {
       width: 40px;
       height: 40px;
-      margin: 12px 52px;
+      margin: var(--space-12) 52px; /* tokens-ok: centers 40x40 dot in 144x64 node box */
       padding: 0;
       border-radius: var(--radius-round);
     }
@@ -315,17 +297,12 @@
       stroke-linejoin: round;
       transition: stroke var(--dur-micro) var(--curve-out), fill var(--dur-fast) var(--curve-inout);
     }
-    .flow-node.type-start:hover, .flow-node.type-start.selected,
-    .flow-node.type-end:hover, .flow-node.type-end.selected { --ring: var(--node-accent); }
-    .flow-node.type-decision:hover .diamond-poly {
-      stroke: var(--node-accent);
-    }
-    .flow-node.type-decision.selected .diamond-poly {
-      stroke: var(--node-accent);
-    }
-    /* A selected decision or classic shape has no box to carry the step's halo: glow its outline instead */
+    /* A decision or classic shape has no box to carry the ring: its own outline takes the shared hover and selected look
+       (components/item-states.css .item-shape: --primary, --select-ring-w), and a selected one glows like a selected box */
+    .flow-node:hover :is(.diamond-poly, .shape-outline > *) { stroke: var(--primary); }
+    .flow-node.selected :is(.diamond-poly, .shape-outline > *) { stroke: var(--primary); stroke-width: var(--select-ring-w); }
     .flow-node.selected:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) :is(.decision-diamond-svg, .shape-outline) {
-      filter: drop-shadow(0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 60%, transparent));
+      filter: drop-shadow(0 0 var(--ring-lg) var(--primary-glow));
     }
     /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
        the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
@@ -352,18 +329,16 @@
     }
     .flow-node:not(.type-decision) .shape-outline .shape-path { fill: var(--node-bg); stroke: var(--node-border); }
     .flow-node .shape-outline .shape-line { fill: none; stroke: var(--node-border); }
-    .flow-node:not(.type-decision):hover .shape-outline > * { stroke: var(--node-accent); }
-    .flow-node:not(.type-decision).selected .shape-outline > * { stroke: var(--node-accent); }
     .flow-node:is(.type-subprocess, .type-io, .type-document, .type-database, .type-delay) .node-label {
       position: relative;
       z-index: 2;
     }
-    .flow-node.type-subprocess { padding: 4px 20px; }            /* clear of the + marker */
+    .flow-node.type-subprocess { padding: var(--space-4) var(--space-20); }            /* clear of the + marker */
     .flow-node.type-subprocess.has-child .shape-outline .sub-mark { stroke: var(--primary); }
-    .flow-node.type-io         { padding: 4px 16px; }            /* clear of the slanted sides */
-    .flow-node.type-document   { padding: 3px 8px 11px; }        /* centred above the wave */
-    .flow-node.type-database   { padding: 15px 10px 5px; }       /* below the top rim */
-    .flow-node.type-delay      { padding: 4px 26px 4px 10px; }   /* clear of the arc */
+    .flow-node.type-io         { padding: var(--space-4) var(--space-16); }            /* clear of the slanted sides */
+    .flow-node.type-document   { padding: var(--space-2) var(--space-8) var(--space-12); }        /* centred above the wave */
+    .flow-node.type-database   { padding: var(--space-16) var(--space-8) var(--space-4); }       /* below the top rim */
+    .flow-node.type-delay      { padding: var(--space-4) var(--space-24) var(--space-4) var(--space-8); }   /* clear of the arc */
     /* Ports on the outline, not the box edge, where the two differ at the side's midpoint */
     .flow-node.type-io .port-left { left: 6px; }
     .flow-node.type-io .port-right { left: calc(100% - 6px); }
@@ -391,57 +366,39 @@
       -webkit-box-orient: vertical;
       cursor: move;
     }
+    .flow-node.is-editing {
+      z-index: 40;
+      overflow: visible;
+    }
     .node-label[contenteditable="true"] {
       user-select: text;
       cursor: text;
     }
+    .flow-node.is-editing .node-label,
+    .flow-node:not(.type-connector) .node-label[contenteditable="true"] {
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      display: block;
+      overflow: visible;
+      min-width: max(100%, 160px);
+      width: max-content;
+      max-width: 360px;
+      height: auto;
+      white-space: pre-wrap;
+      background: var(--bg-input, var(--bg-panel));
+      border: 1.5px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-8);
+      box-shadow: var(--shadow-md);
+      position: relative;
+      z-index: 5;
+      color: var(--text-main);
+    }
 
-    /* Connection Ports (the anchor points: shown on hover only, and on a selected step where there is no hover) */
-    .port {
-      position: absolute;
-      width: 12px;
-      height: 12px;
-      border-radius: var(--radius-round);
-      background: var(--node-bg);
-      border: 2px solid var(--node-accent, var(--primary));
-      opacity: 0;
-      cursor: crosshair;
-      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
-      z-index: 35;
-      translate: -50% -50%;
-      scale: var(--ui-scale, 1);
-      transform: scale(0.55);
-      box-shadow: var(--shadow-chip);
-    }
-    .flow-node:hover .port {
-      opacity: 1;
-      transform: scale(1);
-    }
-    @media (hover: none) { .flow-node.selected .port { opacity: 1; transform: scale(1); } }
-    /* While dragging an arrow, targets auto-anchor: no anchor points shown anywhere */
-    body.connecting .port, body.reconnecting .port {
-      opacity: 0 !important;
-      pointer-events: none;
-    }
-    /* Draggable arrow endpoints (shown on the selected arrow) */
-    .edge-end-handle {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      width: 14px;
-      height: 14px;
-      box-sizing: border-box;
-      border-radius: var(--radius-round);
-      background: var(--node-bg);
-      border: 2px solid var(--primary);
-      box-shadow: var(--shadow-chip);
-      cursor: grab;
-      pointer-events: auto;
-      z-index: 32;
-      transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
-    }
-    .edge-end-handle:hover { background: var(--primary); }
-    body.reconnecting .edge-end-handle { cursor: grabbing; }
-    body.presentation .edge-end-handle { display: none !important; }
+    /* Connection ports: the shared handle (components/port.css); while an arrow is drawn the body is .is-dragging, so none show */
+    /* Arrow end handles: the shared .port-end (components/port.css). While one is dragged no connect port shows; the end handles stay */
+    body.reconnecting .port:not(.port-end) { opacity: 0 !important; pointer-events: none !important; }
+    body.reconnecting .port-end { cursor: grabbing; }
 
     /* On-page connector: a 32px circle with its letter, a pale violet disc with a solid violet ring, so it never
        reads as a terminator (solid slate pill). No ports (a pair is never wired by hand) and no note chip (a connector is
@@ -498,7 +455,7 @@
     }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 53; pointer-events: auto; }
+    .edge-bar { z-index: 53; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
@@ -507,7 +464,7 @@
       display: flex;
       flex-direction: column;
       min-width: 140px;
-      padding: 4px;
+      padding: var(--space-4);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
@@ -516,7 +473,7 @@
       z-index: 34;
     }
     .edge-split-menu button {
-      padding: 6px 10px;
+      padding: var(--space-4) var(--space-8);
       border: none;
       border-radius: var(--radius-md);
       background: transparent;
@@ -528,23 +485,14 @@
       cursor: pointer;
     }
     .edge-split-menu button:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--primary) 14%, transparent); outline: none; }
-    .port:hover {
-      transform: scale(1.35);
-      background: var(--node-accent, var(--primary));
-    }
-    .port-top { top: 0; left: 50%; }
-    .port-bottom { top: 100%; left: 50%; }
-    .port-left { top: 50%; left: 0; }
-    .port-right { top: 50%; left: 100%; }
 
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
-    body.presentation .port { display: none !important; }
     body.presentation .flow-node { cursor: default; }
     /* Steps stay hoverable (a press pans, flowchart.js); everything else is inert */
     body.presentation .lane-pill,
     body.presentation .lane-title,
     body.presentation .edge-label,
-    body.presentation .edge-line { pointer-events: none !important; }
+    body.presentation .edge-line { pointer-events: none !important; }   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
 
     /* Capture mode: the diagram container goes edge to edge */
     body.capture #swimlanes-container {
@@ -607,7 +555,7 @@
     }
     .lane-pill:has(.actionbar) { z-index: 53; }
     /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
-    .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
+    .lane-pill.is-editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
     .swimlane.lane-hover .lane-pill,
@@ -620,17 +568,11 @@
        it under the pill near the top of the window. Not hidden while the lane is dragged (removing the drag source from
        layout makes Chrome cancel the drag). */
     /* The step's bar (syncNodeBar): over the node, centred, or under it (placeNodeBar); not while the step is dragged */
-    .node-bar { left: 50%; bottom: calc(100% + 10px * var(--ui-scale, 1)); translate: -50% 0; cursor: default; }
-    .node-bar.is-below { bottom: auto; top: calc(100% + 10px * var(--ui-scale, 1)); }
-    .flow-node.dragging .node-bar, body:is(.connecting, .reconnecting, .palette-dragging) .node-bar { display: none; }
+    .node-bar { cursor: default; }
+    body:has(.flow-node.is-dragging, .flow-node.is-editing) .node-bar, body:is(.connecting, .reconnecting, .palette-dragging) .node-bar { display: none; }
     /* The dock's Delete is not needed: the bars carry it */
     #btn-delete-selection { display: none !important; }
-    .lane-bar { display: none; left: 0; bottom: calc(100% + 8px * var(--ui-scale, 1)); transform-origin: 0 100%; }
-    .lane-bar.is-below { bottom: auto; top: calc(100% + 8px * var(--ui-scale, 1)); transform-origin: 0 0; }
-    .swimlane.lane-selected .lane-bar { display: flex; }
-    .lane-pill.editing .lane-bar { display: none !important; }
-    #swimlanes-container.dir-tb .lane-bar { left: 50%; translate: -50% 0; transform-origin: 50% 100%; }
-    #swimlanes-container.dir-tb .lane-bar.is-below { transform-origin: 50% 0; }
+    body:has(.lane-pill.is-editing) .lane-bar { display: none !important; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -695,6 +637,19 @@
     }
     .palette-ghost.off-canvas { opacity: 0.4; }
     .palette-ghost.inserting { opacity: 0.75; }
+    .palette-ghost.lane-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-8);
+      padding: var(--space-8) var(--space-12);
+      border-radius: var(--radius-lg);
+      background: var(--bg-panel);
+      border: 1.5px solid var(--primary);
+      color: var(--text-main);
+      font-size: var(--text-lg-plus);
+      font-weight: var(--weight-medium);
+      white-space: nowrap;
+    }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
     /* Insert into an arrow: the arrow under a dragged step marches, with a pill at the drop point */
@@ -709,7 +664,7 @@
       position: absolute;
       display: none;
       transform: translate(-50%, calc(-100% - 10px));
-      padding: 3px 9px;
+      padding: var(--space-2) var(--space-8);
       border-radius: var(--radius-pill);
       background: var(--primary);
       color: var(--on-primary);
@@ -728,8 +683,7 @@
 
     /* Node notes (see renderNotes): the shared card, leader, badge and chips live in components/note.css. Here only what
        is specific to a step: which steps show the "+" chip, where the badge sits on each shape, the step a note would land on. */
-    /* Several steps selected: no connect ports (a drag always moves the selection), and the "+" chip only on hover */
-    .multi-select .flow-node .port { display: none !important; }
+    /* Several steps selected: no connect ports (components/port.css, .is-multi), and the "+" chip only on hover */
     /* Pills keep their corner free: the badge sits on the straight top edge, near the right end */
     .flow-node.type-start:not(.terminal-dot) .note-badge,
     .flow-node.type-end:not(.terminal-dot) .note-badge { right: 14px; }
@@ -797,57 +751,60 @@
     #swimlanes-container.dir-tb .lane-pill .lane-title {
       display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: clip; overflow-wrap: anywhere;
     }
+    #swimlanes-container.dir-tb .lane-pill .lane-title[contenteditable="true"] {
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      display: block;
+      overflow: visible;
+    }
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow sits in the outer
-       pill with nested .flow-subtabs trays along the active path; presentation mode glides the tabs up to top: 16px. */
-    .flow-tabs, .flow-subtabs {
-      display: flex; align-items: stretch; gap: 3px;
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-2xl);
-    }
+    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow and nested
+       .flow-subtabs sit flat inside one glass pill bar, separated by subtle vertical dividers; presentation mode glides
+       the tabs up to top: 16px. */
     .flow-tabs {
       position: fixed;
       top: calc(64px + env(safe-area-inset-top, 0px));
       left: calc(20px + env(safe-area-inset-left, 0px));
       z-index: 120;
+      display: flex; align-items: center; gap: var(--space-2);
       max-width: calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
       overflow-x: auto;
-      padding: 3px;
+      padding: var(--space-4);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
-      min-width: 0; overflow: hidden;
-      gap: 2px;
-      padding: 2px;
-      background: color-mix(in srgb, var(--text-main) 2.5%, transparent);
-      border-radius: var(--radius-2xl);
-      border-color: var(--border-color);
+      display: flex; align-items: center; gap: var(--space-2);
+      flex: none;
+      background: transparent;
+      border: none;
+      padding: 0;
     }
-    .flow-subtabs[data-level="2"] { border-radius: var(--radius-xl); }
-    .flow-subtabs[data-level="3"] { border-radius: var(--radius-lg); }
+    .flow-subtabs::before {
+      content: "";
+      flex: none;
+      width: 1px;
+      height: 14px;
+      margin: 0 var(--space-2);
+      background: var(--border-dark);
+      opacity: 0.6;
+    }
     .flow-tab {
       position: relative;
-      flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
+      flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 var(--space-12); box-sizing: border-box;
       background: transparent;
       border: 1px solid transparent;
-      border-radius: var(--radius-2xl);
+      border-radius: var(--radius-inner);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease), border-color var(--ease);
     }
-    .flow-subtabs > .flow-tab {
-      min-height: 25px;
-      padding: 0 10px;
-      border-radius: var(--radius-xl);
-    }
-    .flow-subtabs[data-level="2"] > .flow-tab { border-radius: var(--radius-lg); }
-    .flow-subtabs[data-level="3"] > .flow-tab { border-radius: var(--radius-md); }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .flow-tabs {
@@ -908,4 +865,9 @@
       transition: background var(--ease);
     }
     .sub-open:hover { background: var(--primary-wash); }
+    /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
+    .sub-open::before {
+      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+      width: var(--hit-min); height: var(--hit-min);
+    }
     .btn-sub[hidden] { display: none; }

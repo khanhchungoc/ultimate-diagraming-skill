@@ -67,8 +67,8 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 const TYPES = {
   flowchart: { name: 'Flowchart', add: ['#btn-add-shape', '#btn-add-step'], items: '[data-node-id]', header: /^flowchart\b/ },
-  sequence: { name: 'Sequence diagram', add: ['@.seq-participant', '#btn-add-message'], items: '[data-edge-id]', header: /^sequenceDiagram$/ },
-  erd: { name: 'ER diagram', add: ['#btn-add-table'], items: '[data-node-id]', header: /^erDiagram$/ },
+  sequence: { name: 'Sequence diagram', add: ['@.seq-participant', '#btn-add', '#btn-add-message'], items: '[data-edge-id]', header: /^sequenceDiagram$/ },
+  erd: { name: 'ER diagram', add: ['#btn-add', '#btn-add-table'], items: '[data-node-id]', header: /^erDiagram$/ },
   usecase: { name: 'Use case diagram', add: ['#btn-add', '#btn-add-usecase'], items: '[data-node-id]', header: /^flowchart\b/ },
 };
 const ids = Object.keys(TYPES);

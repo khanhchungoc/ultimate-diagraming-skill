@@ -31,7 +31,7 @@
 
       // --- STATE ---
       let selIds = [];            // selected actors and use cases (primary last)
-      let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
+      let selOther = null;        // { kind: 'link' | 'subject' | 'note' | 'key', id }
       let hoverLinkId = null;
       let linkBarAvoid = null;    // { id, x, y }: pointer position of the press that selected a link, so the bar flips away from it
       let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
@@ -153,11 +153,11 @@
       function captureSvg() {
         if (!motion.enabled()) return null;
         const links = new Map(), parents = new Map(), leaders = new Map();
-        linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
-          const line = g.querySelector('.edge-line');
-          if (line) links.set(g.dataset.edgeId, parsePathCoords(line.getAttribute('d')));
+        els.links.forEach((rec, id) => {
+          const line = rec.g.querySelector('.edge-line');
+          if (line) links.set(id, parsePathCoords(line.getAttribute('d')));
         });
-        linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+        els.parents.forEach((g) => {
           const line = g.querySelector('.edge-line');
           if (line) parents.set(`${g.dataset.from}->${g.dataset.to}`, parsePathCoords(line.getAttribute('d')));
         });
@@ -184,15 +184,15 @@
             drawEls.push(el);
           }
         };
-        linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
-          const id = g.dataset.edgeId, line = g.querySelector('.edge-line');
+        els.links.forEach((rec, id) => {
+          const line = rec.g.querySelector('.edge-line');
           if (!line) return;
           if (o.drawLinkIds && o.drawLinkIds.has(id)) { drawEls.push(line); return; }
           const prev = svgSnap.links.get(id);
           if (prev) addDiff(line, prev, parsePathCoords(line.getAttribute('d')));
           else drawEls.push(line);
         });
-        linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+        els.parents.forEach((g) => {
           const line = g.querySelector('.edge-line');
           if (!line) return;
           const prev = svgSnap.parents.get(`${g.dataset.from}->${g.dataset.to}`);
@@ -218,6 +218,71 @@
         routeDiagram(chartData);   // lays out afresh by itself when an actor or use case has no x/y
       }
 
+      // What the last render built into an element: sig (everything the builder reads except the position, which is set in
+      // place) and cls (its base classes, put back before the state classes are applied again).
+      const elState = new WeakMap();
+      const sigOf = (o, extra) => JSON.stringify(o, (k, v) => (k === 'x' || k === 'y' ? undefined : v)) + extra;
+      const itemSig = (o, extra) => `${presenting()}|${sigOf(o, extra)}`;
+      const subjectSig = (s) => `${realSubjects().includes(s)}|${JSON.stringify(s, (k, v) => (k === 'x' || k === 'y' || k === 'w' || k === 'h' ? undefined : v))}`;
+      const noteSig = (notes) => notes.map((n) => `${n.id}\u0001${noteText(n)}`).join('\u0002');
+      // The element kept under `id`, brought back to a clean state; updated in place when its signature changed so morphs keep identity
+      function keyed(map, id, sig, build) {
+        let el = map.get(id), st = el && elState.get(el);
+        if (!el) {
+          el = build();
+          elState.set(el, { sig, cls: el.getAttribute('class') || '' });
+          map.set(id, el);
+        } else if (!st || st.sig !== sig) {
+          const fresh = build();
+          const keep = new Set();
+          for (const a of fresh.attributes) {
+            keep.add(a.name);
+            if (a.name !== 'style' && el.getAttribute(a.name) !== a.value) el.setAttribute(a.name, a.value);
+          }
+          for (const a of [...el.attributes]) {
+            if (a.name !== 'style' && !keep.has(a.name)) el.removeAttribute(a.name);
+          }
+          el.style.translate = '';
+          el.style.transformOrigin = '';
+          el.replaceChildren(...fresh.childNodes);
+          elState.set(el, { sig, cls: fresh.getAttribute('class') || '' });
+        } else {
+          el.setAttribute('class', st.cls);
+          el.style.translate = '';
+          el.style.transformOrigin = '';   // left by an entrance morph; a new element has none
+        }
+        return el;
+      }
+      // A text edit changes the element behind the model's back: build it again on the next render
+      const staleEl = (el) => { const st = el && elState.get(el); if (st) st.sig = null; };
+      function pruneKeyed(map, seen) {
+        map.forEach((el, id) => { if (!seen.has(id)) { el.remove(); map.delete(id); } });
+      }
+      // Children of `layer` in the order they are put: an element already in its place is left alone (focus, scroll, hover)
+      function layerCursor(layer) {
+        let last = null;
+        const place = (el) => {
+          const want = last ? last.nextSibling : layer.firstChild;
+          if (want !== el) layer.insertBefore(el, want);
+          last = el;
+        };
+        place.sweep = () => { while (last ? last.nextSibling : layer.firstChild) (last ? last.nextSibling : layer.firstChild).remove(); };
+        return place;
+      }
+      function setBox(el, b) {
+        const st = el.style, l = px(b.x), t = px(b.y), w = px(b.w), h = px(b.h);
+        if (st.left !== l) st.left = l;
+        if (st.top !== t) st.top = t;
+        if (st.width !== w) st.width = w;
+        if (st.height !== h) st.height = h;
+      }
+      // item id -> its live notes, from one pass over the notes
+      function notesByItem() {
+        const by = new Map();
+        liveNotes().forEach((n) => linkedItems(n).forEach((id) => { if (!by.has(id)) by.set(id, []); by.get(id).push(n); }));
+        return by;
+      }
+
       function render(motionOpts) {
         const useMotion = motionOpts !== false && motion.enabled();
         const mOpts = typeof motionOpts === 'object' && motionOpts ? motionOpts : {};
@@ -228,6 +293,7 @@
           svgSnap = captureSvg();
         }
         html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
+        motion.tweenSvg([]);   // a line tween still running would write its old end points onto the lines kept below
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width);
@@ -235,21 +301,42 @@
         svg.setAttribute('width', C.width);
         svg.setAttribute('height', C.height);
         const hadFocus = document.activeElement && html.contains(document.activeElement) && document.activeElement.dataset.nodeId;
-        linksG.textContent = '';
         leadersG.textContent = '';
-        html.textContent = '';
-        els.items = new Map(); els.links = new Map(); els.subjects = new Map(); els.parents = [];
         actorSw = actorSlots();
         selIds = selIds.filter((id) => itemOf(id));
         if (selOther && !otherExists(selOther)) selOther = null;
         if (hoverLinkId && !linkOf(hoverLinkId)) hoverLinkId = null;
         if (hoverSubjectId && !subjectOf(hoverSubjectId)) hoverSubjectId = null;
 
-        allSubjects().forEach((s) => html.appendChild(buildSubject(s)));
+        // Items, subjects, lines and labels are kept from one render to the next and updated in place (element identity is
+        // what the motion morphs follow); only what changed is built again. Everything else in #uc-html (legend, notes,
+        // the action bar) is dropped and drawn anew.
+        const notesBy = notesByItem(), place = layerCursor(html), seenItems = new Set(), seenSubjects = new Set();
+        allSubjects().forEach((s) => {
+          const el = keyed(els.subjects, s.id, subjectSig(s), () => buildSubject(s));
+          setBox(el, typeof s.x === 'number' ? s : { x: 0, y: 0, w: 200, h: 100 });
+          el.classList.toggle('is-hover', s.id === hoverSubjectId);
+          place(el); seenSubjects.add(s.id);
+        });
         renderLinks();
-        actors().forEach((a) => { if (placed(a)) { const el = buildActor(a); els.items.set(a.id, el); html.appendChild(el); } });
-        cases().forEach((u) => { if (placed(u) && !isHiddenCase(u)) { const el = buildCase(u); els.items.set(u.id, el); html.appendChild(el); } });
-        renderLabels();
+        actors().forEach((a) => {
+          if (!placed(a)) return;
+          const notes = notesBy.get(a.id) || [];
+          const el = keyed(els.items, a.id, itemSig(a, `${actorSw.get(a.id)}|${noteSig(notes)}`), () => buildActor(a, notes));
+          setBox(el, a);
+          place(el); seenItems.add(a.id);
+        });
+        cases().forEach((u) => {
+          if (!placed(u) || isHiddenCase(u)) return;
+          const notes = notesBy.get(u.id) || [];
+          const el = keyed(els.items, u.id, itemSig(u, `${chartData.showRefs === true}|${noteSig(notes)}`), () => buildCase(u, notes));
+          setBox(el, u);
+          place(el); seenItems.add(u.id);
+        });
+        renderLabels(place);
+        place.sweep();
+        pruneKeyed(els.items, seenItems);
+        pruneKeyed(els.subjects, seenSubjects);
         renderLegend();
         renderNotes(true);
         updateButtons();
@@ -267,31 +354,23 @@
         if (o.kind === 'link') return !!linkOf(o.id);
         if (o.kind === 'subject') return !!subjectOf(o.id);
         if (o.kind === 'note') return !!noteOf(o.id);
+        if (o.kind === 'key') return ucKeyColors().includes(o.id);
         return false;
       }
 
       function buildSubject(s) {
         const real = realSubjects().includes(s);
         const el = htmlEl('div', 'uc-subject');
+        el.dataset.item = '';
         el.dataset.subjectId = s.id;
-        const box = typeof s.x === 'number' ? s : { x: 0, y: 0, w: 200, h: 100 };
-        Object.assign(el.style, { left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
         const titleH = s._titleH || 36;
         if (s.collapsed === true) el.classList.add('is-collapsed');
-        if (s.id === hoverSubjectId) el.classList.add('is-hover');
         const title = htmlEl('div', 'uc-subject-title');
         title.style.height = px(titleH);
         title.tabIndex = -1;
         if (real) {
-          const chev = htmlEl('button', 'frame-chev');
-          chev.type = 'button';
+          const chev = ui.chevron({ expanded: s.collapsed !== true, label: s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name' });
           chev.dataset.exportSkip = '';
-          chev.title = s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(s.collapsed !== true));
-          chev.innerHTML = ui.icon('chevron-down', { size: 'sm', bold: true });
-          chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-          chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(s.id); });
           title.appendChild(chev);
         }
         title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
@@ -306,7 +385,6 @@
             el.appendChild(tab);
           });
         }
-        els.subjects.set(s.id, el);
         return el;
       }
 
@@ -331,30 +409,28 @@
         return fig;
       }
 
-      function buildActor(a) {
+      function buildActor(a, notes) {
         const el = htmlEl('div', 'uc-actor');
         el.dataset.nodeId = a.id;
         el.dataset.kind = a.kind || 'human';
         el.tabIndex = -1;
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
-        Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
         setSwatch(el, actorSw.get(a.id));
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        addItemChrome(el, a);
+        addItemChrome(el, a, notes);
         return el;
       }
 
-      function buildCase(u) {
+      function buildCase(u, notes) {
         const el = htmlEl('div', 'uc-case');
         el.dataset.nodeId = u.id;
         el.dataset.level = LEVELS.includes(u.level) ? u.level : 'user';
         el.tabIndex = -1;
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', `Use case ${nameOf(u)}`);
-        Object.assign(el.style, { left: px(u.x), top: px(u.y), width: px(u.w), height: px(u.h) });
         if (u.color) setSwatch(el, u.color);
         const shape = htmlEl('div', 'uc-shape');
         if (typeof u._r === 'number') shape.style.borderRadius = px(u._r);   // the engine's corner radius: a pill on one line
@@ -378,38 +454,27 @@
           u.refs.forEach((r) => refs.appendChild(htmlEl('span', 'uc-ref t-caption', String(r))));
           el.appendChild(refs);
         }
-        addItemChrome(el, u);
+        addItemChrome(el, u, notes);
         return el;
       }
 
       // Connect port, note badge or + chip
-      function addItemChrome(el, o) {
+      function addItemChrome(el, o, notes) {
         if (!presenting()) {
           [false, true].forEach((leftPort) => {   // an anchor on each side
-            const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-            port.dataset.exportSkip = '';
+            const port = ui.port(leftPort ? 'left' : 'right');
             port.dataset.touchDrag = '';
             port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
             if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
               const off = px((o.w - o._figW) / 2);
               port.style.top = px(o._figH / 2);
-              if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+              port.style.left = leftPort ? `calc(${off} - 1px)` : `calc(100% - ${off} + 1px)`;
             }
             el.appendChild(port);
           });
         }
-        const badge = buildNoteBadge(o);
+        const badge = buildNoteBadge(o, notes);
         if (badge) el.appendChild(badge);
-        el.addEventListener('pointerenter', (ev) => {
-          if (ev.pointerType === 'touch' || drag) return;
-          hoverItemId = o.id;
-          applyFocus();
-          if (notesOfItem(o.id).length) peekSoon(o.id, 100);
-        });
-        el.addEventListener('pointerleave', () => {
-          if (peekId === o.id) unpeekSoon(o.id);
-          if (hoverItemId === o.id) { hoverItemId = null; applyFocus(); }
-        });
       }
 
       // --- LINES ---
@@ -438,83 +503,87 @@
         line.style.setProperty('--mk-e-out', kind ? `url(#uc-mk-${kind}-out)` : 'none');
         line.style.setProperty('--mk-e-sel', kind ? `url(#uc-mk-${kind}-sel)` : 'none');
       }
+      // Lines (SVG) and their «include» / «extend» labels are kept by link id like the items; a line whose type, direction or
+      // arrow changed is built again, a moved one only gets new path data. Events are on the layers (LINE EVENTS).
       function renderLinks() {
+        const place = layerCursor(linksG), seen = new Set(), seenParents = new Set(), parents = [];
         linksOf().forEach((l) => {
           if (!LINK_TYPES.includes(l.type) || !l.points || l.points.length < 2) return;
           if (isHiddenByLevel(l.from) || isHiddenByLevel(l.to)) return;
-          const d = pathOf(l.points);
-          const g = svgEl('g', { class: `uc-link${l.type !== 'association' ? ' is-dashed' : ''}`, 'data-edge-id': l.id, 'data-from': l.from, 'data-to': l.to, 'data-type': l.type });
-          const line = svgEl('path', { class: 'edge-line', d });
-          setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
-          g.append(svgEl('path', { class: 'edge-hit', d }), line);
-          g.addEventListener('pointerenter', (ev) => {
-            if (ev.pointerType === 'touch' || drag) return;
-            hoverLinkId = l.id;
-            applyLinkState();
-          });
-          g.addEventListener('pointerleave', (ev) => {
-            if (hoverLinkId !== l.id) return;
-            const rec = els.links.get(l.id);
-            if (rec && rec.label && ev.relatedTarget && rec.label.contains(ev.relatedTarget)) return;
-            hoverLinkId = null;
-            applyLinkState();
-          });
-          g.addEventListener('pointerdown', (ev) => {
-            if (ev.button === 0 && !presenting()) {
-              ev.stopPropagation();
-              linkBarAvoid = { id: l.id, x: ev.clientX, y: ev.clientY };
-              selectOther('link', l.id);
-            }
-          });
-          g.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); editLinkCondition(l.id); });
-          linksG.appendChild(g);
-          els.links.set(l.id, { g, label: null });
+          const d = pathOf(l.points), sig = `${l.type}|${l.navigable === true}|${l.from}|${l.to}`;
+          let rec = els.links.get(l.id), st = rec && elState.get(rec.g);
+          const label = rec ? rec.label : null;   // renderLabels judges it
+          if (rec && st.sig !== sig) { rec.g.remove(); rec = null; }
+          if (!rec) {
+            const g = svgEl('g', { class: `uc-link${l.type !== 'association' ? ' is-dashed' : ''}`, 'data-edge-id': l.id, 'data-from': l.from, 'data-to': l.to, 'data-type': l.type });
+            const line = svgEl('path', { class: 'edge-line', d });
+            setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
+            g.append(svgEl('path', { class: 'edge-hit', d }), line);
+            elState.set(g, { sig, cls: g.getAttribute('class') });
+            rec = { g, label };
+            els.links.set(l.id, rec);
+          } else {
+            rec.g.setAttribute('class', st.cls);   // drops the hover, selected and dimmed state classes: applyFocus draws them again
+            const [hit, line] = rec.g.children;
+            if (hit.getAttribute('d') !== d) hit.setAttribute('d', d);
+            if (line.getAttribute('d') !== d) line.setAttribute('d', d);   // read apart: a running tween only moves the visible line
+          }
+          place(rec.g); seen.add(l.id);
         });
         (chartData._parents || []).forEach((p) => {
           if (!p.points || p.points.length < 2 || !drawn(p.from) || !drawn(p.to)) return;
-          const g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
-          const line = svgEl('path', { class: 'edge-line', d: p.ortho ? roundedPath(p.points, 10) : pathOf(p.points) });
-          setMarkers(line, 'tri');
-          g.append(line);
-          linksG.appendChild(g);
-          els.parents.push(g);
+          const key = `${p.from}->${p.to}`, d = p.ortho ? roundedPath(p.points, 10) : pathOf(p.points);
+          let g = parentEls.get(key);
+          if (!g) {
+            g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
+            const line = svgEl('path', { class: 'edge-line', d });
+            setMarkers(line, 'tri');
+            g.append(line);
+            elState.set(g, { sig: key, cls: g.getAttribute('class') });
+            parentEls.set(key, g);
+          } else {
+            g.setAttribute('class', elState.get(g).cls);
+            const line = g.firstChild;
+            if (line.getAttribute('d') !== d) line.setAttribute('d', d);
+          }
+          place(g); parents.push(g); seenParents.add(key);
         });
+        place.sweep();
+        els.links.forEach((rec, id) => {
+          if (seen.has(id)) return;
+          rec.g.remove();
+          if (rec.label) rec.label.remove();
+          els.links.delete(id);
+        });
+        pruneKeyed(parentEls, seenParents);
+        els.parents = parents;
       }
-      function renderLabels() {
+      const parentEls = new Map();   // "from->to" -> the generalization line kept for that pair (els.parents is this render's list)
+      function renderLabels(place) {
         linksOf().forEach((l) => {
           const b = l.labelBox, rec = els.links.get(l.id);
-          if (!b || !rec || (l.type !== 'include' && l.type !== 'extend')) return;
-          const el = htmlEl('div', 'edge-label uc-label');
-          el.dataset.edgeId = l.id;
-          Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
-          el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
-          if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerenter', (ev) => {
-            if (ev.pointerType === 'touch' || drag) return;
-            hoverLinkId = l.id;
-            applyLinkState();
-          });
-          el.addEventListener('pointerleave', (ev) => {
-            if (hoverLinkId !== l.id) return;
-            const linkRec = els.links.get(l.id);
-            if (linkRec && ev.relatedTarget && linkRec.g.contains(ev.relatedTarget)) return;
-            hoverLinkId = null;
-            applyLinkState();
-          });
-          el.addEventListener('pointerdown', (ev) => {
-            if (ev.button === 0 && !presenting()) {
-              ev.stopPropagation();
-              if (!ev.target.isContentEditable) selectOther('link', l.id);
-            }
-          });
-          el.addEventListener('dblclick', (ev) => {
-            if (ev.target.isContentEditable) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            editLinkCondition(l.id);
-          });
-          html.appendChild(el);
-          rec.label = el;
+          if (!rec) return;
+          if (!b || (l.type !== 'include' && l.type !== 'extend')) {
+            if (rec.label) { rec.label.remove(); rec.label = null; }
+            return;
+          }
+          let el = rec.label, st = el && elState.get(el);
+          const sig = `${l.type}|${l.condition || ''}`;
+          if (el && st.sig !== sig) { el.remove(); el = null; }
+          if (!el) {
+            el = htmlEl('div', 'edge-label uc-label');
+            el.dataset.edgeId = l.id;
+            el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
+            if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
+            elState.set(el, { sig, cls: el.getAttribute('class') });
+            rec.label = el;
+          } else {
+            el.setAttribute('class', st.cls);
+            el.style.translate = '';
+            el.style.transformOrigin = '';
+          }
+          setBox(el, b);
+          place(el);
         });
       }
       function applyLinkState() {
@@ -526,27 +595,46 @@
         });
       }
 
-      // The colour key as a legend under the diagram
+      // The colour key as a legend under the diagram: auto-populated from explicit colours in use
       let legendEl = null;
+      function ucKeyColors() {
+        const used = [];
+        const add = (c) => { if (c && swatchSlot(c) && !used.includes(c)) used.push(c); };
+        cases().forEach((u) => add(u.color));
+        actors().forEach((a) => add(a.color));
+        return used;
+      }
       function renderLegend() {
+        html.querySelectorAll('.uc-key').forEach((el) => el.remove());
         legendEl = null;
-        const key = chartData.colorKey && typeof chartData.colorKey === 'object' ? chartData.colorKey : {};
-        const slots = Object.keys(key).filter((k) => key[k] && swatchSlot(k));
-        if (!slots.length) return;
+        const el = ui.colorKey(ucKeyColors(), chartData.colorKey || {}, { prompts: true, cls: 'uc-key' });
+        if (!el) return;
         const C = chartData.canvas || { height: 0 };
-        legendEl = htmlEl('div', 'uc-legend');
-        legendEl.setAttribute('role', 'list');
-        legendEl.setAttribute('aria-label', 'Colour key');
-        legendEl.style.top = px(C.height + 12);
-        slots.forEach((k) => {
-          const item = htmlEl('span', 'uc-legend-item t-detail');
-          item.setAttribute('role', 'listitem');
-          const dot = htmlEl('span', 'swatch-dot');
-          setSwatch(dot, k);
-          item.append(dot, document.createTextNode(String(key[k])));
-          legendEl.appendChild(item);
-        });
+        el.style.top = px(C.height + 12);
+        legendEl = el;
         html.appendChild(legendEl);
+      }
+      function setKeyLabel(color, value) {
+        const v = String(value == null ? '' : value).trim();
+        const was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        if (v === was) return false;
+        if (v) (chartData.colorKey = chartData.colorKey || {})[color] = v;
+        else if (chartData.colorKey) {
+          delete chartData.colorKey[color];
+          if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey;
+        }
+        return true;
+      }
+      function editKey(el) {
+        if (!el || presenting()) return;
+        const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        el.classList.remove('is-empty');
+        beginEdit(el, {
+          raw: was,
+          restore: was,
+          apply: (value) => setKeyLabel(color, value),
+          onCancel: () => { if (!was) el.classList.add('is-empty'); }
+        });
       }
 
       // --- SELECTION ---
@@ -571,8 +659,9 @@
           el.tabIndex = id === primaryId() ? 0 : -1;
         });
         if (!selIds.length) { const first = els.items.values().next().value; if (first) first.tabIndex = 0; }
-        canvas.classList.toggle('uc-multi', selIds.length > 1);
+        canvas.classList.toggle('is-multi', selIds.length > 1);
         els.subjects.forEach((el, id) => el.classList.toggle('selected', !!selOther && selOther.kind === 'subject' && selOther.id === id));
+        html.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!selOther && selOther.kind === 'key' && selOther.id === l.dataset.color));
         applyLinkState();
         applyNoteSelection();
         applyFocus();
@@ -634,8 +723,9 @@
           if (peer !== focusId && (!peerDir.has(peer) || dir === 'out')) peerDir.set(peer, dir);
         };
         const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
+        const linkById = new Map(linksOf().map((x) => [x.id, x]));
         els.links.forEach((rec, id) => {
-          const l = linkOf(id);
+          const l = linkById.get(id);
           if (!l) return;
           const on = lineLit(l.from, l.to);
           const dir = dirOf(l.from, l.to);
@@ -764,12 +854,36 @@
       // A free note has no links (`useCases` and `actors` empty or absent) and an absolute `pos` in canvas coordinates, which
       // is saved: no leader, no badge, always on show, never moved by Tidy; the other notes are fitted around it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
-      let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null, editingNoteId = null;
+      let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null;
+      const noteCtl = createNotes({
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        anchorEl: (note) => (isFreeNote(note) ? null : noteBadgeEl(note)),
+        canEdit: () => !presenting(),
+        openCard: (note) => {
+          cancelDrag();
+          selectOther('note', note.id);
+          const existed = !!noteCard(note.id);
+          if (!existed) renderNotes(false, false);
+          const card = noteCard(note.id);
+          if (!card) return null;
+          applyNoteVisibility(existed);
+          if (!existed && motion.enabled()) {
+            const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
+            motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
+          }
+          return card;
+        },
+        afterFocus: (card) => panIntoView(card),
+        clearSelection: (id) => { if (selectedNoteId() === id) selOther = null; },
+        render: () => render(),
+        onChange: () => updateStatus(true),
+      });
       const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
       const linkedItems = (n) => (n.useCases || []).concat(n.actors || []).filter((id) => itemOf(id) && drawn(id));
       const linkCount = (n) => (n.useCases || []).length + (n.actors || []).length;
       const isFreeNote = (n) => !linkCount(n);
-      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedItems(n).length));
+      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedItems(n).length));
       const notesOfItem = (id) => liveNotes().filter((n) => linkedItems(n).includes(id));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((el) => el.dataset.noteId === id);
       const selectedNoteId = () => (selOther && selOther.kind === 'note' ? selOther.id : null);
@@ -918,8 +1032,7 @@
       }
       function peekSoon(id, delay) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId !== id) { peekId = id; applyNoteVisibility(true); } }, delay); }
       function unpeekSoon(id) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId === id) { peekId = null; applyNoteVisibility(true); } }, 220); }
-      function buildNoteBadge(o) {
-        const notes = notesOfItem(o.id);
+      function buildNoteBadge(o, notes) {
         if (!notes.length) {
           return null;   // no hover (+): the action bar's note button adds one
         }
@@ -928,13 +1041,8 @@
         b.dataset.exportSkip = '';
         b.setAttribute('aria-label', notes.map((n) => `Note: ${noteText(n)}`).join(' · '));
         b.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
-        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        b.addEventListener('mouseenter', () => peekSoon(o.id, 0));
-        b.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          if (presenting()) { selOther = selectedNoteId() === notes[0].id ? null : { kind: 'note', id: notes[0].id }; applyNoteVisibility(); } else editNote(notes[0].id);
-        });
-        return b;
+        return b;   // its pointer, hover and click are handled by the layer listeners (ITEM EVENTS)
+
       }
       function addNoteTo(id) {
         if (!itemOf(id) || presenting()) return;
@@ -955,68 +1063,9 @@
         chartData.notes.push(note);
         editNote(note.id);
       }
-      function editNote(id) {
-        const note = noteOf(id);
-        if (!note || presenting()) return;
-        cancelDrag();
-        editingNoteId = id;
-        selectOther('note', id);
-        const existed = !!noteCard(id);
-        if (!existed) renderNotes(false, false);
-        const card = noteCard(id);
-        if (!card) return;
-        applyNoteVisibility(existed);
-        if (!existed && motion.enabled()) {
-          const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
-          motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
-        }
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-        panIntoView(card);
-      }
-      function commitNote(note, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== note.id) return;
-        editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (value) note.text = value;
-        else {
-          const card = noteCard(note.id);
-          if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-          chartData.notes = notesList().filter((n) => n !== note);
-          if (!chartData.notes.length) delete chartData.notes;
-          if (selectedNoteId() === note.id) selOther = null;
-        }
-        updateStatus(true);
-        render();
-      }
-      window.addEventListener('pointerdown', (e) => {
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), note = noteOf(editingNoteId);
-        if (text) text.blur();
-        if (text && note) commitNote(note, text);
-      }, true);
-      function removeNote(id) {
-        const note = noteOf(id);
-        if (!note) return;
-        const card = noteCard(id);
-        if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-        chartData.notes = notesList().filter((n) => n.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) editingNoteId = null;
-        if (selectedNoteId() === id) selOther = null;
-        updateStatus(true);
-        render();
-      }
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(note, text) { noteCtl.commit(note, text); }
+      function removeNote(id) { noteCtl.remove(id); }
       function toggleNoteLink(noteId, itemId) {
         const note = noteOf(noteId), kind = kindOf(itemId);
         if (!note || !kind) return;
@@ -1128,7 +1177,7 @@
         const d = drag;
         if (!d) return;
         if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
-        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
+        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging', 'is-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
         d.dx = (e.clientX - d.startX) / scale;
         d.dy = (e.clientY - d.startY) / scale;
         if (d.move) d.move(e, d);
@@ -1137,7 +1186,7 @@
         window.removeEventListener('pointermove', onDragMove);
         window.removeEventListener('pointerup', onDragUp);
         window.removeEventListener('pointercancel', cancelDrag);
-        document.body.classList.remove('uc-dragging');
+        document.body.classList.remove('uc-dragging', 'is-dragging');
         rubber.style.display = 'none';
         canvas.querySelectorAll('.uc-target, .drop-target').forEach((el) => el.classList.remove('uc-target', 'drop-target'));
         const d = drag;
@@ -1156,6 +1205,13 @@
         if (!d) return false;
         if (d.moved) render();
         return true;
+      }
+
+      // The drop / connect highlights of a drag frame: the ones set by the last frame come off, not a page-wide query
+      function setMarks(d, list) {
+        (d.marks || []).forEach(([el, cls]) => el.classList.remove(cls));
+        d.marks = list.filter(([el]) => el);
+        d.marks.forEach(([el, cls]) => el.classList.add(cls));
       }
 
       // What is under a client point (overlays ignore the pointer)
@@ -1197,19 +1253,94 @@
       });
       canvas.addEventListener('pointerleave', () => setHoverSubject(null));
 
+      const PRESS_OWN = '.uc-subject-title > .chevron, .uc-actor > .note-badge, .uc-case > .note-badge';
+
+      // --- LAYER EVENTS ---
+      // The elements are kept from one render to the next, so one listener per layer dispatches by data-* id instead of
+      // listeners on every element. pointerenter, pointerleave and mouseenter do not bubble: they are caught in capture,
+      // where the target is the element entered or left itself. Presses, clicks and double-clicks of items, subjects,
+      // chevrons, badges and labels are in onPointerDown, the click listener and the dblclick listener below.
+      const itemElAt = (t) => (t instanceof Element && (t.classList.contains('uc-actor') || t.classList.contains('uc-case')) ? t : null);
+      function linkEnter(id, ev) {
+        if (ev.pointerType === 'touch' || drag) return;
+        hoverLinkId = id;
+        applyLinkState();
+      }
+      function linkLeave(id, ev, other) {   // moving between a line and its label keeps it lit
+        if (hoverLinkId !== id) return;
+        if (other && ev.relatedTarget && other.contains(ev.relatedTarget)) return;
+        hoverLinkId = null;
+        applyLinkState();
+      }
+      html.addEventListener('pointerenter', (ev) => {
+        const t = ev.target, item = itemElAt(t);
+        if (item) {
+          if (ev.pointerType === 'touch' || drag) return;
+          const id = item.dataset.nodeId;
+          hoverItemId = id;
+          applyFocus();
+          if (notesOfItem(id).length) peekSoon(id, 100);
+        } else if (t instanceof Element && t.classList.contains('uc-label')) linkEnter(t.dataset.edgeId, ev);
+      }, true);
+      html.addEventListener('pointerleave', (ev) => {
+        const t = ev.target, item = itemElAt(t);
+        if (item) {
+          const id = item.dataset.nodeId;
+          if (peekId === id) unpeekSoon(id);
+          if (hoverItemId === id) { hoverItemId = null; applyFocus(); }
+        } else if (t instanceof Element && t.classList.contains('uc-label')) {
+          const rec = els.links.get(t.dataset.edgeId);
+          linkLeave(t.dataset.edgeId, ev, rec && rec.g);
+        }
+      }, true);
+      html.addEventListener('mouseenter', (ev) => {
+        const t = ev.target;
+        if (t instanceof Element && t.matches('.uc-actor > .note-badge, .uc-case > .note-badge')) peekSoon(t.parentNode.dataset.nodeId, 0);
+      }, true);
+      linksG.addEventListener('pointerenter', (ev) => {
+        const g = ev.target;
+        if (g instanceof Element && g.dataset.edgeId) linkEnter(g.dataset.edgeId, ev);
+      }, true);
+      linksG.addEventListener('pointerleave', (ev) => {
+        const g = ev.target;
+        if (!(g instanceof Element) || !g.dataset.edgeId) return;
+        const rec = els.links.get(g.dataset.edgeId);
+        linkLeave(g.dataset.edgeId, ev, rec && rec.label);
+      }, true);
+      linksG.addEventListener('pointerdown', (ev) => {
+        const g = ev.target instanceof Element && ev.target.closest('.uc-link[data-edge-id]');
+        if (!g || ev.button !== 0 || presenting()) return;
+        ev.stopPropagation();
+        linkBarAvoid = { id: g.dataset.edgeId, x: ev.clientX, y: ev.clientY };
+        selectOther('link', g.dataset.edgeId);
+      });
+      linksG.addEventListener('dblclick', (ev) => {
+        const g = ev.target instanceof Element && ev.target.closest('.uc-link[data-edge-id]');
+        if (!g) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        editLinkCondition(g.dataset.edgeId);
+      });
+
       // --- PRESSES ---
       function onPointerDown(e) {
-        if (e.pointerType === 'touch') document.body.classList.add('uc-touch');
+        const t0 = e.target;
+        if (t0 instanceof Element) {   // a label selects its line; a chevron and a note badge keep the press to themselves
+          const lab = t0.closest('.uc-label');
+          if (lab && e.button === 0 && !presenting()) { e.stopPropagation(); if (!t0.isContentEditable) selectOther('link', lab.dataset.edgeId); return; }
+          if (t0.closest(PRESS_OWN)) { e.stopPropagation(); return; }
+        }
+        if (e.pointerType === 'touch') document.body.classList.add('uc-touch', 'is-touch');
         if (e.button > 0) return;
         const t = e.target;
         if (!(t instanceof Element) || t.isContentEditable) return;
         const itemEl = t.closest('.uc-actor, .uc-case');
         if (presenting()) {   // read only: selecting an item (which focuses it) is all a press does
           if (itemEl && !t.closest('.note-badge')) selectItem(itemEl.dataset.nodeId);
-          else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.frame-chev')) selectOther('subject', st.parentNode.dataset.subjectId); }
+          else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.chevron')) selectOther('subject', st.parentNode.dataset.subjectId); }
           return;
         }
-        if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-del, .note-link, .note')) return;
+        if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note, .uc-key')) return;
         closeMenu();
         const grip = t.closest('.uc-subject-tab');
         if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
@@ -1228,8 +1359,8 @@
         if (!itemEl) return;
         const id = itemEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
-        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.uc-port')) { e.preventDefault(); toggleItem(id); return; }
-        if (t.closest('.uc-port')) { beginDrag(e, connectDrag(id)); return; }
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port')) { e.preventDefault(); toggleItem(id); return; }
+        if (t.closest('.port')) { beginDrag(e, connectDrag(id)); return; }
         const group = selIds.length > 1 && selIds.includes(id) ? selIds.slice() : null;
         if (group) {
           if (primaryId() !== id) { selIds = selIds.filter((x) => x !== id).concat(id); applySelection(); }
@@ -1251,10 +1382,8 @@
           d.raf = 0;
           apply();
           routeDiagram(chartData);
-          linksG.textContent = '';
-          html.querySelectorAll('.uc-label').forEach((el) => el.remove());
-          els.links = new Map(); els.parents = [];
-          renderLinks(); renderLabels();
+          renderLinks();
+          renderLabels((el) => { if (!el.parentNode) html.appendChild(el); });
           allSubjects().forEach((s) => { const el = els.subjects.get(s.id); if (el && typeof s.x === 'number') Object.assign(el.style, { left: px(s.x), top: px(s.y), width: px(s.w), height: px(s.h) }); });
           const C = chartData.canvas;
           if (C) { canvas.style.width = px(C.width); canvas.style.height = px(C.height); svg.setAttribute('width', C.width); svg.setAttribute('height', C.height); }
@@ -1291,9 +1420,14 @@
         let faded = null;
         const fade = (on) => {
           if (!faded && on) {
-            const g = [...linksG.querySelectorAll('.uc-link')].filter((x) => ids.includes(x.dataset.from) || ids.includes(x.dataset.to));
-            const lab = [...html.querySelectorAll('.uc-label')].filter((x) => g.some((y) => y.dataset.edgeId && y.dataset.edgeId === x.dataset.edgeId));
-            faded = g.concat(lab);
+            const moving = new Set(ids);
+            faded = [];
+            els.links.forEach((rec) => {
+              if (!moving.has(rec.g.dataset.from) && !moving.has(rec.g.dataset.to)) return;
+              faded.push(rec.g);
+              if (rec.label) faded.push(rec.label);
+            });
+            els.parents.forEach((g) => { if (moving.has(g.dataset.from) || moving.has(g.dataset.to)) faded.push(g); });
           }
           (faded || []).forEach((x) => x.classList.toggle('drag-fade', on));
         };
@@ -1304,11 +1438,12 @@
             const frame = keepSubject && els.subjects.get(keepSubject);
             if (frame) frame.style.translate = `${d.dx}px ${d.dy}px`;   // the frame travels with them
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
-            canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
+            let over = null;
             if (!keepSubject && ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
-              const s = subjectAt(canvasPoint(e)), el = s && els.subjects.get(s.id);
-              if (el) el.classList.add('drop-target');
+              const s = subjectAt(canvasPoint(e));
+              over = s && els.subjects.get(s.id);
             }
+            setMarks(d, [[over, 'drop-target']]);
           },
           drop(e, d) {
             const dx = Math.round(d.dx), dy = Math.round(d.dy);
@@ -1365,13 +1500,12 @@
             const c = centreOf(src), pt = canvasPoint(e);
             rubber.setAttribute('x1', c.x); rubber.setAttribute('y1', c.y); rubber.setAttribute('x2', pt.x); rubber.setAttribute('y2', pt.y);
             rubber.style.display = 'block';
-            canvas.querySelectorAll('.uc-target, .drop-target').forEach((el) => el.classList.remove('uc-target', 'drop-target'));
             d.target = itemIdAt(e.clientX, e.clientY);
-            if (d.target && d.target !== fromId) els.items.get(d.target).classList.add('uc-target');
+            if (d.target && d.target !== fromId) setMarks(d, [[els.items.get(d.target), 'uc-target']]);
             else if (!d.target) {
-              const s = subjectAt(pt), el = s && els.subjects.get(s.id);
-              if (el) el.classList.add('drop-target');
-            }
+              const s = subjectAt(pt);
+              setMarks(d, [[s && els.subjects.get(s.id), 'drop-target']]);
+            } else setMarks(d, []);
           },
           drop(e, d) {
             if (d.target) { connectItems(fromId, d.target); return; }
@@ -1557,6 +1691,7 @@
         const o = selOther;
         if (o && o.kind === 'note') { removeNote(o.id); return; }
         if (o && o.kind === 'link') { deleteLink(o.id); return; }
+        if (o && o.kind === 'key') { if (setKeyLabel(o.id, '')) { selOther = null; commit(false); } return; }
         if (o && o.kind === 'subject') {
           const n = cases().filter((u) => caseSubjectId(u) === o.id).length;
           const s = subjectOf(o.id);
@@ -1595,7 +1730,7 @@
         commit(true, {
           snap, svgSnap, duration: 220,
           afterPlay: () => {
-            const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.frame-chev svg');
+            const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.chevron svg');
             if (chevSvg) {
               motion.anim(chevSvg, wasCollapsed
                 ? [{ transform: 'rotate(-90deg)' }, { transform: 'none' }]
@@ -1834,6 +1969,24 @@
         return { x: m.x, y: m.y, bottom: m.y };
       }
       html.addEventListener('click', (e) => {
+        const t = e.target;
+        const kl = t instanceof Element && t.closest('.uc-key .color-key-label');
+        if (kl) {
+          if (kl.isContentEditable || presenting()) return;
+          e.stopPropagation();
+          selectOther('key', kl.dataset.color);
+          return;
+        }
+        const chev = t instanceof Element && t.closest('.uc-subject-title > .chevron');
+        if (chev) { e.stopPropagation(); toggleCollapsed(chev.parentNode.parentNode.dataset.subjectId); return; }
+        const badge = t instanceof Element && t.closest('.uc-actor > .note-badge, .uc-case > .note-badge');
+        if (badge) {
+          e.stopPropagation();
+          const notes = notesOfItem(badge.parentNode.dataset.nodeId);
+          if (!notes.length) return;
+          if (presenting()) { selOther = selectedNoteId() === notes[0].id ? null : { kind: 'note', id: notes[0].id }; applyNoteVisibility(); } else editNote(notes[0].id);
+          return;
+        }
         const b = e.target.closest('.uc-ab-btn');
         if (!b) return;
         e.stopPropagation();
@@ -1895,6 +2048,7 @@
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
       function beginEdit(el, opts = {}) {
         if (!el || el.isContentEditable) return;
+        staleEl(el.closest('.uc-actor, .uc-case, .uc-subject, .uc-label'));   // its text changes behind the model's back
         if (opts.raw !== undefined) el.textContent = opts.raw;
         el.classList.add('is-editing');
         el.contentEditable = 'plaintext-only';
@@ -2006,12 +2160,23 @@
         if (selOther && selOther.kind === 'note') { editNote(selOther.id); return; }
         if (selOther && selOther.kind === 'subject') { editSubjectName(selOther.id); return; }
         if (selOther && selOther.kind === 'link') { editLinkCondition(selOther.id); return; }
+        if (selOther && selOther.kind === 'key') { editKey(html.querySelector(`.uc-key .color-key-label[data-color="${selOther.id}"]`)); return; }
         if (selIds.length === 1) editName(selIds[0]);
       }
       html.addEventListener('dblclick', (e) => {
+        const lab = e.target instanceof Element && e.target.closest('.uc-label');
+        if (lab) {   // a label's double-click edits the line's condition
+          if (e.target.isContentEditable) return;
+          e.preventDefault();
+          e.stopPropagation();
+          editLinkCondition(lab.dataset.edgeId);
+          return;
+        }
         if (presenting()) return;
         const t = e.target;
-        if (t.closest('.uc-actionbar, .frame-chev, .note-badge, .uc-port, .note') || t.isContentEditable) return;
+        if (t.closest('.uc-actionbar, .chevron, .note-badge, .port, .note') || t.isContentEditable) return;
+        const kl = t.closest('.uc-key .color-key-label');
+        if (kl) { e.stopPropagation(); editKey(kl); return; }
         const ep = t.closest('.uc-ep');
         const item = t.closest('.uc-actor, .uc-case');
         if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }
@@ -2235,6 +2400,11 @@
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));
         DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
+        if (d.colorKey && typeof d.colorKey === 'object') {
+          const inUse = new Set([...(d.useCases || []), ...(d.actors || [])].map((q) => q.color).filter(Boolean));
+          Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k) || !String(d.colorKey[k] || '').trim()) delete d.colorKey[k]; });
+          if (!Object.keys(d.colorKey).length) delete d.colorKey;
+        }
         const layout = {};
         ['actors', 'useCases'].forEach((list) => (d[list] || []).forEach((o) => {
           if (isNum(o.x) && isNum(o.y)) { layout[o.id] = { x: o.x, y: o.y }; delete o.x; delete o.y; }

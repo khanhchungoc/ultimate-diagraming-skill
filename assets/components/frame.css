@@ -1,23 +1,15 @@
     /* Frame: a titled group box drawn around part of a diagram (a sequence phase or fragment). The box and its border are
        SVG the type draws; these are the HTML parts any type shares: the tag that names the frame at its top-left corner,
-       the collapse chevron inside the tag, and the one dashed row a collapsed frame shrinks to. */
+       the shared collapse chevron inside the tag, and the one dashed row a collapsed frame shrinks to. */
     .frame-tag {
-      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 10px 0 8px; font-size: var(--t-detail-size); white-space: nowrap;
+      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 var(--space-8) 0 var(--space-8); font-size: var(--t-detail-size); white-space: nowrap;
       background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm) var(--radius-2xl) var(--radius-sm) var(--radius-sm);
       color: var(--text-main); cursor: pointer; user-select: none;
     }
     .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
-    /* Collapse chevron in every frame tag; a collapsed frame shows one summary row instead of its content */
-    .frame-chev {
-      display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-      padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-      vertical-align: -3px;
-    }
-    .frame-tag:hover .frame-chev, .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-    .frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
-    .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
+    /* The collapse chevron in a frame tag is the shared one (components/chevron.css); a collapsed frame shows one summary row instead of its content */
     .frame-summary {
-      position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
+      position: absolute; height: 26px; padding: 0 var(--space-12); border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
       background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
       white-space: nowrap; cursor: pointer;
     }
