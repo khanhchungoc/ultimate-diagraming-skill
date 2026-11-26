@@ -1579,7 +1579,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         return expand_icons(text, tokens, icons)
 
     logos = load_logos(logo_refs(data), ICON_DIRS)[0]
-    if kind == "c4" and BUNDLED_LOGOS_DIR.is_dir():
+    if kind in ("c4", "sequence") and BUNDLED_LOGOS_DIR.is_dir():
         logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
     extra_css = [type_dir / name for name in meta.get("extraCss", ())]
     extra_js = [type_dir / name for name in meta.get("extraJs", ())]

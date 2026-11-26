@@ -1757,79 +1757,21 @@
         return out;
       };
 
-      // --- Icon picker (#c4-icons): the diagram icons in groups, searched by name; a pack name the page cannot draw is listed as missing ---
-      // The one list of what the picker offers (the registry also holds app chrome: undo, export, shape and type glyphs). A name
-      // missing from assets/icons/default.json fails here, at startup.
-      const ICON_GROUPS = [
-        ['People', ['user', 'users', 'actor', 'headset']],
-        ['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
-        ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
-        ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
-        ['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
-        ['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
-        ['Security', ['lock', 'key', 'shield']]
-      ];
-      ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => { if (ICONS[n] === undefined) throw new Error(`C4 icon picker: "${n}" (${g}) is not in assets/icons/default.json`); }));
-      // `logo:<pack>/<name>` of every local-pack entry this page embeds (the build embeds only the ones a diagram uses)
-      const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+      // --- Icon picker (#c4-icons): shared ui.buildIconPicker in shell.js ---
       function openIcons(anchor, o) {
-        const box = htmlEl('div', 'c4-pop c4-icons');
-        box.id = 'c4-icons';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Icon');
-        const search = htmlEl('input', 'c4-input');
-        search.id = 'c4-icon-search';
-        search.type = 'search';
-        search.placeholder = 'Search icons';
-        search.setAttribute('aria-label', 'Search icons');
-        search.autocomplete = 'off';
-        const list = htmlEl('div', 'c4-icon-list');
-        const note = htmlEl('div', 'c4-icons-note t-detail');
-        note.setAttribute('role', 'status');
         const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined && !ui.hasLogo(String(n).slice(5))))];
-        const pick = (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } };
-        const fill = () => {
-          const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
-          list.textContent = '';
-          let shown = 0;
-          const section = (heading, names) => {
-            if (!names.length) return;
-            if (heading) list.appendChild(htmlEl('div', 'c4-icon-head t-detail', heading));
-            const grid = htmlEl('div', 'c4-icon-grid');
-            grid.setAttribute('role', 'group');
-            grid.setAttribute('aria-label', heading || 'Default');
-            names.forEach((n) => {
-              const b = htmlEl('button', 'c4-icon-opt');
-              b.type = 'button';
-              b.dataset.icon = n;
-              const label = !n ? `Default for ${KIND_NAME[o.kind] || o.kind}` : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
-              b.setAttribute('aria-label', label);
-              b.setAttribute('aria-pressed', String((o.icon || '') === n));
-              if (n.startsWith('logo:')) b.innerHTML = `<span class="c4-icon-logo">${ui.logo(n.slice(5), { size: 'lg' })}</span>`;   // a vendor logo keeps its own colours on a white disc
-              else b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
-              b.addEventListener('click', () => pick(n));
-              grid.appendChild(b);
-            });
-            list.appendChild(grid);
-          };
-          section('', ['']);
-          ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
-          const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
-          const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
-          const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
-          shown += techLogos.length; section('Tech logos', techLogos);
-          shown += localPacks.length; section('Local packs', localPacks);
-          note.textContent = shown ? '' : 'No icon matches.';
-        };
-        search.addEventListener('input', fill);
-        box.append(search, list, note);
-        if (missing.length) {
-          const m = htmlEl('div', 'c4-icons-missing t-detail', `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`);
-          m.setAttribute('role', 'status');
-          box.appendChild(m);
-        }
-        box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); } });
-        fill();
+        const { box, search } = ui.buildIconPicker({
+          id: 'c4-icons',
+          searchId: 'c4-icon-search',
+          current: o.icon || '',
+          defaultIcon: KIND_ICON[o.kind] || 'cloud',
+          defaultLabel: `Default for ${KIND_NAME[o.kind] || o.kind}`,
+          missing,
+          missingText: `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`,
+          classes: { box: 'c4-icons', head: 'c4-icon-head', logo: 'c4-icon-logo', note: 'c4-icons-note', missing: 'c4-icons-missing' },
+          onPick: (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } },
+          onEscape: () => closeFloating('cancel')
+        });
         openFloating(box, anchor);
         search.focus();
       }

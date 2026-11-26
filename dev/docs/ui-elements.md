@@ -79,7 +79,7 @@ One name per state in every type (CSS and JS). Set the class on the item; the sh
 
 ## Other shared elements (already defined once)
 
-Action bar (`ui.actionBar`, `actionbar.css`), note card and badge (`ui.noteCard`, `note.css`, `badge.css`), colour key (`ui.colorKey`), swatch picker (`swatch.css`), swatch pill (`pill.css`), frame tag and summary (`frame.css`), toast (`ui.toast`), popover, toggle, button, dock, search.
+Action bar (`ui.actionBar`, `actionbar.css`), note card and badge (`ui.noteCard`, `note.css`, `badge.css`), colour key (`ui.colorKey`), swatch picker (`swatch.css`), swatch pill (`pill.css`), frame tag and summary (`frame.css`), toast (`ui.toast`), icon picker (`ui.buildIconPicker` / `ui.openIconPicker`, `popover.css`), popover, toggle, button, dock, search.
 
 ## Minimum hit area
 

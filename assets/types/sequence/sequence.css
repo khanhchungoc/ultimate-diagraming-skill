@@ -107,8 +107,13 @@
       font-size: var(--text-sm); font-weight: var(--t-overline-weight); text-align: center; vertical-align: 1px; text-shadow: none;
     }
     .seq-msg-label.selected .seq-msg-num { background: var(--primary); color: var(--bg-panel); }
-    /* Participant kinds: a small icon before the name (system and actor have none) */
+    /* Participant kinds & icons: a small icon or logo disc before the name */
     .seq-kind-icon { flex: none; margin-right: var(--space-4); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: inherit; }
+    .seq-kind-icon.is-logo {
+      display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+      border-radius: var(--radius-round); background: var(--swatch-disc-logo); fill: initial; stroke: none;
+    }
+    .seq-kind-icon.is-logo svg { display: block; }
     /* A rail: a participant with nothing to show in the expanded part of the diagram. The kind icon, and the name
        written downwards (cut short if long: hover or select the rail for the full name) */
     .seq-participant.is-rail {
@@ -116,6 +121,7 @@
       font-size: var(--t-detail-size);
     }
     .seq-participant.is-rail .seq-kind-icon { margin: 0 0 var(--space-4); }
+    .seq-participant.is-rail .seq-kind-icon.is-logo { width: 18px; height: 18px; }
     .seq-participant.is-rail .seq-participant-name {
       writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0; max-height: 48px;
     }
