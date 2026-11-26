@@ -273,6 +273,7 @@
       function buildSubject(s) {
         const real = realSubjects().includes(s);
         const el = htmlEl('div', 'uc-subject');
+        el.dataset.item = '';
         el.dataset.subjectId = s.id;
         const box = typeof s.x === 'number' ? s : { x: 0, y: 0, w: 200, h: 100 };
         Object.assign(el.style, { left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
@@ -283,13 +284,8 @@
         title.style.height = px(titleH);
         title.tabIndex = -1;
         if (real) {
-          const chev = htmlEl('button', 'frame-chev');
-          chev.type = 'button';
+          const chev = ui.chevron({ expanded: s.collapsed !== true, label: s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name' });
           chev.dataset.exportSkip = '';
-          chev.title = s.collapsed === true ? 'Expand this subject' : 'Collapse this subject to its name';
-          chev.setAttribute('aria-label', chev.title);
-          chev.setAttribute('aria-expanded', String(s.collapsed !== true));
-          chev.innerHTML = ui.icon('chevron-down', { size: 'sm', bold: true });
           chev.addEventListener('pointerdown', (ev) => ev.stopPropagation());
           chev.addEventListener('click', (ev) => { ev.stopPropagation(); toggleCollapsed(s.id); });
           title.appendChild(chev);
@@ -386,14 +382,13 @@
       function addItemChrome(el, o) {
         if (!presenting()) {
           [false, true].forEach((leftPort) => {   // an anchor on each side
-            const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-            port.dataset.exportSkip = '';
+            const port = ui.port(leftPort ? 'left' : 'right');
             port.dataset.touchDrag = '';
             port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
             if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
               const off = px((o.w - o._figW) / 2);
               port.style.top = px(o._figH / 2);
-              if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+              port.style.left = leftPort ? `calc(${off} - 1px)` : `calc(100% - ${off} + 1px)`;
             }
             el.appendChild(port);
           });
@@ -571,7 +566,7 @@
           el.tabIndex = id === primaryId() ? 0 : -1;
         });
         if (!selIds.length) { const first = els.items.values().next().value; if (first) first.tabIndex = 0; }
-        canvas.classList.toggle('uc-multi', selIds.length > 1);
+        canvas.classList.toggle('is-multi', selIds.length > 1);
         els.subjects.forEach((el, id) => el.classList.toggle('selected', !!selOther && selOther.kind === 'subject' && selOther.id === id));
         applyLinkState();
         applyNoteSelection();
@@ -1128,7 +1123,7 @@
         const d = drag;
         if (!d) return;
         if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
-        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
+        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging', 'is-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
         d.dx = (e.clientX - d.startX) / scale;
         d.dy = (e.clientY - d.startY) / scale;
         if (d.move) d.move(e, d);
@@ -1137,7 +1132,7 @@
         window.removeEventListener('pointermove', onDragMove);
         window.removeEventListener('pointerup', onDragUp);
         window.removeEventListener('pointercancel', cancelDrag);
-        document.body.classList.remove('uc-dragging');
+        document.body.classList.remove('uc-dragging', 'is-dragging');
         rubber.style.display = 'none';
         canvas.querySelectorAll('.uc-target, .drop-target').forEach((el) => el.classList.remove('uc-target', 'drop-target'));
         const d = drag;
@@ -1199,17 +1194,17 @@
 
       // --- PRESSES ---
       function onPointerDown(e) {
-        if (e.pointerType === 'touch') document.body.classList.add('uc-touch');
+        if (e.pointerType === 'touch') document.body.classList.add('uc-touch', 'is-touch');
         if (e.button > 0) return;
         const t = e.target;
         if (!(t instanceof Element) || t.isContentEditable) return;
         const itemEl = t.closest('.uc-actor, .uc-case');
         if (presenting()) {   // read only: selecting an item (which focuses it) is all a press does
           if (itemEl && !t.closest('.note-badge')) selectItem(itemEl.dataset.nodeId);
-          else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.frame-chev')) selectOther('subject', st.parentNode.dataset.subjectId); }
+          else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.chevron')) selectOther('subject', st.parentNode.dataset.subjectId); }
           return;
         }
-        if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-del, .note-link, .note')) return;
+        if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note')) return;
         closeMenu();
         const grip = t.closest('.uc-subject-tab');
         if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
@@ -1228,8 +1223,8 @@
         if (!itemEl) return;
         const id = itemEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
-        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.uc-port')) { e.preventDefault(); toggleItem(id); return; }
-        if (t.closest('.uc-port')) { beginDrag(e, connectDrag(id)); return; }
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.port')) { e.preventDefault(); toggleItem(id); return; }
+        if (t.closest('.port')) { beginDrag(e, connectDrag(id)); return; }
         const group = selIds.length > 1 && selIds.includes(id) ? selIds.slice() : null;
         if (group) {
           if (primaryId() !== id) { selIds = selIds.filter((x) => x !== id).concat(id); applySelection(); }
@@ -1595,7 +1590,7 @@
         commit(true, {
           snap, svgSnap, duration: 220,
           afterPlay: () => {
-            const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.frame-chev svg');
+            const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.chevron svg');
             if (chevSvg) {
               motion.anim(chevSvg, wasCollapsed
                 ? [{ transform: 'rotate(-90deg)' }, { transform: 'none' }]
@@ -2011,7 +2006,7 @@
       html.addEventListener('dblclick', (e) => {
         if (presenting()) return;
         const t = e.target;
-        if (t.closest('.uc-actionbar, .frame-chev, .note-badge, .uc-port, .note') || t.isContentEditable) return;
+        if (t.closest('.uc-actionbar, .chevron, .note-badge, .port, .note') || t.isContentEditable) return;
         const ep = t.closest('.uc-ep');
         const item = t.closest('.uc-actor, .uc-case');
         if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }
