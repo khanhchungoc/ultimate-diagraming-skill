@@ -95,16 +95,16 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="btn-label">Note</span>
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-numbers" class="btn btn-switch" role="switch" title="Number every message" aria-label="Numbers" aria-checked="false">
+      <button id="btn-numbers" class="btn btn-switch" role="switch" data-dock-priority="7" title="Number every message" aria-label="Numbers" aria-checked="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Numbers</span>
       </button>
-      <button id="btn-details" class="btn btn-switch" role="switch" title="Show each message's detail under its arrow" aria-label="Details" aria-checked="false">
+      <button id="btn-details" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show each message's detail under its arrow" aria-label="Details" aria-checked="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l16 0"/><path d="M4 12l10 0"/><path d="M4 18l14 0"/></svg><span class="btn-label">Details</span>
       </button>
-      <button id="btn-lifespans" class="btn btn-switch" role="switch" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-checked="false">
+      <button id="btn-lifespans" class="btn btn-switch" role="switch" data-dock-priority="9" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-checked="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12"/><path d="M12 3v14" stroke-dasharray="3 3"/><path d="M8 21h8"/></svg><span class="btn-label">Trim lifelines</span>
       </button>
-      <button id="btn-show-all" class="btn" title="Expand every collapsed frame" aria-label="Show all" hidden>
+      <button id="btn-show-all" class="btn" data-dock-priority="6" title="Expand every collapsed frame" aria-label="Show all" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span class="btn-label">Show all</span>
       </button>
       <!-- Shown only while something is selected (plugin.hasSelection) -->

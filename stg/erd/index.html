@@ -95,7 +95,7 @@
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- What is shown -->
       <!-- Columns: one of three views, so a choice from a popover (a radio group), not a button that cycles. Types below is a plain on/off switch. -->
-      <div class="dock-pop-wrap" data-dock-pop>
+      <div class="dock-pop-wrap" data-dock-pop data-dock-priority="7">
         <button id="btn-columns" class="btn dock-pop-trigger" aria-label="Columns" aria-haspopup="true" aria-expanded="false" aria-controls="columns-pop">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/><path d="M13 9h5"/><path d="M13 15h8"/><path d="M13 19h5"/><path d="M3 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/><path d="M3 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/></svg><span class="btn-label">Columns</span><span class="btn-count">All</span>
           <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
@@ -114,7 +114,7 @@
           </div>
         </div>
       </div>
-      <button id="btn-types" class="btn btn-switch" role="switch" title="Show or hide the column types" aria-label="Types" aria-checked="true">
+      <button id="btn-types" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show or hide the column types" aria-label="Types" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4a2 2 0 0 0 -2 2v3a2 3 0 0 1 -2 3a2 3 0 0 1 2 3v3a2 2 0 0 0 2 2"/><path d="M17 4a2 2 0 0 1 2 2v3a2 3 0 0 0 2 3a2 3 0 0 0 -2 3v3a2 2 0 0 1 -2 2"/></svg><span class="btn-label">Types</span>
       </button>
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">

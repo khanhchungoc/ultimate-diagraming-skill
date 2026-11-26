@@ -1424,11 +1424,12 @@ plugin.cancelInteraction(); plugin.clearSelection();
 setHelpOpen(false, false);
 setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
 if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
+if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
 presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
 }
 document.body.classList.toggle('presentation', on);
 btnPresent.setAttribute('aria-pressed', String(on));
-if (!on) syncHeaderCompact();
+if (!on) { syncHeaderCompact(); if (typeof syncDockOverflow === 'function') syncDockOverflow(); }
 if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
 const e = presentEntry;
 undoStack = e.undo; redoStack = e.redo;
@@ -2456,6 +2457,7 @@ btnExport.addEventListener('click', (e) => {
 e.stopPropagation();
 closeMermaidImport();
 setMoreOpen(false);
+if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
 const opening = exportMenu.hidden;
 setExportOpen(opening);
 if (opening && e.detail === 0) {
@@ -2467,6 +2469,7 @@ if (btnMore) btnMore.addEventListener('click', (e) => {
 e.stopPropagation();
 closeMermaidImport();
 setExportOpen(false);
+if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
 const opening = moreMenu.hidden;
 setMoreOpen(opening);
 if (opening && e.detail === 0) {
@@ -2484,12 +2487,14 @@ else exportDiagram(b.dataset.export);
 document.addEventListener('click', (e) => {
 setExportOpen(false);
 setMoreOpen(false);
+if (typeof onDocClickDockMore === 'function') onDocClickDockMore(e);
 if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
 });
 window.addEventListener('keydown', (e) => {
 if (e.key !== 'Escape') return;
 setExportOpen(false);
 setMoreOpen(false);
+if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
 closeMermaidImport();
 });
 const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
@@ -2699,6 +2704,7 @@ motion.flipDock(() => {
 btnDelete.classList.toggle('show', on);
 btnDelete.setAttribute('aria-hidden', String(!on));
 btnDelete.tabIndex = on ? 0 : -1;
+if (typeof syncDockOverflow === 'function') syncDockOverflow();
 });
 }
 function queueDeleteRefresh() {
@@ -2712,6 +2718,353 @@ if (!btnDelete.classList.contains('show')) return;
 plugin.deleteSelection(btnDelete);
 queueDeleteRefresh();
 });
+const dockArea = document.querySelector('.dock-area');
+const dockCenter = document.querySelector('.toolbar-center');
+let dockMoreWrap = null;
+let btnDockMore = null;
+let dockMoreMenu = null;
+let dockMoreSyncObs = null;
+let invokingFolded = false;
+let syncingDock = false;
+let dockSyncQueued = false;
+function dockControlLabel(el) {
+const lbl = el.querySelector('.btn-label');
+const text = (lbl && lbl.textContent.trim()) || el.getAttribute('aria-label') || el.title || el.textContent.trim();
+return text.trim();
+}
+function dockControlIcon(el) {
+const src = el.querySelector('.dock-pop-trigger > svg, :scope > svg, svg');
+if (!src) return null;
+const clone = src.cloneNode(true);
+clone.removeAttribute('width');
+clone.removeAttribute('height');
+clone.setAttribute('aria-hidden', 'true');
+return clone;
+}
+function isDockToggle(el) {
+return el.hasAttribute('aria-checked') || el.hasAttribute('aria-pressed') || el.getAttribute('role') === 'switch';
+}
+function dockToggleChecked(el) {
+const val = el.hasAttribute('aria-checked') ? el.getAttribute('aria-checked') : el.getAttribute('aria-pressed');
+return val === 'true';
+}
+function isDockSep(el) {
+return el.classList.contains('dock-sep') || el.classList.contains('toolbar-sep');
+}
+function isChildVisible(el) {
+return !el.hidden && el.dataset.dockFolded !== 'true' && el.dataset.dockSepHidden !== 'true' && getComputedStyle(el).display !== 'none';
+}
+function syncDockSeparators() {
+if (!dockCenter) return;
+const kids = [...dockCenter.children];
+kids.forEach((el) => { if (isDockSep(el)) delete el.dataset.dockSepHidden; });
+const visible = kids.filter((el) => el !== dockMoreWrap && isChildVisible(el));
+let prevWasSep = true;
+visible.forEach((el) => {
+if (isDockSep(el)) {
+if (prevWasSep) el.dataset.dockSepHidden = 'true';
+else prevWasSep = true;
+} else {
+prevWasSep = false;
+}
+});
+for (let i = visible.length - 1; i >= 0; i--) {
+const el = visible[i];
+if (el.dataset.dockSepHidden === 'true') continue;
+if (isDockSep(el)) el.dataset.dockSepHidden = 'true';
+else break;
+}
+}
+function invokeFoldedOrig(orig) {
+invokingFolded = true;
+try { orig.click(); } finally { invokingFolded = false; }
+}
+function buildDockMoreMenu() {
+if (!dockMoreMenu || !dockCenter) return;
+if (dockMoreSyncObs) { dockMoreSyncObs.disconnect(); dockMoreSyncObs = null; }
+dockMoreMenu.replaceChildren();
+const folded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+const pairs = [];
+const syncPairs = () => {
+pairs.forEach(({ orig, item, kind }) => {
+item.disabled = !!orig.disabled;
+if (kind === 'toggle' || kind === 'radio') {
+item.setAttribute('aria-checked', String(dockToggleChecked(orig)));
+}
+});
+};
+folded.forEach((el) => {
+if (el.matches('[data-dock-pop]')) {
+const trigger = el.querySelector('.dock-pop-trigger');
+const pop = el.querySelector('.dock-pop');
+const opts = pop ? [...pop.querySelectorAll('[role="radio"], [role="menuitemradio"], .dock-pop-grid > button')] : [];
+if (opts.length) {
+const heading = document.createElement('div');
+heading.className = 'menu-label';
+heading.setAttribute('role', 'presentation');
+heading.textContent = trigger ? dockControlLabel(trigger) : 'Options';
+dockMoreMenu.appendChild(heading);
+opts.forEach((opt) => {
+if (opt.hidden) return;
+const isRadio = opt.getAttribute('role') === 'radio' || opt.getAttribute('role') === 'menuitemradio';
+const item = document.createElement('button');
+item.type = 'button';
+item.setAttribute('role', isRadio ? 'menuitemradio' : 'menuitem');
+if (opt.id) item.dataset.dockFor = opt.id;
+const titleEl = opt.querySelector('.gantt-view-opt-title, .tile-caption');
+const labelText = (titleEl && titleEl.textContent.trim()) || opt.getAttribute('aria-label') || opt.textContent.trim();
+const lbl = document.createElement('span');
+lbl.textContent = labelText;
+item.appendChild(lbl);
+if (isRadio) {
+item.setAttribute('aria-checked', String(dockToggleChecked(opt)));
+item.appendChild(ui.iconEl('check', { size: 'sm', class: 'dock-more-check' }));
+}
+item.disabled = !!opt.disabled;
+item._dockOrig = opt;
+item._dockKind = isRadio ? 'radio' : 'action';
+item.addEventListener('click', (e) => {
+e.stopPropagation();
+if (item.disabled) return;
+invokeFoldedOrig(opt);
+syncPairs();
+setDockMoreOpen(false);
+});
+dockMoreMenu.appendChild(item);
+pairs.push({ orig: opt, item, kind: isRadio ? 'radio' : 'action' });
+});
+return;
+}
+}
+const orig = el.matches('button') ? el : el.querySelector('button');
+if (!orig) return;
+const toggle = isDockToggle(orig);
+const item = document.createElement('button');
+item.type = 'button';
+item.setAttribute('role', toggle ? 'menuitemcheckbox' : 'menuitem');
+if (orig.id) item.dataset.dockFor = orig.id;
+const ic = dockControlIcon(orig);
+if (ic) item.appendChild(ic);
+const lbl = document.createElement('span');
+lbl.textContent = dockControlLabel(orig);
+item.appendChild(lbl);
+if (toggle) {
+item.setAttribute('aria-checked', String(dockToggleChecked(orig)));
+item.appendChild(ui.iconEl('check', { size: 'sm', class: 'dock-more-check' }));
+}
+item.disabled = !!orig.disabled;
+item._dockOrig = orig;
+item._dockKind = toggle ? 'toggle' : 'action';
+item.addEventListener('click', (e) => {
+e.stopPropagation();
+if (item.disabled) return;
+invokeFoldedOrig(orig);
+syncPairs();
+if (!toggle) setDockMoreOpen(false);
+});
+dockMoreMenu.appendChild(item);
+pairs.push({ orig, item, kind: toggle ? 'toggle' : 'action' });
+});
+dockMoreMenu._syncPairs = syncPairs;
+if (pairs.length && typeof MutationObserver !== 'undefined') {
+dockMoreSyncObs = new MutationObserver(syncPairs);
+pairs.forEach(({ orig }) => {
+dockMoreSyncObs.observe(orig, { attributes: true, attributeFilter: ['aria-checked', 'aria-pressed', 'disabled'] });
+});
+}
+}
+function setDockMoreOpen(open) {
+if (!dockMoreMenu || !btnDockMore) return;
+if (!open) {
+if (dockMoreSyncObs) { dockMoreSyncObs.disconnect(); dockMoreSyncObs = null; }
+if (!dockMoreMenu.hidden) {
+if (motion.enabled() && btnDockMore.getClientRects().length) {
+motion.ghostExit(dockMoreMenu, { duration: 110, toRect: btnDockMore.getBoundingClientRect() });
+}
+dockMoreMenu.hidden = true;
+}
+btnDockMore.setAttribute('aria-expanded', 'false');
+return;
+}
+buildDockMoreMenu();
+if (!dockMoreMenu.children.length) return;
+setExportOpen(false);
+setMoreOpen(false);
+closeMermaidImport();
+const fromRect = btnDockMore.getBoundingClientRect();
+const wasHidden = dockMoreMenu.hidden;
+dockMoreMenu.hidden = false;
+dockMoreMenu.style.right = '';
+const mr = dockMoreMenu.getBoundingClientRect();
+if (mr.left < 8) dockMoreMenu.style.right = `${Math.round(mr.left - 8)}px`;
+btnDockMore.setAttribute('aria-expanded', 'true');
+if (wasHidden && motion.enabled()) {
+motion.morphRect(fromRect, dockMoreMenu, { duration: motion.dur('dur-fast', 140), easing: 'curve-out' });
+}
+}
+function onDocClickDockMore(e) {
+if (invokingFolded || !dockMoreWrap || !dockMoreMenu || dockMoreMenu.hidden) return;
+if (!dockMoreWrap.contains(e.target)) setDockMoreOpen(false);
+}
+function syncDockOverflow() {
+if (!dockCenter || !dockMoreWrap || syncingDock) return;
+if (document.body.classList.contains('presentation') || document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return;
+if (getComputedStyle(dockCenter).display === 'none') return;
+syncingDock = true;
+try {
+const areaW = dockArea ? dockArea.clientWidth : window.innerWidth;
+if (areaW <= 0) return;
+let avail = areaW;
+const zoomDock = dockArea && dockArea.querySelector('.toolbar-zoom');
+if (zoomDock && getComputedStyle(zoomDock).display !== 'none' && zoomDock.offsetWidth > 0) {
+const zr = zoomDock.getBoundingClientRect();
+const cr = dockCenter.getBoundingClientRect();
+const sameRow = !(zr.bottom <= cr.top + 2 || zr.top >= cr.bottom - 2);
+if (sameRow) {
+const gap = parseFloat(getComputedStyle(dockArea).columnGap) || 8;
+avail = Math.max(0, areaW - zoomDock.offsetWidth - gap);
+}
+}
+const prevFolded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+const kids = [...dockCenter.children];
+kids.forEach((el) => {
+delete el.dataset.dockFolded;
+if (isDockSep(el)) delete el.dataset.dockSepHidden;
+});
+dockMoreWrap.hidden = true;
+syncDockSeparators();
+const borderX = dockCenter.offsetWidth - dockCenter.clientWidth;
+const overflows = () => (dockCenter.scrollWidth + borderX > avail + 1)
+|| (dockCenter.offsetWidth > avail + 1)
+|| (dockCenter.scrollWidth > dockCenter.clientWidth + 1);
+if (overflows()) {
+const candidates = kids
+.map((el, idx) => ({ el, idx, prio: Number(el.dataset.dockPriority) }))
+.filter(({ el, prio }) => el !== dockMoreWrap && Number.isFinite(prio) && el.hasAttribute('data-dock-priority') && isChildVisible(el))
+.sort((a, b) => (b.prio - a.prio) || (b.idx - a.idx));
+let foldedAny = false;
+for (const { el } of candidates) {
+el.dataset.dockFolded = 'true';
+if (!foldedAny) {
+dockMoreWrap.hidden = false;
+foldedAny = true;
+}
+syncDockSeparators();
+if (!overflows()) break;
+}
+}
+const nextFolded = [...dockCenter.children].filter((el) => el.dataset.dockFolded === 'true');
+const foldedChanged = nextFolded.length !== prevFolded.length || nextFolded.some((el, i) => el !== prevFolded[i]);
+if (dockMoreWrap.hidden && dockMoreMenu && !dockMoreMenu.hidden) {
+setDockMoreOpen(false);
+} else if (foldedChanged && dockMoreMenu && !dockMoreMenu.hidden) {
+buildDockMoreMenu();
+}
+} finally {
+syncingDock = false;
+}
+}
+function queueDockSync() {
+if (dockSyncQueued) return;
+dockSyncQueued = true;
+requestAnimationFrame(() => {
+dockSyncQueued = false;
+syncDockOverflow();
+});
+}
+if (dockCenter) {
+dockMoreWrap = document.createElement('div');
+dockMoreWrap.className = 'menu-wrap dock-more-wrap';
+dockMoreWrap.hidden = true;
+btnDockMore = document.createElement('button');
+btnDockMore.id = 'btn-dock-more';
+btnDockMore.type = 'button';
+btnDockMore.className = 'btn btn-icon dock-more-btn';
+btnDockMore.title = 'More actions';
+btnDockMore.setAttribute('aria-label', 'More actions');
+btnDockMore.setAttribute('aria-haspopup', 'menu');
+btnDockMore.setAttribute('aria-expanded', 'false');
+btnDockMore.setAttribute('aria-controls', 'dock-more-menu');
+btnDockMore.innerHTML = ui.icon('more');
+dockMoreMenu = document.createElement('div');
+dockMoreMenu.id = 'dock-more-menu';
+dockMoreMenu.className = 'menu dock-more-menu';
+dockMoreMenu.setAttribute('role', 'menu');
+dockMoreMenu.setAttribute('aria-label', 'More actions');
+dockMoreMenu.hidden = true;
+dockMoreWrap.append(btnDockMore, dockMoreMenu);
+dockCenter.appendChild(dockMoreWrap);
+const enabledMenuItems = () => [...dockMoreMenu.querySelectorAll('[role^="menuitem"]')].filter(
+(el) => !el.hidden && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && getComputedStyle(el).display !== 'none'
+);
+btnDockMore.addEventListener('click', (e) => {
+e.stopPropagation();
+const opening = dockMoreMenu.hidden;
+setDockMoreOpen(opening);
+if (opening && e.detail === 0) {
+const first = enabledMenuItems()[0];
+if (first) first.focus();
+}
+});
+btnDockMore.addEventListener('keydown', (e) => {
+if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+e.preventDefault();
+if (dockMoreMenu.hidden) setDockMoreOpen(true);
+const list = enabledMenuItems();
+if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
+});
+dockMoreMenu.addEventListener('keydown', (e) => {
+if (dockMoreMenu.hidden) return;
+if (e.key === 'Tab') { setDockMoreOpen(false); return; }
+if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setDockMoreOpen(false); btnDockMore.focus(); return; }
+if (e.key === ' ' || e.key === 'Enter') {
+const active = document.activeElement;
+if (active && dockMoreMenu.contains(active) && active.matches('[role^="menuitem"]')) {
+e.preventDefault();
+e.stopPropagation();
+if (active.disabled) return;
+const orig = active._dockOrig;
+const role = active.getAttribute('role');
+if (orig) invokeFoldedOrig(orig);
+if (dockMoreMenu._syncPairs) dockMoreMenu._syncPairs();
+if (e.key === ' ' && (role === 'menuitemcheckbox' || role === 'menuitemradio')) return;
+setDockMoreOpen(false);
+if (!document.activeElement || document.activeElement === document.body || dockMoreMenu.contains(document.activeElement)) {
+btnDockMore.focus();
+}
+}
+return;
+}
+if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+const list = enabledMenuItems();
+if (!list.length) return;
+e.preventDefault();
+const i = list.indexOf(document.activeElement);
+const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+: i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
+: (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+list[next].focus();
+});
+if (typeof ResizeObserver !== 'undefined') {
+const dockRo = new ResizeObserver(() => { if (!syncingDock) queueDockSync(); });
+if (dockArea) dockRo.observe(dockArea);
+dockRo.observe(dockCenter);
+}
+if (typeof MutationObserver !== 'undefined') {
+new MutationObserver((records) => {
+if (syncingDock) return;
+const relevant = records.some((r) => {
+if (dockMoreWrap && dockMoreWrap.contains(r.target)) return false;
+return r.type === 'childList'
+|| (r.attributeName !== 'data-dock-folded' && r.attributeName !== 'data-dock-sep-hidden');
+});
+if (relevant) queueDockSync();
+}).observe(dockCenter, { childList: true, attributes: true, subtree: true, attributeFilter: ['hidden', 'class'] });
+new MutationObserver(() => queueDockSync()).observe(document.body, { attributes: true, attributeFilter: ['data-gantt-mode', 'class'] });
+}
+window.addEventListener('resize', queueDockSync);
+queueDockSync();
+}
 const FOLDER_STORE_LIMIT = 20;
 let dirPickerBlocked = false;   // flipped if the host rejects showDirectoryPicker as unsupported here
 function isEmbeddedFrame() {
