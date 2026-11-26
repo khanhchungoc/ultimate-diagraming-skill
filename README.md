@@ -1,5 +1,6 @@
 # Ultimate Diagram Skill
 
+[![version](https://img.shields.io/github/v/release/khanhchungoc/ultimate-diagraming-skill?label=version)](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest)
 [![npm installs](https://img.shields.io/npm/dt/ultimate-diagram?label=npm%20installs)](https://www.npmjs.com/package/ultimate-diagram)
 [![zip downloads](https://img.shields.io/github/downloads/khanhchungoc/ultimate-diagraming-skill/total?label=zip%20downloads)](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases)
 
