@@ -124,10 +124,21 @@ try {
     await t.ev(`document.getElementById('btn-undo').click()`);
     await sleep(150);
     t.check(`${kind}: one Undo takes the edited import back`, JSON.stringify(await save()) === JSON.stringify(after1));
-    await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', ${JSON.stringify(edited)});
-      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+    const pasteOnCanvas = async (payload) => {
+      await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', ${JSON.stringify(payload)});
+        document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+      await sleep(200);
+    };
+    await pasteOnCanvas(edited);
+    t.check(`${kind}: pasting matching Mermaid onto the canvas opens a confirmation popup`,
+      await t.ev(`(() => { const c = document.querySelector('.confirm'); return !!c && /Replace diagram\\?/.test(c.textContent || '') && !!c.querySelector('.confirm-cancel') && !!c.querySelector('.confirm-ok'); })()`));
+    await t.clickOn('.confirm .confirm-cancel');
+    await sleep(150);
+    t.check(`${kind}: Cancel on paste confirm leaves the diagram unchanged`, (await save())[E.list].length === base[E.list].length);
+    await pasteOnCanvas('```mermaid\n' + edited + '\n```');
+    await t.clickOn('.confirm .confirm-ok');
     await sleep(400);
-    t.check(`${kind}: pasting Mermaid onto the canvas imports it`, (await save())[E.list].length === base[E.list].length + 1);
+    t.check(`${kind}: confirming canvas paste overrides the diagram (including fenced Mermaid)`, (await save())[E.list].length === base[E.list].length + 1);
 
     // 3. Text of another diagram type is refused with a message, and the diagram stays
     await t.open(file);
@@ -140,6 +151,16 @@ try {
       await save();
       return x;
     })();
+    await pasteOnCanvas(otherText);
+    const wrongWarn = await t.ev(`(() => { const c = document.querySelector('.confirm'); return c ? { text: c.textContent || '', hasCancel: !!c.querySelector('.confirm-cancel'), hasOk: !!c.querySelector('.confirm-ok') } : null; })()`);
+    t.check(`${kind}: pasting ${TYPE_NAME[other]} onto canvas shows a dismissible warning popup naming both types`,
+      !!wrongWarn && !wrongWarn.hasCancel && wrongWarn.hasOk && wrongWarn.text.includes(TYPE_NAME[other]) && wrongWarn.text.includes(TYPE_NAME[kind]),
+      JSON.stringify(wrongWarn));
+    await t.clickOn('.confirm .confirm-ok');
+    await sleep(150);
+    t.check(`${kind}: dismissing the wrong-type warning closes it and leaves the diagram unchanged`,
+      await undoSteps() && await t.ev(`!document.querySelector('.confirm')`));
+
     const err3 = await importText(otherText);
     t.check(`${kind}: ${TYPE_NAME[other]} text is refused, naming both types`, err3.includes(TYPE_NAME[other]) && err3.includes(TYPE_NAME[kind]), err3);
     t.check(`${kind}: the refused text changed nothing (no undo step, bubble still open)`, await undoSteps() && await t.ev(`!!document.querySelector('.confirm-field')`));
@@ -148,6 +169,27 @@ try {
     await t.press('Escape');
     t.check(`${kind}: Escape closes the bubble`, await t.ev(`!document.querySelector('.confirm-field')`));
   }
+
+  // 3b. Unsupported Mermaid type and malformed Mermaid show dismissible warning popups on canvas paste
+  await t.open(pages.flowchart);
+  await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'classDiagram\\n  class Animal');
+    document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+  await sleep(200);
+  const unsupWarn = await t.ev(`(() => { const c = document.querySelector('.confirm'); return c ? { text: c.textContent || '', hasCancel: !!c.querySelector('.confirm-cancel') } : null; })()`);
+  t.check('flowchart: pasting unsupported Mermaid (classDiagram) shows a dismissible warning popup',
+    !!unsupWarn && !unsupWarn.hasCancel && /classDiagram/.test(unsupWarn.text), JSON.stringify(unsupWarn));
+  await t.press('Escape');
+  await sleep(150);
+  t.check('flowchart: Escape dismisses the warning popup', await t.ev(`!document.querySelector('.confirm')`));
+
+  await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', 'flowchart TD\\n  A[unterminated');
+    document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+  await sleep(200);
+  const badWarn = await t.ev(`(() => { const c = document.querySelector('.confirm'); return c ? { text: c.textContent || '', hasCancel: !!c.querySelector('.confirm-cancel') } : null; })()`);
+  t.check('flowchart: pasting invalid Mermaid shows a dismissible warning popup without Replace confirm',
+    !!badWarn && !badWarn.hasCancel && /Could not read Mermaid/.test(badWarn.text), JSON.stringify(badWarn));
+  await t.clickOn('.confirm .confirm-ok');
+  await sleep(150);
 
   // 4. The reader's notes are shown: an ignored style line on a flowchart
   await t.open(pages.flowchart);
