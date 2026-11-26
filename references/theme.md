@@ -6,8 +6,8 @@ Two ways to get one, then the same finishing step:
 
 | Source | You do | Command |
 |---|---|---|
-| Website | nothing | `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview` |
-| Brand guide (PDF, image, CSS file) | read the guide, write `partial.json` as described below | `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview` |
+| Website | run `--url`; check `[NAV]` subpages / `[CAPTURE]` if incomplete | `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview` |
+| Brand guide (PDF, image, CSS, or multi-page brand portal) | read the guide/subpages, write `partial.json` as described below | `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview` |
 
 `--complete` always runs: it fills missing keys, derives shades, builds the palette, measures the font, checks contrast in light and dark, and fixes failures. The result goes to `<skill-dir>/theme.json` (inside the skill folder — applies across projects for user-level installs without adding files to your project repo, and is preserved across skill updates; use `--out .ultimate-diagram/theme.json` for a per-project override). Show the user the printed report and the preview images, and keep the theme only if they accept it.
 
@@ -16,10 +16,14 @@ Two ways to get one, then the same finishing step:
 When the user gives a website URL or a brand guide (PDF, image, CSS) and wants diagrams in that look:
 
 1. **Website URL:** Always read the page in a real browser — run `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview` (it opens the link in headless Chrome; never rely on plain HTTP/web-fetch alone, because sites load styles via CSS/JS).
+   - **If extraction exits `0` but is incomplete or comes from a hierarchical design system / brand portal** (for example: output prints `[WARN] no brand colour found`, `[NAV]` lists brand subpages such as colour/palette/typography/icons, only 1 brand colour was extracted when the site documents a palette, or the URL points to a multi-page brand guide): **do not stop at that single page's computed CSS.**
+     - Inspect any `[CAPTURE]` screenshot and follow relevant `[NAV]` subpages (colour, palette, typography, icons).
+     - Documented swatches, hex tables, and type scales on brand portals are often static tiles or text rather than styled buttons, so read those subpages in a browser (or run `--url` with `--capture` on them to inspect visually), merge all documented brand tokens into `<scratch>/partial.json`, and run the `--from` command in step 2.
+     - Only treat a colour-less exit `0` result as final if the site genuinely is a single-page monochrome brand.
    - **If extraction exits `2` (no meaningful styling found or page failed to load):** No `theme.json` is written.
      - If the output prints `[CAPTURE] <path>`, inspect that browser screenshot first: if the brand page rendered visually (for example an image-, SVG-, or canvas-heavy design), extract its visible colours and style into `<scratch>/partial.json` and run the `--from` command below.
      - If the screenshot is blank/blocked/error or Chrome could not load the URL, and you have a browser tool available, try opening the link in the browser and capturing a screenshot from there (never attempt to bypass a login wall or CAPTCHA/bot check — stop and ask the user if gated).
-2. **Brand guide (PDF, image, CSS, screenshot):** Read it yourself, write `<scratch>/partial.json` as described below, then run `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
+2. **Brand guide (PDF, image, CSS, screenshot, or brand-portal subpages):** Read it yourself, write `<scratch>/partial.json` as described below, then run `python "<skill-dir>/scripts/extract_tokens.py" --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
 3. **If no meaningful styling can be read or extracted (from a webpage or any file):** Do **not** save an empty/default `theme.json` or guess colours. Tell the user clearly why extraction did not work (for example: site requires login, blocked automated access, file had no readable styling, or only default black-on-white system styles were found) and suggest they try one of these:
    - Open the website or brand page in their browser, take a **screenshot**, and share the image.
    - Upload a **brand guide** (PDF, image, CSS/design-tokens file) or save the webpage from their browser (`File → Save Page As`).
@@ -104,7 +108,7 @@ Read the guide yourself. Write only what the guide states; leave everything else
 
 ## What the report shows
 
-Each line starts with a tag: `[MAP]` a value taken from the site or file (with its source), `[DERIVE]` a value computed from another, `[FIX]` a value moved to pass a contrast or colour-blindness check (old and new value with both ratios; only OKLCH lightness moves, so hue stays on brand), `[NOTE]` a decision, `[WARN]` something the user should look at (for example the font did not load, so the default `font.metrics` stay), `[CAPTURE]` a browser screenshot saved when automatic style extraction found nothing usable, `[SUGGEST]` recommended next steps for the user when no meaningful styling was found (exit `2`, no theme written), `[FAIL]` a check that could not be met (the command then exits `1`: do not use that theme).
+Each line starts with a tag: `[MAP]` a value taken from the site or file (with its source), `[DERIVE]` a value computed from another, `[FIX]` a value moved to pass a contrast or colour-blindness check (old and new value with both ratios; only OKLCH lightness moves, so hue stays on brand), `[NAV]` a same-origin brand or design-system subpage discovered on the page (such as colour or typography guidelines), `[NOTE]` a decision, `[WARN]` something the user should look at (for example no brand colour was found or the font did not load), `[CAPTURE]` a browser screenshot saved when automatic style extraction found no brand colour or nothing usable, `[SUGGEST]` recommended next steps for the user when no meaningful styling was found (exit `2`, no theme written), `[FAIL]` a check that could not be met (the command then exits `1`: do not use that theme).
 
 Report to the user: the brand colour that changed most through a `[FIX]` (a pale yellow brand colour becomes olive in diagram lines, for example), the fonts that fall back, and whether the icon set was matched.
 
