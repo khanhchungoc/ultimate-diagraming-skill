@@ -65,6 +65,18 @@ One name per state in every type (CSS and JS). Set the class on the item; the sh
 | Tokens | `--select-ring-w`, `--hover-shadow`, `--ring-thin`, `--shadow-ring`, `--dim`, `--dim-filter`, `--primary` |
 | Types | c4 (nodes, tiles), erd (tables), gantt (task bars; summary bars and milestones keep their own), usecase (subjects), sequence (frame boxes, branch lines, lifeline caps, message lines). Not yet: sequence participants (the pill's own ring, `components/pill.css`), usecase actors and cases (the ring is on the inner shape), flowchart connector circles. Flowchart steps carry `data-item`; a decision or classic shape has no box, so its own outline takes the same `--primary` / `--select-ring-w` look. |
 
+### Dock overflow More menu
+
+| | |
+|---|---|
+| Markup | Injected by `assets/shell/shell.js` at the end of `.toolbar-center`: `.menu-wrap.dock-more-wrap > button#btn-dock-more.btn.btn-icon.dock-more-btn` (`aria-label="More actions"`, `aria-haspopup="menu"`, `aria-expanded`) and `#dock-more-menu.menu.dock-more-menu` (`role="menu"`, `aria-label="More actions"`). Secondary controls in a type's `toolbar.html` opt in with `data-dock-priority="N"` (higher number folds first; controls without it never fold). |
+| CSS | `assets/components/dock.css` (and shared `.menu` rules in `assets/components/popover.css`) |
+| Behaviour | A `ResizeObserver` on `.dock-area` and `.toolbar-center` folds the highest-priority controls (`data-dock-folded="true"`) until the dock fits, hiding orphaned `.dock-sep` separators (`data-dock-sep-hidden="true"`), and unfolds them when room returns. Folded controls stay in the DOM; menu items invoke `.click()` on the original button, mirror icon/label/disabled state, and sync `aria-checked` (`menuitemcheckbox` for switches/toggles, `menuitemradio` for folded popover radio groups, `menuitem` for plain actions). |
+| Keyboard & motion | `ArrowDown`/`ArrowUp`/`Home`/`End` move between enabled items; `Space` toggles `menuitemcheckbox`/`menuitemradio` without closing; `Enter` activates and closes; `Escape` closes and returns focus to `#btn-dock-more`; `Tab` closes without trapping focus. Opens via `motion.morphRect` from `#btn-dock-more` (respecting reduced motion). |
+| Tokens | `--ctrl-h`, `--dock-inset`, `--dock-pad`, `--space-*`, `--icon-lg`, `--icon-sm`, `--dur-fast`, `--curve-out`, `--curve-spring-tactile` |
+| Hit area | `#btn-dock-more` and every menu item are at least `--ctrl-h` (32 px; 40 px on coarse pointer, above WCAG 2.5.8 24 px minimum). |
+| Types | Shared by all six types (flowchart, sequence, erd, usecase, c4, gantt). |
+
 ## Other shared elements (already defined once)
 
 Action bar (`ui.actionBar`, `actionbar.css`), note card and badge (`ui.noteCard`, `note.css`, `badge.css`), colour key (`ui.colorKey`), swatch picker (`swatch.css`), swatch pill (`pill.css`), frame tag and summary (`frame.css`), toast (`ui.toast`), popover, toggle, button, dock, search.
