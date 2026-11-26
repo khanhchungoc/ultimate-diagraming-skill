@@ -112,3 +112,32 @@ Notes logic is copied in c4, erd, flowchart, usecase and gantt (`commitNote`, `r
 3. Visible focus ring from `--focus-ring` on every item; screen-reader label per item (reuse the existing `aria-label` text).
 4. Update `ACCESSIBILITY.md` known limitations.
 5. e2e: Tab into each sample, arrow through every item, edit and delete one by keyboard.
+
+## Parallel delivery
+
+The phases above are in priority order. Several can run at the same time because they touch different files. The waves below are the delivery order; each stream is one branch from the latest `origin/stg` and one PR.
+
+**Main agent only (never given to a stream):** `dev/tests/run_unit.mjs`, `dev/tests/run_e2e.mjs`, `SKILL.md`, `README.md`, `ACCESSIBILITY.md`, `CONTRIBUTING.md`, and `dev/samples/example-*.html`. Streams list the tests or docs lines they need; the main agent adds them, then regenerates and re-signs the samples once per wave (`build_examples.py`), so streams never conflict on generated pages.
+
+| Wave | Stream | Scope | Files it owns |
+|---|---|---|---|
+| A | A1 Accessibility quick fixes | Phase 1 except collapse arrows and connection handles (those move to B2) | `gantt/stage.html`, `gantt/table.js`, toast in `shell.js` + `shell.html`, forced-colors block in `shell.css`, hit areas in `badge.css`, `note.css`, `sequence.css`, `c4.css` (note pin only), new axe + target-size e2e |
+| A | A2 Router index | Phase 2 steps 1, 2, 4 | `assets/shell/ortho-router.js`, `dev/bench/bench_router.mjs`, new unit perf test |
+| A | A3 Token groundwork | Phase 4 steps 2, 4, 5, 6, plus the definitions (not the migration) of the `space` scale and the Phase 5 step 3 interaction tokens | `assets/tokens/default.json`, `scripts/tokens.py`, `check_tokens.py`, `check_contrast.py`, the 15 findings in `gantt.css`, `table.css`, `c4.css`, `flowchart.js` lines 1-4 |
+| A | A4 Smaller pages | Phase 7 | `scripts/layout_engine.py` (`assemble_page`) and its unit test |
+| B | B1 Drag and render speed | Phase 2 step 3 + Phase 3 | `flowchart.js` render and drag functions, then the same pattern in the other types' render functions |
+| B | B2 Shared UI elements | Phase 5, plus Phase 1 hit areas for collapse arrows and handles | `assets/components/*` (new `chevron.css`, `port.css`, `item-states.css`, `edge.css`), the `ui` object in `shell.js`, type CSS, the chevron/port markup in type JS, `references/ui-elements.md`, gallery page, drift checker |
+| B | B3 Shared notes module | Phase 6 | new `assets/shell/notes.js`, the notes functions in each type's JS |
+| C | C1 Spacing migration | Phase 4 step 1 (migrate every CSS file to `--space-*`) | all CSS files |
+| C | C2 Keyboard access | Phase 8 | new `assets/shell/keyboard.js`, new `assets/components/focus.css`, key handling in type JS |
+
+Why this order:
+
+- **Wave A (4 streams)** share no files. A2 must keep routes identical, so it is safe next to anything.
+- **Wave B waits for A3** (B2 uses the interaction tokens) **and A2** (B1's drag re-route uses the router index).
+- **B1 and B2 both touch `flowchart.js` `renderNodes`** (connection handles are built there, `flowchart.js:1318`). B2 migrates the other five types first and flowchart last, after B1 merges.
+- **B3 touches only the notes functions** in each type's JS, a different region from B1 and B2. A merge with no line conflicts is expected; the main agent resolves any that appear.
+- **Spacing migration (C1) runs after B2**, because B2 deletes many per-type CSS rules; migrating them first would be wasted work.
+- **Keyboard access (C2) runs last** (lowest priority). It builds on B2's item states and B1's single click handler per layer. Its CSS goes in a new file, so it can run alongside C1.
+
+Each stream follows the project's subagent rules: leaf workers only (no further subagents), disjoint files, interface pinned in the prompt (class names, token names, `ui.*` signatures from this plan), and the main agent reviews every change and runs the wave's e2e suite before merging.
