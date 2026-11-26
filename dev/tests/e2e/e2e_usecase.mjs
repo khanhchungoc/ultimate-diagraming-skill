@@ -224,6 +224,8 @@ sys.stdout.write(f.format_json(out))`;
   t.check('no hover "+" note chip on items (the action bar has the note button)', (await count('.note-add')) === 0);
   // a note by the dock: select a use case, then the Note tile
   await t.clickOn(item('pick'));
+  const ucActs = await t.ev(`JSON.stringify([...document.querySelectorAll('.uc-actionbar [data-act]')].map((b) => b.dataset.act))`);
+  t.check('use case action bar places note directly next to delete', /,"note","delete"\]$/.test(ucActs), ucActs);
   await tile('#btn-add-note');
   t.check('Add > Note on a selected use case opens a note card for typing', (await t.ev(`!!document.activeElement && document.activeElement.classList.contains('note-text')`)));
   await t.type('Only after 08:00');

@@ -38,10 +38,11 @@
     .edge-label--wrap { white-space: normal; }
     /* One line of detail text that ends in an ellipsis (ER relationship names) */
     .edge-label--single {
-      display: flex; padding: 0 var(--space-8); max-width: none; white-space: nowrap; pointer-events: auto;
+      display: flex; padding: 0 var(--space-4); max-width: var(--edge-label-max-w, 140px); white-space: nowrap; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-none);
     }
     .edge-label--single > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .edge-label--single.is-editing-label > * { overflow: visible; text-overflow: clip; }
     .edge-label.is-dim { opacity: var(--dim); }
     .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
     .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }

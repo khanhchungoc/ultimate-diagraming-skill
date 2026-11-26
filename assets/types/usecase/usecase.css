@@ -12,7 +12,7 @@
     /* --- Subjects: a frame, not a category: neutral panel with the border token --- */
     .uc-subject {
       position: absolute; box-sizing: border-box; z-index: 5; pointer-events: none;
-      background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-2xl); color: var(--text-main);
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-3xl); color: var(--text-main);
       box-shadow: var(--shadow-canvas); transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
     /* Edge tabs: a short pill centred on the right and on the bottom edge, shown on hover or selection; drag to resize that way */

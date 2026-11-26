@@ -63,7 +63,7 @@ try {
   // A point on a line that really hits it (the line's own hit path under the pointer), away from its label pill
   const onLine = (id) => t.ev(`(() => {
     const g = document.querySelector('.erd-rel[data-edge-id="${id}"]'); const p = g.querySelector('.edge-hit'); const L = p.getTotalLength();
-    for (const f of [0.2, 0.3, 0.42, 0.6, 0.72, 0.82, 0.12, 0.9, 0.5]) {
+    for (const f of [0.5, 0.42, 0.58, 0.3, 0.7, 0.2, 0.8, 0.12, 0.9]) {
       const q = p.getPointAtLength(L * f), m = p.getScreenCTM(); const x = m.a * q.x + m.e, y = m.d * q.y + m.f;
       const hit = document.elementFromPoint(x, y);
       if (hit && hit.closest('.erd-rel') === g) return { x, y };
@@ -326,7 +326,7 @@ sys.stdout.write(format_json(out))`;
   t.check('dragging from a row’s port onto a PK row: the start row becomes fk, ends zero-or-many to one, `columns` set',
     d.relationships.length === before + 1 && r10?.columns?.join() === 'rating' && r10.fromEnd === 'zeroOrMany' && r10.toEnd === 'one' && !('toColumns' in r10)
       && ent(d, 'review').columns[3].fk === true && !r10.identifying && /^r\d+$/.test(r10.id), J(r10));
-  t.check('the new line is selected, with its end handles and action bar', (await count('.erd-rel.selected')) === 1 && (await count('.port-end')) === 2 && (await count('.erd-actionbar [data-act="reverse"]')) === 1);
+  t.check('the new line is selected, with its end handles and action bar', (await count('.erd-rel.selected')) === 1 && (await count('.port-end')) === 2 && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4);
   await undo();
   t.check('drawing a relationship is one undo step', (await saved()).relationships.length === before);
   // from the header onto the header: no columns
@@ -388,10 +388,11 @@ sys.stdout.write(format_json(out))`;
   q = await onLine('r2');
   await t.click(q.x, q.y);
   const barTags = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-actionbar .erd-ab-tag')].map((el) => el.textContent))`);
-  t.check('clicking a line selects it: table-name tags, two crow’s-foot pickers (4 glyphs each), Reverse, label (no Identifying button) and 2 end handles',
+  const endTitles = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-actionbar [data-act="fromEnd"]')].map((el) => el.title))`);
+  t.check('clicking a line selects it: table-name tags, two crow’s-foot pickers (4 glyphs each with concise titles), no Reverse/Label/Identifying, and 2 end handles',
     (await count('.erd-rel.selected')) === 1 && barTags === J(['order', 'customer']) && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4 && (await count('.erd-actionbar [data-act="toEnd"]')) === 4
-      && (await count('.erd-actionbar [data-act="identifying"]')) === 0
-      && (await count('.erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 2 && (await count('.port-end')) === 2, barTags);
+      && endTitles === J(['one', 'zero or one', 'one or many', 'zero or many'])
+      && (await count('.erd-actionbar [data-act="identifying"], .erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 0 && (await count('.port-end')) === 2, `${barTags} ${endTitles}`);
   t.check('the pickers show the current ends as pressed', (await t.ev(`document.querySelector('.erd-actionbar [data-act="fromEnd"][data-value="zeroOrMany"]').getAttribute('aria-pressed')`)) === 'true'
     && (await t.ev(`document.querySelector('.erd-actionbar [data-act="toEnd"][data-value="one"]').getAttribute('aria-pressed')`)) === 'true');
   await t.clickOn('.erd-actionbar [data-act="fromEnd"][data-value="oneOrMany"]');
@@ -400,24 +401,19 @@ sys.stdout.write(format_json(out))`;
   const markerNow = await t.ev(`getComputedStyle(document.querySelector('.erd-rel[data-edge-id="r2"] .edge-line')).getPropertyValue('--mk-s')`);
   t.check('each picker sets its end (child: one or many, parent: zero or one) and the line’s markers follow',
     rel(d, 'r2').fromEnd === 'oneOrMany' && rel(d, 'r2').toEnd === 'zeroOrOne' && /oneOrMany/.test(markerNow), `${J(rel(d, 'r2'))} ${markerNow}`);
-  await t.clickOn('.erd-actionbar [data-act="reverse"]');
-  d = await saved();
-  const solid = await t.ev(`document.querySelector('.erd-rel[data-edge-id="r2"] .edge-line').classList.contains('identifying')`);
-  t.check('Reverse swaps child and parent and their ends, keeps the joined rows, and automatically marks identifying when from-columns are PKs',
-    rel(d, 'r2').from === 'customer' && rel(d, 'r2').to === 'order' && rel(d, 'r2').fromEnd === 'zeroOrOne' && rel(d, 'r2').toEnd === 'oneOrMany'
-      && rel(d, 'r2').columns.join() === 'id' && rel(d, 'r2').toColumns.join() === 'customer_id' && rel(d, 'r2').identifying === true && solid, J(rel(d, 'r2')));
-  for (let i = 0; i < 3; i++) await undo();
-  t.check('each picker and reverse was one undo step (three)', J(rel(await saved(), 'r2')) === J(rel(JSON.parse(readBlock(page)), 'r2')), J(rel(await saved(), 'r2')));
-  // label
+  for (let i = 0; i < 2; i++) await undo();
+  t.check('each picker was one undo step (two)', J(rel(await saved(), 'r2')) === J(rel(JSON.parse(readBlock(page)), 'r2')), J(rel(await saved(), 'r2')));
+  // label + max-width & reduced padding
   q = await onLine('r8');
   await t.click(q.x, q.y, { count: 2 });
   const labelEdit = await editing();
-  await t.type('reviews');
+  await t.type('has a very long relationship label name');
   await t.press('Enter');
   d = await saved();
-  t.check('double-clicking a line without a label opens a label edit; Enter saves it and the pill appears',
-    labelEdit === '' && rel(d, 'r8').label === 'reviews' && (await text('.edge-label[data-edge-id="r8"] .erd-rel-label-text')) === 'reviews', `${labelEdit} ${J(rel(d, 'r8'))}`);
-  await t.press('Escape');   // the three-row line bar would cover the label
+  const lblBox = await t.ev(`(() => { const el = document.querySelector('.edge-label[data-edge-id="r8"]'); const cs = el && getComputedStyle(el); return el ? { w: Math.round(el.offsetWidth), padL: parseFloat(cs.paddingLeft), text: el.querySelector('.erd-rel-label-text')?.textContent } : null; })()`);
+  t.check('double-clicking a line without a label opens a label edit; long labels cap at 140px with tight padding',
+    labelEdit === '' && rel(d, 'r8').label === 'has a very long relationship label name' && lblBox && lblBox.w <= 140 && lblBox.padL <= 5, `${labelEdit} ${J(lblBox)}`);
+  await t.press('Escape');   // clear selection before clicking r1 label
   const lab = await t.at('.edge-label[data-edge-id="r1"]');
   await t.click(lab.x, lab.y, { count: 2 });
   const hadLabel = await editing();
@@ -425,12 +421,18 @@ sys.stdout.write(format_json(out))`;
   await t.press('Enter');
   d = await saved();
   t.check('double-clicking a label edits it', hadLabel === 'has' && rel(d, 'r1').label === 'lives at', `${hadLabel} ${J(rel(d, 'r1'))}`);
-  await t.clickOn('.edge-label[data-edge-id="r1"]');
-  await t.clickOn('.erd-actionbar [data-act="label"]');
+  const lab1 = await t.at('.edge-label[data-edge-id="r1"]');
+  await t.click(lab1.x, lab1.y, { count: 2 });
   await t.press('Backspace');
   await t.press('Enter');
   d = await saved();
-  t.check('the label button edits; an empty label removes it', !('label' in rel(d, 'r1')) && (await count('.edge-label[data-edge-id="r1"]')) === 0);
+  t.check('clearing a label on double-click removes it', !('label' in rel(d, 'r1')) && (await count('.edge-label[data-edge-id="r1"]')) === 0);
+  await t.clickOn(head('order'));
+  const entActs = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-actionbar [data-act]')].map((b) => b.dataset.act))`);
+  t.check('table action bar puts note right next to delete', /,"note","delete"\]$/.test(entActs), entActs);
+  await pickRow('order', 'status');
+  const colActs = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-actionbar [data-act]')].map((b) => b.dataset.act))`);
+  t.check('column action bar puts note right next to delete', /,"colnote","delcol"\]$/.test(colActs), colActs);
   // re-point: the parent end of r8 (review -> product) to category
   await freshPage();
   q = await onLine('r8');
@@ -745,7 +747,7 @@ sys.stdout.write(format_json(out))`;
   t.check('the dock has no Auto-Tidy toggle on the ERD page (only the shell Tidy button)', (await count('#btn-auto-layout')) === 0 && (await count('#btn-auto-tidy')) === 1);
   const lay0 = await layoutOf();
   const hd = await t.at(head('category'));
-  await t.dragTo(hd.x, hd.y, hd.x + 120, hd.y - 150);
+  await t.dragTo(hd.x, hd.y, hd.x + 120, hd.y + 20);
   const off1 = await layoutOf();
   d = await saved();
   t.check('dragging a table writes its x/y (flow terms) and moves no other table',
@@ -811,7 +813,6 @@ sys.stdout.write(format_json(out))`;
     ['draw a relationship', async () => { const p1 = await portOf('review', 'rating'), g1 = await t.at(row('category', 'id')); await t.dragTo(p1.x, p1.y, g1.x, g1.y); }],
     ['re-point a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); const h1 = await t.at('.port-end[data-role="to"]'), g1 = await t.at(row('category', 'name')); await t.dragTo(h1.x, h1.y, g1.x, g1.y); }],
     ['pick a cardinality', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="toEnd"][data-value="oneOrMany"]'); }],
-    ['reverse a relationship', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="reverse"]'); }],
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],

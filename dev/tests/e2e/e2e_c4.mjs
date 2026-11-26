@@ -674,13 +674,22 @@ try {
   await section('actionbar-element', async () => {
     await freshPage();
     await clickName('Customer');
+    const topOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const topActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level element action bar has only icon, core, delete, color',
-      (await present(A.bar)) && J(topActs) === J(['color', 'core', 'delete', 'icon']), J(topActs));
+    t.check('top-level element action bar has icon, core, color, note, delete (note before delete)',
+      (await present(A.bar)) && J(topActs) === J(['color', 'core', 'delete', 'icon', 'note']) && /,"note","delete"\]$/.test(topOrder), `${topActs} ${topOrder}`);
+    await clickAct('note');
+    await sleep(200);
+    await t.type('Component note');
+    await t.press('Escape');
+    await sleep(250); await t.settle(1500);
+    t.check('element action bar note button adds a note on the element', (await saved()).notes?.some((n) => n.text === 'Component note' && (n.elements || []).length === 1), J((await saved()).notes));
+    await undo();
+    await blank();
     await clickName('Web API');
     const groupedActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('grouped element action bar omits core (only icon, delete, color)',
-      J(groupedActs) === J(['color', 'delete', 'icon']), J(groupedActs));
+    t.check('grouped element action bar omits core (icon, color, note, delete)',
+      J(groupedActs) === J(['color', 'delete', 'icon', 'note']), J(groupedActs));
     // icon picker
     await clickName('Customer');
     await clickAct('icon');
@@ -755,9 +764,10 @@ try {
     await freshPage();
     await t.clickOn(A.tag);
     await sleep(150);
+    const gOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const gActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level group action bar has connect, core, ungroup, delete, color',
-      (await present(A.bar)) && J(gActs) === J(['color', 'connect', 'core', 'delete', 'ungroup']), J(gActs));
+    t.check('top-level group action bar has core, ungroup, color, note, delete (no connect button; note before delete)',
+      (await present(A.bar)) && J(gActs) === J(['color', 'core', 'delete', 'note', 'ungroup']) && /,"note","delete"\]$/.test(gOrder), `${gActs} ${gOrder}`);
     // nested group omits core
     await tile('group');
     await t.press('a', { modifiers: 2 });
@@ -765,7 +775,16 @@ try {
     await t.press('Enter');
     await sleep(250); await t.settle(1500);
     const nActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('nested group action bar omits core (only connect, ungroup, delete, color)', J(nActs) === J(['color', 'connect', 'delete', 'ungroup']), J(nActs));
+    t.check('nested group action bar omits core (ungroup, color, note, delete)', J(nActs) === J(['color', 'delete', 'note', 'ungroup']), J(nActs));
+    await undo();
+    await blank();
+    await t.clickOn(A.tag);
+    await clickAct('note');
+    await sleep(200);
+    await t.type('Platform rule');
+    await t.press('Escape');
+    await sleep(250); await t.settle(1500);
+    t.check('group action bar note button adds a note on the group', (await saved()).notes?.some((n) => n.text === 'Platform rule' && (n.groups || []).length === 1), J((await saved()).notes));
     await undo();
     await t.clickOn(A.tag);
     await clickAct('core');
@@ -903,26 +922,33 @@ try {
     await sleep(300); await t.settle(1500);
     t.check('Esc drops the whole connection (no new arrow, no relation) and the undo stack is as it was',
       (await count(A.edge)) === 3 && (await saved()).relations.length === 3 && !(await present('.c4-label-text.is-editing')) && (await undoOff()) === startUndoOff, `${await count(A.edge)} undoOff=${await undoOff()} was ${startUndoOff}`);
-    // an empty label is refused
+    // an empty label creates an unlabelled arrow cleanly; double-click adds a label
     await dropToasts();
     await connect('Customer', 'Order Store');
     await t.press('Enter');
-    await sleep(250);
-    t.check('an empty label is refused: the inline editor stays open and says a label is required',
-      (await present('.c4-label-text.is-editing')) && /label/i.test(await toastText()), `${await toastText()}`);
+    await sleep(300); await t.settle(1500);
+    let d = await saved();
+    const emptyRel = d.relations.find((r) => (r.from === 'customer' || r.from === 'cust') && (r.to === 'order-store' || r.to === 'db') && r.label === '');
+    t.check('pressing Enter with an empty label creates an unlabelled arrow',
+      !(await present('.c4-label-text.is-editing')) && d.relations.length === 4 && !!emptyRel && (await count(A.edge)) === 4, J(d.relations));
+    await t.ev(`(() => { const p = [...document.querySelectorAll('.c4-edge .edge-hit')].pop(); if (!p) return; const L = p.getTotalLength(), q = p.getPointAtLength(L / 2), m = p.getScreenCTM(); window.__emptyMid = { x: m.a * q.x + m.e, y: m.d * q.y + m.f }; })()`);
+    const em = await t.ev('window.__emptyMid');
+    if (em) {
+      await t.click(em.x, em.y, { count: 2 });
+      await sleep(200);
+    }
     await t.type('Browses');
     await t.press('Enter');
     await sleep(300); await t.settle(1500);
-    let d = await saved();
+    d = await saved();
     const rel = d.relations.find((r) => r.label === 'Browses');
-    t.check('typing a label and Enter makes the arrow, from the dragged-from tile to the target', d.relations.length === 4 && rel && (rel.from === 'customer' || rel.from === 'cust') && (rel.to === 'order-store' || rel.to === 'db'), J(rel));
+    t.check('double-clicking an unlabelled arrow opens label editing and saves the label', d.relations.length === 4 && rel && (rel.from === 'customer' || rel.from === 'cust') && (rel.to === 'order-store' || rel.to === 'db'), J(rel));
     t.check('the new arrow is drawn with its label', (await count(A.edge)) === 4 && (await t.ev(`[...document.querySelectorAll(${J(A.label)})].some((e) => e.textContent.includes('Browses'))`)));
-    await tidy('connecting');
-    await undo();
-    t.check('connect plus label is one undo step', (await saved()).relations.length === 3 && (await count(A.edge)) === 3);
-    await redo();
+    await undo(); await sleep(150); await undo(); await sleep(200);
+    t.check('undoing label + connect restores 3 relations', (await saved()).relations.length === 3 && (await count(A.edge)) === 3);
+    await redo(); await sleep(150); await redo(); await sleep(200);
     t.check('redo brings it back with its label', (await saved()).relations.some((r) => r.label === 'Browses'));
-    await undo();
+    await undo(); await sleep(150); await undo(); await sleep(200);
     // self connection refused
     await dropToasts();
     await connect('Customer', 'Customer');
@@ -943,6 +969,49 @@ try {
     t.check('the same pair with the same label is refused (still one "Notifies")', (await saved()).relations.filter((r) => r.label === 'Notifies').length === 1 && (await toastText()).length > 0, `toast=${await toastText()}`);
     await blank();
     await tidy('connecting twice');
+    // container to container: hover reveals ports on open frames, drag connects directly without opening action bar
+    await tile('group');
+    await t.type('Partner');
+    await t.press('Enter');
+    await sleep(300); await t.settle(1500);
+    await blank();
+    await fit();
+    const gHoverPt = await t.ev(`(() => {
+      const g = [...document.querySelectorAll('.c4-group.is-frame')].find((el) => el.textContent.includes('Partner'));
+      if (!g) return null;
+      const r = g.getBoundingClientRect();
+      return { id: g.dataset.groupId, x: r.right - 8, y: r.top + r.height / 2 };
+    })()`);
+    if (gHoverPt) {
+      await t.mouse('mouseMoved', gHoverPt.x, gHoverPt.y);
+      await sleep(180);
+    }
+    const gPort = await t.ev(`(() => {
+      const g = [...document.querySelectorAll('.c4-group.is-frame')].find((el) => el.textContent.includes('Partner'));
+      const p = g && g.querySelector('.port[data-side="W"]');
+      if (!p) return null;
+      const cs = getComputedStyle(p), r = p.getBoundingClientRect();
+      return { op: cs.opacity, pe: cs.pointerEvents, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    t.check('hovering an open container frame reveals its ports without opening the action bar',
+      !!gPort && gPort.op === '1' && gPort.pe === 'auto' && !(await present(A.bar)), J(gPort));
+    const platTarget = await t.ev(`(() => {
+      const g = document.querySelector('.c4-group[data-group-id="platform"]');
+      if (!g) return null;
+      const r = g.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.bottom - 12 };
+    })()`);
+    if (gPort && platTarget) {
+      await t.dragTo(gPort.x, gPort.y, platTarget.x, platTarget.y, { steps: 8 });
+      await sleep(200);
+      await t.type('Calls');
+      await t.press('Enter');
+      await sleep(300); await t.settle(1500);
+    }
+    t.check('dragging directly from one container port onto another container connects them',
+      (await saved()).relations.some((r) => (r.from === 'partner' || r.from === gHoverPt?.id) && r.to === 'platform' && r.label === 'Calls'),
+      J((await saved()).relations));
+    await undo(); await sleep(150); await undo(); await sleep(200);
     // Level 1 after connecting
     await pickLevel(1);
     await tidy('Level 1 after connecting');
@@ -1089,11 +1158,17 @@ try {
     t.check('the Notes switch is on and counts 2', J(await sw()) === J({ on: 'true', count: '2', hidden: false, disabled: false }), J(await sw()));
     t.check('the diagram data keeps the notes (the Python layout step accepts the page)', (await saved()).notes.length === 2);
 
-    // -- the Notes switch: hide and show, as a morph
+    // -- the Notes switch: hide and show, as a morph (ghost must not stretch vertically across a group frame)
+    const preMaxCardH = await t.ev(`Math.max(...[...document.querySelectorAll('.note[data-note-id]')].map((c) => c.getBoundingClientRect().height))`);
     await t.clickOn('#btn-notes');
-    const midOff = await t.ev(`${WAAPI} + ${GHOSTS}`);
+    const midOffInfo = await t.ev(`(() => {
+      const gs = [...document.querySelectorAll('#motion-ghost-layer .note')].map((g) => g.getBoundingClientRect().height);
+      return { active: ${WAAPI} + ${GHOSTS}, maxGhostH: gs.length ? Math.max(...gs) : 0 };
+    })()`);
+    const midOff = midOffInfo.active;
     await sleep(500); await t.settle(1500);
-    t.check('hiding folds the cards (an animation or a ghost runs), then nothing is left running', midOff > 0 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0, `${midOff}`);
+    t.check('hiding folds the cards (an animation or a ghost runs, without stretching across a frame), then nothing is left running',
+      midOff > 0 && midOffInfo.maxGhostH <= preMaxCardH * 1.25 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0, J({ midOffInfo, preMaxCardH }));
     t.check('the Notes switch hides every card (aria-checked false, the count stays)', (await count('.note[data-note-id]')) === 0 && (await sw()).on === 'false' && (await sw()).count === '2' && !(await saved()).showNotes);
     await t.clickOn('#btn-notes');
     const midOn = await t.ev(WAAPI);
@@ -1480,15 +1555,15 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
       (await t.ev(`[...document.querySelectorAll('.c4-step')].some((el) => el.textContent === '1x')`)));
     await undo();
 
-    // 5. Shared layer group action bar: shared, side, span, connect
+    // 5. Shared layer group action bar: shared, side, span (no connect button)
     await blank();
     await t.ev(`(() => { const tag = [...document.querySelectorAll('.c4-group.is-shared .frame-tag')].find((el) => el.textContent.includes('Platform')); if (tag) tag.scrollIntoView({ block: 'center', inline: 'center' }); })()`);
     await sleep(100);
     const platPos = await t.ev(`(() => { const tag = [...document.querySelectorAll('.c4-group.is-shared .frame-tag')].find((el) => el.textContent.includes('Platform')); if (!tag) return null; const r = tag.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (platPos) { await t.click(platPos.x, platPos.y); await sleep(250); }
     const sActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('shared layer action bar exposes connect, shared, side, span, ungroup, delete, color',
-      ['color', 'connect', 'delete', 'shared', 'side', 'span', 'ungroup'].every((a) => sActs.includes(a)), J(sActs));
+    t.check('shared layer action bar exposes shared, side, span, ungroup, delete, color (no connect)',
+      ['color', 'delete', 'shared', 'side', 'span', 'ungroup'].every((a) => sActs.includes(a)) && !sActs.includes('connect'), J(sActs));
   });
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

@@ -171,6 +171,45 @@ try {
     return rules.length > 0 && rules.every(m => /hover:\\s*none/.test(m));
   })()`));
 
+  // 11. Hovering an arrow brings it to the top layer; connecting from decision adds no default 'Yes'
+  await t.open(page);
+  const edgeIds = await t.ev(`[...document.querySelectorAll('#edge-group > .edge-line')].map(p => p.dataset.edgeId)`);
+  if (edgeIds.length >= 2) {
+    const firstId = edgeIds[0];
+    const hp = await pointOn(firstId, 0.3);
+    await t.mouse('mouseMoved', hp.x, hp.y);
+    await sleep(150);
+    const isTop = await t.ev(`document.querySelector('#edge-group').lastElementChild?.dataset.edgeId === ${JSON.stringify(firstId)}`);
+    const labelTop = await t.ev(`getComputedStyle(document.querySelector('.edge-label[data-edge-id="${firstId}"]')).zIndex === '35'`);
+    t.check('hovering an arrow brings its line and label to the top layer', isTop && labelTop, JSON.stringify({ isTop, labelTop }));
+  }
+  const decConn = await t.ev(`(() => {
+    const d = JSON.parse(document.getElementById('diagram-data').textContent);
+    const dec = document.querySelector('.flow-node.type-decision');
+    const decId = dec && dec.dataset.nodeId;
+    const tgt = decId && [...document.querySelectorAll('.flow-node.type-task')].find(n => n.dataset.nodeId !== decId && !d.edges.some(e => e.from === decId && e.to === n.dataset.nodeId));
+    return (dec && tgt) ? { fromId: decId, toId: tgt.dataset.nodeId } : null;
+  })()`);
+  if (decConn) {
+    await t.ev(`(() => {
+      const dec = document.querySelector('#node-${decConn.fromId}');
+      const tgt = document.querySelector('#node-${decConn.toId}');
+      if (tgt) tgt.scrollIntoView({ block: 'center', inline: 'center' });
+      const port = dec && dec.querySelector('.port-bottom');
+      if (!port || !tgt) return;
+      const pr = port.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+      const o = (x, y) => ({ bubbles: true, button: 0, clientX: x, clientY: y, pointerId: 1, isPrimary: true });
+      port.dispatchEvent(new PointerEvent('pointerdown', o(pr.left + pr.width / 2, pr.top + pr.height / 2)));
+      window.dispatchEvent(new PointerEvent('pointermove', o(tr.left + tr.width / 2, tr.top + tr.height / 2)));
+      window.dispatchEvent(new PointerEvent('pointerup', o(tr.left + tr.width / 2, tr.top + tr.height / 2)));
+    })()`);
+    await sleep(200);
+    const dAfter = await t.saved();
+    const added = dAfter.edges.find(e => e.from === decConn.fromId && e.to === decConn.toId);
+    const lblText = added && await t.ev(`document.querySelector('.edge-label[data-edge-id="' + ${JSON.stringify(added.id)} + '"] .edge-label-text')?.textContent ?? ''`);
+    t.check('connecting from a decision node adds no default label', !!added && added.label === '' && lblText === '', JSON.stringify({ added, lblText }));
+  }
+
   t.check('no page errors', t.errors.length === 0, t.errors.join(' | '));
   code = t.finish();
 } catch (err) {
