@@ -250,7 +250,7 @@
     .erd-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .erd-ab-swatch { height: 30px; width: 30px; }
     body.erd-dragging .erd-actionbar { display: none !important; }
-    .edge-label.is-editing-label { z-index: 60; }
+    .edge-label.is-editing-label { z-index: 60; max-width: max(var(--edge-label-max-w, 140px), 240px); }
 
     /* The colour legend (components/colorkey.css) above the tables' top-left corner */
     .erd-key { position: absolute; pointer-events: auto; }   /* #erd-html itself lets presses through */

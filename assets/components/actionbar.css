@@ -9,7 +9,7 @@
        (--ui-scale, set by the shell) about the edge that touches its anchor: the bottom centre over the element, the top
        centre under it. Types override the origin only where the bar hangs off a corner. */
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-2xl);
       box-shadow: var(--shadow-md);
       scale: var(--ui-scale, 1); transform-origin: 50% 100%;
     }

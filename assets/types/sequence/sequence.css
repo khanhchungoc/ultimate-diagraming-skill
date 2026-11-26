@@ -2,7 +2,7 @@
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
       position: relative; margin: var(--space-24);
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-4xl);
       box-shadow: var(--shadow-canvas);
     }
     #seq-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
