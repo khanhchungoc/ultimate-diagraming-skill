@@ -39,7 +39,7 @@ One name per state in every type (CSS and JS). Set the class on the item; the sh
 |---|---|
 | Markup | `ui.port(side)` returns `<span class="port port-top|right|bottom|left|end" data-export-skip>`; the caller adds its pointer handler and, if needed, `left`/`top`. `port-end` is the end handle of a selected line: a hollow ring, always shown, grab cursor. |
 | CSS | `assets/components/port.css` |
-| States | hidden at rest; shown while the pointer or focus is in the parent item, on a selected item on touch, in a `.touch-ports` item; grows and fills `--primary` on hover or focus; hidden while `.is-dragging` is above it, with `.is-multi`, while the parent is `.is-editing`, in `body.exporting`, `body.presentation` (`.present`), `body.capture` |
+| States | hidden at rest; shown while the pointer or focus is in the parent item, on a selected item on touch, in a `.touch-ports` item on touch; grows and fills `--primary` on hover or focus; hidden while `.is-dragging` is above it, with `.is-multi`, while the parent is `.is-editing`, in `body.exporting`, `body.presentation` (`.present`), `body.capture` |
 | Tokens | `--port-size` (12px), `--port-size-touch` (20px under `.is-touch`), `--hit-min`, `--ui-scale` (constant on-screen size when zoomed), `--shadow-chip`, `--node-bg`, `--primary` |
 | Hit area | at least 24x24 px (`::before`) |
 | Types | erd (rows and header), c4 (node sides), usecase (case and actor sides), gantt (bar ends), erd and sequence message ends (`port-end`). A type's own "tool armed" or "connecting" state may show every port (`components-ok` comment). Flowchart still has its own (below). |

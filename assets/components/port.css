@@ -2,7 +2,7 @@
        <span class="port port-top|right|bottom|left"> sits in the item (the item must be positioned); a type only changes where
        (left, top), never the look. `.port-end` is the end handle of a selected line: a hollow ring, always shown, grab cursor.
        Shown: while the pointer or focus is in the parent item, on a selected item on touch (a finger has no hover), or in a
-       .touch-ports item. Hidden: while dragging (.is-dragging anywhere above it), several items selected (.is-multi), the parent's
+       .touch-ports item on touch. Hidden: while dragging (.is-dragging anywhere above it), several items selected (.is-multi), the parent's
        text being edited, exporting, presenting, capture. Compatible with the flowchart's `.port .port-${pos}` markup. */
     .port {
       --port-d: var(--port-size);
@@ -18,7 +18,7 @@
     .port-bottom { top: 100%; left: 50%; }
     .port-left { top: 50%; left: 0; }
     .port-right { top: 50%; left: 100%; }
-    :is(:hover, :focus-within) > .port:not(.port-end), .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
+    :is(:hover, :focus-within) > .port:not(.port-end), .is-touch .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
     @media (hover: none) { .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); } }
     .is-touch .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); }
     .is-touch .port { --port-d: var(--port-size-touch); border-width: 2.5px; }
