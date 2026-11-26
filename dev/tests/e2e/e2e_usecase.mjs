@@ -806,6 +806,56 @@ sys.stdout.write(f.format_json(out))`;
   t.check('the last link of a note stays (it never becomes free by unlinking)', freeOf(await saved(), 'Dropped free')?.actors?.join() === 'customer');
   });
 
+  // --- Render reuse: actors, use cases, subjects, links and labels keep DOM identity across renders; events delegate ---
+  await t.section('reuse', async () => {
+    await freshPage();
+    const MARK = `[...document.querySelectorAll('.uc-actor, .uc-case, .uc-subject, .uc-link, .uc-label')]`;
+    const KEY = `(el) => (el.dataset.nodeId || el.dataset.subjectId || el.dataset.edgeId) + ':' + (el.getAttribute('class') || '').split(' ')[0]`;
+    const kept = () => t.ev(`(() => { const k = ${KEY}, els = ${MARK}; return { n: els.length, lost: els.filter((el) => el.__mark !== k(el)).map(k) }; })()`);
+    await t.ev(`(() => { const k = ${KEY}; ${MARK}.forEach((el) => { el.__mark = k(el); }); return true; })()`);
+    // Toggle Refs twice to trigger two full renders without adding/removing items
+    await t.clickOn('#btn-refs'); await t.settle();
+    await t.clickOn('#btn-refs'); await t.settle();
+    const k1 = await kept();
+    t.check('re-rendering keeps every actor, use case, subject, link and label element', k1.n >= 20 && !k1.lost.length, J(k1));
+    // Delegated click on a kept actor selects it and dims unreachable items
+    const cust = await centreOf(item('customer'));
+    await t.click(cust.x, cust.y);
+    t.check('delegated click on a kept actor selects it and dims unreachable items', (await selectedIds()) === 'customer' && (await dimmed()).includes('pick'), `${await selectedIds()} / ${await dimmed()}`);
+    await blank();
+    // Delegated double-click on a kept use case opens inline rename and keeps the element
+    const br = await centreOf(item('browse'));
+    await t.click(br.x, br.y, { count: 2 });
+    await sleep(100);
+    const ed = await editing();
+    await t.press('a', { modifiers: 2 });
+    await t.type('Browse items');
+    await t.press('Enter');
+    await t.settle();
+    const k2 = await kept();
+    t.check('delegated double-click renames a kept use case without replacing DOM elements', ed === 'Browse catalogue' && !k2.lost.length && (await text(`${item('browse')} .uc-name`)) === 'Browse items', `ed=${J(ed)} lost=${J(k2.lost)}`);
+    await undo();
+    // Delegated click on a kept link selects it; hovering its label lights the link
+    const lp = await onLine('l3');
+    if (lp) { await t.click(lp.x, lp.y); await sleep(80); }
+    t.check('delegated click on a kept link selects it', (await present('.uc-link[data-edge-id="l3"].selected')));
+    await blank();
+    const lab = await t.at('.uc-label[data-edge-id="l3"]');
+    await t.mouse('mouseMoved', lab.x, lab.y);
+    await sleep(100);
+    const lit = await present('.uc-link[data-edge-id="l3"].is-hover, .uc-link[data-edge-id="l3"].hover');
+    await t.mouse('mouseMoved', 5, 5);
+    await sleep(80);
+    t.check('delegated hover on a kept link label lights its link and clears on leave', lit && !(await present('.uc-link[data-edge-id="l3"].is-hover, .uc-link[data-edge-id="l3"].hover')));
+    // Dragging a kept use case moves it and keeps every element identity
+    const p0 = await centreOf(item('browse'));
+    await t.dragTo(p0.x, p0.y, p0.x + 28, p0.y + 18, { steps: 6 });
+    await t.settle();
+    const p1 = await centreOf(item('browse'));
+    const k3 = await kept();
+    t.check('dragging a kept use case moves it and preserves element identity', Math.abs(p1.x - p0.x) > 10 && !k3.lost.length, `dx=${Math.round(p1.x - p0.x)} lost=${J(k3.lost)}`);
+  });
+
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {
   console.error('[ERROR]', err.stack || err.message);
