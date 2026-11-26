@@ -1065,6 +1065,75 @@ try {
     checkNoErrors('render-reuse-and-delegation');
   });
 
+  // ---------------------------------------------------------------------------
+  // 15. Narrow-viewport initial scroll & programmatic scrollLeft (with smooth scroll)
+  // ---------------------------------------------------------------------------
+  await cdp.section('narrow-viewport-scroll', async () => {
+    // Open WITHOUT &noanim=1 so CSS `scroll-behavior: smooth` on #gantt-timeline is active
+    // (the bug was masked under --noanim because noanim forces `scroll-behavior: auto !important`).
+    const animQuery = `?today=${todayParam}`;
+    try {
+      for (const [w, h] of [[900, 768], [1024, 768]]) {
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+          width: w,
+          height: h,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        await cdp.open(pagePath, animQuery);
+        await sleep(300);
+
+        const initial = await cdp.ev(`(() => {
+          const tl = document.getElementById('gantt-timeline');
+          const tr = tl.getBoundingClientRect();
+          const bars = [...document.querySelectorAll('#gantt-bars .gantt-bar')];
+          const visBars = bars.filter((b) => {
+            const r = b.getBoundingClientRect();
+            return r.right > tr.left && r.left < tr.right;
+          });
+          const years = [...document.querySelectorAll('#gantt-header-top .gantt-tick')]
+            .filter((t) => {
+              const r = t.getBoundingClientRect();
+              return r.right > tr.left && r.left < tr.right;
+            })
+            .map((t) => t.textContent.trim());
+          return {
+            scrollLeft: tl.scrollLeft,
+            scrollWidth: tl.scrollWidth,
+            clientWidth: tl.clientWidth,
+            barCount: bars.length,
+            visBarCount: visBars.length,
+            years,
+          };
+        })()`);
+
+        cdp.check(
+          `narrow ${w}x${h}: opens with roadmap bars visible in 2026 (not scrolled to 2022/2023)`,
+          initial.visBarCount > 0 && initial.years.includes('2026') && !initial.years.includes('2022') && !initial.years.includes('2023'),
+          JSON.stringify(initial)
+        );
+
+        // Programmatically set scrollLeft and confirm it reaches & stays at target without snapping back
+        const target = Math.min(initial.scrollLeft + 240, Math.max(0, initial.scrollWidth - initial.clientWidth - 200));
+        await cdp.ev(`document.getElementById('gantt-timeline').scrollLeft = ${target}`);
+        const landed = await cdp.waitFor(
+          `Math.abs(document.getElementById('gantt-timeline').scrollLeft - ${target}) <= 2`,
+          { timeout: 1500 }
+        );
+        await sleep(200);
+        const settled = await cdp.ev(`document.getElementById('gantt-timeline').scrollLeft`);
+        cdp.check(
+          `narrow ${w}x${h}: programmatic scrollLeft=${target} stays where set without snapping back`,
+          !!landed && Math.abs(settled - target) <= 2,
+          `target=${target} settled=${settled}`
+        );
+      }
+    } finally {
+      await cdp.send('Emulation.clearDeviceMetricsOverride');
+    }
+    checkNoErrors('narrow-viewport-scroll');
+  });
+
   exitCode = cdp.finish();
 } finally {
   await cdp.close();

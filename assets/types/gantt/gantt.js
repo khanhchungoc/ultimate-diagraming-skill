@@ -139,6 +139,7 @@
   let isSyncingScroll = false;
   let didInitialScroll = false;
   let isExtendingTimeline = false;
+  let lastScrollLeft = null;
   let ghostBarEl = null;
   let ghostRowId = null;
 
@@ -1827,7 +1828,7 @@
     suppressExtendUntil = performance.now() + 700;
     timeline.scrollTo({
       left: targetLeft,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+      behavior: motion.enabled() ? 'smooth' : 'instant'
     });
   }
 
@@ -2120,7 +2121,8 @@
         targetLeft = Math.max(0, Math.round(anchorX - 48));
       }
       isExtendingTimeline = true;
-      timeline.scrollLeft = targetLeft;
+      timeline.scrollTo({ left: targetLeft, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       requestAnimationFrame(() => {
         isExtendingTimeline = false;
         if (viewMode === 'in-view') render();
@@ -3247,7 +3249,7 @@
       const startX = e.clientX;
       const startScroll = timeline.scrollLeft;
       const onMove = (ev) => {
-        timeline.scrollLeft = startScroll - (ev.clientX - startX);
+        timeline.scrollTo({ left: startScroll - (ev.clientX - startX), behavior: 'instant' });
       };
       const onUp = () => {
         window.removeEventListener('pointermove', onMove);
@@ -3659,37 +3661,40 @@
     if (isExtendingTimeline || activeDrag || !timeline || !chartData._range) return;
     if (performance.now() < suppressExtendUntil) return;
     if (timeline.scrollWidth <= timeline.clientWidth) return;
+    const curLeft = timeline.scrollLeft;
+    const scrollingLeft = lastScrollLeft !== null && curLeft < lastScrollLeft;
+    const scrollingRight = lastScrollLeft !== null && curLeft > lastScrollLeft;
     const range = chartData._range;
     const step = EXTEND_DAYS[currentZoom()] || 180;
 
-    if (timeline.scrollLeft < 120) {
+    if (scrollingLeft && curLeft < 120) {
       const oldStart = range.start;
       const baseStart = (chartData._extraStart && chartData._extraStart < oldStart) ? chartData._extraStart : oldStart;
       chartData._extraStart = ganttAddDays(baseStart, -step);
       isExtendingTimeline = true;
-      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollLeft = curLeft;
       const prevScrollTop = timeline.scrollTop;
       render();
       const newStart = chartData._range ? chartData._range.start : oldStart;
       const addedDays = ganttDiffDays(newStart, oldStart);
       const deltaPx = addedDays > 0 ? Math.round(addedDays * chartData._range.pxPerDay) : 0;
       isSyncingScroll = true;
-      timeline.scrollLeft = prevScrollLeft + deltaPx;
-      timeline.scrollTop = prevScrollTop;
+      timeline.scrollTo({ left: prevScrollLeft + deltaPx, top: prevScrollTop, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       if (treeEl) treeEl.scrollTop = prevScrollTop;
       isSyncingScroll = false;
       requestAnimationFrame(() => { isExtendingTimeline = false; });
-    } else if (timeline.scrollLeft + timeline.clientWidth > timeline.scrollWidth - 120) {
+    } else if (scrollingRight && curLeft + timeline.clientWidth > timeline.scrollWidth - 120) {
       const oldEnd = range.end;
       const baseEnd = (chartData._extraEnd && chartData._extraEnd > oldEnd) ? chartData._extraEnd : oldEnd;
       chartData._extraEnd = ganttAddDays(baseEnd, step);
       isExtendingTimeline = true;
-      const prevScrollLeft = timeline.scrollLeft;
+      const prevScrollLeft = curLeft;
       const prevScrollTop = timeline.scrollTop;
       render();
       isSyncingScroll = true;
-      timeline.scrollLeft = prevScrollLeft;
-      timeline.scrollTop = prevScrollTop;
+      timeline.scrollTo({ left: prevScrollLeft, top: prevScrollTop, behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       if (treeEl) treeEl.scrollTop = prevScrollTop;
       isSyncingScroll = false;
       requestAnimationFrame(() => { isExtendingTimeline = false; });
@@ -3712,6 +3717,7 @@
         isSyncingScroll = false;
       }
       maybeExtendTimeline();
+      lastScrollLeft = timeline.scrollLeft;
       scheduleScrollOverlays();
       scheduleInViewRefresh();
     }, { passive: true });
@@ -3724,7 +3730,7 @@
       if (isSyncingScroll) return;
       isSyncingScroll = true;
       if (timeline.scrollTop !== treeEl.scrollTop) {
-        timeline.scrollTop = treeEl.scrollTop;
+        timeline.scrollTo({ top: treeEl.scrollTop, behavior: 'instant' });
         expectedTimelineScrollTop = timeline.scrollTop;
       }
       if (actionBarEl) removeActionBar();
@@ -3790,6 +3796,7 @@
       const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
       isExtendingTimeline = true;
       timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
+      lastScrollLeft = timeline.scrollLeft;
       requestAnimationFrame(() => {
         isExtendingTimeline = false;
         if (viewMode === 'in-view') render();
@@ -3835,8 +3842,11 @@
         const anchorDate = r.contentStart || r.start;
         const anchorX = ganttDiffDays(r.start, anchorDate) * r.pxPerDay;
         const left = Math.max(0, Math.round(anchorX - 48));
+        const smooth = Boolean(animate && motion.enabled());
         isExtendingTimeline = true;
-        timeline.scrollTo({ left, top: 0, behavior: (animate && motion.enabled()) ? 'smooth' : 'auto' });
+        if (smooth) suppressExtendUntil = performance.now() + 700;
+        timeline.scrollTo({ left, top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        lastScrollLeft = timeline.scrollLeft;
         requestAnimationFrame(() => { isExtendingTimeline = false; });
       };
       if (chosen !== currentZoom()) {
@@ -3879,7 +3889,7 @@
     });
     const scrollOpts = {
       left: targetLeft,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+      behavior: motion.enabled() ? 'smooth' : 'instant'
     };
     if (candidates.length && !anyVisibleVert) {
       const firstY = candidates[0]._row * rowH;
@@ -4199,7 +4209,7 @@
       if (!target || target._hidden || typeof target._row !== 'number' || !timeline) return;
       timeline.scrollTo({
         top: Math.max(0, target._row * GANTT_METRICS.ROW_H),
-        behavior: motion.enabled() ? 'smooth' : 'auto'
+        behavior: motion.enabled() ? 'smooth' : 'instant'
       });
     });
   }
@@ -4331,12 +4341,13 @@
   function focusSearchItem(item) {
     const el = item && item.el ? item.el : item;
     if (!el || !el.getBoundingClientRect) return;
-    const smooth = motion.enabled() ? 'smooth' : 'auto';
+    const smooth = motion.enabled() ? 'smooth' : 'instant';
     if (timeline && timeline.contains(el)) {
       const tr = timeline.getBoundingClientRect();
       const er = el.getBoundingClientRect();
       const targetLeft = Math.max(0, Math.round(timeline.scrollLeft + (er.left - tr.left) + er.width / 2 - timeline.clientWidth / 2));
       const targetTop = Math.max(0, Math.round(timeline.scrollTop + (er.top - tr.top) + er.height / 2 - timeline.clientHeight / 2));
+      if (smooth === 'smooth') suppressExtendUntil = performance.now() + 700;
       timeline.scrollTo({ left: targetLeft, top: targetTop, behavior: smooth });
       return;
     }
@@ -4605,6 +4616,7 @@
 
   function fromDisk(data) {
     didInitialScroll = false;
+    lastScrollLeft = null;
     const d = JSON.parse(JSON.stringify(data));
     delete d.layout;
     slotColors(d, 'items', 'markers');
