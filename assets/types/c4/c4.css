@@ -299,7 +299,17 @@
     :root[data-theme="dark"] #btn-add-container { --c4-tile-ink: var(--sw-3-line); }
     :root[data-theme="dark"] #btn-add-database { --c4-tile-ink: var(--sw-8-line); }
     :root[data-theme="dark"] #btn-add-queue { --c4-tile-ink: var(--sw-5-line); }
+    #c4-pop .btn-shape { cursor: grab; touch-action: none; }
     #c4-pop .btn-shape:hover .c4-tile-card { border-color: var(--primary); }
     #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--bg-soft) 35%, transparent); stroke: var(--border-dark); stroke-width: var(--ring-thin); }
     #btn-add-group svg > .c4-grp-tag { fill: var(--bg-soft); stroke: var(--border-dark); stroke-width: 1px; }
     #btn-add-group:hover svg > * { stroke: var(--primary); }
+
+    /* Palette drag-to-add ghost preview */
+    .c4-ghost, .c4-node.c4-ghost, .c4-group.c4-ghost, .note.c4-ghost {
+      position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0;
+      opacity: 0.92; box-shadow: var(--shadow-xl);
+      transition: opacity var(--dur-micro) var(--curve-out);
+    }
+    .c4-ghost.off-target { opacity: 0.45; }
+    body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }

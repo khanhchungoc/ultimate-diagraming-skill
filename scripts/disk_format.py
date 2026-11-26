@@ -506,6 +506,11 @@ def usecase_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
             for k in keys:
                 o.pop(k, None)
     _rename_usecase_ids(d)
+    if isinstance(d.get("colorKey"), dict):  # the legend keeps only the colours a use case or actor still uses
+        used = {o.get("color") for items in ("useCases", "actors") for o in (d.get(items) or []) if o.get("color")}
+        d["colorKey"] = {k: v for k, v in d["colorKey"].items() if k in used}
+        if not d["colorKey"]:
+            del d["colorKey"]
     layout: Dict[str, Any] = {}
     for items in ("actors", "useCases"):
         for o in d.get(items) or []:

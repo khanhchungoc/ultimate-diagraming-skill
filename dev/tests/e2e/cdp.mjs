@@ -278,6 +278,7 @@ export async function launch(browser) {
       })`);
       await api.press('s', { modifiers: 2 });
       const text = await armed;
+      await api.ev(`(() => { const m = document.getElementById('save-modal'); if (m && m.open) m.close('cancel'); })()`);
       return raw ? text : JSON.parse(text);
     },
     /** Run a named independent test section, honouring --shard k/n, --section / E2E_SECTIONS, and --exclude-section. */

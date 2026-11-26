@@ -148,7 +148,7 @@ class SequenceAudit:
         ps, ms, fs, ns = self.participants, self.messages, self.fragments, self.notes
         pmap = {p.get("id"): p for p in ps}
         midx = {m.get("id"): i for i, m in enumerate(ms)}
-        numbered = bool(self.data.get("numbered"))
+        numbered = self.data.get("numbered") is not False
         show_details = self.data.get("showDetails") is not False
 
         # Structure: unique ids, known references and kinds.

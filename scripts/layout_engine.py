@@ -2013,8 +2013,6 @@ def pack_sequence_columns(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
 def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     """Apply sequence CLI defaults (--layout without --keep-layout): auto-numbered, participant order, column packing."""
     notes: List[str] = []
-    if "numbered" not in data and len(data.get("messages") or []) >= 20:
-        data = {**data, "numbered": True}
     for step in (order_sequence_participants, pack_sequence_columns):
         data, note = step(data)
         if note:

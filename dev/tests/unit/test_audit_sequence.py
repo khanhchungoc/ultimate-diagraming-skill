@@ -270,13 +270,13 @@ def main() -> int:
           bool(pay_note) and pay_ids.index("spm") < pay_ids.index("job") and pay_ids.index("pol") < pay_ids.index("db"),
           str(pay_ids))
 
-    # auto-numbered at >= 20 messages when omitted, respecting explicit False
+    # message numbers are on by default when omitted, respecting explicit False
     mk_msgs = lambda n: [{"id": f"m{i}", "from": "a", "to": "b", "label": str(i)} for i in range(1, n + 1)]  # noqa: E731
     d19, _ = apply_sequence_defaults({"diagramType": "sequence", "participants": BASE["participants"], "messages": mk_msgs(19)})
     d20, _ = apply_sequence_defaults({"diagramType": "sequence", "participants": BASE["participants"], "messages": mk_msgs(20)})
     d20_off, _ = apply_sequence_defaults({"diagramType": "sequence", "numbered": False, "participants": BASE["participants"], "messages": mk_msgs(20)})
-    check("auto-numbered sets true at >= 20 messages when omitted and respects explicit false",
-          "numbered" not in d19 and d20.get("numbered") is True and d20_off.get("numbered") is False,
+    check("numbered stays omitted by default (on in renderer) and respects explicit false",
+          "numbered" not in d19 and "numbered" not in d20 and d20_off.get("numbered") is False,
           f"19={d19.get('numbered')} 20={d20.get('numbered')} off={d20_off.get('numbered')}")
 
     # auto-lifespans & column packing

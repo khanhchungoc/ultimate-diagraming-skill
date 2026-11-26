@@ -122,3 +122,49 @@
         transform: translateX(-50%);
       }
     }
+
+    /* Native modal dialog for standalone HTML save instructions (shell.js openSaveModal) */
+    dialog.save-modal {
+      width: 400px;
+      max-width: calc(100vw - 24px);
+      margin: auto;
+      padding: var(--space-16);
+      box-sizing: border-box;
+      border-radius: var(--radius-3xl);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: var(--shadow-glass-lg);
+      font-size: var(--t-control-size);
+      line-height: var(--t-control-leading);
+    }
+    dialog.save-modal:modal { overscroll-behavior: contain; }
+    dialog.save-modal::backdrop {
+      background: var(--scrim-bg);
+      overflow: hidden;
+      overscroll-behavior: contain;
+    }
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      dialog.save-modal {
+        background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+        border-color: var(--glass-border);
+        backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+      }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      dialog.save-modal {
+        background: var(--bg-panel);
+        border-color: var(--border-dark);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+    .save-modal-title { margin: 0 0 var(--space-8); font-weight: var(--weight-semibold); font-size: var(--text-lg); color: var(--text-main); }
+    .save-modal-msg { margin: 0 0 var(--space-12); color: var(--text-soft); overflow-wrap: anywhere; }
+    .save-modal-check {
+      display: flex; align-items: center; gap: var(--space-8); margin: var(--space-8) 0 var(--space-16);
+      font-size: var(--text-xs); color: var(--text-soft); cursor: pointer; user-select: none;
+    }
+    .save-modal-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+    dialog.save-modal .btn { padding: var(--space-4) var(--space-12); font-size: var(--t-control-size); white-space: nowrap; }

@@ -73,8 +73,8 @@
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
           b.dataset.value = sw.slot;
-          b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-          b.setAttribute('aria-label', b.title);
+          const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+          b.setAttribute('aria-label', swLabel);
           b.setAttribute('aria-pressed', String(now === sw.slot));
           const dot = document.createElement('span');
           dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -109,7 +109,6 @@
           if (slot) setSwatch(dot, slot);
           else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
           const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-          trig.title = label;
           trig.setAttribute('aria-label', label);
         };
         syncTrigger(current);
@@ -181,7 +180,7 @@
           if (r2.left < pad) shift = pad - r2.left;
           else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
           if (shift) {
-            const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+            const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
             pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
           }
           const above = pop.classList.contains('is-above');
@@ -541,7 +540,61 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        // Crisp 1:1 viewport-level action bar host (#actionbar-layer, outside #stage zoom).
+        let pinnedBars = [];
+        function placePinnedBar(entry) {
+          const vp = document.getElementById('viewport');
+          if (!vp || !entry.bar.isConnected) return;
+          const anchor = entry.getAnchor;
+          if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+          const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+          if (!raw) return;
+          const vr = vp.getBoundingClientRect();
+          const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+          const { w, h } = barSize(entry.bar);
+          const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+          const topLimit = chromeTop() + 8;
+          const preferBelow = entry.opts.prefer === 'below';
+          const fitsAbove = aTop - gap - h >= topLimit;
+          const fitsBelow = aBottom + gap + h <= vr.height - 8;
+          const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+          entry.bar.classList.toggle('is-below', !above);
+          let top = above ? aTop - gap - h : aBottom + gap;
+          top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+          let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+          left = Math.max(8, Math.min(vr.width - w - 8, left));
+          entry.bar.style.left = `${Math.round(left)}px`;
+          entry.bar.style.top = `${Math.round(top)}px`;
+        }
+        function clearBars() {
+          for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+          pinnedBars = [];
+          const layer = document.getElementById('actionbar-layer');
+          if (layer) layer.innerHTML = '';
+        }
+        function pinBar(bar, getAnchor, opts) {
+          const layer = document.getElementById('actionbar-layer');
+          if (!layer) return bar;
+          const o = opts || {};
+          if (o.exclusive !== false) clearBars();
+          if (bar.parentNode !== layer) layer.appendChild(bar);
+          if (bar.classList.contains('is-wrap')) fitBar(bar);
+          const entry = { bar, getAnchor, opts: o };
+          pinnedBars.push(entry);
+          placePinnedBar(entry);
+          return bar;
+        }
+        function repositionBars() {
+          if (!pinnedBars.length) return;
+          pinnedBars = pinnedBars.filter((e) => {
+            if (!e.bar.isConnected) return false;
+            if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+            placePinnedBar(e);
+            return true;
+          });
+        }
+        window.addEventListener('resize', repositionBars);
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -1814,6 +1867,7 @@
           showZoom();
         }
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+        ui.repositionBars();
       }
 
       // --- HOVER TEXT: an element's data-tip, or the full text of a label cut off with "...", as the native tooltip ---
@@ -1825,6 +1879,7 @@
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+          if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
         }
       });
 
@@ -3657,7 +3712,15 @@
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
         // as <script id="render-report"[\s\S]*?<\/script> matches this code itself and deletes the rest of
         // the page's main script, so the saved file opens with nothing working.
-        const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+        let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+        if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+          const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+          if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+            fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+          } else {
+            fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+          }
+        }
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
         // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
@@ -3977,29 +4040,127 @@
         });
       }
 
+      const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+      let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+
+      function shouldSkipSaveModal() {
+        if (skipSaveModalFlag) return true;
+        try {
+          if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+        } catch (_) {}
+        return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+      }
+
+      function markSkipSaveModal() {
+        skipSaveModalFlag = true;
+        try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+        if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+          const m = document.createElement('meta');
+          m.name = 'diagram-save-prompt';
+          m.content = 'off';
+          if (document.head) document.head.appendChild(m);
+        }
+      }
+
+      function savePathText(loc) {
+        if (!loc) return { text: '', mac: false };
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        return { text: mac ? loc.folder : loc.file, mac };
+      }
+
+      // Safari fallback for <dialog closedby="any"> light-dismiss
+      (function wireSaveModalLightDismiss() {
+        const modal = document.getElementById('save-modal');
+        if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+        const outside = (e) => {
+          const r = modal.getBoundingClientRect();
+          return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+        };
+        let pressedOutside = false;
+        modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+        modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+      })();
+
+      async function openSaveModal(loc, onContinue) {
+        const modal = document.getElementById('save-modal');
+        const { text, mac } = savePathText(loc);
+        const copied = text ? await copyText(text) : false;
+        if (!modal || typeof modal.showModal !== 'function') {
+          onContinue();
+          return;
+        }
+        const titleEl = document.getElementById('save-modal-title');
+        const msgEl = document.getElementById('save-modal-msg');
+        const pathEl = document.getElementById('save-modal-path');
+        const skipEl = document.getElementById('save-modal-skip');
+        const pasteHint = mac
+          ? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+          : (loc && !loc.win
+            ? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+            : 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+        if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+        if (msgEl) {
+          msgEl.textContent = text
+            ? (copied
+              ? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+              : `Copy the path below, then in the next window ${pasteHint}`)
+            : 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+        }
+        if (pathEl) {
+          pathEl.textContent = text;
+          pathEl.hidden = !text;
+        }
+        if (skipEl) skipEl.checked = false;
+        modal.returnValue = '';
+        const onClose = () => {
+          const rv = modal.returnValue;
+          modal.returnValue = '';
+          if (rv !== 'continue') return;
+          if (skipEl && skipEl.checked) markSkipSaveModal();
+          onContinue();
+        };
+        modal.addEventListener('close', onClose, { once: true });
+        modal.showModal();
+      }
+
       async function writeFile(replacedHtml, picked) {
-        if (canPickSaveFile()) {
-          let pickedNow = false;
+        const usePicker = canPickSaveFile();
+        let loc = null;
+        if (usePicker && !picked) {
           try {
-            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-            const loc = !fileHandle && !picked ? localFilePath() : null;
+            if (!fileHandle) fileHandle = await loadStoredHandle();
+            loc = !fileHandle ? localFilePath() : null;
             if (!fileHandle && loc && canPickDirectory()) {
               fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
               if (fileHandle) storeHandle(fileHandle);
             }
+          } catch (_) {}
+        } else if (!picked) {
+          loc = localFilePath();
+        }
+
+        if (!fileHandle && !picked) {
+          if (!shouldSkipSaveModal()) {
+            await openSaveModal(loc, async () => {
+              const html = skipSaveModalFlag && document.getElementById('diagram-data')
+                ? buildSavedHtml(await loadSourceText())
+                : replacedHtml;
+              await writeFile(html, true);
+            });
+            return;
+          }
+          const { text } = savePathText(loc);
+          if (text) await copyText(text);
+        }
+
+        if (usePicker) {
+          let pickedNow = false;
+          try {
             if (!fileHandle) {
-              if (loc) {
-                // The dialog has to open from a fresh click: the bubble's buttons call back here
-                const linkFolder = canPickDirectory()
-                  ? () => linkFolderAndSave(loc, replacedHtml)
-                  : null;
-                askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
-                return;
-              }
               fileHandle = await pickSaveFile();
               pickedNow = true;
             }
-
             await writeToHandle(fileHandle, replacedHtml);
             if (pickedNow) storeHandle(fileHandle);
             return;

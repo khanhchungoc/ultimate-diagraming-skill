@@ -1,17 +1,27 @@
-      <button id="btn-add-participant" class="btn" title="Add a participant at the right end" aria-label="Participant">
-        {{icon:participant}}<span class="btn-label">Participant</span>
-      </button>
-      <button id="btn-add-message" class="btn" title="Add a message after the selected one" aria-label="Message">
-        {{icon:message}}<span class="btn-label">Message</span>
-      </button>
-      <button id="btn-frame" class="btn" title="Wrap the selected messages in a frame" aria-label="Frame">
-        {{icon:frame}}<span class="btn-label">Frame</span>
-      </button>
-      <button id="btn-add-note" class="btn" title="Add a note to the selected message or participant" aria-label="Note">
-        {{icon:note}}<span class="btn-label">Note</span>
-      </button>
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="seq-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="seq-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid" role="group" aria-label="Add">
+            <button id="btn-add-participant" class="btn btn-shape" title="Add a participant at the right end (click, or drag onto the canvas)" aria-label="Participant">
+              {{icon:participant:tile:fine}}<span class="tile-caption">Participant</span>
+            </button>
+            <button id="btn-add-message" class="btn btn-shape" title="Add a message (click, or drag onto the canvas)" aria-label="Message">
+              {{icon:message:tile:fine}}<span class="tile-caption">Message</span>
+            </button>
+            <button id="btn-frame" class="btn btn-shape" title="Wrap the selected messages in a frame (click, or drag onto the canvas)" aria-label="Frame">
+              {{icon:frame:tile:fine}}<span class="tile-caption">Frame</span>
+            </button>
+            <button id="btn-add-note" class="btn btn-shape" title="Add a note (click, or drag onto the canvas)" aria-label="Note">
+              {{icon:note:tile:fine}}<span class="tile-caption">Note</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-numbers" class="btn btn-switch" role="switch" data-dock-priority="7" title="Number every message" aria-label="Numbers" aria-checked="false">
+      <button id="btn-numbers" class="btn btn-switch" role="switch" data-dock-priority="7" title="Hide the step numbers" aria-label="Numbers" aria-checked="true">
         {{icon:numbers}}<span class="btn-label">Numbers</span>
       </button>
       <button id="btn-details" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show each message's detail under its arrow" aria-label="Details" aria-checked="false">

@@ -35,7 +35,7 @@ try {
   // 1. Selecting a step without a note shows its "+" chip; N opens an empty note
   const startCount = await t.ev(countOf);
   await t.ev(t.drag(N));
-  const chip = await t.ev(visible(`document.querySelector('${N} .node-bar [data-act="note"]')`));
+  const chip = await t.ev(visible(`document.querySelector('#actionbar-layer > .node-bar [data-act="note"]')`));
   await t.ev(t.key('n'));
   const editing = await t.ev(`document.activeElement && document.activeElement.classList.contains('note-text') && document.activeElement.isContentEditable`);
   t.check('a selected step shows the note button of its bar (no hover + chip), and N opens an empty note for typing', chip && editing, `chip=${chip} editing=${editing}`);
@@ -234,7 +234,14 @@ try {
     viaHandle && handleLinked[0] === 2 && handleLinked[2] && lastKept, `highlight=${viaHandle} state=${handleLinked} lastKept=${lastKept}`);
 
   // 12. Free notes: no links, an absolute pos
-  const saved = async () => { await t.press('s', { modifiers: 2 }); await sleep(250); return t.ev(`document.getElementById('diagram-data').textContent`); };
+  const saved = async () => {
+    await t.press('s', { modifiers: 2 });
+    for (let i = 0; i < 30; i++) {
+      if (await t.ev(`(() => { const m = document.getElementById('save-modal'); if (!m || !m.open) return false; m.close(); return true; })()`)) break;
+      await sleep(100);
+    }
+    return t.ev(`document.getElementById('diagram-data').textContent`);
+  };
   const raw1 = await saved(), d1 = JSON.parse(raw1);
   const free1 = (d1.notes || []).filter((n) => !(n.nodes || []).length);
   t.check('free notes are saved with an empty link list and a numeric pos (no new key)',

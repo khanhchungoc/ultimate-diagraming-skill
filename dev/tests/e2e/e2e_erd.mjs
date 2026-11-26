@@ -31,6 +31,13 @@ try {
   const J = JSON.stringify;
   // Columns is a popover of three radios: open it, pick one
   const detail = async (mode) => { await t.clickOn('#btn-columns'); await t.clickOn(`#columns-pop [data-detail="${mode}"]`); await sleep(150); };
+  const openAddPop = async () => {
+    if (await t.ev(`document.getElementById('btn-add').getAttribute('aria-expanded') !== 'true'`)) {
+      await t.clickOn('#btn-add');
+      await sleep(60);
+    }
+  };
+  const clickAdd = async (sel) => { await openAddPop(); await t.clickOn(sel); };
   const count = (sel) => t.ev(`document.querySelectorAll(${J(sel)}).length`);
   const text = (sel) => t.ev(`(document.querySelector(${J(sel)}) || {}).textContent ?? null`);
   const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
@@ -101,8 +108,8 @@ sys.stdout.write(format_json(out))`;
   const vw = await t.ev(`innerWidth`);
   t.check('the example renders its 8 tables and 9 lines, no group boxes, without errors',
     (await count('.erd-entity')) === 8 && (await count('.erd-group, .erd-group-tab')) === 0 && (await count('.erd-rel')) === 9 && t.errors.length === 0 && vw > 1000, `${t.errors.join(' | ')} ${vw}`);
-  t.check('the dock has Table, Relationship, Note (no Area), and no Delete until something is selected',
-    [await present('#btn-add-table'), await present('#btn-add-relationship'), await present('#btn-add-note')].every(Boolean) && !(await present('#btn-add-area')) && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
+  t.check('the dock has Add popover with Table and Note (no Relationship, no Area), and no Delete until something is selected',
+    [await present('#btn-add'), await present('#erd-pop #btn-add-table'), await present('#erd-pop #btn-add-note')].every(Boolean) && !(await present('#btn-add-relationship')) && !(await present('#btn-add-area')) && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
   // Curves: one cubic Bezier per line, leaving a table side at right angles, ends on the table edges
   const curves = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => {
     const d = g.querySelector('.edge-line').getAttribute('d'), n = (d.match(/-?[\\d.]+/g) || []).map(Number);
@@ -141,7 +148,7 @@ sys.stdout.write(format_json(out))`;
   await t.section('add-rename-cols', async () => {
   await freshPage();
   await t.clickOn(head('order'));
-  await t.clickOn('#btn-add-table');
+  await clickAdd('#btn-add-table');
   ids = await tableIds();
   const newId = ids.find((i) => /^t_\d+/.test(i));
   const nameEdit = await editing();
@@ -163,13 +170,14 @@ sys.stdout.write(format_json(out))`;
   t.check('redo brings the table and its name back', (await tableName(newId)) === 'payment_method' && (await tableIds()).length === 9);
   // Esc keeps the placeholder name, and the creation alone is one undo step
   await freshPage();
-  await t.clickOn('#btn-add-table');
+  await clickAdd('#btn-add-table');
   await t.press('Escape');
   const afterEsc = await tableIds();
   await undo();
   t.check('Escape in a new table’s name edit keeps table_9; undo removes it in one step', afterEsc.length === 9 && (await tableIds()).length === 8 && (await undoDisabled()));
   // Drag the dock button onto the canvas
   await freshPage();
+  await openAddPop();
   const btn = await t.at('#btn-add-table'), dropAt = await t.at(head('product'), 0.5, 3);
   await t.dragTo(btn.x, btn.y, dropAt.x, dropAt.y, { steps: 8 });
   ids = await tableIds();
@@ -180,6 +188,7 @@ sys.stdout.write(format_json(out))`;
   t.check('no ghost is left behind and the page has no errors', (await count('.erd-ghost')) === 0 && t.errors.length === 0, t.errors.join(' | '));
   // a drop past the edge of the diagram (the empty view around it) adds too
   await freshPage();
+  await openAddPop();
   const btn2 = await t.at('#btn-add-table'), vp = await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return { x: r.left + 40, y: r.top + 90 }; })()`);
   await t.dragTo(btn2.x, btn2.y, vp.x, vp.y, { steps: 8 });
   await t.press('Escape');
@@ -371,30 +380,18 @@ sys.stdout.write(format_json(out))`;
   const blankDrop = await canvasBlank();
   await t.dragTo(p.x, p.y, blankDrop.x, blankDrop.y);
   t.check('a drag that ends on blank canvas draws nothing', (await count('.erd-rel')) === 9 && (await undoDisabled()));
-  // Relationship tool
-  await freshPage();
-  await t.clickOn('#btn-add-relationship');
-  const armed = await t.ev(`document.getElementById('btn-add-relationship').getAttribute('aria-pressed') + document.body.classList.contains('erd-armed')`);
-  await t.press('Escape');
-  const disarmed = await t.ev(`document.getElementById('btn-add-relationship').getAttribute('aria-pressed') + document.body.classList.contains('erd-armed')`);
-  await t.clickOn('#btn-add-relationship');
-  const a1 = await t.at(row('review', 'rating')), a2 = await t.at(row('category', 'id'));
-  await t.dragTo(a1.x, a1.y, a2.x, a2.y);
-  d = await saved();
-  t.check('the Relationship tool arms on click, Escape cancels, and armed it draws from a row without its port, then disarms',
-    armed === 'truetrue' && disarmed === 'falsefalse' && !!d.relationships.find((r) => r.from === 'review' && r.to === 'category' && r.columns?.join() === 'rating')
-      && !(await t.ev(`document.body.classList.contains('erd-armed')`)), `${armed} ${disarmed}`);
-
   });
 
-  // --- A selected relationship: cardinality, identifying, reverse, label, re-point ---
+  // --- A selected relationship: cardinality, reverse (with automatic identifying), label, re-point ---
   await t.section('edit-rel', async () => {
   await freshPage();
   q = await onLine('r2');
   await t.click(q.x, q.y);
-  t.check('clicking a line selects it: two crow’s-foot pickers (4 glyphs each), Identifying, Reverse, label and 2 end handles',
-    (await count('.erd-rel.selected')) === 1 && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4 && (await count('.erd-actionbar [data-act="toEnd"]')) === 4
-      && (await count('.erd-actionbar [data-act="identifying"], .erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 3 && (await count('.port-end')) === 2);
+  const barTags = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-actionbar .erd-ab-tag')].map((el) => el.textContent))`);
+  t.check('clicking a line selects it: table-name tags, two crow’s-foot pickers (4 glyphs each), Reverse, label (no Identifying button) and 2 end handles',
+    (await count('.erd-rel.selected')) === 1 && barTags === J(['order', 'customer']) && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4 && (await count('.erd-actionbar [data-act="toEnd"]')) === 4
+      && (await count('.erd-actionbar [data-act="identifying"]')) === 0
+      && (await count('.erd-actionbar [data-act="reverse"], .erd-actionbar [data-act="label"]')) === 2 && (await count('.port-end')) === 2, barTags);
   t.check('the pickers show the current ends as pressed', (await t.ev(`document.querySelector('.erd-actionbar [data-act="fromEnd"][data-value="zeroOrMany"]').getAttribute('aria-pressed')`)) === 'true'
     && (await t.ev(`document.querySelector('.erd-actionbar [data-act="toEnd"][data-value="one"]').getAttribute('aria-pressed')`)) === 'true');
   await t.clickOn('.erd-actionbar [data-act="fromEnd"][data-value="oneOrMany"]');
@@ -403,19 +400,14 @@ sys.stdout.write(format_json(out))`;
   const markerNow = await t.ev(`getComputedStyle(document.querySelector('.erd-rel[data-edge-id="r2"] .edge-line')).getPropertyValue('--mk-s')`);
   t.check('each picker sets its end (child: one or many, parent: zero or one) and the line’s markers follow',
     rel(d, 'r2').fromEnd === 'oneOrMany' && rel(d, 'r2').toEnd === 'zeroOrOne' && /oneOrMany/.test(markerNow), `${J(rel(d, 'r2'))} ${markerNow}`);
-  await t.clickOn('.erd-actionbar [data-act="identifying"]');
-  d = await saved();
-  const solid = await t.ev(`document.querySelector('.erd-rel[data-edge-id="r2"] .edge-line').classList.contains('identifying')`);
-  await t.clickOn('.erd-actionbar [data-act="identifying"]');
-  d = { ...d, back: await saved() };
-  t.check('Identifying toggles solid and dashed', rel(d, 'r2').identifying === true && solid && !('identifying' in rel(d.back, 'r2')));
   await t.clickOn('.erd-actionbar [data-act="reverse"]');
   d = await saved();
-  t.check('Reverse swaps child and parent and their ends, the rows the line joined stay the same',
+  const solid = await t.ev(`document.querySelector('.erd-rel[data-edge-id="r2"] .edge-line').classList.contains('identifying')`);
+  t.check('Reverse swaps child and parent and their ends, keeps the joined rows, and automatically marks identifying when from-columns are PKs',
     rel(d, 'r2').from === 'customer' && rel(d, 'r2').to === 'order' && rel(d, 'r2').fromEnd === 'zeroOrOne' && rel(d, 'r2').toEnd === 'oneOrMany'
-      && rel(d, 'r2').columns.join() === 'id' && rel(d, 'r2').toColumns.join() === 'customer_id', J(rel(d, 'r2')));
-  for (let i = 0; i < 5; i++) await undo();
-  t.check('each picker, toggle and reverse was one undo step (five)', J(rel(await saved(), 'r2')) === J(rel(JSON.parse(readBlock(page)), 'r2')), J(rel(await saved(), 'r2')));
+      && rel(d, 'r2').columns.join() === 'id' && rel(d, 'r2').toColumns.join() === 'customer_id' && rel(d, 'r2').identifying === true && solid, J(rel(d, 'r2')));
+  for (let i = 0; i < 3; i++) await undo();
+  t.check('each picker and reverse was one undo step (three)', J(rel(await saved(), 'r2')) === J(rel(JSON.parse(readBlock(page)), 'r2')), J(rel(await saved(), 'r2')));
   // label
   q = await onLine('r8');
   await t.click(q.x, q.y, { count: 2 });
@@ -545,7 +537,7 @@ sys.stdout.write(format_json(out))`;
   t.check('the bar note button adds a note; Escape finishes it', chipEdit === '' && d.notes.some((n) => n.text === 'Billing and shipping' && n.entities.join() === 'address'), `${J(d.notes)}`);
   // dock Note: with a table selected
   await t.clickOn(head('product'));
-  await t.clickOn('#btn-add-note');
+  await clickAdd('#btn-add-note');
   const dockEdit = await editing();
   await t.type('Prices exclude tax');
   await t.press('Escape');
@@ -554,7 +546,7 @@ sys.stdout.write(format_json(out))`;
   await t.press('Escape');
   await t.press('Escape');
   const nBadges = await count('.note-badge');
-  await t.clickOn('#btn-add-note');
+  await clickAdd('#btn-add-note');
   const freeEdit = await editing();
   await t.type('Free from the dock');
   await t.press('Escape');
@@ -572,6 +564,7 @@ sys.stdout.write(format_json(out))`;
   await t.press('Escape');
   t.check('N with nothing selected adds a free note too', keyEdit === '' && (await saved()).notes.some((n) => n.text === 'Free from N' && n.entities.length === 0 && Number.isFinite(n.pos?.x)));
   // drag the Note button onto a table
+  await openAddPop();
   const nb = await t.at('#btn-add-note'), rv = await t.at(head('review'));
   await t.dragTo(nb.x, nb.y, rv.x, rv.y, { steps: 8 });
   const dragEdit = await editing();
@@ -586,6 +579,7 @@ sys.stdout.write(format_json(out))`;
       if (h && h.closest('#erd-canvas') && !h.closest('.erd-entity, .note, .erd-rel, .edge-label, .erd-label, .dock-area, .toolbar') && !['path', 'line', 'polyline'].includes(h.tagName)) return { x, y };
     } return null; })()`);
   const spot = await emptySpot();
+  await openAddPop();
   const nbFree = await t.at('#btn-add-note');
   await t.dragTo(nbFree.x, nbFree.y, spot.x, spot.y, { steps: 8 });
   const dropEdit = await editing();
@@ -650,6 +644,7 @@ sys.stdout.write(format_json(out))`;
   await t.type('E.164 format');
   await t.press('Enter');
   t.check('column action bar note button adds an inline note to the column', (await text(`${row('customer', 'phone')} .erd-col-note`)) === 'E.164 format');
+  await openAddPop();
   const nb2 = await t.at('#btn-add-note'), rowName = await t.at(row('category', 'name'));
   await t.dragTo(nb2.x, nb2.y, rowName.x, rowName.y, { steps: 8 });
   const dragColEdit = await editing();
@@ -720,7 +715,7 @@ sys.stdout.write(format_json(out))`;
     !ent(d, 'order') && d.relationships.every((r) => r.from !== 'order' && r.to !== 'order') && d.relationships.length === 5 && d.notes[0].entities.join() === 'customer', `${d.relationships.length} ${J(d.notes)}`);
   await undo();
   t.check('one undo step brings back the table, its lines and the note link', !!ent(await saved(), 'order') && (await saved()).relationships.length === 9);
-  await t.clickOn('#btn-add-table');
+  await clickAdd('#btn-add-table');
   await t.press('Escape');
   await t.press('Delete');
   t.check('a table without relationships is deleted without asking', (await count('.confirm')) === 0 && (await count('.erd-entity')) === 8);
@@ -774,7 +769,7 @@ sys.stdout.write(format_json(out))`;
   // add a table: placed, nothing else moves
   const off2 = await layoutOf();
   await t.clickOn(head('order'));
-  await t.clickOn('#btn-add-table');
+  await clickAdd('#btn-add-table');
   await t.press('Escape');
   const off3 = await layoutOf();
   t.check('Table adds a placed table (x/y saved) and moves no other table', Object.keys(off3).length === 9 && Object.keys(off2).every((k) => J(off2[k]) === J(off3[k])), `${Object.keys(off3).length}`);
@@ -805,7 +800,7 @@ sys.stdout.write(format_json(out))`;
   // Each case runs on a fresh page: `setup` selects (no edit), `act` is the edit. After one undo the saved model equals
   // the one before and undo is used up; one redo gives the model after.
   const cases = [
-    ['add a table', async () => { await t.clickOn('#btn-add-table'); await t.press('Escape'); }],
+    ['add a table', async () => { await clickAdd('#btn-add-table'); await t.press('Escape'); }],
     ['rename a table', async () => { await t.clickOn(head('address'), { count: 2 }); await t.type('addr'); await t.press('Enter'); }],
     ['rename a column', async () => { await editCell('order', 'status'); await t.type('state'); await t.press('Enter'); }],
     ['add a column', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar [data-act="addcol"]'); await t.press('Escape'); }],
@@ -816,7 +811,6 @@ sys.stdout.write(format_json(out))`;
     ['draw a relationship', async () => { const p1 = await portOf('review', 'rating'), g1 = await t.at(row('category', 'id')); await t.dragTo(p1.x, p1.y, g1.x, g1.y); }],
     ['re-point a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); const h1 = await t.at('.port-end[data-role="to"]'), g1 = await t.at(row('category', 'name')); await t.dragTo(h1.x, h1.y, g1.x, g1.y); }],
     ['pick a cardinality', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="toEnd"][data-value="oneOrMany"]'); }],
-    ['toggle identifying', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="identifying"]'); }],
     ['reverse a relationship', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="reverse"]'); }],
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
@@ -1009,7 +1003,7 @@ sys.stdout.write(format_json(out))`;
   const hov = await t.at(head('customer'));
   await t.mouse('mouseMoved', hov.x, hov.y);
   await sleep(80);
-  t.check('?present: hovering a table still lights its lines and dims the rest', (await count('.erd-entity.is-dim')) > 0 && (await count('.erd-rel.hl-in')) > 0);
+  t.check('?present: hovering a table still lights its lines and neighbours (no dimming)', (await count('.erd-entity.is-dim')) === 0 && (await count('.erd-rel.hl-in')) > 0 && (await count('.erd-entity.rel-child')) > 0);
   await t.clickOn(`${head('order')} .chevron`);
   const collapsedPresent = await count('.erd-entity.is-collapsed');
   t.check('?present: collapse works and is a change of view only (no unsaved badge, no undo step)', collapsedPresent === 1 && !(await unsaved()) && (await undoDisabled()));
@@ -1038,7 +1032,7 @@ sys.stdout.write(format_json(out))`;
     await freshPage(file);
     if (pick) {
       await t.clickOn(head('order'));
-      await t.clickOn('#btn-add-table');
+      await clickAdd('#btn-add-table');
       await t.type('refund');
       await t.press('Enter');
       p = await portOf('review', 'rating');
@@ -1057,7 +1051,7 @@ sys.stdout.write(format_json(out))`;
         && ent(d, 'order') && rel(d, 'r1') && d.notes.some((n) => n.id === 'n1')
         && !/"(t|r|n)_\d{12,}/.test(J(d)) && d.layout.refund && !('groups' in d) && d.schemaVersion === 3, J(d.relationships.slice(-2)));
     } else {
-      await t.clickOn('#btn-add-table');
+      await clickAdd('#btn-add-table');
       await t.type('refund');
       await t.press('Enter');
       d = await saved();
@@ -1074,7 +1068,7 @@ sys.stdout.write(format_json(out))`;
   const lg = await t.ev(`(() => { const r = document.querySelectorAll('.erd-entity')[4].querySelector('.erd-head').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await t.mouse('mouseMoved', lg.x, lg.y);
   await sleep(100);
-  t.check('hover works on the large page (a table lights its lines and dims the rest)', (await count('.erd-entity.is-dim')) > 10);
+  t.check('hover works on the large page (a table lights its lines and neighbours without dimming)', (await count('.erd-rel.hl-in, .erd-rel.hl-out')) > 0 && (await count('.erd-entity.rel-child, .erd-entity.rel-parent')) > 0 && (await count('.erd-entity.is-dim')) === 0);
 
   });
 
@@ -1086,23 +1080,23 @@ sys.stdout.write(format_json(out))`;
   const keyRows = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity .erd-row.key-hl')].map((r) => r.closest('.erd-entity').dataset.nodeId + '.' + r.dataset.col).sort())`));
   await freshPage();
   await hoverOn('order');
-  t.check('hover order: customer and address are parents (blue ring class), payment and order_item children (amber), the rest dim',
-    J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await idsWith('is-dim')).length === 3 && (await count('.erd-entity.linked')) === 0, `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
+  t.check('hover order: customer and address are parents (blue ring class), payment and order_item children (amber), no tables dim',
+    J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await idsWith('is-dim')).length === 0 && (await count('.erd-entity.linked')) === 0, `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
   t.check('hover order: the joining rows are key-hl (order’s own foreign keys and key too)',
     J(await keyRows()) === J(['address.id', 'customer.id', 'order.customer_id', 'order.id', 'order.shipping_address_id', 'order_item.order_id', 'payment.order_id']), J(await keyRows()));
   t.check('hover order: no key chips and no key peeks, at any detail', (await count('.erd-key-chip, .erd-key-peek')) === 0 && (await count('.erd-rel.hl-out')) === 2 && (await count('.erd-rel.hl-in')) === 2);
   const rowTint = await t.ev(`getComputedStyle(document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="order_id"]')).backgroundColor`);
   const rowPlain = await t.ev(`getComputedStyle(document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="id"]')).backgroundColor`);
   t.check('hover order: a joining row keeps a light tint, one colour for children and parents', rowTint !== rowPlain && !!(await t.ev(`document.querySelector('.erd-entity[data-node-id="customer"] .erd-row[data-col="id"]').classList.contains('key-hl') && !document.querySelector('.erd-entity .erd-row.hl-in, .erd-entity .erd-row.hl-out')`)), `${rowTint} ${rowPlain}`);
-  // Side-anchored lines carry no row position: the key rows, the curves and the dimming say what joins what
+  // Side-anchored lines carry no row position: the key rows and highlighted curves say what joins what
   const curveInfo = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => ({ id: g.dataset.edgeId, cls: [...g.classList].filter((c) => /^(hl-in|hl-out|is-dim)$/.test(c)).join(), stroke: getComputedStyle(g.querySelector('.edge-line')).stroke, w: parseFloat(getComputedStyle(g.querySelector('.edge-line')).strokeWidth), op: parseFloat(getComputedStyle(g).opacity), d: g.querySelector('.edge-line').getAttribute('d'), from: g.dataset.from, to: g.dataset.to })))`));
-  const hlIn = curveInfo.filter((c) => c.cls === 'hl-in'), hlOut = curveInfo.filter((c) => c.cls === 'hl-out'), dimmed = curveInfo.filter((c) => c.cls === 'is-dim');
-  const plain = curveInfo.find((c) => c.cls === 'is-dim');
-  t.check('hover order: its curves are highlighted in one colour (thicker), every other curve is dimmed',
-    hlIn.length === 2 && hlOut.length === 2 && dimmed.length === curveInfo.length - 4 && hlIn.every((c) => c.to === 'order' && c.w >= 1.9) && hlOut.every((c) => c.from === 'order' && c.w >= 1.9)
-      && hlIn[0].stroke === hlOut[0].stroke && hlIn[0].stroke !== plain.stroke && dimmed.every((c) => c.op < 0.5) && curveInfo.every((c) => /^M .* C /.test(c.d)), J(curveInfo.map((c) => [c.id, c.cls])));
+  const hlIn = curveInfo.filter((c) => c.cls === 'hl-in'), hlOut = curveInfo.filter((c) => c.cls === 'hl-out'), other = curveInfo.filter((c) => !c.cls);
+  const plain = other[0];
+  t.check('hover order: its curves are highlighted in one colour (thicker), unrelated curves stay unhighlighted and undimmed',
+    hlIn.length === 2 && hlOut.length === 2 && other.length === curveInfo.length - 4 && hlIn.every((c) => c.to === 'order' && c.w >= 1.9) && hlOut.every((c) => c.from === 'order' && c.w >= 1.9)
+      && hlIn[0].stroke === hlOut[0].stroke && hlIn[0].stroke !== plain.stroke && other.every((c) => c.op === 1) && curveInfo.every((c) => /^M .* C /.test(c.d)), J(curveInfo.map((c) => [c.id, c.cls])));
   const dimTables = await idsWith('is-dim');
-  t.check('hover order: the unrelated tables are dimmed, every related table and order itself are not', dimTables.length === 3 && !['order', 'address', 'customer', 'order_item', 'payment'].some((id) => dimTables.includes(id)), J(dimTables));
+  t.check('hover order: no tables are dimmed', dimTables.length === 0, J(dimTables));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(100);
   t.check('leaving the table clears the neighbourhood', (await count('.rel-child, .rel-parent, .key-hl, .is-dim')) === 0);
@@ -1345,6 +1339,7 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: Copy as SVG is the full diagram too, nothing transient', full(copiedSvg) && noOverlays(copiedSvg) && copiedSvg.includes('<svg'), copiedSvg.length + '');
   const svgSize = (copiedSvg.match(/<svg[^>]* width="(\d+)" height="(\d+)"/) || []).slice(1).map(Number);
   await exportClick('[data-copy="png"]');
+  await t.waitFor('!!window.__png', { timeout: 5000 });
   const png = await t.ev(`window.__png`);
   t.check('overview: Copy as PNG decodes at 1.5x the full SVG’s size', !!png && svgSize.length === 2 && Math.abs(png.w - svgSize[0] * 1.5) <= 2 && Math.abs(png.h - svgSize[1] * 1.5) <= 2, `${J(png)} ${J(svgSize)}`);
   await t.ev(`window.__clip = []`);
@@ -1433,10 +1428,15 @@ sys.stdout.write(format_json(out))`;
     await t.clickOn(head('order'));
     await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
-    d = await saved();
-    t.check('legend: tinting a table invites a name: the legend opens with that colour in edit, nothing is saved yet', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1 && d.colorKey === undefined && ent(d, 'order').color === '1');
+    const inviteEditing = await editing();
+    const inviteIsEditing = await count(`${key} .color-key-label.is-editing`);
+    const inviteItems = await count(`${key} .color-key-item`);
     await t.press('Escape');
-    t.check('legend: Esc with no text leaves no legend and no colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    d = await saved();
+    t.check('legend: tinting a table invites a name: the legend opens with that colour in edit, nothing is saved yet',
+      inviteEditing === '' && inviteIsEditing === 1 && inviteItems === 1 && d.colorKey === undefined && ent(d, 'order').color === '1');
+    t.check('legend: Esc with no text keeps the unnamed legend entry visible in edit mode and saves no colorKey',
+      (await count(`${key} .color-key-item.is-unnamed`)) === 1 && (await count(`${key} .color-key-label.is-empty`)) === 1 && d.colorKey === undefined);
     await t.clickOn(head('order'));
     await t.clickOn('.erd-actionbar .swatch-trigger');
     await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
@@ -1449,7 +1449,7 @@ sys.stdout.write(format_json(out))`;
     t.check('legend: naming the colour shows one entry and saves colorKey', (await count(`${key} .color-key-item`)) === 1 && (await text(`${key} .color-key-label`)) === 'Billing' && J(d.colorKey) === J({ 1: 'Billing' }), J(d.colorKey));
     t.check('legend: it sits above the top-left corner of the tables, inside the canvas', placed);
     await undo();
-    t.check('legend: Ctrl+Z removes the entry and hides the legend', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    t.check('legend: Ctrl+Z clears the label (unnamed entry stays visible in edit mode, no colorKey)', (await count(`${key} .color-key-item.is-unnamed`)) === 1 && (await saved()).colorKey === undefined);
     await redo();
     t.check('legend: Ctrl+Shift+Z brings it back', (await text(`${key} .color-key-label`)) === 'Billing');
     // select an entry and press Enter: edit, Esc keeps the text
@@ -1465,11 +1465,11 @@ sys.stdout.write(format_json(out))`;
     t.check('legend: a double-click renames, in one undo step', J((await saved()).colorKey) === J({ 1: 'Payments' }));
     await undo();
     t.check('legend: and undo gives the old name back', J((await saved()).colorKey) === J({ 1: 'Billing' }));
-    // clearing the label removes the entry and, when it is the last, colorKey
+    // clearing the label removes colorKey while keeping the unnamed entry visible in edit mode
     await t.clickOn(`${key} .color-key-label`, { count: 2 });
     await t.press('Backspace');
     await t.press('Enter');
-    t.check('legend: clearing the label removes the entry, the legend and colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    t.check('legend: clearing the label removes colorKey and reverts the entry to unnamed in edit mode', (await count(`${key} .color-key-item.is-unnamed`)) === 1 && (await saved()).colorKey === undefined);
     // a named colour no table uses is not listed and is not saved
     await freshPage(blank);
     await t.clickOn(head('order'));
