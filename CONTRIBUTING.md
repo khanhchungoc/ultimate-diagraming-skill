@@ -27,7 +27,7 @@ npm install
 - **Keep it portable:** Avoid adding new runtime dependencies without a clear reason.
 - **Light and dark themes:** Verify UI changes and contrast in both light and dark themes.
 - **Complete slices:** A new diagram type should include its folder, `blank.json`, playground switcher entry, example, tests, and docs in the same change.
-- **Shared UI elements:** Collapse chevrons, connection ports, edge labels and the hover, selected and dimmed states are defined once in `assets/components` and the `ui` object in `assets/shell/shell.js`. A diagram type uses them as listed in [references/ui-elements.md](references/ui-elements.md) and only positions them; `dev/tests/unit/check_components.py` fails on a type-specific copy. Notes plug into the shared controller in `assets/shell/notes.js`.
+- **Shared UI elements:** Collapse chevrons, connection ports, edge labels and the hover, selected and dimmed states are defined once in `assets/components` and the `ui` object in `assets/shell/shell.js`. A diagram type uses them as listed in [dev/docs/ui-elements.md](dev/docs/ui-elements.md) and only positions them; `dev/tests/unit/check_components.py` fails on a type-specific copy. Notes plug into the shared controller in `assets/shell/notes.js`.
 
 ## Running checks
 

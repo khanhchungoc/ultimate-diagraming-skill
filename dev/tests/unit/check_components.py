@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shared-element drift check (plan: dev/plans/plan-review-fixes.md, Phase 5 step 7).
 
-Every diagram type uses the shared elements (references/ui-elements.md): the collapse chevron, the connection port, the edge label and the
+Every diagram type uses the shared elements (dev/docs/ui-elements.md): the collapse chevron, the connection port, the edge label and the
 item states are defined once in assets/components and built with ui.chevron / ui.port. A type's own CSS (assets/types/*/*.css) may place or size
 them, never restyle them, and never copy them. Rules:
   chevron-port-copy    a class for a shared concept: a name with a chevron, chev, port or handle part (`.erd-chevron`, `.c4-port`, `.gantt-port-l`,

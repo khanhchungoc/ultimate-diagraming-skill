@@ -75,7 +75,7 @@ Drift found (2026-11-26):
 
 Steps:
 
-1. **Element inventory (the global definition):** add `references/ui-elements.md` listing each shared element: its class or `ui.*` call, states (`rest`, `hover`, `selected`, `is-editing`, `is-collapsed`, `is-dim`, `disabled`), tokens used, minimum hit area, and which types use it. `SKILL.md` and `CONTRIBUTING.md` link to it from the "new diagram type" checklist.
+1. **Element inventory (the global definition):** add `dev/docs/ui-elements.md` listing each shared element: its class or `ui.*` call, states (`rest`, `hover`, `selected`, `is-editing`, `is-collapsed`, `is-dim`, `disabled`), tokens used, minimum hit area, and which types use it. `SKILL.md` and `CONTRIBUTING.md` link to it from the "new diagram type" checklist.
 2. **State naming convention:** one name per state across all types: `.selected`, `.is-editing`, `.is-collapsed`, `.is-dim`, `.is-dragging`. Rename the 9 `.editing` uses.
 3. **Component tokens for interaction** (extends Phase 4 step 3): `--select-ring-w`, `--hover-shadow`, `--chevron-size`, `--port-size`, `--port-size-touch`, `--hit-min` (24 px). Types read these; none set their own.
 4. **Shared components** (CSS in `assets/components`, markup factory in the `ui` object in `shell.js`):
@@ -87,7 +87,7 @@ Steps:
 6. **Migrate one type per commit**, deleting the type's own copy in the same commit. Type CSS may only position or size shared elements, not restyle them.
 7. **Guard against new drift:** extend `check_tokens.py` (or add `check_components.py` to `run_unit.mjs`) to fail when type CSS declares a selector for a shared element concept (`*-chevron`, `*-port`, `*-handle`, `.edge-label` styling beyond position) or uses a state name outside the convention. Exceptions need a `components-ok: <reason>` comment.
 8. **Component gallery:** a `dev/playground/components.html` page built from the shared CSS and `ui.*` calls showing every element in every state, light and dark, and an e2e screenshot of it. This is the reference a new type is checked against.
-9. **New-type contract:** the type slice checklist in the project rules gains "uses shared elements from `references/ui-elements.md`; no type-specific copies".
+9. **New-type contract:** the type slice checklist in the project rules gains "uses shared elements from `dev/docs/ui-elements.md`; no type-specific copies".
 
 Samples change visually, so `dev/samples/example-*.html` are regenerated and re-signed in this phase.
 
@@ -126,7 +126,7 @@ The phases above are in priority order. Several can run at the same time because
 | A | A3 Token groundwork | Phase 4 steps 2, 4, 5, 6, plus the definitions (not the migration) of the `space` scale and the Phase 5 step 3 interaction tokens | `assets/tokens/default.json`, `scripts/tokens.py`, `check_tokens.py`, `check_contrast.py`, the 15 findings in `gantt.css`, `table.css`, `c4.css`, `flowchart.js` lines 1-4 |
 | A | A4 Smaller pages | Phase 7 | `scripts/layout_engine.py` (`assemble_page`) and its unit test |
 | B | B1 Drag and render speed | Phase 2 step 3 + Phase 3 | `flowchart.js` render and drag functions, then the same pattern in the other types' render functions |
-| B | B2 Shared UI elements | Phase 5, plus Phase 1 hit areas for collapse arrows and handles | `assets/components/*` (new `chevron.css`, `port.css`, `item-states.css`, `edge.css`), the `ui` object in `shell.js`, type CSS, the chevron/port markup in type JS, `references/ui-elements.md`, gallery page, drift checker |
+| B | B2 Shared UI elements | Phase 5, plus Phase 1 hit areas for collapse arrows and handles | `assets/components/*` (new `chevron.css`, `port.css`, `item-states.css`, `edge.css`), the `ui` object in `shell.js`, type CSS, the chevron/port markup in type JS, `dev/docs/ui-elements.md`, gallery page, drift checker |
 | B | B3 Shared notes module | Phase 6 | new `assets/shell/notes.js`, the notes functions in each type's JS |
 | C | C1 Spacing migration | Phase 4 step 1 (migrate every CSS file to `--space-*`) | all CSS files |
 | C | C2 Keyboard access | Phase 8 | new `assets/shell/keyboard.js`, new `assets/components/focus.css`, key handling in type JS |
