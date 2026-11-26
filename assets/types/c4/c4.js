@@ -51,7 +51,32 @@
       let boxBase = [];        // the selection a Shift+drag box started from
       let newLink = null;      // the relation whose label is still being edited (its connection is not a step yet)
       let selNoteId = null;    // the selected note card (no element, group or arrow is selected then)
-      let editingNoteId = null, noteDraft = null;   // the card being typed in; noteDraft: a note added a moment ago and the Notes state it found
+      const noteCtl = createNotes({   // the card being typed in; a note added a moment ago remembers the Notes state it found
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        canEdit: () => !presenting(),
+        restoreSwitch: true,
+        openCard: (n) => {
+          const card = noteCard(n.id);
+          if (card) selectNote(n.id);
+          return card;
+        },
+        // the card folds into what it explained (a FLIP in render), so the snapshot is taken before the data changes
+        beforeRemove: (n) => {
+          const a = noteAnchor(n);
+          motion.cancelAll();
+          return { a, snap: motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null };
+        },
+        clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
+        render: ({ note, token, reason }) => {
+          if (reason === 'text') {
+            noteCard(note.id).setAttribute('aria-label', `Note on ${noteNames(note)}: ${note.text}`);
+            placeNotes();
+            updateNotesButton();
+          } else if (reason !== 'same') render({ snap: token.snap, toKey: token.a ? { [note.id]: token.a.id } : undefined, duration: 160 });
+        },
+        onChange: () => updateStatus(true),
+      });
       let notesLayer = null;
       const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
       let byId = new Map();    // group id -> group (rebuilt each render)
@@ -1204,7 +1229,7 @@
       const noteTargets = (n) => (n.elements || []).map((id) => ({ kind: 'element', id })).concat((n.groups || []).map((id) => ({ kind: 'group', id })));
       const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
       const noteAnchor = (n) => noteTargets(n).find(targetEl);
-      const noteShown = (n) => !!noteAnchor(n) && (n.id === editingNoteId || (!!noteText(n) && chartData.showNotes === true));
+      const noteShown = (n) => !!noteAnchor(n) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
       const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
 
@@ -1386,68 +1411,15 @@
         if (es.length) note.elements = es;
         if (gs.length) note.groups = gs;
         (chartData.notes = notesList()).push(note);
-        noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
+        noteCtl.begin(note, true);
         chartData.showNotes = true;
-        editingNoteId = note.id;
         sel = [];
         render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
         editNote(note.id);
       }
-      function editNote(id) {
-        const n = noteOf(id), card = noteCard(id);
-        if (!n || !card || presenting()) return;
-        if (editingNoteId !== id || !noteDraft) noteDraft = { id, isNew: false, before: noteText(n) };
-        editingNoteId = id;
-        selectNote(id);
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-      }
-      function commitNote(n, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== n.id) return;
-        const d = noteDraft;
-        editingNoteId = null; noteDraft = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (!value) {
-          if (d && d.isNew && !d.wasOn) delete chartData.showNotes;   // a note given up leaves the switch as it was
-          removeNote(n.id, !(d && d.isNew));
-          return;
-        }
-        if (value === (d ? d.before : noteText(n))) { text.textContent = n.text; return; }
-        n.text = value;
-        text.textContent = value;
-        text.closest('.note').setAttribute('aria-label', `Note on ${noteNames(n)}: ${value}`);
-        placeNotes();
-        updateNotesButton();
-        updateStatus(true);
-      }
-      function removeNote(id, step = true) {
-        const n = noteOf(id);
-        if (!n) return;
-        const a = noteAnchor(n);
-        motion.cancelAll();
-        const snap = motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
-        chartData.notes = notesList().filter((x) => x.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
-        if (selNoteId === id) selNoteId = null;
-        render({ snap, toKey: a ? { [id]: a.id } : undefined, duration: 160 });   // the card folds into what it explained
-        if (step) updateStatus(true);
-      }
-      window.addEventListener('pointerdown', (e) => {   // a press anywhere else ends the typing, as in the other types
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), n = noteOf(editingNoteId);
-        if (text && n) { text.blur(); commitNote(n, text); }
-      }, true);
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(n, text) { noteCtl.commit(n, text); }
+      function removeNote(id, step = true) { noteCtl.remove(id, step); }
       const btnAddNote = document.getElementById('btn-add-note');
       if (btnAddNote) btnAddNote.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(addNote, 0); else addNote(); });
 

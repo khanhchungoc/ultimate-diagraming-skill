@@ -764,12 +764,36 @@
       // A free note has no links (`useCases` and `actors` empty or absent) and an absolute `pos` in canvas coordinates, which
       // is saved: no leader, no badge, always on show, never moved by Tidy; the other notes are fitted around it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
-      let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null, editingNoteId = null;
+      let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null;
+      const noteCtl = createNotes({
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        anchorEl: (note) => (isFreeNote(note) ? null : noteBadgeEl(note)),
+        canEdit: () => !presenting(),
+        openCard: (note) => {
+          cancelDrag();
+          selectOther('note', note.id);
+          const existed = !!noteCard(note.id);
+          if (!existed) renderNotes(false, false);
+          const card = noteCard(note.id);
+          if (!card) return null;
+          applyNoteVisibility(existed);
+          if (!existed && motion.enabled()) {
+            const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
+            motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
+          }
+          return card;
+        },
+        afterFocus: (card) => panIntoView(card),
+        clearSelection: (id) => { if (selectedNoteId() === id) selOther = null; },
+        render: () => render(),
+        onChange: () => updateStatus(true),
+      });
       const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
       const linkedItems = (n) => (n.useCases || []).concat(n.actors || []).filter((id) => itemOf(id) && drawn(id));
       const linkCount = (n) => (n.useCases || []).length + (n.actors || []).length;
       const isFreeNote = (n) => !linkCount(n);
-      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedItems(n).length));
+      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === noteCtl.editingId()) && (isFreeNote(n) || linkedItems(n).length));
       const notesOfItem = (id) => liveNotes().filter((n) => linkedItems(n).includes(id));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((el) => el.dataset.noteId === id);
       const selectedNoteId = () => (selOther && selOther.kind === 'note' ? selOther.id : null);
@@ -955,68 +979,9 @@
         chartData.notes.push(note);
         editNote(note.id);
       }
-      function editNote(id) {
-        const note = noteOf(id);
-        if (!note || presenting()) return;
-        cancelDrag();
-        editingNoteId = id;
-        selectOther('note', id);
-        const existed = !!noteCard(id);
-        if (!existed) renderNotes(false, false);
-        const card = noteCard(id);
-        if (!card) return;
-        applyNoteVisibility(existed);
-        if (!existed && motion.enabled()) {
-          const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
-          motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
-        }
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);
-        const s = window.getSelection();
-        s.removeAllRanges();
-        s.addRange(range);
-        panIntoView(card);
-      }
-      function commitNote(note, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== note.id) return;
-        editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (value) note.text = value;
-        else {
-          const card = noteCard(note.id);
-          if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-          chartData.notes = notesList().filter((n) => n !== note);
-          if (!chartData.notes.length) delete chartData.notes;
-          if (selectedNoteId() === note.id) selOther = null;
-        }
-        updateStatus(true);
-        render();
-      }
-      window.addEventListener('pointerdown', (e) => {
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), note = noteOf(editingNoteId);
-        if (text) text.blur();
-        if (text && note) commitNote(note, text);
-      }, true);
-      function removeNote(id) {
-        const note = noteOf(id);
-        if (!note) return;
-        const card = noteCard(id);
-        if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
-        chartData.notes = notesList().filter((n) => n.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) editingNoteId = null;
-        if (selectedNoteId() === id) selOther = null;
-        updateStatus(true);
-        render();
-      }
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(note, text) { noteCtl.commit(note, text); }
+      function removeNote(id) { noteCtl.remove(id); }
       function toggleNoteLink(noteId, itemId) {
         const note = noteOf(noteId), kind = kindOf(itemId);
         if (!note || !kind) return;
