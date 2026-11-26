@@ -233,6 +233,22 @@ const tpl = document.createElement('template');
 tpl.innerHTML = icon(name, o);
 return tpl.content.firstChild;
 }
+function chevron(o) {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = 'chevron';
+b.title = o.label;
+b.setAttribute('aria-label', o.label);
+b.setAttribute('aria-expanded', String(!!o.expanded));
+b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+return b;
+}
+function port(side) {
+const p = document.createElement('span');
+p.className = `port port-${side}`;
+p.dataset.exportSkip = '';
+return p;
+}
 let confirmEl = null;
 function closeConfirm() {
 if (!confirmEl) return false;
@@ -448,7 +464,7 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1362,6 +1378,10 @@ panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 :
 panY = minPan - frame.y * scale;
 updateTransform();
 };
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+let fontLoadedSinceRender = false;
+const onFontLoaded = () => { fontLoadedSinceRender = true; };
+if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
 try {
 plugin.render();
 applyInitialView();
@@ -1375,7 +1395,8 @@ document.documentElement.dataset.diagramReady = '1';
 requestAnimationFrame(() => {
 applyInitialView();
 syncHeaderCompact();
-const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
 ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
 : Promise.resolve();
 fontsIn.then(() => {
@@ -2141,7 +2162,7 @@ else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('o
 }
 const btnExport = document.getElementById('btn-export');
 const exportMenu = document.getElementById('export-menu');
-const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
 const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
 const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
 let defaultStyleCache = null;
@@ -3481,6 +3502,76 @@ return;
 plugin.deleteSelection();
 }
 });
+function createNotes(opts) {
+let editing = null;   // the note being typed
+let draft = null;     // { id, isNew, wasOn, before }
+const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
+const byId = (id) => list().find((n) => n && n.id === id) || null;
+const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function begin(note, isNew) {
+draft = { id: note.id, isNew: !!isNew, wasOn: opts.data().showNotes === true, before: isNew ? '' : textOf(note) };
+editing = note.id;
+}
+function edit(id) {
+const note = byId(id);
+if (!note || (opts.canEdit && !opts.canEdit())) return;
+const prev = { editing, draft };
+if (editing !== id || !draft) begin(note, false);
+const card = opts.openCard(note);
+const text = card && card.querySelector('.note-text');
+if (!text) { if (!card) ({ editing, draft } = prev); return; }
+if (opts.beforeEdit) opts.beforeEdit(note, card, text);
+text.contentEditable = 'true';
+text.focus();
+const range = document.createRange();
+range.selectNodeContents(text);
+if (!opts.selectAll) range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+if (opts.afterFocus) opts.afterFocus(card);
+}
+function remove(id, record = true, reason = 'remove') {
+const note = byId(id);
+if (!note) return;
+const card = opts.cardOf(id);
+if (opts.anchorEl && card) motion.foldNote(card, opts.anchorEl(note));   // morph into the badge, never fade
+const token = opts.beforeRemove ? opts.beforeRemove(note) : undefined;
+const data = opts.data();
+data.notes = list().filter((n) => n && n.id !== id);
+if (!data.notes.length) delete data.notes;
+if (editing === id) { editing = null; draft = null; }
+opts.clearSelection(id);
+opts.render({ note, token, reason });
+if (record) opts.onChange();
+}
+function commit(note, textEl) {
+textEl.contentEditable = 'false';
+if (editing !== note.id) return;
+const d = draft;
+editing = null; draft = null;
+const value = clean(textEl.innerText);
+if (!value) {
+if (opts.restoreSwitch && d && d.isNew && !d.wasOn) delete opts.data().showNotes;   // a note given up leaves the switch as it was
+remove(note.id, !(d && d.isNew), 'cleared');
+return;
+}
+if (d && value === d.before) { textEl.textContent = note.text; opts.render({ note, reason: 'same' }); return; }
+note.text = value;
+textEl.textContent = value;
+opts.render({ note, reason: 'text' });
+opts.onChange();
+}
+window.addEventListener('pointerdown', (e) => {
+if (!editing) return;
+const card = opts.cardOf(editing);
+if (card && card.contains(e.target)) return;
+const text = card && card.querySelector('.note-text'), note = byId(editing);
+if (text && note) { text.blur(); commit(note, text); }   // no-op if the blur already committed it
+}, true);
+return { begin, edit, commit, remove, list, byId, editingId: () => editing, isEditing: (id) => editing === id };
+}
 //@engine-begin
 function routeEdgesOrthogonal(model) {
 const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
@@ -7630,9 +7721,33 @@ let keyDraft = null;     // the colour slot whose colour key entry is being name
 let boxBase = [];        // the selection a Shift+drag box started from
 let newLink = null;      // the relation whose label is still being edited (its connection is not a step yet)
 let selNoteId = null;    // the selected note card (no element, group or arrow is selected then)
-let editingNoteId = null, noteDraft = null;   // the card being typed in; noteDraft: a note added a moment ago and the Notes state it found
+const noteCtl = createNotes({   // the card being typed in; a note added a moment ago remembers the Notes state it found
+data: () => chartData,
+cardOf: (id) => noteCard(id),
+canEdit: () => !presenting(),
+restoreSwitch: true,
+openCard: (n) => {
+const card = noteCard(n.id);
+if (card) selectNote(n.id);
+return card;
+},
+beforeRemove: (n) => {
+const a = noteAnchor(n);
+motion.cancelAll();
+return { a, snap: motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null };
+},
+clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
+render: ({ note, token, reason }) => {
+if (reason === 'text') {
+noteCard(note.id).setAttribute('aria-label', `Note on ${noteNames(note)}: ${note.text}`);
+placeNotes();
+updateNotesButton();
+} else if (reason !== 'same') render({ snap: token.snap, toKey: token.a ? { [note.id]: token.a.id } : undefined, duration: 160 });
+},
+onChange: () => updateStatus(true),
+});
 let notesLayer = null;
-const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
+const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element, kept across renders (render); edges: id -> { g, line, hit, label, badge, ... }
 let byId = new Map();    // group id -> group (rebuilt each render)
 let elById = new Map();  // element id -> element (rebuilt each render)
 let edgeById = new Map(); // edge id -> edge (rebuilt each render)
@@ -7753,16 +7868,35 @@ const FLIP_SPECS = [
 ];
 function captureEdges() {
 const m = new Map();
-edgesG.querySelectorAll('.c4-edge[data-edge-id]').forEach((g) => { const l = g.querySelector('.edge-line'); if (l) m.set(g.dataset.edgeId, l.getAttribute('d')); });
+els.edges.forEach((rec, id) => m.set(id, rec.d));
 return m;
 }
 function playEdges(prev) {
 if (!prev || !motion.enabled()) return;
-edgesG.querySelectorAll('.c4-edge[data-edge-id]').forEach((g) => {
-const l = g.querySelector('.edge-line');
-if (l && prev.get(g.dataset.edgeId) !== l.getAttribute('d')) motion.drawPath(l, { duration: 160, easing: 'curve-out' });
-});
+els.edges.forEach((rec, id) => { if (prev.get(id) !== rec.d) motion.drawPath(rec.line, { duration: 160, easing: 'curve-out' }); });
 }
+const itemState = new WeakMap();   // element -> { sig, paint, shape }: what the last render built into it
+const setStyle = (el, k, v) => { if (el.style[k] !== v) el.style[k] = v; };
+const setAttr = (el, k, v) => { if (el.getAttribute(k) !== v) el.setAttribute(k, v); };
+const setCls = (el, cls) => { if (el.className !== cls) el.className = cls; };
+function placeBox(el, o) {
+setStyle(el, 'left', px(o.x)); setStyle(el, 'top', px(o.y)); setStyle(el, 'width', px(o.w)); setStyle(el, 'height', px(o.h));
+setStyle(el, 'translate', '');        // left by a move that was let go (MOVING BOXES); a fresh element has none
+setStyle(el, 'transformOrigin', '');  // left by an entrance morph
+}
+function setPaint(el, st, v) {   // the swatch roles of a slot or hex; none clears them (the class comes with the className)
+if (st.paint === v) return;
+st.paint = v;
+if (v) setSwatch(el, v);
+else { el.style.removeProperty('--swatch-color'); delete el.dataset.sw; }
+}
+function placeChildren(parent, list) {
+const want = new Set(list);
+[...parent.children].forEach((c) => { if (!want.has(c)) c.remove(); });
+let cur = parent.firstElementChild;
+list.forEach((el) => { if (el === cur) cur = cur.nextElementSibling; else parent.insertBefore(el, cur); });
+}
+const itemDirty = (el) => { const st = el && itemState.get(el); if (st) st.sig = null; };   // an inline edit wrote into it: build its content again
 function render(opts) {
 const o = opts && typeof opts === 'object' ? opts : {};
 const useMotion = opts !== false && motion.enabled() && html.childElementCount > 0;
@@ -7780,24 +7914,25 @@ canvas.style.height = px(C.height);
 svg.setAttribute('width', C.width);
 svg.setAttribute('height', C.height);
 const hadFocus = document.activeElement && html.contains(document.activeElement) && (document.activeElement.dataset.nodeId || document.activeElement.dataset.groupId || document.activeElement.dataset.edgeId);
-edgesG.textContent = '';
-html.textContent = '';
-els.nodes = new Map(); els.groups = new Map(); els.edges = new Map();
 sel = sel.filter(selectionExists);
 if (hoverId && !elementOf(hoverId) && !groupOf(hoverId)) hoverId = null;
+const order = [];
+const seenGroups = new Set();
 groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)).sort((a, b) => depthOf(a) - depthOf(b)).forEach((g) => {
-const el = buildGroup(g);
-els.groups.set(g.id, el);
-html.appendChild(el);
+order.push(syncGroup(g));
+seenGroups.add(g.id);
 });
+els.groups.forEach((el, id) => { if (!seenGroups.has(id)) els.groups.delete(id); });
 renderEdges();
+const seenNodes = new Set();
 elements().forEach((e) => {
 if (e._hidden || !placed(e) || !(e.w > 0)) return;
-const el = buildNode(e);
-els.nodes.set(e.id, el);
-html.appendChild(el);
+order.push(syncNode(e));
+seenNodes.add(e.id);
 });
-renderLabels();
+els.nodes.forEach((el, id) => { if (!seenNodes.has(id)) els.nodes.delete(id); });
+renderLabels(order);
+placeChildren(html, order);   // also drops the legend, notes and action bar of the last render: they are made again below
 renderLegend();
 renderNotes();
 updateLevelButtons();
@@ -7808,7 +7943,7 @@ applyState();
 updateModeUi();
 syncTouchDrag();
 const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
-if (back) back.focus({ preventScroll: true });
+if (back && document.activeElement !== back) back.focus({ preventScroll: true });
 if (snap) {
 motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, ghostExit: o.ghostExit, enterScale: o.enterScale });
 playEdges(prevEdges);
@@ -7835,50 +7970,34 @@ if (ev.target.closest && ev.target.closest('.is-editing')) return;
 if (isTyping()) document.activeElement.blur();   // commit a field being edited, as any click on the canvas does
 if (presenting()) { setSel([item]); return; }
 if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { ev.preventDefault(); toggleSel(item); return; }
-if (ev.target.closest && ev.target.closest('.frame-chev')) return;
+if (ev.target.closest && ev.target.closest('.chevron')) return;
 if (item.kind !== 'edge' && sel.length > 1 && inSel(item.kind, item.id)) { startMove(ev, item, sel.slice()); return; }   // the whole selection moves; a click without a move selects this one
 setSel([item]);
 if (item.kind !== 'edge') startMove(ev, item, [item]);
 }
-function notePin(kind, id, label) {
+function pinNoteOf(kind, id) {
 if (chartData.showNotes === true) return null;
 const n = notesList().find((x) => noteText(x) && (kind === 'element' ? (x.elements || []).includes(id) : (x.groups || []).includes(id)));
-if (!n) return null;
+return n ? n.id : null;
+}
+function notePin(label) {   // a press shows every note and selects the box's note (ITEM EVENTS)
 const b = htmlEl('button', 'c4-note-pin');
 b.type = 'button';
 b.dataset.exportSkip = '';
 b.title = `Show note on ${label}`;
 b.setAttribute('aria-label', b.title);
 b.innerHTML = ui.icon('notes', { size: 'xs' });
-b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-b.addEventListener('click', (ev) => { ev.stopPropagation(); setShowNotes(true); selectNote(n.id); });
 return b;
 }
-function cardPlaceholder(e, field, label, title) {
+function cardPlaceholder(field, label, title) {   // a press opens the field (ITEM EVENTS)
 const ph = htmlEl('span', `c4-placeholder c4-${field}-ph`, '');
 ph.dataset.exportSkip = '';
 ph.dataset.field = field;
 ph.dataset.ph = label;
 ph.title = title;
-ph.addEventListener('pointerdown', (ev) => {
-if (ev.button !== 0 || presenting()) return;
-ev.preventDefault();
-ev.stopPropagation();
-if (isTyping()) document.activeElement.blur();
-editField(e.id, field);
-});
 return ph;
 }
-function buildNode(e) {
-const el = htmlEl('div', 'c4-node');
-el.dataset.nodeId = e.id;
-el.dataset.kind = e.kind;
-el.tabIndex = -1;
-el.setAttribute('role', 'group');
-el.setAttribute('aria-label', ariaOf(e));
-Object.assign(el.style, { left: px(e.x), top: px(e.y), width: px(e.w), height: px(e.h) });
-el.style.setProperty('--c4-h', px(e.h));
-paint(el, e.color, KIND_SLOT[e.kind] || '9');   // external: the neutral slot
+function nodeContent(e, pinId) {   // what a tile holds: chip, name, tech, description, placeholders, note pin and ports
 const chip = htmlEl('span', 'c4-disc');
 if (String(e.icon).startsWith('logo:') && ui.hasLogo(e.icon.slice(5))) { chip.classList.add('is-logo'); chip.innerHTML = ui.logo(e.icon.slice(5), { size: 'tile' }); }   // a local-pack logo keeps its own colours on a white disc
 else chip.innerHTML = ui.icon(iconOf(e), { size: 'tile', fine: true });
@@ -7890,76 +8009,104 @@ const missingTech = !e.tech && showTech(), missingDesc = !e.description;
 if (missingTech || missingDesc) {
 const phRow = htmlEl('span', 'c4-ph-row');
 phRow.dataset.exportSkip = '';
-if (missingTech) phRow.appendChild(cardPlaceholder(e, 'tech', '+ tech', 'Add technology (e.g. Node.js, PostgreSQL)'));
-if (missingDesc) phRow.appendChild(cardPlaceholder(e, 'desc', '+ description', 'Add a short description'));
+if (missingTech) phRow.appendChild(cardPlaceholder('tech', '+ tech', 'Add technology (e.g. Node.js, PostgreSQL)'));
+if (missingDesc) phRow.appendChild(cardPlaceholder('desc', '+ description', 'Add a short description'));
 text.appendChild(phRow);
 }
-el.append(chip, text);
-const pin = notePin('element', e.id, nameOf(e));
-if (pin) el.appendChild(pin);
+const kids = [chip, text];
+if (pinId) kids.push(notePin(nameOf(e)));
 ['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
-const port = htmlEl('span', 'c4-port');
+const port = ui.port({ N: 'top', E: 'right', S: 'bottom', W: 'left' }[side]);
 port.dataset.side = side;
-port.dataset.exportSkip = '';
 port.dataset.touchDrag = '';
 port.setAttribute('role', 'button');
 port.setAttribute('aria-label', `Connect from ${nameOf(e)}: drag to another element`);
 port.title = 'Drag to another element to connect them';
-port.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) startConnectDrag(ev, e.id); });
-el.appendChild(port);
+kids.push(port);
 });
-el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'element', id: e.id }));
-hoverable(el, e.id);
-return el;
+return kids;
 }
-function chevron(g, collapsed) {
-const b = htmlEl('button', 'frame-chev');
-b.type = 'button';
-b.dataset.exportSkip = '';
-b.title = collapsed ? `Expand ${nameOf(g)}` : `Collapse ${nameOf(g)} to one box`;
-b.setAttribute('aria-label', b.title);
-b.setAttribute('aria-expanded', String(!collapsed));
-b.innerHTML = ui.icon('chevron-down', { size: 'sm', bold: true });
-b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-b.addEventListener('click', (ev) => { ev.stopPropagation(); toggleGroup(g.id); });
-return b;
-}
-function buildGroup(g) {
-const tile = isTile(g);
-const el = htmlEl('div', `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}`);
-el.dataset.groupId = g.id;
-el.dataset.kind = g.kind;
-Object.assign(el.style, { left: px(g.x), top: px(g.y), width: px(g.w), height: px(g.h) });
-if (tile) {
-paint(el, g.color, g.kind === 'boundary' ? null : GROUP_SLOT);
+function syncNode(e) {
+let el = els.nodes.get(e.id), st = el && itemState.get(el);
+if (!el) {
+el = htmlEl('div', 'c4-node');
+el.dataset.item = '';
+el.dataset.nodeId = e.id;
 el.tabIndex = -1;
 el.setAttribute('role', 'group');
-el.setAttribute('aria-label', `${nameOf(g)}, ${g.kind === 'boundary' ? 'boundary' : 'software system'}, ${descendants(g).filter((id) => elementOf(id)).length} inside, collapsed`);
+st = { sig: null, paint: null };
+itemState.set(el, st);
+els.nodes.set(e.id, el);
+}
+setCls(el, 'c4-node swatch-scope');   // drops the state classes of the last render (applyState sets them again)
+if (el.dataset.kind !== e.kind) el.dataset.kind = e.kind;
+setAttr(el, 'aria-label', ariaOf(e));
+placeBox(el, e);
+if (el.style.getPropertyValue('--c4-h') !== px(e.h)) el.style.setProperty('--c4-h', px(e.h));
+setPaint(el, st, e.color || KIND_SLOT[e.kind] || '9');   // external: the neutral slot
+const pinId = pinNoteOf('element', e.id);
+const sig = JSON.stringify([e.kind, nameOf(e), e.tech || '', e.description || '', e.icon || '', showTech(), pinId]);
+if (st.sig !== sig) { st.sig = sig; el.replaceChildren(...nodeContent(e, pinId)); }
+return el;
+}
+function chevron(g, collapsed) {   // a click opens or closes the group (ITEM EVENTS)
+const b = ui.chevron({ expanded: !collapsed, label: collapsed ? `Expand ${nameOf(g)}` : `Collapse ${nameOf(g)} to one box` });
+b.dataset.exportSkip = '';
+return b;
+}
+function syncGroup(g) {
+const tile = isTile(g), shape = tile ? 'tile' : 'frame';
+let el = els.groups.get(g.id), st = el && itemState.get(el);
+if (el && st.shape !== shape) { el.remove(); el = null; }   // a frame and a tile are different boxes
+if (!el) {
+el = htmlEl('div', 'c4-group');
+el.dataset.groupId = g.id;
+if (tile) {
+el.dataset.item = '';
+el.tabIndex = -1;
+el.setAttribute('role', 'group');
+}
+st = { sig: null, paint: null, shape };
+itemState.set(el, st);
+els.groups.set(g.id, el);
+}
+const tint = tile ? (g.color || (g.kind === 'boundary' ? null : GROUP_SLOT)) : swatchOf(g);   // a tile: a system tile; a frame: its colour, a slot or custom hex, as a sequence frame's
+setCls(el, `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}${tint ? ' swatch-scope' : ''}`);
+if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
+placeBox(el, g);
+setPaint(el, st, tint || null);
+const pinId = pinNoteOf('group', g.id);
+const kind = g.kind === 'boundary' ? 'boundary' : 'software system';
+if (tile) {
+const n = descendants(g).filter((id) => elementOf(id)).length;
+setAttr(el, 'aria-label', `${nameOf(g)}, ${kind}, ${n} inside, collapsed`);
+const sig = JSON.stringify([nameOf(g), n, pinId]);
+if (st.sig !== sig) {
+st.sig = sig;
 const text = htmlEl('span', 'c4-text');
 text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(g)));
-const n = descendants(g).filter((id) => elementOf(id)).length;
 text.appendChild(htmlEl('span', 'c4-desc t-detail', `${n} ${n === 1 ? 'element' : 'elements'} inside`));
 const chip = htmlEl('span', 'c4-disc');
 chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
-el.append(chip, text, chevron(g, true));
-const pin = notePin('group', g.id, nameOf(g));
-if (pin) el.appendChild(pin);
-hoverable(el, g.id);
+el.replaceChildren(chip, text, chevron(g, true));
+if (pinId) el.appendChild(notePin(nameOf(g)));
+}
 } else {
+const hasKids = descendants(g).length > 0;
+const sig = JSON.stringify([nameOf(g), kind, tint, hasKids, pinId]);
+if (st.sig !== sig) {
+st.sig = sig;
 const tag = htmlEl('div', 'frame-tag c4-tag');
-const tint = swatchOf(g);   // a group's colour: a slot or custom hex, as a sequence frame's
-if (tint) { paint(el, tint); paint(tag, tint); }
+if (tint) paint(tag, tint);
 tag.tabIndex = -1;
 tag.setAttribute('role', 'group');
-tag.setAttribute('aria-label', `${nameOf(g)}, ${g.kind === 'boundary' ? 'boundary' : 'software system'}`);
-const hasKids = descendants(g).length > 0;
+tag.setAttribute('aria-label', `${nameOf(g)}, ${kind}`);
 if (hasKids) tag.appendChild(chevron(g, false));
 tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
-const pin = notePin('group', g.id, nameOf(g));
-if (pin) tag.appendChild(pin);
-el.appendChild(tag);
+if (pinId) tag.appendChild(notePin(nameOf(g)));
+el.replaceChildren(tag);
 }
-el.addEventListener('pointerdown', (ev) => { if (tile || ev.target.closest('.frame-tag')) press(ev, { kind: 'group', id: g.id }); });
+}
 return el;
 }
 const edgeTitle = (e) => `${nameOf(elementOf(e.from) || groupOf(e.from))} → ${nameOf(elementOf(e.to) || groupOf(e.to))}: ${e.step ? `[${e.step}] ` : ''}${e.label || ''}${e.tech ? ` [${e.tech}]` : ''}${e.count > 1 ? ` (${e.count} relations)` : ''}`;
@@ -7970,79 +8117,165 @@ line.style.setProperty('--mk-e-out', 'url(#c4-mk-out)');
 line.style.setProperty('--mk-e-sel', 'url(#c4-mk-sel)');
 }
 function renderEdges() {
+const list = [];
 edges().forEach((e) => {
 if (!e.path) return;
 const tint = swatchOf(e);
-const g = svgEl('g', { class: `c4-edge${e.async ? ' is-async' : ''}${tint ? ' is-colored' : ''}`, 'data-edge-id': e.id, 'data-from': e.from, 'data-to': e.to });
-if (tint) setSwatch(g, tint);
+let rec = els.edges.get(e.id);
+if (!rec) {
+const g = svgEl('g', { 'data-edge-id': e.id });
 const tip = svgEl('title', { 'data-export-skip': '' });
-tip.textContent = edgeTitle(e);
-const line = svgEl('path', { class: 'edge-line', d: e.path });
-setMarkers(line, tint);
-const hit = svgEl('path', { class: 'edge-hit', d: e.path });
+const line = svgEl('path', { class: 'edge-line' });
+const hit = svgEl('path', { class: 'edge-hit' });
 g.append(tip, hit, line);
-g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-edgesG.appendChild(g);
-els.edges.set(e.id, { g, line, hit, d: e.path, label: null, badge: null });
-});
+rec = { g, line, hit, tip, d: null, tint: undefined, label: null, badge: null };
+els.edges.set(e.id, rec);
 }
-function renderLabels() {
+const { g, line, hit, tip } = rec;
+setAttr(g, 'class', `c4-edge${e.async ? ' is-async' : ''}${tint ? ' is-colored swatch-scope' : ''}`);   // drops the state classes (applyState sets them again)
+setAttr(g, 'data-from', e.from);
+setAttr(g, 'data-to', e.to);
+if (rec.tint !== tint) {
+rec.tint = tint;
+if (tint) setSwatch(g, tint); else { g.style.removeProperty('--swatch-color'); delete g.dataset.sw; }
+setMarkers(line, tint);
+}
+const title = edgeTitle(e);
+if (tip.textContent !== title) tip.textContent = title;
+if (rec.d !== e.path) { rec.d = e.path; line.setAttribute('d', e.path); hit.setAttribute('d', e.path); }
+rec.seen = true;
+list.push(g);
+});
+els.edges.forEach((rec, id) => {
+if (rec.seen) { rec.seen = false; return; }
+els.edges.delete(id);   // its label and badge go with the html layer (placeChildren)
+});
+placeChildren(edgesG, list);
+}
+function renderLabels(order) {
 edges().forEach((e) => {
 const b = e.labelBox, rec = els.edges.get(e.id);
 if (!rec) return;
 const direct = isDirectEdge(e), tint = swatchOf(e);
 const isNewLink = !!(newLink && e.members && e.members.includes(relations().indexOf(newLink)));
 if (b && (e.label || (showTech() && e.tech) || e.count > 1 || isNewLink)) {
-const el = htmlEl('div', `edge-label c4-label${tint ? ' is-colored' : ''}`);
-if (tint) setSwatch(el, tint);
+let el = rec.label, st = el && itemState.get(el);
+if (!el) {
+el = htmlEl('div', 'edge-label');
 el.dataset.edgeId = e.id;
-el.tabIndex = direct ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
 el.setAttribute('role', 'group');
-el.setAttribute('aria-label', `${e.step ? `Step ${e.step}, ` : ''}${e.label || 'Arrow'}, from ${nameOf(nodeOrGroup(e.from))} to ${nameOf(nodeOrGroup(e.to))}`);
-Object.assign(el.style, { left: px(Math.round(b.x + b.w / 2)), top: px(Math.round(b.y + b.h / 2)) });
-el.title = edgeTitle(e);
-el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
+st = { sig: null, paint: null };
+itemState.set(el, st);
+rec.label = el;
+}
+setCls(el, `edge-label c4-label${tint ? ' is-colored swatch-scope' : ''}`);
+setPaint(el, st, tint);
+const ti = direct ? '0' : '-1';   // a merged arrow (a count tag) is not editable: no tab stop
+if (el.getAttribute('tabindex') !== ti) el.setAttribute('tabindex', ti);
+setAttr(el, 'aria-label', `${e.step ? `Step ${e.step}, ` : ''}${e.label || 'Arrow'}, from ${nameOf(nodeOrGroup(e.from))} to ${nameOf(nodeOrGroup(e.to))}`);
+setStyle(el, 'left', px(Math.round(b.x + b.w / 2)));
+setStyle(el, 'top', px(Math.round(b.y + b.h / 2)));
+setStyle(el, 'transformOrigin', '');
+const title = edgeTitle(e);
+if (el.title !== title) el.title = title;
+const sig = JSON.stringify([e.label || '', e.count, e.tech || '', showTech(), direct]);
+if (st.sig !== sig) {
+st.sig = sig;
+const kids = [htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`)];
 if (showTech()) {
-if (e.tech) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
-else if (direct) {
+if (e.tech) kids.push(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
+else if (direct) {   // a press opens the field (ITEM EVENTS)
 const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
 ph.dataset.exportSkip = '';
 ph.dataset.field = 'tech';
 ph.dataset.ph = '+ tech';
 ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
-ph.addEventListener('pointerdown', (ev) => {
-if (ev.button !== 0 || presenting()) return;
+kids.push(ph);
+}
+}
+el.replaceChildren(...kids);
+}
+order.push(el);
+} else rec.label = null;
+if (showSteps() && e.step && e.badge) {
+let sb = rec.badge, st = sb && itemState.get(sb);
+if (!sb) {
+sb = htmlEl('div', 'c4-step');
+sb.dataset.edgeId = e.id;
+st = { sig: null, paint: null };
+itemState.set(sb, st);
+rec.badge = sb;
+}
+setCls(sb, `c4-step${tint ? ' is-colored swatch-scope' : ''}`);
+setPaint(sb, st, tint);
+if (sb.textContent !== String(e.step)) sb.textContent = e.step;
+setAttr(sb, 'aria-label', `Step ${e.step}: ${e.label || ''}`);
+const title = edgeTitle(e);
+if (sb.title !== title) sb.title = title;
+setStyle(sb, 'left', px(Math.round(e.badge.x + e.badge.w / 2)));
+setStyle(sb, 'top', px(Math.round(e.badge.y + e.badge.h / 2)));
+setStyle(sb, 'transformOrigin', '');
+order.push(sb);
+} else rec.badge = null;
+});
+}
+function itemAt(t) {   // the kept box, label or badge an event target belongs to: { el, kind, id } or null
+const el = t && t.closest ? t.closest('.c4-node, .c4-group, .c4-label, .c4-step') : null;
+if (!el || !html.contains(el)) return null;
+if (el.dataset.nodeId) return els.nodes.get(el.dataset.nodeId) === el ? { el, kind: 'element', id: el.dataset.nodeId } : null;
+if (el.dataset.groupId) return els.groups.get(el.dataset.groupId) === el ? { el, kind: 'group', id: el.dataset.groupId } : null;
+const rec = els.edges.get(el.dataset.edgeId);
+return rec && (rec.label === el || rec.badge === el) ? { el, kind: 'edge', id: el.dataset.edgeId } : null;
+}
+const edgeAt = (t) => {
+const g = t && t.closest ? t.closest('.c4-edge') : null, rec = g && els.edges.get(g.dataset.edgeId);
+return rec && rec.g === g ? g.dataset.edgeId : null;
+};
+html.addEventListener('pointerdown', (ev) => {
+const it = itemAt(ev.target);
+if (!it) return;
+const t = ev.target;
+if (t.closest('.c4-note-pin, .chevron')) { ev.stopPropagation(); return; }
+const ph = t.closest('.c4-placeholder');
+if (ph && ev.button === 0 && !presenting()) {
 ev.preventDefault();
 ev.stopPropagation();
 if (isTyping()) document.activeElement.blur();
-editEdgeField(e.id, 'tech');
+if (it.kind === 'edge') editEdgeField(it.id, 'tech'); else editField(it.id, ph.dataset.field);
+return;
+}
+if (it.kind === 'element' && t.closest('.port') && ev.button === 0 && !presenting()) { startConnectDrag(ev, it.id); return; }
+if (it.kind === 'group' && !it.el.classList.contains('is-tile') && !t.closest('.frame-tag')) return;   // a frame takes presses on its tag only
+press(ev, { kind: it.kind, id: it.id });
 });
-el.appendChild(ph);
-}
-}
-el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-html.appendChild(el);
-rec.label = el;
-}
-if (showSteps() && e.step && e.badge) {
-const sb = htmlEl('div', `c4-step${tint ? ' is-colored' : ''}`, e.step);
-if (tint) setSwatch(sb, tint);
-sb.dataset.edgeId = e.id;
-sb.setAttribute('aria-label', `Step ${e.step}: ${e.label || ''}`);
-sb.title = edgeTitle(e);
-Object.assign(sb.style, { left: px(Math.round(e.badge.x + e.badge.w / 2)), top: px(Math.round(e.badge.y + e.badge.h / 2)) });
-sb.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-sb.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-sb.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-html.appendChild(sb);
-rec.badge = sb;
-}
+html.addEventListener('click', (ev) => {
+const it = itemAt(ev.target);
+if (!it) return;
+const pin = ev.target.closest('.c4-note-pin'), chev = !pin && it.kind === 'group' && ev.target.closest('.chevron');
+if (pin) { ev.stopPropagation(); const id = pinNoteOf(it.kind, it.id); setShowNotes(true); if (id) selectNote(id); }
+else if (chev) { ev.stopPropagation(); toggleGroup(it.id); }
 });
-}
+html.addEventListener('pointerenter', (ev) => {
+const it = itemAt(ev.target);
+if (!it || it.el !== ev.target) return;
+if (it.kind === 'edge') { hoverEdgeId = it.id; applyState(); }
+else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = it.id; applyState(); }   // no hover dimming while boxes are carried
+}, true);
+html.addEventListener('pointerleave', (ev) => {
+const it = itemAt(ev.target);
+if (!it || it.el !== ev.target) return;
+if (it.kind === 'edge') { if (hoverEdgeId === it.id) { hoverEdgeId = null; applyState(); } }
+else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && hoverId === it.id) { hoverId = null; applyState(); }
+}, true);
+edgesG.addEventListener('pointerdown', (ev) => { const id = edgeAt(ev.target); if (id) press(ev, { kind: 'edge', id }); });
+edgesG.addEventListener('pointerenter', (ev) => {
+const id = edgeAt(ev.target);
+if (id && ev.target === els.edges.get(id).g) { hoverEdgeId = id; applyState(); }
+}, true);
+edgesG.addEventListener('pointerleave', (ev) => {
+const id = edgeAt(ev.target);
+if (id && ev.target === els.edges.get(id).g && hoverEdgeId === id) { hoverEdgeId = null; applyState(); }
+}, true);
 let legendEl = null;
 function renderLegend() {
 const used = [], key = chartData.colorKey || {};
@@ -8087,10 +8320,6 @@ function toggleSel(item) {
 setSel(inSel(item.kind, item.id) ? sel.filter((s) => !(s.kind === item.kind && s.id === item.id)) : sel.concat(item));
 }
 const select = (s) => setSel(s ? [s] : []);
-function hoverable(el, id) {
-el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = id; applyState(); } });   // no hover dimming while boxes are carried
-el.addEventListener('pointerleave', () => { if (hoverId === id) { hoverId = null; applyState(); } });
-}
 function applyState() {
 const lone = sel.length === 1 && sel[0].kind !== 'edge' ? sel[0].id : null;
 const focusId = hoverId || lone;
@@ -8132,7 +8361,7 @@ el.classList.toggle('selected', inSel('group', id));
 const t = el.querySelector('.frame-tag');
 if (t) t.classList.toggle('selected', inSel('group', id));
 });
-canvas.classList.toggle('c4-multi', sel.length > 1);
+canvas.classList.toggle('is-multi', sel.length > 1);
 applyNoteSelection();
 drawBar();
 if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
@@ -8282,11 +8511,12 @@ if (cur) cur.focus();
 }
 function beginEdit(el, o) {
 if (!el || el.isContentEditable) return;
+itemDirty(el.closest('.c4-node, .c4-group, .c4-label'));   // its box is built again on the next render, as before the edit
 const host = o.host || null;
 if (o.raw !== undefined) el.textContent = o.raw;
 if (o.placeholder) el.dataset.editPh = o.placeholder;
 el.classList.add('is-editing');
-if (host) host.classList.add('editing');
+if (host) host.classList.add('is-editing');
 el.contentEditable = 'plaintext-only';
 el.spellcheck = false;
 if (o.label) el.setAttribute('aria-label', o.label);
@@ -8303,7 +8533,7 @@ el.removeEventListener('blur', onBlur);
 el.removeEventListener('keydown', onKey);
 el.contentEditable = 'false';
 el.classList.remove('is-editing');
-if (host) host.classList.remove('editing');
+if (host) host.classList.remove('is-editing');
 delete el.dataset.editPh;
 };
 const finish = (why, tabDir) => {
@@ -8513,7 +8743,7 @@ if (presenting()) return;
 const t = e.target;
 const kl = t.closest('.color-key-label');
 if (kl) { if (!kl.isContentEditable) { e.stopPropagation(); keyDraft = kl.dataset.color; editKey(kl.dataset.color); } return; }
-if (t.closest('.c4-actionbar, .frame-chev, .c4-port') || t.isContentEditable) return;
+if (t.closest('.c4-actionbar, .chevron, .port') || t.isContentEditable) return;
 const lbl = t.closest('.c4-label');
 if (lbl) {
 e.stopPropagation();
@@ -8579,7 +8809,7 @@ function onDragMove(e) {
 const d = drag, src = d && nodeOrGroup(d.from);
 if (!d || !src) return;
 if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
-if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging'); hoverId = null; applyState(); }
+if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging', 'is-dragging'); hoverId = null; applyState(); }
 const pt = canvasPoint(e);
 rubber.setAttribute('x1', src.x + src.w / 2); rubber.setAttribute('y1', src.y + src.h / 2);
 rubber.setAttribute('x2', pt.x); rubber.setAttribute('y2', pt.y);
@@ -8595,7 +8825,7 @@ function endDrag() {
 window.removeEventListener('pointermove', onDragMove);
 window.removeEventListener('pointerup', onDragUp);
 window.removeEventListener('pointercancel', cancelDrag);
-document.body.classList.remove('c4-dragging');
+document.body.classList.remove('c4-dragging', 'is-dragging');
 rubber.style.display = 'none';
 canvas.querySelectorAll('.c4-target').forEach((el) => el.classList.remove('c4-target'));
 const d = drag;
@@ -8703,7 +8933,7 @@ const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
 const noteTargets = (n) => (n.elements || []).map((id) => ({ kind: 'element', id })).concat((n.groups || []).map((id) => ({ kind: 'group', id })));
 const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
 const noteAnchor = (n) => noteTargets(n).find(targetEl);
-const noteShown = (n) => !!noteAnchor(n) && (n.id === editingNoteId || (!!noteText(n) && chartData.showNotes === true));
+const noteShown = (n) => !!noteAnchor(n) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
 const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
 const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
 function renderNotes() {
@@ -8871,68 +9101,15 @@ const note = { id: newId('n'), text: '' }, es = ids.filter(elementOf), gs = ids.
 if (es.length) note.elements = es;
 if (gs.length) note.groups = gs;
 (chartData.notes = notesList()).push(note);
-noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
+noteCtl.begin(note, true);
 chartData.showNotes = true;
-editingNoteId = note.id;
 sel = [];
 render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
 editNote(note.id);
 }
-function editNote(id) {
-const n = noteOf(id), card = noteCard(id);
-if (!n || !card || presenting()) return;
-if (editingNoteId !== id || !noteDraft) noteDraft = { id, isNew: false, before: noteText(n) };
-editingNoteId = id;
-selectNote(id);
-const text = card.querySelector('.note-text');
-text.contentEditable = 'true';
-text.focus();
-const range = document.createRange();
-range.selectNodeContents(text);
-range.collapse(false);
-const s = window.getSelection();
-s.removeAllRanges();
-s.addRange(range);
-}
-function commitNote(n, text) {
-text.contentEditable = 'false';
-if (editingNoteId !== n.id) return;
-const d = noteDraft;
-editingNoteId = null; noteDraft = null;
-const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-if (!value) {
-if (d && d.isNew && !d.wasOn) delete chartData.showNotes;   // a note given up leaves the switch as it was
-removeNote(n.id, !(d && d.isNew));
-return;
-}
-if (value === (d ? d.before : noteText(n))) { text.textContent = n.text; return; }
-n.text = value;
-text.textContent = value;
-text.closest('.note').setAttribute('aria-label', `Note on ${noteNames(n)}: ${value}`);
-placeNotes();
-updateNotesButton();
-updateStatus(true);
-}
-function removeNote(id, step = true) {
-const n = noteOf(id);
-if (!n) return;
-const a = noteAnchor(n);
-motion.cancelAll();
-const snap = motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
-chartData.notes = notesList().filter((x) => x.id !== id);
-if (!chartData.notes.length) delete chartData.notes;
-if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
-if (selNoteId === id) selNoteId = null;
-render({ snap, toKey: a ? { [id]: a.id } : undefined, duration: 160 });   // the card folds into what it explained
-if (step) updateStatus(true);
-}
-window.addEventListener('pointerdown', (e) => {   // a press anywhere else ends the typing, as in the other types
-if (!editingNoteId) return;
-const card = noteCard(editingNoteId);
-if (card && card.contains(e.target)) return;
-const text = card && card.querySelector('.note-text'), n = noteOf(editingNoteId);
-if (text && n) { text.blur(); commitNote(n, text); }
-}, true);
+function editNote(id) { noteCtl.edit(id); }
+function commitNote(n, text) { noteCtl.commit(n, text); }
+function removeNote(id, step = true) { noteCtl.remove(id, step); }
 const btnAddNote = document.getElementById('btn-add-note');
 if (btnAddNote) btnAddNote.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(addNote, 0); else addNote(); });
 function setColor(slot) {
@@ -9373,12 +9550,14 @@ dx: 0, dy: 0, moved: false, faded: []
 const clampMove = (m, dx, dy) => ({ dx: Math.max(dx, -m.minX), dy: Math.max(dy, -m.minY) });   // nothing leaves the top-left of the canvas
 function beginVisual(m) {
 m.moved = true;
-document.body.classList.add('c4-moving');
+document.body.classList.add('c4-moving', 'is-dragging');
 hoverId = null;
 applyState();
 m.els.forEach((el) => el.classList.add('is-dragging'));
-edgesG.querySelectorAll('.c4-edge').forEach((g) => { if (m.ids.has(g.dataset.from) || m.ids.has(g.dataset.to)) m.faded.push(g); });
-html.querySelectorAll('.c4-label, .c4-step').forEach((l) => { const e = edgeOf(l.dataset.edgeId); if (e && (m.ids.has(e.from) || m.ids.has(e.to))) m.faded.push(l); });
+els.edges.forEach((rec, id) => {
+const e = edgeOf(id);
+if (e && (m.ids.has(e.from) || m.ids.has(e.to))) [rec.g, rec.label, rec.badge].forEach((x) => { if (x) m.faded.push(x); });
+});
 notesList().forEach((n) => { if (noteTargets(n).some((t) => m.ids.has(t.id))) { const c = noteCard(n.id); if (c) m.faded.push(c); } });
 m.faded.forEach((x) => x.classList.add('drag-fade'));
 }
@@ -9389,7 +9568,7 @@ const t = `${m.dx}px ${m.dy}px`;
 m.els.forEach((el) => { el.style.translate = t; });
 }
 function clearVisual(m) {
-document.body.classList.remove('c4-moving');
+document.body.classList.remove('c4-moving', 'is-dragging');
 canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
 m.faded.forEach((x) => x.classList.remove('drag-fade'));
 m.els.forEach((el) => el.classList.remove('is-dragging'));
@@ -9410,9 +9589,11 @@ const o = itemOf(s), cx = o.x + dx + o.w / 2, cy = o.y + dy + o.h / 2;
 return descendants(o).map(groupOf).some((g) => g && placed(g) && g.w > 0 && !hiddenGroup(g) && cx >= g.x && cx <= g.x + g.w && cy >= g.y && cy <= g.y + g.h);
 });
 const dropChanges = (m, dx, dy) => m.tops.map((s) => ({ s, host: hostAt(m, s, dx, dy) })).filter(({ s, host }) => host !== parentOf(s));
-function showDrop(m) {
-canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
-dropChanges(m, m.dx, m.dy).forEach(({ host }) => { const el = host && els.groups.get(host); if (el) el.classList.add('c4-drop'); });
+function showDrop(m) {   // m.drop: the frames lit on the last frame of the move
+const next = new Set(dropChanges(m, m.dx, m.dy).map(({ host }) => host && els.groups.get(host)).filter(Boolean));
+(m.drop || []).forEach((el) => { if (!next.has(el)) el.classList.remove('c4-drop'); });
+next.forEach((el) => el.classList.add('c4-drop'));
+m.drop = next;
 }
 function finishMove(m, reparent, announce) {
 const dx = Math.round(m.dx), dy = Math.round(m.dy);

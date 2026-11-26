@@ -232,6 +232,22 @@ const tpl = document.createElement('template');
 tpl.innerHTML = icon(name, o);
 return tpl.content.firstChild;
 }
+function chevron(o) {
+const b = document.createElement('button');
+b.type = 'button';
+b.className = 'chevron';
+b.title = o.label;
+b.setAttribute('aria-label', o.label);
+b.setAttribute('aria-expanded', String(!!o.expanded));
+b.innerHTML = icon('chevron-down', { size: 'sm', bold: true });
+return b;
+}
+function port(side) {
+const p = document.createElement('span');
+p.className = `port port-${side}`;
+p.dataset.exportSkip = '';
+return p;
+}
 let confirmEl = null;
 function closeConfirm() {
 if (!confirmEl) return false;
@@ -447,7 +463,7 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1361,6 +1377,10 @@ panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 :
 panY = minPan - frame.y * scale;
 updateTransform();
 };
+window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('is-touch', e.pointerType === 'touch'); }, true);
+let fontLoadedSinceRender = false;
+const onFontLoaded = () => { fontLoadedSinceRender = true; };
+if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
 try {
 plugin.render();
 applyInitialView();
@@ -1374,7 +1394,8 @@ document.documentElement.dataset.diagramReady = '1';
 requestAnimationFrame(() => {
 applyInitialView();
 syncHeaderCompact();
-const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
 ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
 : Promise.resolve();
 fontsIn.then(() => {
@@ -2140,7 +2161,7 @@ else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('o
 }
 const btnExport = document.getElementById('btn-export');
 const exportMenu = document.getElementById('export-menu');
-const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
+const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'is-dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
 const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
 const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
 let defaultStyleCache = null;
@@ -3480,6 +3501,76 @@ return;
 plugin.deleteSelection();
 }
 });
+function createNotes(opts) {
+let editing = null;   // the note being typed
+let draft = null;     // { id, isNew, wasOn, before }
+const list = () => { const n = opts.data().notes; return Array.isArray(n) ? n : []; };
+const byId = (id) => list().find((n) => n && n.id === id) || null;
+const textOf = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+const clean = (s) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function begin(note, isNew) {
+draft = { id: note.id, isNew: !!isNew, wasOn: opts.data().showNotes === true, before: isNew ? '' : textOf(note) };
+editing = note.id;
+}
+function edit(id) {
+const note = byId(id);
+if (!note || (opts.canEdit && !opts.canEdit())) return;
+const prev = { editing, draft };
+if (editing !== id || !draft) begin(note, false);
+const card = opts.openCard(note);
+const text = card && card.querySelector('.note-text');
+if (!text) { if (!card) ({ editing, draft } = prev); return; }
+if (opts.beforeEdit) opts.beforeEdit(note, card, text);
+text.contentEditable = 'true';
+text.focus();
+const range = document.createRange();
+range.selectNodeContents(text);
+if (!opts.selectAll) range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+if (opts.afterFocus) opts.afterFocus(card);
+}
+function remove(id, record = true, reason = 'remove') {
+const note = byId(id);
+if (!note) return;
+const card = opts.cardOf(id);
+if (opts.anchorEl && card) motion.foldNote(card, opts.anchorEl(note));   // morph into the badge, never fade
+const token = opts.beforeRemove ? opts.beforeRemove(note) : undefined;
+const data = opts.data();
+data.notes = list().filter((n) => n && n.id !== id);
+if (!data.notes.length) delete data.notes;
+if (editing === id) { editing = null; draft = null; }
+opts.clearSelection(id);
+opts.render({ note, token, reason });
+if (record) opts.onChange();
+}
+function commit(note, textEl) {
+textEl.contentEditable = 'false';
+if (editing !== note.id) return;
+const d = draft;
+editing = null; draft = null;
+const value = clean(textEl.innerText);
+if (!value) {
+if (opts.restoreSwitch && d && d.isNew && !d.wasOn) delete opts.data().showNotes;   // a note given up leaves the switch as it was
+remove(note.id, !(d && d.isNew), 'cleared');
+return;
+}
+if (d && value === d.before) { textEl.textContent = note.text; opts.render({ note, reason: 'same' }); return; }
+note.text = value;
+textEl.textContent = value;
+opts.render({ note, reason: 'text' });
+opts.onChange();
+}
+window.addEventListener('pointerdown', (e) => {
+if (!editing) return;
+const card = opts.cardOf(editing);
+if (card && card.contains(e.target)) return;
+const text = card && card.querySelector('.note-text'), note = byId(editing);
+if (text && note) { text.blur(); commit(note, text); }   // no-op if the blur already committed it
+}, true);
+return { begin, edit, commit, remove, list, byId, editingId: () => editing, isEditing: (id) => editing === id };
+}
 //@engine-begin
 function routeEdgesOrthogonal(model) {
 const { chartData, tb, boxes, laneDividers, loopSide, outlineInset, labelMaxW } = model;
@@ -7213,6 +7304,7 @@ let connectingFromPort = null;
 let connectingDownAt = null;       // where the anchor was pressed: a release close to it is a click, not a drag
 let connectingStartPoint = null;
 let lastRoutes = {};
+let laneTracks = new Map();   // lane id -> its .lane-track, rebuilt by renderLanes (no page-wide query per node)
 let insertTarget = null;   // { edgeId, x, y } in container coords, or null
 let paletteDrag = null;    // { type, ghost, startX, startY, moved, placement }
 const swimlanesContainer = document.getElementById('swimlanes-container');
@@ -7407,6 +7499,7 @@ lastPinScale = null;
 const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
 hoverLaneEl = null;
 lanesRoot.innerHTML = '';
+laneTracks = new Map();
 const xById = {};
 chartData.nodes.forEach(n => { xById[n.id] = n.x || 0; });
 chartData.lanes.forEach((lane, index) => {
@@ -7441,6 +7534,7 @@ if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 const track = document.createElement('div');
 track.className = 'lane-track';
 track.dataset.laneId = lane.id;
+laneTracks.set(lane.id, track);
 if (tb) track.style.minHeight = `${trackWidth}px`;
 else track.style.minWidth = `${trackWidth}px`;
 const editable = !document.body.classList.contains('presentation');
@@ -7450,7 +7544,7 @@ pill.draggable = editable;
 pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
 pill.addEventListener('click', (e) => {
 e.stopPropagation();
-if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
+if (editable && !pill.classList.contains('is-editing')) selectLane(lane.id);
 });
 pill.appendChild(laneIconEl(lane, 18));
 const title = document.createElement('span');
@@ -7484,7 +7578,7 @@ pill.appendChild(bar);
 if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 function startRename() {
 pill.draggable = false;   // a draggable ancestor would swallow text selection
-pill.classList.add('editing');
+pill.classList.add('is-editing');
 title.contentEditable = 'true';
 title.focus();
 const range = document.createRange();
@@ -7501,7 +7595,7 @@ startRename();
 title.addEventListener('blur', () => {
 title.contentEditable = 'false';
 pill.draggable = editable;
-pill.classList.remove('editing');
+pill.classList.remove('is-editing');
 const name = title.textContent.trim();
 if (name && lane.name !== name) {
 lane.name = name;
@@ -7693,16 +7787,22 @@ default: return 0;
 }
 const FIT_MIN_PX = parseFloat(TOKENS.type.fitMin);
 function fitNodeLabel(label, type) {
-label.style.fontSize = '';
-delete label.dataset.basePx;
-if (type === 'connector' || !label.isConnected) return;   // a connector is one letter
-const over = () => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
-if (!over()) return;
-const base = parseFloat(getComputedStyle(label).fontSize);
+if (type !== 'connector') fitNodeLabels([label]);
+}
+function fitNodeLabels(labels) {
+for (let i = 0; i < labels.length; i++) { labels[i].style.fontSize = ''; delete labels[i].dataset.basePx; }
+const over = (label) => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
+const tooBig = [];
+for (let i = 0; i < labels.length; i++) {
+const label = labels[i];
+if (label.isConnected && over(label)) tooBig.push({ label, base: parseFloat(getComputedStyle(label).fontSize) });
+}
+for (const { label, base } of tooBig) {
 label.dataset.basePx = base;
 for (let px = Math.ceil(base) - 1; px >= FIT_MIN_PX; px--) {
 label.style.fontSize = `${px}px`;
-if (!over()) return;
+if (!over(label)) break;
+}
 }
 }
 const connectorRole = (id) => {
@@ -7734,23 +7834,28 @@ return `Connector ${letter}`;
 }
 function buildConnectorEl(node) {
 const el = document.createElement('div');
-el.className = 'flow-node type-connector';
-el.dataset.style = connectorStyle(connectorLetter(node));
 el.id = `node-${node.id}`;
 el.dataset.nodeId = node.id;
 el.setAttribute('role', 'button');
-el.setAttribute('aria-label', connectorAria(node));
 el.dataset.noTip = '';
-placeNodeEl(el, node);
-if (selectedNodeIds.has(node.id)) el.classList.add('selected');
 const label = document.createElement('div');
 label.className = 'node-label';
 label.spellcheck = false;
-label.textContent = connectorLetter(node);
 el.appendChild(label);
-el.addEventListener('dblclick', (e) => {
-e.stopPropagation();
+updateConnectorEl(el, node);
+return el;
+}
+function updateConnectorEl(el, node) {
+el.className = 'flow-node type-connector' + (selectedNodeIds.has(node.id) ? ' selected' : '');
+el.dataset.style = connectorStyle(connectorLetter(node));
+el.setAttribute('aria-label', connectorAria(node));
+placeNodeEl(el, node);
+const label = el.firstElementChild;
+if (label.contentEditable !== 'true') label.textContent = connectorLetter(node);
+}
+function editConnectorLabel(el) {
 if (isPresenting()) return;
+const label = el.querySelector('.node-label');
 label.contentEditable = 'true';
 label.focus();
 const range = document.createRange();
@@ -7758,24 +7863,6 @@ range.selectNodeContents(label);
 const sel = window.getSelection();
 sel.removeAllRanges();
 sel.addRange(range);
-});
-label.addEventListener('blur', () => {
-if (label.contentEditable !== 'true') return;
-label.contentEditable = 'false';
-renameConnector(node, label.textContent);
-});
-label.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
-else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connectorLetter(node); label.blur(); }
-e.stopPropagation();
-});
-el.addEventListener('pointerdown', (e) => {
-if (isPresenting()) { e.preventDefault(); e.stopPropagation(); jumpToPartner(node); return; }
-handleNodePointerDown(e, node);
-});
-el.addEventListener('mouseenter', () => { hoveredNodeId = node.id; applyNodeHover(); showConnectorPair(node); });
-el.addEventListener('mouseleave', () => { if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover(); showConnectorPair(null); });
-return el;
 }
 function showConnectorPair(node) {
 document.querySelectorAll('.flow-node.pair-lit').forEach(el => el.classList.remove('pair-lit'));
@@ -7890,7 +7977,7 @@ e.stopPropagation();
 const b = e.target.closest('.ab-btn');
 if (!b) return;
 if (b.dataset.act === 'delete') { deleteEdge(edge.id); return; }
-if (b.dataset.act === 'label') { labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })); return; }
+if (b.dataset.act === 'label') { editEdgeLabel(edge.id); return; }
 bar.querySelector('.edge-split-menu')?.remove();
 const joins = joinableLetters(edge.to);
 if (!joins.length) { splitEdge(edge.id); return; }
@@ -8041,19 +8128,15 @@ render();
 updateStatus(true);
 }, { duration: 180, skipFreeNotes: true });
 }
-function renderNodes() {
-document.querySelectorAll('.flow-node').forEach(el => el.remove());
-chartData.nodes.forEach(node => {
-const laneTrack = document.querySelector(`.lane-track[data-lane-id="${node.laneId}"]`);
-if (!laneTrack) return;
-if (isConnector(node)) { laneTrack.appendChild(buildConnectorEl(node)); return; }
+const nodeEls = new Map();        // node id -> its .flow-node element
+const nodeState = new WeakMap();  // element -> { shape, badge, sub, fit }: what the last render built into it
+const nodeShape = (node) => (isConnector(node) ? 'connector' : `${node.type}${isDot(node) ? ':dot' : ''}`);
+function buildNodeEl(node) {
 const nodeEl = document.createElement('div');
-nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
 nodeEl.id = `node-${node.id}`;
 nodeEl.dataset.nodeId = node.id;
+nodeEl.dataset.item = '';   // shared hover / selected / dim look (components/item-states.css)
 nodeEl.dataset.noTip = '';
-placeNodeEl(nodeEl, node);
-if (selectedNodeIds.has(node.id)) nodeEl.classList.add('selected');
 const outline = shapeOutlineSvg(node.type);
 if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
 const label = document.createElement('div');
@@ -8061,8 +8144,81 @@ label.className = 'node-label';
 label.contentEditable = 'false';
 label.spellcheck = false;
 label.dataset.noTip = '';
-label.textContent = node.label || '';
-label.addEventListener('dblclick', (e) => {
+nodeEl.appendChild(label);
+['top', 'right', 'bottom', 'left'].forEach(pos => {
+const port = ui.port(pos);   // the shared connection handle (components/port.css)
+port.dataset.port = pos;
+port.dataset.nodeId = node.id;
+nodeEl.appendChild(port);
+});
+return nodeEl;
+}
+function updateNodeEl(nodeEl, node, st, fontKey) {
+const sub = node.type === 'subprocess' && hasChild(node.id);
+nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '')
++ (selectedNodeIds.has(node.id) ? ' selected' : '') + (sub ? ' has-child' : '');
+placeNodeEl(nodeEl, node);
+nodeEl.style.transformOrigin = '';   // left by an entrance morph; a fresh element has none
+nodeEl.querySelectorAll(':scope > .node-bar').forEach(b => b.remove());   // syncNodeBar draws it anew, as for a new element
+const label = nodeEl.querySelector('.node-label');
+const text = node.label || '';
+if (label.contentEditable !== 'true' && label.textContent !== text) label.textContent = text;
+if (st.badge) st.badge.remove();
+if (st.sub) st.sub.remove();
+st.badge = buildNoteBadge(node);   // a note badge (no hover "+": the step bar adds notes)
+if (st.badge) nodeEl.appendChild(st.badge);
+st.sub = sub ? buildSubLink(node) : null;
+if (st.sub) nodeEl.appendChild(st.sub);
+const fit = `${fontKey}|${isTB()}|${sub}|${label.textContent}`;
+if (st.fit === fit) return null;
+st.fit = fit;
+return label;
+}
+function renderNodes() {
+const fontKey = `${document.fonts ? document.fonts.status : ''}|${document.documentElement.dataset.theme || ''}|${getComputedStyle(swimlanesContainer).font}`;
+const seen = new Set(), fit = [];
+chartData.nodes.forEach(node => {
+const laneTrack = laneTracks.get(node.laneId);
+if (!laneTrack) return;
+const shape = nodeShape(node);
+let el = nodeEls.get(node.id), st = el && nodeState.get(el);
+if (el && st.shape !== shape) { el.remove(); el = null; }
+if (!el) {
+el = isConnector(node) ? buildConnectorEl(node) : buildNodeEl(node);
+st = { shape, badge: null, sub: null, fit: null };
+nodeState.set(el, st);
+nodeEls.set(node.id, el);
+}
+if (isConnector(node)) updateConnectorEl(el, node);
+else {
+const label = updateNodeEl(el, node, st, fontKey);
+if (label) fit.push(label);
+}
+laneTrack.appendChild(el);   // lanes are rebuilt each render: this also keeps the order of chartData.nodes
+seen.add(node.id);
+});
+nodeEls.forEach((el, id) => { if (!seen.has(id)) { el.remove(); nodeEls.delete(id); } });
+fitNodeLabels(fit);
+}
+const nodeElAt = (target) => {
+const el = target && target.closest ? target.closest('.flow-node[data-node-id]') : null;
+return el && nodeEls.get(el.dataset.nodeId) === el ? el : null;
+};
+const nodeAt = (el) => (el ? nodeById(el.dataset.nodeId) : null);
+lanesRoot.addEventListener('pointerdown', (e) => {
+const el = nodeElAt(e.target), node = nodeAt(el);
+if (!node) return;
+const port = e.target.closest('.port');
+if (port && el.contains(port)) { handlePortPointerDown(e, node.id, port.dataset.port); return; }
+if (isConnector(node) && isPresenting()) { e.preventDefault(); e.stopPropagation(); jumpToPartner(node); return; }
+handleNodePointerDown(e, node);
+});
+lanesRoot.addEventListener('dblclick', (e) => {
+const el = nodeElAt(e.target), node = nodeAt(el);
+if (!node) return;
+if (isConnector(node)) { e.stopPropagation(); editConnectorLabel(el); return; }
+const label = e.target.closest('.node-label');
+if (!label || !el.contains(label)) return;
 e.stopPropagation();
 label.contentEditable = 'true';
 label.focus();
@@ -8072,7 +8228,15 @@ const sel = window.getSelection();
 sel.removeAllRanges();
 sel.addRange(range);
 });
-label.addEventListener('blur', () => {
+lanesRoot.addEventListener('blur', (e) => {
+const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
+if (!node) return;
+if (isConnector(node)) {
+if (label.contentEditable !== 'true') return;
+label.contentEditable = 'false';
+renameConnector(node, label.textContent);
+return;
+}
 label.contentEditable = 'false';
 if ((node.label || '') !== label.textContent.trim()) {
 const wasDot = isDot(node);
@@ -8082,69 +8246,106 @@ updateStatus(true);
 if (wasDot !== isDot(node)) withMotion(render, { duration: 180, skipFreeNotes: true });
 else fitNodeLabel(label, node.type);
 }
-});
-label.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') {
+}, true);
+lanesRoot.addEventListener('keydown', (e) => {
+const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
+if (!node) return;
+if (isConnector(node)) {
+if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
+else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connectorLetter(node); label.blur(); }
+e.stopPropagation();
+} else if (e.key === 'Enter') {
 e.preventDefault();
 label.blur();
 }
 });
-nodeEl.appendChild(label);
-['top', 'right', 'bottom', 'left'].forEach(pos => {
-const port = document.createElement('div');
-port.className = `port port-${pos}`;
-port.dataset.port = pos;
-port.dataset.nodeId = node.id;
-port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
-nodeEl.appendChild(port);
-});
-const badge = buildNoteBadge(node);   // a note badge (no hover "+": the step bar adds notes)
-if (badge) nodeEl.appendChild(badge);
-if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
-nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
-nodeEl.addEventListener('mouseenter', () => {
+lanesRoot.addEventListener('mouseenter', (e) => {
+const node = e.target === nodeElAt(e.target) ? nodeAt(e.target) : null;
+if (!node) return;
 hoveredNodeId = node.id; applyNodeHover();
+if (isConnector(node)) { showConnectorPair(node); return; }
 const attached = connectorsAttachedTo(node.id);
 if (attached.length) showConnectorPair(attached);
 if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
-});
-nodeEl.addEventListener('mouseleave', () => {
+}, true);
+lanesRoot.addEventListener('mouseleave', (e) => {
+const node = e.target === nodeElAt(e.target) ? nodeAt(e.target) : null;
+if (!node) return;
 if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
 showConnectorPair(null);
-unpeekSoon(node.id);
-});
-laneTrack.appendChild(nodeEl);
-fitNodeLabel(label, node.type);
-});
-}
-function computeAllEdgeRoutes() {
+if (!isConnector(node)) unpeekSoon(node.id);
+}, true);
+let routeGeom = null;   // { boxes, laneDividers, tracks: { laneId: { x, y } }, inset: { nodeId: { dx, dy } } }
+const q = (v) => Math.round(v * 100) / 100;
+function measureRouteGeom() {
 const stageRect = swimlanesContainer.getBoundingClientRect();
 const tb = isTB();
-const boxes = {};
-const q = (v) => Math.round(v * 100) / 100;
+const tracks = {}, laneDividers = [], boxes = {}, inset = {};
+const trackEls = [...laneTracks.values()];
+trackEls.forEach((t, i) => {
+const r = t.getBoundingClientRect();
+tracks[t.dataset.laneId] = { x: (r.left - stageRect.left) / scale, y: (r.top - stageRect.top) / scale };
+if (i < trackEls.length - 1) laneDividers.push((tb ? r.right - stageRect.left : r.bottom - stageRect.top) / scale);
+});
 chartData.nodes.forEach(n => {
-const el = document.getElementById(`node-${n.id}`);
+const el = nodeEls.get(n.id);
 if (!el) return;
 const r = el.getBoundingClientRect();
-boxes[n.id] = { x: q((r.left - stageRect.left) / scale), y: q((r.top - stageRect.top) / scale), w: q(r.width / scale), h: q(r.height / scale) };
+const b = boxes[n.id] = { x: q((r.left - stageRect.left) / scale), y: q((r.top - stageRect.top) / scale), w: q(r.width / scale), h: q(r.height / scale) };
+const t = tracks[n.laneId], p = nodePos(n);
+if (t) inset[n.id] = { dx: b.x - (t.x + p.left), dy: b.y - (t.y + p.top) };
 });
-const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
-.map(t => (tb ? t.getBoundingClientRect().right - stageRect.left : t.getBoundingClientRect().bottom - stageRect.top) / scale);
+return { boxes, laneDividers, tracks, inset };
+}
+function dragRouteGeom(ids) {
+const boxes = { ...routeGeom.boxes };
+ids.forEach(id => {
+const n = nodeById(id), b = routeGeom.boxes[id], i = routeGeom.inset[id], t = n && routeGeom.tracks[n.laneId];
+if (!b || !i || !t) return;
+const p = nodePos(n);
+boxes[id] = { x: q(t.x + p.left + i.dx), y: q(t.y + p.top + i.dy), w: b.w, h: b.h };
+});
+return { ...routeGeom, boxes };
+}
+function computeAllEdgeRoutes(geom, edges) {
+if (!geom) geom = routeGeom = measureRouteGeom();
 return routeEdgesOrthogonal({
-chartData, tb, boxes, laneDividers,
+chartData: edges ? { nodes: chartData.nodes, edges } : chartData,
+tb: isTB(), boxes: geom.boxes, laneDividers: geom.laneDividers,
 loopSide: loopSides(chartData.nodes, chartData.edges, chartData.lanes),
 outlineInset: (node, r, side, along) => (SHAPE_OUTLINES[node.type] || isConnector(node) ? outlineInset(node.type, r, side, along) : 0),
 labelMaxW: LE.LABEL_MAX_W,
 });
 }
 let measureLabelCtx = null;
+let labelFont = null;   // the arrow labels' font, read once per renderEdges (they all share it)
+function setLabelMaxW(labelContainer, labelText, edge, route) {
+const fRect = route.fromRect, tRect = route.toRect;
+let maxLabelW = LE.LABEL_MAX_W;
+if (fRect && tRect) {
+const horizGap = Math.max(tRect.x - (fRect.x + fRect.w), fRect.x - (tRect.x + tRect.w));
+if (horizGap > 0) maxLabelW = Math.max(40, Math.min(LE.LABEL_MAX_W, horizGap - LE.LABEL_STUB));
+}
+if (edge.label && edge.label.trim()) {
+if (!labelFont) { const cs = getComputedStyle(labelText); labelFont = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; }
+const ctx = (measureLabelCtx = measureLabelCtx || document.createElement('canvas').getContext('2d'));
+ctx.font = labelFont;
+const words = String(edge.label).trim().split(/\s+/);
+const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
+maxLabelW = Math.max(maxLabelW, Math.ceil(wordW + 16 + 3 + 4));   // padding + border + slack
+}
+labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
+}
 let lastEdgeBarId = null;
+const edgeEls = new Map();   // edge id -> { path, hit, label, text }: this render's elements of each arrow
 function renderEdges() {
 const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
 const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
 if (oldBar && barChanged) motion.hideBar(oldBar);   // another arrow: the old bar closes, then the new one opens
 edgeGroup.innerHTML = '';
 edgeLabelsGroup.innerHTML = '';
+edgeEls.clear();
+labelFont = null;
 const routes = computeAllEdgeRoutes();
 lastRoutes = routes;
 const hops = (ed) => (routes[ed.id] && routes[ed.id].path || '').includes(' A ') ? 1 : 0;
@@ -8158,23 +8359,14 @@ path.dataset.edgeId = edge.id;
 path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
 path.dataset.to = edge.to;
 path.setAttribute('marker-end', edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
-path.addEventListener('click', (e) => {
-e.stopPropagation();
-selectEdge(edge.id);
-});
-path.addEventListener('dblclick', (e) => {
-e.stopPropagation();
-selectEdge(edge.id, false);
-const labelBox = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
-if (labelBox) labelBox.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
-});
 const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 hit.setAttribute('d', pathD.path);
 hit.setAttribute('class', 'edge-hit');
-hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge.id); });
-hit.addEventListener('dblclick', (e) => path.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })));
+hit.dataset.hitFor = edge.id;
 edgeGroup.appendChild(hit);
 edgeGroup.appendChild(path);
+const els = { path, hit, label: null, text: null };
+edgeEls.set(edge.id, els);
 if (pathD.midX !== undefined && pathD.midY !== undefined) {
 const labelContainer = document.createElement('div');
 labelContainer.className = 'edge-label';
@@ -8182,16 +8374,6 @@ labelContainer.dataset.edgeId = edge.id;
 labelContainer.style.pointerEvents = 'auto';
 labelContainer.style.left = `${pathD.midX}px`;
 labelContainer.style.top = `${pathD.midY}px`;
-const fRect = pathD.fromRect;
-const tRect = pathD.toRect;
-let maxLabelW = LE.LABEL_MAX_W;
-if (fRect && tRect) {
-const horizGap = Math.max(tRect.x - (fRect.x + fRect.w), fRect.x - (tRect.x + tRect.w));
-if (horizGap > 0) {
-maxLabelW = Math.max(40, Math.min(LE.LABEL_MAX_W, horizGap - LE.LABEL_STUB));
-}
-}
-labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
 const isSelected = (edge.id === selectedEdgeId);
 const hasLabel = Boolean(edge.label && edge.label.trim());
 if (isSelected) labelContainer.classList.add('selected');
@@ -8207,63 +8389,20 @@ labelText.contentEditable = 'false';
 labelText.spellcheck = false;
 labelText.dataset.tip = 'Double-click to edit the label';
 labelText.textContent = hasLabel ? edge.label : '';
-labelText.addEventListener('pointerdown', (e) => {
-e.stopPropagation();
-});
-labelText.addEventListener('blur', () => {
-labelText.contentEditable = 'false';
-edge.label = labelText.textContent.trim();
-updateStatus(true);
-render();
-});
-labelText.addEventListener('keydown', (e) => {
-if (e.key === 'Enter') {
-e.preventDefault();
-labelText.blur();
-} else if (e.key === 'Escape') {
-e.preventDefault();
-labelText.textContent = edge.label || '';
-labelText.blur();
-}
-});
-labelContainer.addEventListener('dblclick', (e) => {
-e.stopPropagation();
-const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('editing');
-labelText.contentEditable = 'true';
-labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
-if (wasEmpty) {
-motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
-duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
-});
-}
-labelText.focus();
-if (hasLabel) {
-const range = document.createRange();
-range.selectNodeContents(labelText);
-const sel = window.getSelection();
-sel.removeAllRanges();
-sel.addRange(range);
-}
-});
 labelContainer.appendChild(labelText);
-edgeLabelsGroup.appendChild(labelContainer); // in DOM so it can be measured below
-if (hasLabel) {
-const cs = getComputedStyle(labelText);
-const ctx = (measureLabelCtx = measureLabelCtx || document.createElement('canvas').getContext('2d'));
-ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-const words = String(edge.label).trim().split(/\s+/);
-const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
-const need = Math.ceil(wordW + 16 + 3 + 4);   // padding + border + slack
-if (need > maxLabelW) labelContainer.style.setProperty('--edge-label-max-w', `${need}px`);
-}
+edgeLabelsGroup.appendChild(labelContainer); // in DOM so its font can be read below
+els.label = labelContainer;
+els.text = labelText;
+setLabelMaxW(labelContainer, labelText, edge, pathD);
 if (isSelected) {
 const total = path.getTotalLength();
 const popBar = !draggingNode && edge.id !== lastEdgeBarId;
 ['from', 'to'].forEach(end => {
 const atCircle = isConnector(nodeById(end === 'from' ? edge.from : edge.to));
 const pt = path.getPointAtLength(end === 'from' ? 0 : total);
-const h = document.createElement('div');
-h.className = 'edge-end-handle' + (atCircle ? ' at-connector' : '');
+const h = ui.port('end');   // the shared end handle (components/port.css .port-end)
+h.classList.add('edge-end-handle');
+if (atCircle) h.classList.add('at-connector');
 h.dataset.tip = atCircle ? 'Drag onto a step to move this circle there'
 : end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node, or onto a connector circle to send this arrow into that pair';
 h.style.left = `${pt.x}px`;
@@ -8271,7 +8410,7 @@ h.style.top = `${pt.y}px`;
 h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
 edgeLabelsGroup.appendChild(h);
 if (popBar) {
-motion.anim(h, [{ transform: 'translate(-50%, -50%) scale(0.4)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'scale(1)' }], {
 duration: 110, easing: motion.curve('curve-spring-tactile')
 });
 }
@@ -8285,44 +8424,169 @@ motion.showBar(bar);   // fades and slides in whole (its shadow with it)
 }
 }
 }
-labelContainer.addEventListener('click', (e) => {
-e.stopPropagation();
-selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
-});
-const setLinked = (on) => {
-path.classList.toggle('hover', on);
-labelContainer.classList.toggle('linked', on);
-if (edge.id !== selectedEdgeId) path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
-};
-[path, hit].forEach(el => {
-el.addEventListener('mouseenter', () => setLinked(true));
-el.addEventListener('mouseleave', () => setLinked(false));
-});
-labelContainer.addEventListener('mouseenter', () => setLinked(true));
-labelContainer.addEventListener('mouseleave', () => setLinked(false));
 }
 });
 if (!draggingNode) lastEdgeBarId = selectedEdgeId;
 applyNodeHover(); // keep the hover highlight across a re-render (e.g. while dragging)
 positionNotes();  // notes follow their nodes (a dragged node moves its note with it)
 }
+let dragBoxes = null;   // the boxes the last drag frame routed against (null: routeGeom's)
+function rerouteDragFrame() {
+if (!routeGeom || !draggingNode) { renderEdges(); return; }
+const ids = draggedIds();
+const geom = dragRouteGeom(ids);
+const edges = dragAffectedEdges(ids, dragBoxes || routeGeom.boxes, geom.boxes);
+dragBoxes = geom.boxes;
+if (!edges.length) return;
+if (selectedEdgeId && edges.some(e => e.id === selectedEdgeId)) { renderEdges(); return; }   // its handles follow its ends
+const routes = computeAllEdgeRoutes(geom, edges);
+edges.forEach(edge => {
+const r = routes[edge.id], els = edgeEls.get(edge.id);
+if (!r || !r.path || !els) return;
+lastRoutes[edge.id] = r;
+els.path.setAttribute('d', r.path);
+els.hit.setAttribute('d', r.path);
+if (els.label && r.midX !== undefined && r.midY !== undefined) {
+els.label.style.left = `${r.midX}px`;
+els.label.style.top = `${r.midY}px`;
+setLabelMaxW(els.label, els.text, edge, r);
+}
+});
+positionNotes();
+}
+function dragAffectedEdges(ids, oldBoxes, newBoxes) {
+const moved = new Set(ids), ends = new Set(), pick = new Set();
+const zones = [];
+ids.forEach(id => { if (oldBoxes[id]) zones.push(oldBoxes[id]); if (newBoxes[id]) zones.push(newBoxes[id]); });
+const PAD = 4;
+const crosses = (pts) => {
+for (let i = 0; i + 1 < pts.length; i++) {
+const x1 = Math.min(pts[i][0], pts[i + 1][0]), x2 = Math.max(pts[i][0], pts[i + 1][0]);
+const y1 = Math.min(pts[i][1], pts[i + 1][1]), y2 = Math.max(pts[i][1], pts[i + 1][1]);
+for (let k = 0; k < zones.length; k++) {
+const b = zones[k];
+if (x2 >= b.x - PAD && x1 <= b.x + b.w + PAD && y2 >= b.y - PAD && y1 <= b.y + b.h + PAD) return true;
+}
+}
+return false;
+};
+chartData.edges.forEach(e => {
+if (moved.has(e.from) || moved.has(e.to)) { pick.add(e.id); ends.add(e.from); ends.add(e.to); return; }
+const r = lastRoutes[e.id];
+if (r && r.points && crosses(r.points)) pick.add(e.id);
+});
+chartData.edges.forEach(e => { if (ends.has(e.from) || ends.has(e.to)) pick.add(e.id); });
+return chartData.edges.filter(e => pick.has(e.id));
+}
+const edgeOfEl = (el) => (el ? chartData.edges.find(ed => ed.id === (el.dataset.edgeId || el.dataset.hitFor)) : null);
+const arrowAt = (target) => (target.closest ? target.closest('.edge-line[data-edge-id], .edge-hit[data-hit-for]') : null);
+function setLinked(edgeId, on) {
+const els = edgeEls.get(edgeId);
+if (!els || !els.label) return;
+els.path.classList.toggle('hover', on);
+els.label.classList.toggle('linked', on);
+if (edgeId !== selectedEdgeId) els.path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+}
+function editEdgeLabel(edgeId) {
+const els = edgeEls.get(edgeId);
+if (!els || !els.label) return;
+const labelContainer = els.label, labelText = els.text;
+const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('is-editing');
+labelText.contentEditable = 'true';
+labelContainer.classList.add('is-editing');   // shows an empty label's box, hides the toolbar
+if (wasEmpty) {
+motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
+});
+}
+labelText.focus();
+if (labelContainer.classList.contains('has-label')) {
+const range = document.createRange();
+range.selectNodeContents(labelText);
+const sel = window.getSelection();
+sel.removeAllRanges();
+sel.addRange(range);
+}
+}
+edgeGroup.addEventListener('click', (e) => {
+const edge = edgeOfEl(arrowAt(e.target));
+if (!edge) return;
+e.stopPropagation();
+selectEdge(edge.id, !(e.detail >= 2 && edge.id === selectedEdgeId));
+});
+edgeGroup.addEventListener('dblclick', (e) => {
+const edge = edgeOfEl(arrowAt(e.target));
+if (!edge) return;
+e.stopPropagation();
+selectEdge(edge.id, false);
+editEdgeLabel(edge.id);   // makes it editable, clears the "+" placeholder
+});
+const onArrowHover = (on) => (e) => {
+const el = arrowAt(e.target);
+if (el === e.target) setLinked(el.dataset.edgeId || el.dataset.hitFor, on);
+};
+edgeGroup.addEventListener('mouseenter', onArrowHover(true), true);
+edgeGroup.addEventListener('mouseleave', onArrowHover(false), true);
+const labelAt = (target) => (target.closest ? target.closest('.edge-label[data-edge-id]') : null);
+edgeLabelsGroup.addEventListener('pointerdown', (e) => {
+if (e.target.closest && e.target.closest('.edge-label-text')) e.stopPropagation();
+});
+edgeLabelsGroup.addEventListener('click', (e) => {
+const edge = edgeOfEl(labelAt(e.target));
+if (!edge) return;
+e.stopPropagation();
+selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
+});
+edgeLabelsGroup.addEventListener('dblclick', (e) => {
+const edge = edgeOfEl(labelAt(e.target));
+if (!edge) return;
+e.stopPropagation();
+editEdgeLabel(edge.id);
+});
+edgeLabelsGroup.addEventListener('blur', (e) => {
+const labelText = e.target;
+if (!labelText.classList || !labelText.classList.contains('edge-label-text')) return;
+const edge = edgeOfEl(labelAt(labelText));
+labelText.contentEditable = 'false';
+if (edge) edge.label = labelText.textContent.trim();
+updateStatus(true);
+render();
+}, true);
+edgeLabelsGroup.addEventListener('keydown', (e) => {
+const labelText = e.target;
+if (!labelText.classList || !labelText.classList.contains('edge-label-text')) return;
+if (e.key === 'Enter') {
+e.preventDefault();
+labelText.blur();
+} else if (e.key === 'Escape') {
+e.preventDefault();
+const edge = edgeOfEl(labelAt(labelText));
+labelText.textContent = (edge && edge.label) || '';
+labelText.blur();
+}
+});
+const onLabelHover = (on) => (e) => {
+const el = labelAt(e.target);
+if (el === e.target) setLinked(el.dataset.edgeId, on);
+};
+edgeLabelsGroup.addEventListener('mouseenter', onLabelHover(true), true);
+edgeLabelsGroup.addEventListener('mouseleave', onLabelHover(false), true);
 function applyNodeHover() {
-document.querySelectorAll('.edge-line, .edge-label').forEach(el => el.classList.remove('hl-in', 'hl-out'));
-document.querySelectorAll('.edge-line').forEach(p => {
-p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+edgeEls.forEach((els, id) => {
+els.path.classList.remove('hl-in', 'hl-out');
+if (els.label) els.label.classList.remove('hl-in', 'hl-out');
+els.path.setAttribute('marker-end', id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
 });
 const focusId = hoveredNodeId || (selectedNodeIds.size === 1 ? selectedNodeId : null);
 if (!focusId) return;
 chartData.edges.forEach(edge => {
 const kind = edge.from === focusId ? 'out' : edge.to === focusId ? 'in' : null;
 if (!kind) return;
-const path = document.querySelector(`.edge-line[data-edge-id="${edge.id}"]`);
-const label = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
-if (path) {
-path.classList.add('hl-' + kind);
-path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
-}
-if (label) label.classList.add('hl-' + kind);
+const els = edgeEls.get(edge.id);
+if (!els) return;
+els.path.classList.add('hl-' + kind);
+els.path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
+if (els.label) els.label.classList.add('hl-' + kind);
 });
 }
 function handleNodePointerDown(e, node) {
@@ -8368,6 +8632,7 @@ dragOrigin = startOf(node);
 dragOrigin.saved = [node, ...(dragGroup || []).map(g => g.node)].map(n => ({ node: n, x: n.x, y: n.y, laneId: n.laneId }));
 dragStartX = e.clientX;
 dragStartY = e.clientY;
+dragBoxes = null;     // drag frames route against the boxes of the last full pass (rerouteDragFrame)
 motion.cancelAll();   // a layout animation still in flight would skew the start rect below
 const nodeEl = document.getElementById(`node-${node.id}`);
 const nRect = nodeEl.getBoundingClientRect();
@@ -8433,7 +8698,7 @@ if (!el) return;
 const p = nodePos(n);
 if (n.laneId !== item.laneId) {
 item.laneId = n.laneId;
-const track = document.querySelector(`.lane-track[data-lane-id="${n.laneId}"]`);
+const track = laneTracks.get(n.laneId);
 if (track && el.parentElement !== track) track.appendChild(el);
 item.baseLeft = p.left; item.baseTop = p.top;
 el.style.left = `${p.left}px`;
@@ -8443,7 +8708,7 @@ el.style.translate = '';
 el.style.translate = `${p.left - item.baseLeft}px ${p.top - item.baseTop}px`;
 }
 el.style.scale = '1.02';
-el.classList.add('dragging');
+el.classList.add('is-dragging');
 };
 moveDragItem(dragOrigin);
 if (dragGroup) {
@@ -8483,7 +8748,7 @@ t.classList.toggle('drag-hover-lane', !target && t.dataset.laneId === targetLane
 });
 if (dragCanInsert || e.altKey) return;
 if (!dragEdgeFrame) {
-dragEdgeFrame = requestAnimationFrame(() => { dragEdgeFrame = 0; renderEdges(); });
+dragEdgeFrame = requestAnimationFrame(() => { dragEdgeFrame = 0; rerouteDragFrame(); });
 }
 }
 const SNAP_THRESHOLD = 6; // px (unscaled diagram units)
@@ -8560,6 +8825,7 @@ document.querySelectorAll('.snap-guide').forEach(g => g.style.display = 'none');
 }
 function onDragNodeUp(e) {
 if (dragEdgeFrame) { cancelAnimationFrame(dragEdgeFrame); dragEdgeFrame = 0; }
+dragBoxes = null;
 hideSnapGuides();
 document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
 const target = insertTarget;
@@ -8570,7 +8836,7 @@ const ids = draggedIds();
 draggingNode = null;
 dragGroup = null;
 dragOrigin = null;
-const clearDrag = (n) => { const el = nodeElOf(n.id); if (el) { el.classList.remove('dragging'); placeNodeEl(el, n); } };
+const clearDrag = (n) => { const el = nodeElOf(n.id); if (el) { el.classList.remove('is-dragging'); placeNodeEl(el, n); } };
 clearDrag(node);
 if (group) group.forEach(g => clearDrag(g.node));
 if (dragMoved && isConnector(node)) {
@@ -8611,7 +8877,7 @@ function startConnecting(e, nodeId, port) {
 connectingFromNodeId = nodeId;
 connectingFromPort = port;
 connectingDownAt = { x: e.clientX, y: e.clientY };
-document.body.classList.add('connecting');
+document.body.classList.add('connecting', 'is-dragging');   // is-dragging: no connect ports while an arrow is drawn (components/port.css)
 const fromEl = document.getElementById(`node-${nodeId}`);
 const stageRect = swimlanesContainer.getBoundingClientRect();
 const fRect = fromEl.getBoundingClientRect();
@@ -8792,7 +9058,7 @@ connectingFromNodeId = null;
 connectingFromPort = null;
 connectingDownAt = null;
 connectingStartPoint = null;
-document.body.classList.remove('connecting');
+document.body.classList.remove('connecting', 'is-dragging');
 dragEdge.style.display = 'none';
 document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('connect-target'));
 window.removeEventListener('pointermove', onConnectingMove);
@@ -8862,6 +9128,7 @@ function markSelectedNodes() {
 const many = selectedNodeIds.size > 1;
 document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
 swimlanesContainer.classList.toggle('multi-select', many);
+swimlanesContainer.classList.toggle('is-multi', many);   // components/port.css: no connect ports with several selected
 updateSubButtons();
 applyNodeHover();
 syncNodeBar();
@@ -9468,12 +9735,27 @@ let noteOffsets = {};          // noteId -> {x, y}: last fitted top-left relativ
 let noteSizes = {};            // noteId -> {w, h}: measured card size
 let peekNodeId = null;         // node whose notes are peeked by hover
 let selectedNoteId = null;     // the note card itself is selected (Delete removes the note)
-let editingNoteId = null;
 let peekTimer = 0;
 let noteDrag = null;           // { id, card, sx, sy, x, y, nx, ny, moved }
 let noteLink = null;           // { id, line, target }: dragging a note's link handle
 const nodeById = (id) => chartData.nodes.find(n => n.id === id);
 const nodeElOf = (id) => document.getElementById(`node-${id}`);
+const noteCtl = createNotes({
+data: () => chartData,
+cardOf: (id) => noteCard(id),
+anchorEl: (note) => { const a = linkedIds(note)[0]; return a && nodeElOf(a)?.querySelector('.note-badge'); },
+canEdit: () => !isPresenting(),
+openCard: (note) => {
+cancelConnecting();
+setNotePicking(false);
+selectedNoteId = note.id;
+if (!noteCard(note.id)) renderNotes(false); else applyNoteVisibility();
+return noteCard(note.id);
+},
+clearSelection: (id) => { if (selectedNoteId === id) selectedNoteId = null; },
+render: () => render(),   // badges appear or go, and the notes are re-fitted around the new size
+onChange: () => updateStatus(true),
+});
 const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
 const noteById = (id) => notesList().find(n => n.id === id);
 const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
@@ -9481,7 +9763,7 @@ const isFree = (note) => !(note.nodes || []).length;
 const validPos = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
 const toFlowPos = (x, y) => { const off = trackOffset(); return isTB() ? { x: Math.round(y - off), y: Math.round(x) } : { x: Math.round(x - off), y: Math.round(y) }; };
 const freeAt = (note) => flowToContainer(note.pos.x, note.pos.y);
-const isLive = (note) => !!noteTextOf(note) || note.id === editingNoteId;
+const isLive = (note) => !!noteTextOf(note) || note.id === noteCtl.editingId();
 const linkedIds = (note) => (note.nodes || []).filter(id => nodeElOf(id));
 const notesOf = (nodeId) => notesList().filter(n => isLive(n) && (n.nodes || []).includes(nodeId));
 const noteCard = (id) => notesLayer && [...notesLayer.children].find(el => el.dataset.noteId === id);
@@ -9511,7 +9793,7 @@ if (kept[0] !== (note.nodes || [])[0]) delete note.pos;   // the anchor changed:
 if ((note.nodes || []).length && !kept.length) orphans.add(note.id);
 note.nodes = kept;
 });
-chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === editingNoteId));
+chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === noteCtl.editingId()));
 if (!chartData.notes.length) delete chartData.notes;
 }
 function containerBox(el) {
@@ -9644,7 +9926,7 @@ line.setAttribute('y2', cy);
 }
 function notePeeked(note) {
 const ids = note.nodes || [];
-return note.id === selectedNoteId || note.id === editingNoteId || !!(noteDrag && noteDrag.id === note.id)
+return note.id === selectedNoteId || note.id === noteCtl.editingId() || !!(noteDrag && noteDrag.id === note.id)
 || !!(noteLink && noteLink.id === note.id) || ids.includes(peekNodeId) || ids.includes(selectedNodeId);
 }
 let skipNoteUnfoldId = null;
@@ -9687,7 +9969,7 @@ if (!prevVis.get(note.id) && nowVis) {
 const anchorId = linkedIds(note)[0];
 const leaderEl = anchorId && noteLeaderGroup.querySelector(`.note-leader[data-note-id="${CSS.escape(note.id)}"][data-node-id="${CSS.escape(anchorId)}"]`);
 const br = badgeRects.get(note.id);
-if (note.id === editingNoteId) {
+if (note.id === noteCtl.editingId()) {
 motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 170, easing: motion.curve('curve-spring-tactile') });
 } else if (br) {
 motion.ghostMorph(br, card, 170, 'curve-spring-tactile');
@@ -9784,64 +10066,9 @@ if (fromRect) motion.morphRect(fromRect, card, { duration: 170, easing: 'curve-s
 else motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 160, easing: motion.curve('curve-spring-tactile') });
 }
 }
-function editNote(id) {
-const note = noteById(id);
-if (!note || isPresenting()) return;
-cancelConnecting();
-setNotePicking(false);
-editingNoteId = id;
-selectedNoteId = id;
-if (!noteCard(id)) renderNotes(false); else applyNoteVisibility();
-const card = noteCard(id);
-if (!card) return;
-const text = card.querySelector('.note-text');
-text.contentEditable = 'true';
-text.focus();
-const range = document.createRange();
-range.selectNodeContents(text);
-range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
-const sel = window.getSelection();
-sel.removeAllRanges();
-sel.addRange(range);
-}
-function commitNote(note, text) {
-text.contentEditable = 'false';
-if (editingNoteId !== note.id) return;
-editingNoteId = null;
-const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-if (value) note.text = value;
-else {
-const card = noteCard(note.id), anchorId = linkedIds(note)[0];
-const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
-if (card) motion.foldNote(card, badgeEl);
-chartData.notes = notesList().filter(n => n !== note);
-if (!chartData.notes.length) delete chartData.notes;
-if (selectedNoteId === note.id) selectedNoteId = null;
-}
-updateStatus(true);
-render();   // badges appear or go, and the notes are re-fitted around the new size
-}
-window.addEventListener('pointerdown', (e) => {
-if (!editingNoteId) return;
-const card = noteCard(editingNoteId);
-if (card && card.contains(e.target)) return;
-const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
-if (text) text.blur();
-if (text && note) commitNote(note, text);   // no-op if the blur already committed it
-}, true);
-function removeNote(id) {
-const note = noteById(id);
-if (!note) return;
-const card = noteCard(id), anchorId = linkedIds(note)[0];
-const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
-if (card) motion.foldNote(card, badgeEl);
-chartData.notes = notesList().filter(n => n.id !== id);
-if (!chartData.notes.length) delete chartData.notes;
-if (editingNoteId === id) editingNoteId = null;
-if (selectedNoteId === id) selectedNoteId = null;
-updateStatus(true);
-render();
-}
+function editNote(id) { noteCtl.edit(id); }
+function commitNote(note, text) { noteCtl.commit(note, text); }
+function removeNote(id) { noteCtl.remove(id); }
 function toggleNoteLink(noteId, nodeId) {
 const note = noteById(noteId);
 if (!note || !nodeById(nodeId) || isConnector(nodeById(nodeId))) return;
