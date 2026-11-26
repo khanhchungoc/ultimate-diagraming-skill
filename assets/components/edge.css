@@ -24,6 +24,7 @@
       border-radius: var(--radius-lg);
       color: var(--text-main);
       cursor: pointer;
+      -webkit-user-select: none; user-select: none;
       z-index: 30;
       box-shadow: var(--shadow-sm);
       /* The pill: one box that wraps its text onto up to a few lines (the flowchart look). A type only positions it (left, top,

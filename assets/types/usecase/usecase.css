@@ -6,7 +6,7 @@
     #uc-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #uc-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
     body.capture #uc-canvas { margin: 0; }
-    .uc-actor, .uc-case, .uc-subject-title, .edge-label { -webkit-user-select: none; user-select: none; }
+    .uc-actor, .uc-case, .uc-subject-title { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
 
     /* --- Subjects: a frame, not a category: neutral panel with the border token --- */
