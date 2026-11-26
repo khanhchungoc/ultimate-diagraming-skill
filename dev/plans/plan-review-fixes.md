@@ -1,6 +1,6 @@
 # Plan: engineering review fixes (performance, tokens, WCAG AA)
 
-Follow-up to the 2026-11-26 codebase review. Seven phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
+Follow-up to the 2026-11-26 codebase review. Eight phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
 
 Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating, and `npm run test:e2e:changed`, light/dark contrast, and `build_examples.py --check` before merge. Goldens (`check_golden.py`) must stay byte-identical unless a phase says otherwise: layout and routing are deterministic and the file format does not change in any phase.
 
@@ -10,15 +10,16 @@ Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating
 | 2 | Arrow router speed | M | Medium | No (same routes) |
 | 3 | Render path speed | M | Medium | No |
 | 4 | Token gaps | L | Medium | Slightly (spacing snapped to grid) |
-| 5 | Shared notes module | M | Medium | No |
-| 6 | Smaller pages | S | Low | No |
-| 7 | Keyboard access for items | L | Medium | Focus rings only |
+| 5 | Shared UI elements across types | L | Medium | Yes (types converge on one look) |
+| 6 | Shared notes module | M | Medium | No |
+| 7 | Smaller pages | S | Low | No |
+| 8 | Keyboard access for items | L | Medium | Focus rings only |
 
 ## Phase 1: Quick WCAG fixes
 
 1. Gantt splitter (`assets/types/gantt/stage.html:11`, `role="separator"` + `tabindex`): set `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and update `aria-valuenow` on drag and keyboard resize.
 2. Gantt tree (`#gantt-tree`, `role="tree"`): move the inline buttons (collapse, add subtask) inside `role="treeitem"` rows, or out of the tree's direct children, so the tree only owns tree items.
-3. Target size (WCAG 2.5.8, 24×24 px): give small controls an invisible 24×24 hit area (padding or `::before`), visuals unchanged. Known offenders: flowchart `.note-badge` and `.sub-open` (10×10), C4 `.c4-port` (9×9), `.frame-chev` (12/16), `.c4-note-pin`, ERD `.erd-chevron` (21), Gantt `.gantt-chevron` (20), sequence `.seq-frag-focus` (18). Do it once in the shared component CSS (`badge.css`, `frame.css`) where the control is shared.
+3. Target size (WCAG 2.5.8, 24×24 px): give small controls an invisible 24×24 hit area (padding or `::before`), visuals unchanged. Known offenders (the per-type ones are fixed in place here and folded into shared components in Phase 5): flowchart `.note-badge` and `.sub-open` (10×10), C4 `.c4-port` (9×9), `.frame-chev` (12/16), `.c4-note-pin`, ERD `.erd-chevron` (21), Gantt `.gantt-chevron` (20), sequence `.seq-frag-focus` (18). Do it once in the shared component CSS (`badge.css`, `frame.css`) where the control is shared.
 4. Toast announcements: one persistent `role="status"` live region in `shell.html`; `showToast` (`shell.js:2514`) writes the text there as well as showing the visual toast.
 5. Windows High Contrast: add a `@media (forced-colors: active)` block in `shell.css` so arrows, outlines and focus rings use system colours (`CanvasText`, `Highlight`).
 
@@ -57,7 +58,40 @@ Check: `perf_motion.mjs` plus a 500-node fixture timing `render()`; e2e suites u
 
 Samples change visually in step 1, so `dev/samples/example-*.html` are regenerated and re-signed in that PR.
 
-## Phase 5: Shared notes module
+## Phase 5: Shared UI elements across types
+
+Goal: the same element looks and behaves the same in every diagram type, is defined once in `assets/components` + `assets/shell`, and a new type gets it by using the shared class or `ui.*` call, not by restyling it.
+
+Drift found (2026-11-26):
+
+| Element | Today | Differences |
+|---|---|---|
+| Collapse chevron | `.frame-chev` (frame.css, 16 px), `.erd-chevron` (22 px), `.gantt-chevron` (20 px) | Size, corner radius, hover (background vs opacity vs colour), animation speed |
+| Connection port / handle | flowchart `.port-*`, `.erd-port` + `.erd-handle`, `.c4-port`, `.gantt-port-l/r` | Four builds of one idea; size, hover grow, touch size, hide-while-dragging rules |
+| Edge label pill | `edge.css` base, then overridden in `flowchart.css:158` and `erd.css:45` | Text size (label vs detail), wrapping vs single line with ellipsis, padding |
+| Selected item | `stroke-width` 2, 2px, 2.5px, 3, `--ring-md`; `--shadow-ring` vs `border-color` | Ring thickness and style vary by type |
+| Item hover | usecase border + shadow, c4 inset ring + shadow, erd shadow only, flowchart and sequence none | No common hover |
+| Inline text editing | `.is-editing` (47 uses) vs `.editing` (9 uses) | Two state names for one state |
+
+Steps:
+
+1. **Element inventory (the global definition):** add `references/ui-elements.md` listing each shared element: its class or `ui.*` call, states (`rest`, `hover`, `selected`, `is-editing`, `is-collapsed`, `is-dim`, `disabled`), tokens used, minimum hit area, and which types use it. `SKILL.md` and `CONTRIBUTING.md` link to it from the "new diagram type" checklist.
+2. **State naming convention:** one name per state across all types: `.selected`, `.is-editing`, `.is-collapsed`, `.is-dim`, `.is-dragging`. Rename the 9 `.editing` uses.
+3. **Component tokens for interaction** (extends Phase 4 step 3): `--select-ring-w`, `--hover-shadow`, `--chevron-size`, `--port-size`, `--port-size-touch`, `--hit-min` (24 px). Types read these; none set their own.
+4. **Shared components** (CSS in `assets/components`, markup factory in the `ui` object in `shell.js`):
+   - `chevron.css` + `ui.chevron({ expanded, label })`: one collapse toggle with `aria-expanded`, 24 px hit area, one hover, one rotation. Replaces `.frame-chev`, `.erd-chevron`, `.gantt-chevron`.
+   - `port.css` + `ui.port(side)`: one connection handle, shared show/hide rules (hover, selected on touch, hidden while dragging, exporting, presenting). Replaces the four builds.
+   - `edge.css`: own the full edge label, with two modifiers only: `.edge-label--wrap` (flowchart) and `.edge-label--single` (ERD). Type CSS keeps position only.
+   - `item-states.css`: shared hover, selected and dim styling for HTML items (`[data-item]`) and SVG items (`.item-shape`), so every type gets the same rings.
+5. **Pick one look per element:** for each element, the most complete existing version is the base (proposed: frame chevron behaviour at ERD size, C4 port behaviour, flowchart label pill). Before/after light + dark screenshots of every type for sign-off before migrating.
+6. **Migrate one type per commit**, deleting the type's own copy in the same commit. Type CSS may only position or size shared elements, not restyle them.
+7. **Guard against new drift:** extend `check_tokens.py` (or add `check_components.py` to `run_unit.mjs`) to fail when type CSS declares a selector for a shared element concept (`*-chevron`, `*-port`, `*-handle`, `.edge-label` styling beyond position) or uses a state name outside the convention. Exceptions need a `components-ok: <reason>` comment.
+8. **Component gallery:** a `dev/playground/components.html` page built from the shared CSS and `ui.*` calls showing every element in every state, light and dark, and an e2e screenshot of it. This is the reference a new type is checked against.
+9. **New-type contract:** the type slice checklist in the project rules gains "uses shared elements from `references/ui-elements.md`; no type-specific copies".
+
+Samples change visually, so `dev/samples/example-*.html` are regenerated and re-signed in this phase.
+
+## Phase 6: Shared notes module
 
 Notes logic is copied in c4, erd, flowchart, usecase and gantt (`commitNote`, `removeNote`, `renderNotes`, `notesList`, `selectNote`, `editNote`, `updateNotesButton`, `buildNoteCard`).
 
@@ -65,15 +99,15 @@ Notes logic is copied in c4, erd, flowchart, usecase and gantt (`commitNote`, `r
 2. Migrate one type per commit (flowchart first, as the most complete), keeping each type's e2e notes tests green; `e2e_notes.mjs` covers all types.
 3. Sequence uses a different notes model; leave it unless it fits the contract without special cases.
 
-## Phase 6: Smaller pages
+## Phase 7: Smaller pages
 
 1. In `assemble_page` (`scripts/layout_engine.py`), strip whole-line `//` comments and leading indentation from bundled JS, and `/* */` comments from CSS. No minifier dependency. Skip template literals and strings (use a tokenizer that tracks quotes and backticks, not a regex).
 2. Expected: about 0.9 MB to about 0.6 MB per page uncompressed.
 3. Regenerate and re-sign samples; e2e suites run against the stripped pages.
 
-## Phase 7 (lowest priority): Keyboard access for diagram items
+## Phase 8 (lowest priority): Keyboard access for diagram items
 
-1. One shared keyboard model in the shell: the diagram canvas is one Tab stop; arrow keys move between items (roving `tabindex`), Enter edits, Delete removes, Escape leaves, and Shift+arrows nudge the selected item (a keyboard alternative to dragging).
+1. One shared keyboard model in the shell, built on the Phase 5 item states: the diagram canvas is one Tab stop; arrow keys move between items (roving `tabindex`), Enter edits, Delete removes, Escape leaves, and Shift+arrows nudge the selected item (a keyboard alternative to dragging).
 2. Each type supplies its item order (flowchart: flow order; sequence: participants then messages; ERD: tables then columns; usecase: actors then cases; gantt: bars in row order). C4 already reaches cards and arrows; align it to the shared model.
 3. Visible focus ring from `--focus-ring` on every item; screen-reader label per item (reuse the existing `aria-label` text).
 4. Update `ACCESSIBILITY.md` known limitations.
