@@ -81,6 +81,7 @@ const TESTS = [
   { id: 'version_check',   file: 'test_version_check.py',    types: ['cli'] },
   { id: 'release',         file: 'test_release.py',          types: ['cli'] },
   { id: 'strip_bundle',    file: 'test_strip_bundle.py',     types: ['cross', 'shell'] },
+  { id: 'mermaid_detect',  file: 'test_mermaid_detect.mjs',  types: ['shell', 'mermaid'] },
 
   // Heavier / perf-sensitive non-browser checks (included with --all or explicit --only / direct edit)
   { id: 'golden',          file: 'check_golden.py',          types: ['cross', 'flowchart', 'sequence', 'erd', 'usecase', 'c4', 'gantt'], slow: true },

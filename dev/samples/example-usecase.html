@@ -2779,6 +2779,7 @@ transition: border-color var(--dur-micro) var(--curve-out);
           <li class="help-row"><span class="help-label">Zoom</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Scroll</kbd> &middot; <kbd>Pinch</kbd></span></li>
           <li class="help-row"><span class="help-label">Search</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>F</kbd> &middot; <kbd>/</kbd></span></li>
           <li class="help-row"><span class="help-label">Undo / Redo</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd> &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></li>
+          <li class="help-row"><span class="help-label">Paste Mermaid</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></li>
           <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
         </ul>
       </div>
@@ -3043,25 +3044,37 @@ p.dataset.exportSkip = '';
 return p;
 }
 let confirmEl = null;
+let confirmPrevFocus = null;
 function closeConfirm() {
 if (!confirmEl) return false;
+const hadFocus = confirmEl.contains(document.activeElement);
 if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
 confirmEl.remove();
 confirmEl = null;
 document.removeEventListener('pointerdown', onConfirmOutside, true);
+const prev = confirmPrevFocus;
+confirmPrevFocus = null;
+if (hadFocus && prev && prev.isConnected && prev !== document.body && typeof prev.focus === 'function') prev.focus();
 return true;
 }
 function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
 function confirm(anchor, opts, onYes) {
 closeConfirm();
+confirmPrevFocus = document.activeElement;
 const box = document.createElement('div');
 box.className = 'confirm';
 box.dataset.exportSkip = '';
 box.setAttribute('role', 'alertdialog');
 box.setAttribute('aria-label', opts.label);
-const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
-if (opts.title) add('confirm-title', opts.title);
-add('confirm-msg', opts.message);
+const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); return d; };
+if (opts.title) {
+const titleEl = add('confirm-title', opts.title);
+titleEl.id = 'confirm-dialog-title';
+box.setAttribute('aria-labelledby', titleEl.id);
+}
+const msgEl = add('confirm-msg', opts.message);
+msgEl.id = 'confirm-dialog-msg';
+box.setAttribute('aria-describedby', msgEl.id);
 if (opts.extra) box.appendChild(opts.extra);
 const row = document.createElement('div');
 row.className = 'confirm-actions';
@@ -3069,8 +3082,8 @@ const button = (cls, text) => { const b = document.createElement('button'); b.ty
 const cancel = button('btn confirm-cancel', 'Cancel');
 cancel.addEventListener('click', () => closeConfirm());
 const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
-ok.addEventListener('click', () => { closeConfirm(); onYes(); });
-row.append(cancel);
+ok.addEventListener('click', () => { closeConfirm(); if (onYes) onYes(); });
+if (!opts.noCancel) row.append(cancel);
 if (opts.alt) {
 box.classList.add('has-alt');   // three buttons: a wider bubble
 const alt = button('btn confirm-alt', opts.alt.text);
@@ -3085,19 +3098,22 @@ if (e.key !== 'Tab') e.stopPropagation();
 });
 document.body.appendChild(box);
 confirmEl = box;
-const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+const r = anchor ? anchor.getBoundingClientRect() : null;
 const bw = box.offsetWidth, bh = box.offsetHeight;
-const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+const top = r
+? (r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8)
+: Math.round((innerHeight - bh) / 3);
+const left = r ? r.left : Math.round((innerWidth - bw) / 2);
+box.style.left = `${Math.max(8, Math.min(left, innerWidth - bw - 8))}px`;
 box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
 if (typeof motion !== 'undefined' && motion.enabled()) {
-const above = top < r.top;
+const above = r ? top < r.top : false;
 motion.anim(box, [
 { transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
 { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
 ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
 }
-cancel.focus();
+(opts.noCancel ? ok : cancel).focus();
 document.addEventListener('pointerdown', onConfirmOutside, true);
 }
 function noteCard(note, o) {
@@ -4358,12 +4374,20 @@ window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('
 let fontLoadedSinceRender = false;
 const onFontLoaded = () => { fontLoadedSinceRender = true; };
 if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
+let pendingPasteResult = null;
 try {
 plugin.render();
 applyInitialView();
 updateStatus(false);
 committedJson = savedJson = JSON.stringify(chartData);
 updateHistoryButtons();
+if (playground && typeof plugin.fromMermaid === 'function') {
+const pendingText = takePendingMermaidPaste(playground.type);
+if (pendingText !== null) {
+try { pendingPasteResult = { notes: importMermaid(pendingText) }; }
+catch (err) { pendingPasteResult = { error: err.message }; }
+}
+}
 } finally {
 document.documentElement.classList.remove('is-loading');
 document.documentElement.dataset.diagramReady = '1';
@@ -4377,6 +4401,11 @@ const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoa
 : Promise.resolve();
 fontsIn.then(() => {
 document.documentElement.dataset.diagramSettled = '1';
+if (pendingPasteResult) {
+if (pendingPasteResult.error) showMermaidWarning('Could not read Mermaid', pendingPasteResult.error);
+else if (pendingPasteResult.notes.length) showMermaidNotes(pendingPasteResult.notes);
+else flashStatus('Imported Mermaid');
+}
 if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
 if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
 });
@@ -5476,24 +5505,51 @@ setMoreOpen(false);
 if (typeof setDockMoreOpen === 'function') setDockMoreOpen(false);
 closeMermaidImport();
 });
-const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
-function mermaidTypeOf(text) {
-const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
-const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
-if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
-if (head.startsWith('sequencediagram')) return 'sequence';
-if (head.startsWith('erdiagram')) return 'erd';
-if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
-return '';
+const MERMAID_TYPE_NAME = {
+flowchart: 'flowchart',
+usecase: 'use case diagram',
+sequence: 'sequence diagram',
+erd: 'ER diagram',
+c4: 'C4 diagram',
+gantt: 'Gantt chart',
+};
+function detectMermaid(text) {
+if (typeof mmdDetectType === 'function') return mmdDetectType(text);
+return { kind: '', unsupported: '', text: String(text == null ? '' : text) };
 }
-function importMermaid(text) {
-if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
-const kind = mermaidTypeOf(text);
-if (kind && kind !== plugin.id) {
-throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
+function navigatePlaygroundType(id) {
+document.documentElement.classList.add('is-loading');
+location.assign('../' + id + '/index.html?theme=' + currentTheme());
 }
-let res;
-try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+const PENDING_MERMAID_KEY = 'ud-pending-mermaid-paste';
+const PENDING_MERMAID_PREFIX = 'ud-paste:';
+function savePendingMermaidPaste(type, text) {
+const payload = JSON.stringify({ type, text });
+try { sessionStorage.setItem(PENDING_MERMAID_KEY, payload); return; } catch (_) {}
+try { if (window.name !== 'present') window.name = PENDING_MERMAID_PREFIX + payload; } catch (_) {}
+}
+function takePendingMermaidPaste(expectedType) {
+let raw = null;
+try {
+raw = sessionStorage.getItem(PENDING_MERMAID_KEY);
+if (raw !== null) sessionStorage.removeItem(PENDING_MERMAID_KEY);
+} catch (_) {}
+if (raw === null) {
+try {
+if (typeof window.name === 'string' && window.name.startsWith(PENDING_MERMAID_PREFIX)) {
+raw = window.name.slice(PENDING_MERMAID_PREFIX.length);
+window.name = '';
+}
+} catch (_) {}
+}
+if (!raw) return null;
+try {
+const parsed = JSON.parse(raw);
+if (parsed && parsed.type === expectedType && typeof parsed.text === 'string') return parsed.text;
+} catch (_) {}
+return null;
+}
+function applyImportedMermaid(res) {
 const next = res.data;
 if (!next.title && chartData.title) next.title = chartData.title;
 plugin.cancelInteraction();
@@ -5507,6 +5563,19 @@ updateStatus(true);
 fitView(true);
 const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
 return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
+}
+function importMermaid(text) {
+if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
+const det = detectMermaid(text);
+if (det.unsupported) {
+throw new Error(`Mermaid "${det.unsupported}" diagrams are not supported yet.`);
+}
+if (det.kind && det.kind !== plugin.id) {
+throw new Error(`This is a ${MERMAID_TYPE_NAME[det.kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[det.kind]} page to import it.`);
+}
+let res;
+try { res = plugin.fromMermaid(det.text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+return applyImportedMermaid(res);
 }
 let importEl = null;
 function closeMermaidImport() {
@@ -5538,6 +5607,59 @@ close.addEventListener('click', closeMermaidImport);
 done.append(close);
 close.focus();
 }
+function showMermaidNotes(notes) {
+ui.closeConfirm();
+closeMermaidImport();
+const box = document.createElement('div');
+box.className = 'confirm confirm-wide';
+box.dataset.exportSkip = '';
+box.setAttribute('role', 'dialog');
+box.setAttribute('aria-label', 'Imported, with notes');
+box.addEventListener('keydown', (ev) => {
+if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
+if (ev.key !== 'Tab') ev.stopPropagation();
+});
+document.body.appendChild(box);
+importEl = box;
+showImportNotesBox(box, notes);
+positionImportBox(box);
+}
+function showMermaidWarning(title, message) {
+closeMermaidImport();
+ui.confirm(null, {
+label: title,
+title,
+message,
+ok: 'OK',
+okClass: 'btn-primary',
+noCancel: true,
+});
+}
+function confirmPlaygroundSwitchAndPaste(targetKind, cleanText) {
+const targetEntry = playground && playground.types.find((x) => x.id === targetKind);
+if (!targetEntry) return false;
+const targetLabel = MERMAID_TYPE_NAME[targetKind] || targetEntry.name.toLowerCase();
+const targetTitle = targetLabel.charAt(0).toUpperCase() + targetLabel.slice(1);
+const currentLabel = MERMAID_TYPE_NAME[plugin.id] || ((playground.types.find((x) => x.id === playground.type) || {}).name || '').toLowerCase();
+const proceed = () => {
+savePendingMermaidPaste(targetKind, cleanText);
+navigatePlaygroundType(targetKind);
+};
+const opts = {
+label: `Switch to ${targetTitle} and paste Mermaid`,
+title: `Switch to ${targetTitle}?`,
+message: hasUnsavedChanges
+? `Detected a ${targetLabel}. Your edits to this ${currentLabel} will be lost unless you save.`
+: `Detected a ${targetLabel}. Switch to ${targetTitle} and replace the diagram with the pasted Mermaid?`,
+ok: 'Switch & Replace',
+okClass: 'btn-primary',
+};
+if (hasUnsavedChanges) {
+opts.alt = { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) proceed(); } };
+}
+ui.confirm(null, opts, proceed);
+return true;
+}
 function openMermaidImport() {
 ui.closeConfirm();
 closeMermaidImport();
@@ -5549,7 +5671,9 @@ box.setAttribute('aria-label', 'Paste Mermaid');
 const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
 const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
 add('div', 'confirm-title', 'Paste Mermaid');
-add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
+add('div', 'confirm-msg', playground
+? 'Paste Mermaid text. The diagram type is detected automatically and replaces the diagram. Undo brings the old diagram back.'
+: `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
 const field = add('textarea', 'confirm-field');
 field.spellcheck = false;
 field.setAttribute('aria-label', 'Mermaid text');
@@ -5562,6 +5686,12 @@ cancel.addEventListener('click', closeMermaidImport);
 const ok = button('btn btn-primary confirm-ok', 'Import');
 row.append(cancel, ok);
 const run = () => {
+const det = detectMermaid(field.value);
+if (playground && det.kind && det.kind !== plugin.id && playground.types.some((x) => x.id === det.kind)) {
+closeMermaidImport();
+confirmPlaygroundSwitchAndPaste(det.kind, det.text);
+return;
+}
 let notes;
 try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
 if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
@@ -5588,29 +5718,44 @@ field.focus();
 }
 window.addEventListener('paste', (e) => {
 if (document.body.classList.contains('presentation') || !(plugin && typeof plugin.fromMermaid === 'function')) return;
+if (importEl) return;
 const t = e.target;
 if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-if (!text.trim() || !mermaidTypeOf(text)) return;
+const raw = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+const det = detectMermaid(raw);
+if (!det.kind && !det.unsupported) return;
 e.preventDefault();
-let notes;
-try { notes = importMermaid(text); } catch (err) { showToast(err.message); return; }
+if (det.unsupported) {
+showMermaidWarning(
+'Unsupported Mermaid diagram',
+`Mermaid "${det.unsupported}" diagrams are not supported yet. Supported types: flowchart, use case, sequence, ER, C4, and Gantt.`
+);
+return;
+}
+if (det.kind !== plugin.id) {
+if (playground && confirmPlaygroundSwitchAndPaste(det.kind, det.text)) return;
+showMermaidWarning(
+'Wrong diagram type',
+`This is a ${MERMAID_TYPE_NAME[det.kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[det.kind]} page to paste it.`
+);
+return;
+}
+let parsed;
+try { parsed = plugin.fromMermaid(det.text); } catch (err) {
+showMermaidWarning('Could not read Mermaid', `This Mermaid text has an error and could not be imported (${err.message}).`);
+return;
+}
+ui.confirm(null, {
+label: 'Replace diagram with pasted Mermaid',
+title: 'Replace diagram?',
+message: `Replace this ${MERMAID_TYPE_NAME[plugin.id]} with the pasted Mermaid? It will be laid out fresh, and Undo brings the old diagram back.`,
+ok: 'Replace',
+okClass: 'btn-primary',
+}, () => {
+const notes = applyImportedMermaid(parsed);
 if (!notes.length) { flashStatus('Imported Mermaid'); return; }
-ui.closeConfirm();
-closeMermaidImport();
-const box = document.createElement('div');
-box.className = 'confirm confirm-wide';
-box.dataset.exportSkip = '';
-box.setAttribute('role', 'dialog');
-box.setAttribute('aria-label', 'Imported, with notes');
-box.addEventListener('keydown', (ev) => {
-if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
-if (ev.key !== 'Tab') ev.stopPropagation();
+showMermaidNotes(notes);
 });
-document.body.appendChild(box);
-importEl = box;
-showImportNotesBox(box, notes);
-positionImportBox(box);
 });
 document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
 const DOCK_POP_MAX_COLS = 6;
@@ -6861,7 +7006,7 @@ icon.remove();
 btn.append(ui.iconEl('type-' + cur.id, { size: 'sm' }), curLabel, ui.iconEl('chevron-down', { size: 'sm' }));
 wrap.append(btn, menu);
 const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
-const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
+const goTo = navigatePlaygroundType;
 window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
 for (const t of playground.types) {
 const item = document.createElement('button');
@@ -9526,6 +9671,43 @@ ucCanvas(m);
 return data;
 }
 //@engine-end
+const MMD_UNSUPPORTED_STRICT = /^(c4dynamic|c4deployment|classdiagram(?:-v2)?|statediagram(?:-v2)?|gitgraph|quadrantchart|requirementdiagram|sankey-beta|xychart-beta|block-beta|packet-beta|architecture-beta|zenuml|radar-beta|treemap-beta)(?:\s|$)/i;
+const MMD_UNSUPPORTED_WORD = /^(mindmap|timeline|journey|kanban)$/i;
+const MMD_UNSUPPORTED_PIE = /^pie(?:\s+(?:showdata|title\b.*))?$/i;
+function mmdStripFence(text) {
+const raw = String(text == null ? '' : text);
+const trimmed = raw.trim();
+const m = /^```(?:mermaid)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/i.exec(trimmed);
+if (m) return m[1];
+if (/^```(?:mermaid)?[ \t]*\r?\n```[ \t]*$/i.test(trimmed)) return '';
+return raw;
+}
+function mmdDetectType(text) {
+const raw = String(text == null ? '' : text);
+const clean = mmdStripFence(raw);
+const fenced = clean !== raw;
+const body = clean.replace(/^\s*---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, '');
+const contentLines = body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('%%'));
+const first = contentLines[0] || '';
+if (!first) return { kind: '', unsupported: '', text: clean };
+const head = first.toLowerCase();
+if (/^flowchart(?:-elk)?(?:\s|;|$)/.test(head) || /^graph(?:-elk)?\s+(?:lr|rl|tb|td|bt)(?:\s|;|$)/.test(head) || (/^graph(?:-elk)?$/.test(head) && (fenced || contentLines.length > 1))) {
+return { kind: /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart', unsupported: '', text: clean };
+}
+if (/^sequencediagram(?:\s|;|$)/.test(head)) return { kind: 'sequence', unsupported: '', text: clean };
+if (/^erdiagram(?:\s|;|$)/.test(head)) return { kind: 'erd', unsupported: '', text: clean };
+if (/^c4(?:context|container|component)(?:\s|$)/.test(head)) return { kind: 'c4', unsupported: '', text: clean };
+if (/^gantt(?:\s|$)/.test(head) && (/^gantt$/.test(head) && (fenced || contentLines.length > 1))) {
+return { kind: 'gantt', unsupported: '', text: clean };
+}
+const unsup = MMD_UNSUPPORTED_STRICT.exec(first);
+if (unsup) return { kind: '', unsupported: unsup[1], text: clean };
+if (fenced || contentLines.length > 1) {
+if (MMD_UNSUPPORTED_WORD.test(first)) return { kind: '', unsupported: first, text: clean };
+if (MMD_UNSUPPORTED_PIE.test(first)) return { kind: '', unsupported: 'pie', text: clean };
+}
+return { kind: '', unsupported: '', text: clean };
+}
 const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
 'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
 'alt', 'else', 'opt', 'loop', 'par', 'and', 'rect', 'box', 'note', 'participant', 'actor', 'create', 'destroy', 'activate',

@@ -18,7 +18,7 @@ export function loadMermaidIO(kind) {
   const missing = files.find((f) => !existsSync(f));
   if (missing) throw new Error(`missing ${missing}`);
   const src = files.map((f) => readFileSync(f, 'utf8')).join('\n');
-  const names = ['fromMermaid', 'toMermaid', 'mmdParseFlow', 'mmdSafeId'];
+  const names = ['fromMermaid', 'toMermaid', 'mmdParseFlow', 'mmdSafeId', 'mmdDetectType', 'mmdStripFence'];
   return new Function(`${src}\nreturn { ${names.map((n) => `${n}: typeof ${n} === 'function' ? ${n} : null`).join(', ')} };`)();
 }
 

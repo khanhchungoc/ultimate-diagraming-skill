@@ -12,6 +12,52 @@
 // A node that is only referenced gets shape 'rect' with label = id. The circ shapes (sm-circ, fr-circ, f-circ, dbl-circ)
 // get an empty label when none is written.
 
+const MMD_UNSUPPORTED_STRICT = /^(c4dynamic|c4deployment|classdiagram(?:-v2)?|statediagram(?:-v2)?|gitgraph|quadrantchart|requirementdiagram|sankey-beta|xychart-beta|block-beta|packet-beta|architecture-beta|zenuml|radar-beta|treemap-beta)(?:\s|$)/i;
+const MMD_UNSUPPORTED_WORD = /^(mindmap|timeline|journey|kanban)$/i;
+const MMD_UNSUPPORTED_PIE = /^pie(?:\s+(?:showdata|title\b.*))?$/i;
+
+// Unwrap a single outer Markdown code fence (```mermaid ... ``` or ``` ... ```), if present.
+function mmdStripFence(text) {
+  const raw = String(text == null ? '' : text);
+  const trimmed = raw.trim();
+  const m = /^```(?:mermaid)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/i.exec(trimmed);
+  if (m) return m[1];
+  if (/^```(?:mermaid)?[ \t]*\r?\n```[ \t]*$/i.test(trimmed)) return '';
+  return raw;
+}
+
+// Detect Mermaid diagram type from raw clipboard/input text.
+// Returns { kind, unsupported, text } where:
+//   kind: 'flowchart' | 'usecase' | 'sequence' | 'erd' | 'c4' | 'gantt' | ''
+//   unsupported: matched unsupported Mermaid header token (e.g. 'classDiagram', 'C4Dynamic') or ''
+//   text: input with any outer Markdown code fence removed
+function mmdDetectType(text) {
+  const raw = String(text == null ? '' : text);
+  const clean = mmdStripFence(raw);
+  const fenced = clean !== raw;
+  const body = clean.replace(/^\s*---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, '');
+  const contentLines = body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('%%'));
+  const first = contentLines[0] || '';
+  if (!first) return { kind: '', unsupported: '', text: clean };
+  const head = first.toLowerCase();
+  if (/^flowchart(?:-elk)?(?:\s|;|$)/.test(head) || /^graph(?:-elk)?\s+(?:lr|rl|tb|td|bt)(?:\s|;|$)/.test(head) || (/^graph(?:-elk)?$/.test(head) && (fenced || contentLines.length > 1))) {
+    return { kind: /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart', unsupported: '', text: clean };
+  }
+  if (/^sequencediagram(?:\s|;|$)/.test(head)) return { kind: 'sequence', unsupported: '', text: clean };
+  if (/^erdiagram(?:\s|;|$)/.test(head)) return { kind: 'erd', unsupported: '', text: clean };
+  if (/^c4(?:context|container|component)(?:\s|$)/.test(head)) return { kind: 'c4', unsupported: '', text: clean };
+  if (/^gantt(?:\s|$)/.test(head) && (/^gantt$/.test(head) && (fenced || contentLines.length > 1))) {
+    return { kind: 'gantt', unsupported: '', text: clean };
+  }
+  const unsup = MMD_UNSUPPORTED_STRICT.exec(first);
+  if (unsup) return { kind: '', unsupported: unsup[1], text: clean };
+  if (fenced || contentLines.length > 1) {
+    if (MMD_UNSUPPORTED_WORD.test(first)) return { kind: '', unsupported: first, text: clean };
+    if (MMD_UNSUPPORTED_PIE.test(first)) return { kind: '', unsupported: 'pie', text: clean };
+  }
+  return { kind: '', unsupported: '', text: clean };
+}
+
 const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
   'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
   // sequenceDiagram keywords: Mermaid cannot parse them as participant ids, and every type shares one id rule
