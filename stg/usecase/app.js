@@ -9043,11 +9043,13 @@ if (isActor) {
 LEVELS.forEach((lv) => bar.appendChild(abButton('level', `<span>${LEVEL_NAME[lv]}</span>`, `Level: ${lv === 'user' ? 'user goal' : lv}`, (o.level || 'user') === lv, lv)));
 }
 bar.appendChild(abSep());
-if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
-bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
+if (!isActor) {
+bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
 bar.appendChild(abSep());
+}
 bar.appendChild(swatchPicker(o.color || '', setColor, { triggerClass: 'uc-ab-btn', btnClass: 'uc-ab-swatch' }));
 bar.appendChild(abSep());
+bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
 bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
 return anchorOfBox(boxOf(o));
 }

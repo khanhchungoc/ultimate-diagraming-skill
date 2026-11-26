@@ -9031,12 +9031,22 @@ edgeEls.clear();
 labelFont = null;
 const routes = computeAllEdgeRoutes();
 lastRoutes = routes;
+const trimArrowEnd = (d, pts, toNode, inset = 1.5) => {
+if (!d || !pts || pts.length < 2) return d;
+if (toNode && toNode.type === 'io') return d;
+const a = pts[pts.length - 2], b = pts[pts.length - 1];
+const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+if (len <= 4) return d;
+const t = Math.min(inset, len - 2);
+const ex = +(b[0] - (dx / len) * t).toFixed(1), ey = +(b[1] - (dy / len) * t).toFixed(1);
+return d.replace(/ L -?\d+(?:\.\d+)? -?\d+(?:\.\d+)?$/, ` L ${ex} ${ey}`);
+};
 const hops = (ed) => (routes[ed.id] && routes[ed.id].path || '').includes(' A ') ? 1 : 0;
-[...chartData.edges].sort((a, b) => hops(a) - hops(b)).forEach(edge => {
+[...chartData.edges].sort((a, b) => (a.id === selectedEdgeId ? 1 : 0) - (b.id === selectedEdgeId ? 1 : 0) || hops(a) - hops(b)).forEach(edge => {
 const pathD = routes[edge.id];
 if (!pathD || !pathD.path) return;
 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-path.setAttribute('d', pathD.path);
+path.setAttribute('d', trimArrowEnd(pathD.path, pathD.points, nodeById(edge.to)));
 path.setAttribute('class', edge.id === selectedEdgeId ? 'edge-line selected' : 'edge-line');
 path.dataset.edgeId = edge.id;
 path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
@@ -9181,6 +9191,9 @@ if (!els || !els.label) return;
 els.path.classList.toggle('hover', on);
 els.label.classList.toggle('linked', on);
 if (edgeId !== selectedEdgeId) els.path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+if (on) {
+if (edgeGroup.lastElementChild !== els.path) edgeGroup.append(els.hit, els.path);
+}
 }
 function editEdgeLabel(edgeId) {
 const els = edgeEls.get(edgeId);
@@ -9723,13 +9736,11 @@ if (isConnector(nodeById(fromId)) || isConnector(nodeById(toId))) {
 flashHint('Connectors are made by splitting an arrow (select it, then Split)');
 return;
 }
-const fromNode = chartData.nodes.find(n => n.id === fromId);
-const defaultLabel = (fromNode && fromNode.type === 'decision') ? 'Yes' : '';
 const newEdge = {
 id: `e_${Date.now()}`,
 from: fromId,
 to: toId,
-label: defaultLabel
+label: ''
 };
 chartData.edges.push(newEdge);
 updateStatus(true);
@@ -10135,7 +10146,7 @@ if (after && p.from !== after && !dup) p.to = after; else drop.add(p);
 chartData.edges = chartData.edges.filter(x => !drop.has(x));
 const target = edge.to;
 edge.to = run.entry;
-const second = { id: secondId, from: run.exit, to: target, label: run.out ? (run.out.label || '') : (nodeById(run.exit).type === 'decision' ? 'Yes' : '') };
+const second = { id: secondId, from: run.exit, to: target, label: run.out ? (run.out.label || '') : '' };
 if (edge.feedback) { second.feedback = true; delete edge.feedback; }
 chartData.edges.push(second);
 if (autoLayout || !lifted) layoutDiagram(chartData);

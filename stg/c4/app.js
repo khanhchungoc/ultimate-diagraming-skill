@@ -8385,9 +8385,8 @@ if (card) selectNote(n.id);
 return card;
 },
 beforeRemove: (n) => {
-const a = noteAnchor(n);
 motion.cancelAll();
-return { a, snap: motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null };
+return { snap: motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null };
 },
 clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
 render: ({ note, token, reason }) => {
@@ -8396,7 +8395,7 @@ const names = noteNames(note);
 noteCard(note.id).setAttribute('aria-label', names ? `Note on ${names}: ${note.text}` : `Note: ${note.text}`);
 placeNotes();
 updateNotesButton();
-} else if (reason !== 'same') render({ snap: token.snap, toKey: token.a ? { [note.id]: token.a.id } : undefined, duration: 160 });
+} else if (reason !== 'same') render({ snap: token.snap, ghostExit: true, duration: 130 });
 },
 onChange: () => updateStatus(true),
 });
@@ -8599,7 +8598,7 @@ syncTouchDrag();
 const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
 if (back && document.activeElement !== back) back.focus({ preventScroll: true });
 if (snap) {
-motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, ghostExit: o.ghostExit, enterScale: o.enterScale });
+motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, skipKeys: o.skipKeys, ghostExit: o.ghostExit, enterScale: o.enterScale });
 playEdges(prevEdges);
 if (o.afterPlay) o.afterPlay();
 }
@@ -8669,16 +8668,19 @@ text.appendChild(phRow);
 }
 const kids = [chip, text];
 if (pinId) kids.push(notePin(nameOf(e)));
-['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
+kids.push(...sidePorts(e));
+return kids;
+}
+function sidePorts(item) {
+return ['N', 'E', 'S', 'W'].map((side) => {   // a port on each side: drag it onto another element or container to connect
 const port = ui.port({ N: 'top', E: 'right', S: 'bottom', W: 'left' }[side]);
 port.dataset.side = side;
 port.dataset.touchDrag = '';
 port.setAttribute('role', 'button');
-port.setAttribute('aria-label', `Connect from ${nameOf(e)}: drag to another element`);
-port.title = 'Drag to another element to connect them';
-kids.push(port);
+port.setAttribute('aria-label', `Connect from ${nameOf(item)}: drag to another item`);
+port.title = 'Drag to another item to connect them';
+return port;
 });
-return kids;
 }
 function syncNode(e) {
 let el = els.nodes.get(e.id), st = el && itemState.get(el);
@@ -8744,6 +8746,7 @@ const chip = htmlEl('span', 'c4-disc');
 chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
 el.replaceChildren(chip, text, chevron(g, true));
 if (pinId) el.appendChild(notePin(nameOf(g)));
+el.append(...sidePorts(g));
 }
 } else {
 const hasKids = descendants(g).length > 0;
@@ -8758,7 +8761,7 @@ tag.setAttribute('aria-label', `${nameOf(g)}, ${kind}`);
 if (hasKids) tag.appendChild(chevron(g, false));
 tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
 if (pinId) tag.appendChild(notePin(nameOf(g)));
-el.replaceChildren(tag);
+el.replaceChildren(tag, ...sidePorts(g));
 }
 }
 return el;
@@ -8898,8 +8901,8 @@ if (isTyping()) document.activeElement.blur();
 if (it.kind === 'edge') editEdgeField(it.id, 'tech'); else editField(it.id, ph.dataset.field);
 return;
 }
-if (it.kind === 'element' && t.closest('.port') && ev.button === 0 && !presenting()) { startConnectDrag(ev, it.id); return; }
-if (it.kind === 'group' && !it.el.classList.contains('is-tile') && !t.closest('.frame-tag')) return;   // a frame takes presses on its tag only
+if ((it.kind === 'element' || it.kind === 'group') && t.closest('.port') && ev.button === 0 && !presenting()) { startConnectDrag(ev, it.id); return; }
+if (it.kind === 'group' && !it.el.classList.contains('is-tile') && !t.closest('.frame-tag')) return;   // a frame takes presses on its tag or ports only
 press(ev, { kind: it.kind, id: it.id });
 });
 html.addEventListener('click', (ev) => {
@@ -8922,6 +8925,11 @@ if (it.kind === 'edge') { if (hoverEdgeId === it.id) { hoverEdgeId = null; apply
 else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && hoverId === it.id) { hoverId = null; applyState(); }
 }, true);
 edgesG.addEventListener('pointerdown', (ev) => { const id = edgeAt(ev.target); if (id) press(ev, { kind: 'edge', id }); });
+edgesG.addEventListener('dblclick', (ev) => {
+if (presenting()) return;
+const id = edgeAt(ev.target);
+if (id) { ev.stopPropagation(); editEdgeField(id, 'label'); }
+});
 edgesG.addEventListener('pointerenter', (ev) => {
 const id = edgeAt(ev.target);
 if (id && ev.target === els.edges.get(id).g) { hoverEdgeId = id; applyState(); }
@@ -9309,9 +9317,24 @@ const e = edgeOf(edgeId);
 if (!e || presenting()) return;
 const isNew = !!(opts && opts.isNew), newRel = opts && opts.newRel;
 if (!isNew && !isDirectEdge(e)) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
-const rec = els.edges.get(edgeId), lbl = rec && rec.label;
+const rec = els.edges.get(edgeId);
+let lbl = rec && rec.label, tempLbl = false;
 const backKind = newRel && elementOf(newRel.from) ? 'element' : 'group';
-if (!lbl) { if (isNew && newRel) dropNewRelation(newRel, { kind: backKind, id: newRel.from }); return; }
+if (!lbl && isNew && newRel) { dropNewRelation(newRel, { kind: backKind, id: newRel.from }); return; }
+if (!lbl && field === 'label') {
+const b = e.labelBox || (() => { const pts = e.points || [], m = pts[Math.floor(pts.length / 2)] || [0, 0]; return { x: m[0] - 40, y: m[1] - 15, w: 80, h: 30 }; })();
+lbl = htmlEl('div', 'edge-label c4-label');
+lbl.dataset.edgeId = e.id;
+lbl.setAttribute('role', 'group');
+setStyle(lbl, 'left', px(Math.round(b.x + b.w / 2)));
+setStyle(lbl, 'top', px(Math.round(b.y + b.h / 2)));
+lbl.appendChild(htmlEl('span', 'c4-label-text', ''));
+itemState.set(lbl, {});
+html.appendChild(lbl);
+if (rec) rec.label = lbl;
+tempLbl = true;
+}
+if (!lbl) return;
 const members = isNew ? [newRel] : e.members.map((i) => relations()[i]).filter(Boolean);
 const back = isNew ? { kind: backKind, id: newRel.from } : null;
 const findEdgeId = () => {
@@ -9350,14 +9373,17 @@ placeholder: 'Label...',
 host: lbl,
 forceApply: isNew,
 after: refocus,
-onCancel: () => { if (isNew && newRel) dropNewRelation(newRel, back); else { el.textContent = `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`; refocus(); } },
+onCancel: () => {
+if (isNew && newRel) dropNewRelation(newRel, back);
+else if (tempLbl) { lbl.remove(); if (rec) rec.label = null; }
+else { el.textContent = `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`; refocus(); }
+},
 onTab: showTech() ? () => editEdgeField(findEdgeId(), 'tech') : undefined,
-validate: (v, why) => {
-if (isNew && why === 'blur' && !String(v || '').trim()) return 'drop';
-const label = askText(v, 'A label', LABEL_MAX);
-if (label === null) return 'keep';
+validate: (v) => {
+const label = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+if (label.length > LABEL_MAX) { ui.toast(`A label is longer than ${LABEL_MAX} characters`); return 'keep'; }
 if (isNew) {
-if (relations().some((r) => sameRelation(r, Object.assign({}, newRel, { label })))) {
+if (relations().some((r) => r !== newRel && sameRelation(r, Object.assign({}, newRel, { label })))) {
 ui.toast('That connection already exists with this label');
 return 'drop';
 }
@@ -9370,13 +9396,16 @@ return 'keep';
 return 'ok';
 },
 apply: (v) => {
-const label = cleanText(v, 'A label', LABEL_MAX);
+const label = optText(v, LABEL_MAX);
 if (isNew) {
 newRel.label = label;
 newLink = null;
 return true;
 }
-if (label === e.label) return false;
+if (label === e.label) {
+if (tempLbl) { lbl.remove(); if (rec) rec.label = null; }
+return false;
+}
 members.forEach((r) => { r.label = label; });
 return true;
 }
@@ -9570,9 +9599,9 @@ function nodeIdAt(x, y) {
 const el = document.elementFromPoint(x, y);
 if (!el) return null;
 const node = el.closest('.c4-node');
-if (node) return { id: node.dataset.nodeId, kind: 'element' };
-const grp = el.closest('.c4-group.is-tile') || (el.closest('.frame-tag') && el.closest('.c4-group'));
-if (grp) return { id: grp.dataset.groupId, kind: 'group' };
+if (node) return { id: node.dataset.nodeId, kind: 'element', exact: true };
+const grp = el.closest('.c4-group');
+if (grp) return { id: grp.dataset.groupId, kind: 'group', exact: !!el.closest('.c4-group.is-tile, .frame-tag, .port') };
 return null;
 }
 function startConnectDrag(ev, fromId) {
@@ -9617,7 +9646,7 @@ function onDragUp(e) {
 const hit = drag && drag.moved ? nodeIdAt(e.clientX, e.clientY) : null;   // before the bar comes back: it may sit over the target
 const d = endDrag();
 if (!d || !d.moved) return;
-if (!hit) return;
+if (!hit || (!hit.exact && isAncestorOrSelf(d.from, hit.id))) return;
 connectItems(d.from, hit.id);
 }
 function cancelDrag() { return !!endDrag(); }
@@ -9812,14 +9841,48 @@ if (!notesLayer) return;
 const n = noteOf(selNoteId);
 if (n) noteTargets(n).forEach((t) => { const el = targetEl(t); if (el) el.classList.add('note-linked'); });   // what the selected note explains
 }
-function noteKeys() { const m = {}; notesList().forEach((n) => { const a = noteAnchor(n); if (a) m[n.id] = a.id; }); return m; }
+function notePinEl(n) {
+const a = noteAnchor(n), el = a && targetEl(a);
+if (!el) return null;
+return el.querySelector('.c4-note-pin') || (!el.classList.contains('c4-node') && !el.classList.contains('is-tile') ? el.querySelector('.frame-tag') : el);
+}
 function setShowNotes(on) {
 if ((chartData.showNotes === true) === on) return;
 motion.cancelAll();
-const useMotion = motion.enabled() && html.childElementCount > 0, keys = noteKeys();
+const useMotion = motion.enabled() && html.childElementCount > 0;
+const fromRects = new Map();
+if (useMotion && on) {
+notesList().forEach((n) => {
+if (!noteText(n)) return;
+const el = notePinEl(n), r = el && el.getBoundingClientRect();
+if (r && r.width > 0) fromRects.set(n.id, r);
+});
+}
 const snap = useMotion ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
 if (on) chartData.showNotes = true; else delete chartData.showNotes;
-render({ snap, fromKey: keys, toKey: keys, duration: 170 });
+render({
+snap,
+duration: on ? 170 : 150,
+skipKeys: on && fromRects.size ? new Set(fromRects.keys()) : undefined,
+afterPlay: !useMotion ? undefined : () => {
+if (on) {
+fromRects.forEach((fr, id) => {
+const c = noteCard(id);
+if (c) motion.morphRect(fr, c, { duration: 170, easing: 'curve-spring-tactile' });
+});
+} else if (snap) {
+for (const [, prev] of snap) {
+if (!prev.preCloned || !prev.el.classList.contains('note')) continue;
+const n = noteOf(prev.id), toEl = n && notePinEl(n), toRect = toEl && toEl.getBoundingClientRect();
+motion.ghostExit(prev.el, {
+preCloned: prev.preCloned, fromRect: prev.vr,
+toRect: toRect && toRect.width > 0 ? toRect : null,
+baseW: prev.baseW, baseH: prev.baseH, duration: 150, easing: 'curve-in'
+});
+}
+}
+}
+});
 if (!presenting()) updateStatus(true);
 }
 if (btnNotes) btnNotes.addEventListener('click', () => setShowNotes(chartData.showNotes !== true));
@@ -9895,7 +9958,16 @@ if (gs.length) note.groups = gs;
 noteCtl.begin(note, true);
 chartData.showNotes = true;
 sel = [];
-render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
+const srcEl = useMotion && notePinEl(note);
+const fromRect = srcEl && srcEl.getBoundingClientRect();
+render({
+snap, duration: 170,
+skipKeys: fromRect && fromRect.width > 0 ? new Set([note.id]) : undefined,
+afterPlay: fromRect && fromRect.width > 0 ? () => {
+const c = noteCard(note.id);
+if (c) motion.morphRect(fromRect, c, { duration: 170, easing: 'curve-spring-tactile' });
+} : undefined
+});
 editNote(note.id);
 }
 function addFreeNoteAt(pt) {
@@ -10019,16 +10091,6 @@ input.select();
 const mainLayerGroups = () => groups().filter((x) => !x.parent && x.shared !== true);
 const SIDE_LABELS = { N: 'Top', S: 'Bottom', W: 'Left', E: 'Right' };
 const sharedDefaultSide = () => (chartData.layerDirection === 'vertical' ? 'S' : 'E');
-const connectTargetItems = (fromId) => {
-const out = [];
-groups().filter((x) => !hiddenGroup(x) && !isAncestorOrSelf(fromId, x.id)).forEach((x) => {
-out.push({ label: `Layer: ${nameOf(x)}`, value: x.id });
-});
-elements().filter((x) => !x._hidden && !isAncestorOrSelf(fromId, x.id)).forEach((x) => {
-out.push({ label: nameOf(x), value: x.id });
-});
-return out;
-};
 const sharedSideItems = (g) => {
 const cur = g.side || sharedDefaultSide();
 return ['N', 'S', 'W', 'E'].map((s) => ({ label: `${SIDE_LABELS[s]} (${s})`, value: s, selected: cur === s }));
@@ -10083,12 +10145,12 @@ if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of 
 bar.appendChild(ui.abSep('ab-sep'));
 bar.appendChild(colourPicker(o.color));
 bar.appendChild(ui.abSep('ab-sep'));
+bar.appendChild(ab('note', ui.icon('note'), 'Add a note (N)'));
 bar.appendChild(ab('delete', ui.icon('trash'), 'Delete (and its arrows)', undefined, undefined, 'is-danger'));
 return anchorOfBox(boxOf(o));
 }
 function groupBar(bar, g) {
 bar.setAttribute('aria-label', 'Group');
-bar.appendChild(abMenu('connect', 'link', 'Connect', 'Connect this group to another layer or element'));
 if (chartData.arrange === 'layers' && !g.parent && g.kind === 'boundary') {
 bar.appendChild(abText('shared', 'layers', 'Shared', 'Cross-cutting shared layer (arrows optional)', g.shared === true));
 if (g.shared === true) {
@@ -10102,6 +10164,7 @@ bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remo
 bar.appendChild(ui.abSep('ab-sep'));
 bar.appendChild(colourPicker(g.color));
 bar.appendChild(ui.abSep('ab-sep'));
+bar.appendChild(ab('note', ui.icon('note'), 'Add a note (N)'));
 bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
 return anchorOfBox(boxOf(g));
 }
@@ -10213,14 +10276,11 @@ return;
 const o = p.kind === 'group' ? groupOf(p.id) : elementOf(p.id);
 if (!o) return;
 if (act === 'delete') deleteSelection(btn);
+else if (act === 'note') addNote();
 else if (act === 'core') { setOpt(o, 'core', o.core !== true); commit(true); }
 else if (p.kind === 'group') {
 if (act === 'ungroup') ungroup(o.id);
-else if (act === 'connect') {
-const targets = connectTargetItems(o.id);
-if (!targets.length) { ui.toast('No other layer or element to connect to'); return; }
-openMenu(at, 'Connect to', targets, (v) => connectItems(o.id, v));
-} else if (act === 'shared') {
+else if (act === 'shared') {
 const next = o.shared !== true;
 setOpt(o, 'shared', next);
 if (!next) { delete o.span; delete o.side; } else pruneSpanRefs(new Set([o.id]));
@@ -10256,6 +10316,7 @@ const a = document.activeElement;
 if (a && a.tagName === 'BUTTON' && e.key === 'Enter') return;
 if (ui.isConfirmOpen() || floating) return;
 if ((e.key === 'Enter' || e.key === 'F2') && sel.length === 1) { e.preventDefault(); editSelection(); }
+else if ((e.key === 'n' || e.key === 'N') && sel.length && !selNoteId) { e.preventDefault(); addNote(); }
 });
 html.addEventListener('keydown', (ev) => {
 const item = ev.target.closest('.c4-node, .c4-group, .c4-label');
@@ -10615,7 +10676,7 @@ fromMermaid,
 contentEl: canvas,
 report: { node: '.c4-node, .c4-group.is-tile', label: '.c4-label', labelText: '.c4-label-text', nodeText: '.c4-name' },
 render,
-isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl || el.id === 'c4-overlay',
+isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl || el.id === 'c4-overlay' || (el.classList && el.classList.contains('c4-group') && el.classList.contains('is-frame')),
 fitPad: (w) => (w < 600 ? 32 : 0),   // Fit leaves 80px round the picture; a phone is 390px wide, so it keeps 32 (0: the shell default)
 contentOverflow() {   // the colour key sits above the diagram; a note card may stand outside it
 const C = chartData.canvas || { width: 0, height: 0 };

@@ -7355,10 +7355,10 @@ const focusCtx0 = focusCtx();
 fs.forEach((f) => {
 if (f.x === undefined) return;
 const tint = swatchOf(f), fid = f.id;   // a frame's colour is a slot or custom hex like a participant's
-const box = seqPut(fragL, `fb:${fid}`, '', 'seq-frag-box item-shape', (c) => svgEl('rect', { class: c, rx: 6, 'data-frag-id': fid }));
+const box = seqPut(fragL, `fb:${fid}`, '', 'seq-frag-box item-shape', (c) => svgEl('rect', { class: c, rx: 8, 'data-frag-id': fid }));
 seqAttrs(box.el, { x: f.x, y: f.y, width: f.w, height: f.h });
 seqPaint(box, tint);
-const hit = seqPut(fragL, `fh:${fid}`, '', 'seq-frag-hit', (c) => svgEl('rect', { class: c, rx: 6, 'data-frag-id': fid }));
+const hit = seqPut(fragL, `fh:${fid}`, '', 'seq-frag-hit', (c) => svgEl('rect', { class: c, rx: 8, 'data-frag-id': fid }));
 seqAttrs(hit.el, { x: f.x, y: f.y, width: f.w, height: f.h });
 const foc = focusState(f.id, focusCtx0), hasFocus = !!(foc && foc.toCollapse.length), isGroup = f.kind === 'group';
 const tagLabel = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
