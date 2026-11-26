@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <link rel="stylesheet" href="app.css">
 
+  <div id="sr-announcer" class="visually-hidden" role="status" aria-live="polite" data-export-skip></div>
 
   <!-- Top Floating Corner Pills -->
   <header>
@@ -135,11 +136,11 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
       <!-- Arrows: shows or hides dependency arrows -->
-      <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
+      <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" data-dock-priority="4" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg><span class="btn-label">Arrows</span>
       </button>
       <!-- View filter dropdown: Active & Upcoming (default), In View, or All Tasks -->
-      <div id="gantt-view-wrap" class="dock-pop-wrap gantt-view-wrap" data-dock-pop data-dock-group="layout">
+      <div id="gantt-view-wrap" class="dock-pop-wrap gantt-view-wrap" data-dock-pop data-dock-group="layout" data-dock-priority="5">
         <button id="btn-view-filter" type="button" class="btn dock-pop-trigger gantt-view-trigger" aria-label="Filter visible tasks" aria-haspopup="menu" aria-expanded="false" aria-controls="gantt-view-pop" title="Filter visible tasks">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span id="gantt-view-label" class="btn-label">Active &amp; Upcoming</span>
           <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
@@ -170,15 +171,15 @@
         </div>
       </div>
       <!-- Today: scrolls smoothly to center today's date and active work -->
-      <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
+      <button id="btn-today" type="button" class="btn" data-dock-group="layout" data-dock-priority="6" title="Jump to Today" aria-label="Today">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg><span class="btn-label">Today</span>
       </button>
       <!-- Holidays: opens the public holidays popover -->
-      <button id="btn-holidays" type="button" class="btn" data-dock-group="layout" title="Manage public holidays" aria-label="Holidays" aria-haspopup="dialog" aria-expanded="false" aria-controls="gantt-holidays-pop">
+      <button id="btn-holidays" type="button" class="btn" data-dock-group="layout" data-dock-priority="7" title="Manage public holidays" aria-label="Holidays" aria-haspopup="dialog" aria-expanded="false" aria-controls="gantt-holidays-pop">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg><span class="btn-label">Holidays</span>
       </button>
       <!-- Weekends: shows or hides weekend shading in Day and Week views -->
-      <button id="btn-weekends" type="button" class="btn btn-switch" role="switch" aria-checked="true" data-dock-group="layout" title="Show or hide weekend shading in Day and Week views" aria-label="Weekends">
+      <button id="btn-weekends" type="button" class="btn btn-switch" role="switch" aria-checked="true" data-dock-group="layout" data-dock-priority="8" title="Show or hide weekend shading in Day and Week views" aria-label="Weekends">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg><span class="btn-label">Weekends</span>
       </button>
       <!-- Shown only while something is selected (plugin.hasSelection) -->
@@ -284,7 +285,23 @@
         <section id="gantt-table-view" class="gantt-table-view" aria-label="Task table" hidden></section>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <link rel="stylesheet" href="app.css">
 
+  <div id="sr-announcer" class="visually-hidden" role="status" aria-live="polite" data-export-skip></div>
 
   <!-- Top Floating Corner Pills -->
   <header>
@@ -86,11 +87,11 @@
            To add a shape, add one more .btn-shape tile with its data-node-type to a section; the grid wraps on its own.
            The last tile, Note, attaches a note to a step rather than adding a node. -->
       <div class="dock-pop-wrap" data-dock-pop>
-        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l-4 7h8l-4 -7"/><path d="M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/></svg><span class="btn-label">Shapes</span>
+        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg><span class="btn-label">Add</span>
           <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
         </button>
-        <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
+        <div id="shape-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
           <div class="dock-pop-section">
             <div class="dock-pop-heading" aria-hidden="true">Flow</div>
             <div class="dock-pop-grid" role="group" aria-label="Flow">
@@ -133,6 +134,14 @@
             </div>
           </div>
           <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Structure</div>
+            <div class="dock-pop-grid" role="group" aria-label="Structure">
+              <button id="btn-add-lane" class="btn btn-shape btn-lane-tool" title="Add a swimlane (click, or drag onto the canvas)" aria-label="Lane">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="tile-caption">Lane</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
             <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
             <div class="dock-pop-grid" role="group" aria-label="Annotate">
               <!-- Not a shape of its own: a note belongs to a step (no data-node-type; see the NOTE TOOL in flowchart.js) -->
@@ -143,9 +152,6 @@
           </div>
         </div>
       </div>
-      <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
-      </button>
       <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
@@ -156,7 +162,7 @@
       <button id="btn-expand-sub" class="btn btn-sub" title="Put this subprocess flow back in place of the step" aria-label="Expand subprocess" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Expand</span>
       </button>
-      <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
+      <button id="btn-direction" class="btn" data-dock-group="layout" data-dock-priority="8" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/></svg><span class="btn-label">Vertical</span>
       </button>
       <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js): hidden for now, Auto-Tidy is always on (the code stays for when it returns) -->
@@ -201,17 +207,17 @@
         <!-- SVG Connections Overlay -->
         <svg id="connector-svg">
           <defs>
-            <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10.6" refY="6" orient="auto">
-              <polygon points="0 1.5, 11 6, 0 10.5" style="fill:var(--connector)"/>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--connector);stroke-width:1.4px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--primary)"/>
+            <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--primary);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-in" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-in)"/>
+            <marker id="arrowhead-in" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--edge-in);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
-            <marker id="arrowhead-out" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
-              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-out)"/>
+            <marker id="arrowhead-out" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 8.5 5, 1.5 8.5" style="fill:none;stroke:var(--edge-out);stroke-width:2px;stroke-linecap:round;stroke-linejoin:round"/>
             </marker>
           </defs>
           <!-- Dashed leaders from each visible note to its node (under the nodes, so they stop at the node's edge) -->
@@ -233,7 +239,23 @@
         <div id="insert-hint" data-export-skip aria-hidden="true">+ Insert step</div>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <link rel="stylesheet" href="app.css">
 
+  <div id="sr-announcer" class="visually-hidden" role="status" aria-live="polite" data-export-skip></div>
 
   <!-- Top Floating Corner Pills -->
   <header>
@@ -108,10 +109,10 @@
         </div>
       </div>
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-refs" class="btn btn-switch" role="switch" title="Show the requirement ids under each use case" aria-label="Refs" aria-checked="false">
+      <button id="btn-refs" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show the requirement ids under each use case" aria-label="Refs" aria-checked="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l14 0"/><path d="M5 15l14 0"/><path d="M11 4l-4 16"/><path d="M17 4l-4 16"/></svg><span class="btn-label">Refs</span>
       </button>
-      <button id="btn-levels" class="btn btn-switch" role="switch" title="Levels: on shows every use case; off hides the subfunctions for a goal-level overview" aria-label="Levels" aria-checked="true">
+      <button id="btn-levels" class="btn btn-switch" role="switch" data-dock-priority="7" title="Levels: on shows every use case; off hides the subfunctions for a goal-level overview" aria-label="Levels" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Levels</span>
       </button>
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
@@ -173,7 +174,23 @@
         <div id="uc-html"></div>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">

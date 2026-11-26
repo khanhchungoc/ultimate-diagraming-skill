@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <link rel="stylesheet" href="app.css">
 
+  <div id="sr-announcer" class="visually-hidden" role="status" aria-live="polite" data-export-skip></div>
 
   <!-- Top Floating Corner Pills -->
   <header>
@@ -132,7 +133,7 @@
 
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- Level (c4.js, LEVEL): Level N opens the groups down to N - 1 system levels (Level 1: collapsible systems are one box) and collapses the rest -->
-      <div class="dock-pop-wrap" data-dock-pop data-level>
+      <div class="dock-pop-wrap" data-dock-pop data-level data-dock-priority="6">
         <button id="btn-level" class="btn dock-pop-trigger" aria-label="Level" aria-haspopup="true" aria-expanded="false" aria-controls="level-pop">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Level</span><span class="btn-count" hidden></span>
           <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
@@ -150,12 +151,12 @@
       </div>
       <span class="dock-sep" aria-hidden="true" data-layer-dir hidden></span>
       <!-- Layers direction (c4.js): switches arrange: "layers" between horizontal bands and vertical columns -->
-      <button id="btn-layer-dir" class="btn" data-layer-dir hidden title="Switch between horizontal bands and vertical columns" aria-label="Layer direction">
+      <button id="btn-layer-dir" class="btn" data-layer-dir data-dock-priority="8" hidden title="Switch between horizontal bands and vertical columns" aria-label="Layer direction">
         <span class="c4-dir-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></span><span class="btn-label">Columns</span>
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- Steps (c4.js, STEPS): shows or hides numbered step badges on arrows -->
-      <button id="btn-steps" class="btn btn-switch" role="switch" data-steps hidden title="Show step numbers on arrows" aria-label="Steps" aria-checked="true">
+      <button id="btn-steps" class="btn btn-switch" role="switch" data-steps data-dock-priority="7" hidden title="Show step numbers on arrows" aria-label="Steps" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Steps</span><span class="btn-count" hidden></span>
       </button>
       <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
@@ -212,7 +213,23 @@
         <svg id="c4-overlay" data-export-skip width="1" height="1" aria-hidden="true"><line id="c4-rubber" x1="0" y1="0" x2="0" y2="0"/></svg>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
