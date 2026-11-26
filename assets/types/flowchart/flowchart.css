@@ -724,53 +724,50 @@
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow sits in the outer
-       pill with nested .flow-subtabs trays along the active path; presentation mode glides the tabs up to top: 16px. */
-    .flow-tabs, .flow-subtabs {
-      display: flex; align-items: stretch; gap: var(--space-2);
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-2xl);
-    }
+    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow and nested
+       .flow-subtabs sit flat inside one glass pill bar, separated by subtle vertical dividers; presentation mode glides
+       the tabs up to top: 16px. */
     .flow-tabs {
       position: fixed;
       top: calc(64px + env(safe-area-inset-top, 0px));
       left: calc(20px + env(safe-area-inset-left, 0px));
       z-index: 120;
+      display: flex; align-items: center; gap: var(--space-2);
       max-width: calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
       overflow-x: auto;
-      padding: var(--space-2);
+      padding: var(--space-4);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
-      min-width: 0; overflow: hidden;
-      gap: var(--space-2);
-      padding: var(--space-2);
-      background: color-mix(in srgb, var(--text-main) 2.5%, transparent);
-      border-radius: var(--radius-2xl);
-      border-color: var(--border-color);
+      display: flex; align-items: center; gap: var(--space-2);
+      flex: none;
+      background: transparent;
+      border: none;
+      padding: 0;
     }
-    .flow-subtabs[data-level="2"] { border-radius: var(--radius-xl); }
-    .flow-subtabs[data-level="3"] { border-radius: var(--radius-lg); }
+    .flow-subtabs::before {
+      content: "";
+      flex: none;
+      width: 1px;
+      height: 14px;
+      margin: 0 var(--space-2);
+      background: var(--border-dark);
+      opacity: 0.6;
+    }
     .flow-tab {
       position: relative;
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 var(--space-12); box-sizing: border-box;
       background: transparent;
       border: 1px solid transparent;
-      border-radius: var(--radius-2xl);
+      border-radius: var(--radius-inner);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease), border-color var(--ease);
     }
-    .flow-subtabs > .flow-tab {
-      min-height: 25px;
-      padding: 0 var(--space-8);
-      border-radius: var(--radius-xl);
-    }
-    .flow-subtabs[data-level="2"] > .flow-tab { border-radius: var(--radius-lg); }
-    .flow-subtabs[data-level="3"] > .flow-tab { border-radius: var(--radius-md); }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .flow-tabs {
