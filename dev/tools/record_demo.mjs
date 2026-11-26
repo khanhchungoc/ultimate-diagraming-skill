@@ -255,7 +255,7 @@ async function runHero(t, d) {
   await t.open(join(ROOT, 'dev/samples/example-flowchart.html'), '?keep-picker', { motion: true });
   await t.clickOn('#btn-save');
   await sleep(120);
-  await t.ev(`[...document.querySelectorAll('button')].find(b => /choose file/i.test(b.textContent))?.click()`);
+  await t.ev(`[...document.querySelectorAll('button')].find(b => /choose|continue/i.test(b.textContent))?.click()`);
   await sleep(200);
   await t.ev(CURSOR_INSTALL_JS);
 

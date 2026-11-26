@@ -40,11 +40,10 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 | **ERD** | Database tables, keys and relationships | ✅ |
 | **Use case** | Actors, goals and system boundaries | ✅ |
 | **C4** | System landscape: people, systems and containers (levels 1–2) | ✅ |
-| **Gantt** | High-level roadmap timeline: calendar dates, Day–Year zoom, nested subtasks, drag & multi-select, FS/SS dependencies, milestones, notes, Today line, local holidays | ✅ |
+| **Gantt** | High-level roadmap timeline: calendar dates, Day–Year zoom, nested subtasks, drag & multi-select, FS/SS dependencies, milestones, notes, Today line, local holidays | 🧪 Experimental |
 | **BPMN** | Pools, lanes, events and gateways | 🔜 |
 | **State machine** | States and transitions | 🔜 |
 | **Mind map** | Ideas branching from a central topic | 🕐  |
-| **Gantt chart** | Tasks on a timeline | 🕐 |
 
 *Order may change.*
 
