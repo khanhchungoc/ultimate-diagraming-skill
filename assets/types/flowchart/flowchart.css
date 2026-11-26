@@ -160,10 +160,10 @@
       transform: translate(-50%, -50%);
       transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),   /* components-ok: animates the rest clip below */
         clip-path var(--dur-micro) var(--curve-out);
-      /* At rest only the text's own box masks the line: the label is clipped to the text bounds (box = 1.5px border +
-         3px / 8px padding), so there is no pill around it and little of the diagram is covered. Active states
-         grow the clip out to the full pill (morph, not fade); the negative inset leaves room for the glow. */
-      clip-path: inset(4.5px 9.5px round 3px);
+      /* At rest mask only a tight box around the label text (leaving ~5px horizontal padding from the 8px padding
+         + 1.5px border) so the arrow line never touches the glyphs while the pill border stays hidden. Active
+         states grow the clip out to the full pill (morph, not fade); the negative inset leaves room for the glow. */
+      clip-path: inset(3.5px 4.5px round 3px);
     }
     .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .is-editing, :focus-within) {   /* components-ok: flowchart wrap label (text-only clip at rest, grows while typed, empty-label box) */
       clip-path: inset(-12px round var(--radius-lg));
