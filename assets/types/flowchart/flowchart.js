@@ -1,7 +1,8 @@
-      const NODE_WIDTH = 144;
-      const NODE_HEIGHT = 64;
-      const DECISION_WIDTH = 144;
-      const DECISION_HEIGHT = 96;
+      // Node sizes: one home, the engine's landscape profile (engine.js LE_PROFILES.LR; scripts/layout_engine.py mirrors it)
+      const NODE_WIDTH = LE_PROFILES.LR.NODE_W;
+      const NODE_HEIGHT = LE_PROFILES.LR.NODE_H;
+      const DECISION_WIDTH = LE_PROFILES.LR.NODE_W;
+      const DECISION_HEIGHT = LE_PROFILES.LR.DEC_H;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
       // Lane colours by position for lanes without their own "color": the shell's SWATCHES (shell.js), in order
 

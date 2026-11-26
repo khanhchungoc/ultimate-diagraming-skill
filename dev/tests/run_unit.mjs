@@ -79,10 +79,13 @@ const TESTS = [
   { id: 'save_helper',     file: 'test_save_helper.py',      types: ['cli'] },
   { id: 'version_check',   file: 'test_version_check.py',    types: ['cli'] },
   { id: 'release',         file: 'test_release.py',          types: ['cli'] },
+  { id: 'strip_bundle',    file: 'test_strip_bundle.py',     types: ['cross', 'shell'] },
 
   // Heavier / perf-sensitive non-browser checks (included with --all or explicit --only / direct edit)
   { id: 'golden',          file: 'check_golden.py',          types: ['cross', 'flowchart', 'sequence', 'erd', 'usecase', 'c4', 'gantt'], slow: true },
   { id: 'artifact_shape',  file: 'check_artifact_shape.py',  types: ['shell', 'cross'], slow: true },
+  { id: 'router_equiv',    file: 'check_router_equiv.mjs',   types: ['shell', 'flowchart'], slow: true },
+  { id: 'router_perf',     file: 'check_router_perf.mjs',    types: ['shell', 'flowchart'], slow: true, serial: true },
   { id: 'direction',       file: 'check_direction.py',       types: ['flowchart'], slow: true },
   { id: 'extract',         file: 'check_extract.py',         types: ['tokens', 'theme'], slow: true },
   { id: 'cli_mermaid',     file: 'test_cli_mermaid.py',      types: ['mermaid', 'cross'], slow: true },

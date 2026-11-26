@@ -575,3 +575,17 @@ html.is-loading #page-loading { display: grid; }
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
+
+    /* Windows High Contrast / forced colours: draw edges, outlines, selection and focus with system colours */
+    @media (forced-colors: active) {
+      .edge-line, .edge-path { stroke: CanvasText; }
+      .selected .edge-line, .edge-line.selected { stroke: Highlight; }
+      .btn, .note-badge, .note-add { border-color: ButtonText; forced-color-adjust: auto; }
+      [data-item], .item-shape, .flow-node, .c4-node, .c4-group, .gantt-bar { outline: 1px solid CanvasText; }
+      .selected, .selected .item-shape { outline: 2px solid Highlight; stroke: Highlight; }
+      :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+      /* Shaped nodes (diamond, document, ...) draw their own outline: colour it instead of boxing the shape */
+      .flow-node:has(> .shape-outline), .flow-node.selected:has(> .shape-outline) { outline: none; }
+      .shape-outline > * { stroke: CanvasText; }
+      .flow-node.selected .shape-outline > * { stroke: Highlight; }
+    }

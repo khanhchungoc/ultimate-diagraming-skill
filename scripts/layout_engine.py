@@ -41,6 +41,7 @@ from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, ru
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
                          handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
+from strip_bundle import strip_css, strip_js
 from version_check import REPO as GITHUB_REPO, check_nonblocking as check_version_nonblocking
 
 
@@ -1605,6 +1606,10 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
         "TYPE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (*extra_js, type_dir / f"{kind}.js")),
     }
+    for key in ("TOKENS_CSS", "COMPONENTS_CSS", "SHELL_CSS", "TYPE_CSS"):
+        parts[key] = strip_css(parts[key])
+    for key in ("SHELL_JS", "TOKENS_JS", "ENGINE_JS", "MERMAID_JS", "TYPE_JS"):
+        parts[key] = strip_js(parts[key])
     return parts, tokens, icons
 
 

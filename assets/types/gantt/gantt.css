@@ -873,13 +873,13 @@
       border-radius: var(--radius-md);
       background: linear-gradient(var(--bar-bg), var(--bar-bg)), var(--bg-panel);
       color: var(--bar-ink);
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-sm);
+      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-sm);
       pointer-events: auto;
       cursor: grab;
       transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), filter var(--dur-micro) var(--curve-out);
     }
     .gantt-bar:hover {
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-md);
+      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-md);
     }
     .gantt-bar.selected {
       box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
@@ -891,7 +891,7 @@
       z-index: 15;
     }
     .gantt-bar.is-dep-target {
-      box-shadow: 0 0 0 3px var(--primary-ring), inset 0 0 0 2px var(--primary);
+      box-shadow: var(--shadow-ring), inset 0 0 0 var(--ring-md) var(--primary);
       z-index: 14;
     }
     .gantt-bar:focus-visible {
@@ -923,7 +923,7 @@
       filter: none;
     }
     .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary) {
-      box-shadow: inset 0 0 0 1px var(--bar-border), var(--shadow-md);
+      box-shadow: inset 0 0 0 var(--ring-hair) var(--bar-border), var(--shadow-md);
     }
     .gantt-bar[data-time-state="active"]:not(.gantt-summary):not(.summary).selected {
       box-shadow: inset 0 0 0 var(--ring-thin) var(--primary), var(--shadow-ring);
@@ -1100,7 +1100,7 @@
     }
     .gantt-milestone.is-dep-target {
       border-radius: var(--radius-md);
-      box-shadow: 0 0 0 3px var(--primary-ring), inset 0 0 0 2px var(--primary);
+      box-shadow: var(--shadow-ring), inset 0 0 0 var(--ring-md) var(--primary);
       z-index: 14;
     }
     .gantt-ms-label,
@@ -1802,7 +1802,7 @@
     .gantt-sticky-phase-dot {
       width: 8px;
       height: 8px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       flex: none;
       background: var(--primary);
     }
@@ -1859,7 +1859,7 @@
     .gantt-offscreen-dot {
       width: 6px;
       height: 6px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       flex: none;
     }
 
@@ -1926,7 +1926,7 @@
       justify-content: center;
       padding: 0;
       border: 0;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
