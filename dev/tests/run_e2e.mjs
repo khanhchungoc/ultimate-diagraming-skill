@@ -7,9 +7,13 @@
 //   node dev/tests/run_e2e.mjs --changed [ref]         run only tests affected by git changes (or vs <ref>)
 //   node dev/tests/run_e2e.mjs --type c4,erd           run tests for specific diagram type(s) or shell/cross
 //   node dev/tests/run_e2e.mjs --only e2e_c4,shell     filter by test id or filename substring
+//   node dev/tests/run_e2e.mjs --exact                 match --only against exact test id or filename
+//   node dev/tests/run_e2e.mjs --section s1,s2         run only named t.section(...) sections (forces --shards 1)
+//   node dev/tests/run_e2e.mjs --exclude-section s1    skip named t.section(...) sections
 //   node dev/tests/run_e2e.mjs --jobs 4                override worker count (default: min(6, cpus))
 //   node dev/tests/run_e2e.mjs --shards 0              override shard count for sharded tests (0 = no sharding)
 //   node dev/tests/run_e2e.mjs --motion                keep animations enabled (default passes --noanim where safe)
+//   node dev/tests/run_e2e.mjs --perf                  enable strict performance timing assertions (sets E2E_PERF=1)
 //   node dev/tests/run_e2e.mjs --browser <chrome>      explicit Chrome/Chromium binary path
 //   node dev/tests/run_e2e.mjs --list                  print selected tests/shards without running
 //   node dev/tests/run_e2e.mjs -v                      show full output for passing tests too
@@ -34,16 +38,6 @@ const valueOf = (name) => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 && i + 1 < argv.length && !argv[i + 1].startsWith('-') ? argv[i + 1] : undefined;
 };
-const listOnly = hasFlag('--list');
-const verbose = hasFlag('-v') || hasFlag('--verbose');
-const keepMotion = hasFlag('--motion');
-const changedFlag = argv.includes('--changed');
-const changedRef = changedFlag ? valueOf('changed') : undefined;
-const typeFilter = valueOf('type')?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) || null;
-const onlyFilter = valueOf('only')?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) || null;
-const shardOverride = valueOf('shards') !== undefined ? Number(valueOf('shards')) : null;
-const cpuCount = typeof availableParallelism === 'function' ? availableParallelism() : cpus().length;
-const jobs = Math.max(1, Number(valueOf('jobs')) || Math.min(6, cpuCount));
 
 if (hasFlag('-h') || hasFlag('--help')) {
   const lines = readFileSync(fileURLToPath(import.meta.url), 'utf8').split(/\r?\n/).slice(1);
@@ -51,6 +45,30 @@ if (hasFlag('-h') || hasFlag('--help')) {
   console.log((end < 0 ? lines : lines.slice(0, end)).map((l) => l.slice(3)).join('\n'));
   process.exit(0);
 }
+
+const listOnly = hasFlag('--list');
+const verbose = hasFlag('-v') || hasFlag('--verbose');
+const keepMotion = hasFlag('--motion');
+const exactMatch = hasFlag('--exact');
+const perfMode = hasFlag('--perf');
+const changedFlag = argv.includes('--changed');
+const changedRef = changedFlag ? valueOf('changed') : undefined;
+const typeFilter = valueOf('type')?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) || null;
+const onlyFilter = valueOf('only')?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) || null;
+const sectionFilter = valueOf('section')?.split(',').map((s) => s.trim()).filter(Boolean) || null;
+const excludeSectionFilter = valueOf('exclude-section')?.split(',').map((s) => s.trim()).filter(Boolean) || null;
+let shardOverride = null;
+if (hasFlag('--shards')) {
+  const idx = argv.indexOf('--shards');
+  const rawShards = idx + 1 < argv.length ? argv[idx + 1] : '';
+  if (!/^\d+$/.test(rawShards)) {
+    console.error(`[ERROR] Invalid --shards value ${JSON.stringify(rawShards)}. Expected a non-negative integer (e.g. --shards 0 or --shards 2).`);
+    process.exit(1);
+  }
+  shardOverride = Number(rawShards);
+}
+const cpuCount = typeof availableParallelism === 'function' ? availableParallelism() : cpus().length;
+const jobs = Math.max(1, Number(valueOf('jobs')) || Math.min(6, cpuCount));
 
 // --- Environment detection -----------------------------------------------------------------------
 function findPython() {
@@ -238,7 +256,11 @@ if (typeFilter) {
   selected = selected.filter((t) => t.types.some((tp) => typeFilter.includes(tp)));
 }
 if (onlyFilter) {
-  selected = selected.filter((t) => onlyFilter.some((q) => t.id.toLowerCase().includes(q) || t.file.toLowerCase().includes(q)));
+  selected = selected.filter((t) => onlyFilter.some((q) => (
+    exactMatch
+      ? t.id.toLowerCase() === q || t.file.toLowerCase() === q
+      : t.id.toLowerCase().includes(q) || t.file.toLowerCase().includes(q)
+  )));
 }
 
 // Expand sharded tests into concrete runnable tasks (plus quiet serial tasks for timing-sensitive sections)
@@ -246,14 +268,30 @@ function expandTasks(tests) {
   const parallel = [];
   const serial = [];
   for (const t of tests) {
-    // Only shard tests whose file actually calls t.section(...)
+    // Only shard/filter tests whose file actually calls t.section(...)
     const srcText = readFileSync(join(e2eDir, t.file), 'utf8');
     const supportsShards = /\bt\.section\s*\(/.test(srcText);
-    const serialSecs = supportsShards && t.serialSections?.length && jobs > 1 ? t.serialSections : [];
-    const excludeArgs = serialSecs.length ? ['--exclude-section', serialSecs.join(',')] : [];
-    const n = supportsShards
-      ? (shardOverride !== null ? shardOverride : (t.shards || 1))
-      : 1;
+    if (!supportsShards) {
+      parallel.push({ ...t, label: t.id, shard: null, extraArgs: [] });
+      continue;
+    }
+    if (sectionFilter) {
+      const extraArgs = ['--section', sectionFilter.join(',')];
+      if (excludeSectionFilter) extraArgs.push('--exclude-section', excludeSectionFilter.join(','));
+      const runSerial = Boolean(t.serialSections?.some((s) => sectionFilter.includes(s)) && jobs > 1);
+      if (runSerial) {
+        serial.push({ ...t, label: t.id, shard: null, extraArgs, serial: true });
+      } else {
+        parallel.push({ ...t, label: t.id, shard: null, extraArgs });
+      }
+      continue;
+    }
+    const serialSecs = t.serialSections?.length && jobs > 1
+      ? t.serialSections.filter((s) => !excludeSectionFilter?.includes(s))
+      : [];
+    const excluded = [...new Set([...serialSecs, ...(excludeSectionFilter || [])])];
+    const excludeArgs = excluded.length ? ['--exclude-section', excluded.join(',')] : [];
+    const n = shardOverride !== null ? shardOverride : (t.shards || 1);
     if (n > 1 && jobs > 1) {
       for (let k = 1; k <= n; k++) {
         parallel.push({ ...t, label: `${t.id} [${k}/${n}]`, shard: `${k}/${n}`, extraArgs: excludeArgs, weight: t.weight / n + 10 });
@@ -269,6 +307,20 @@ function expandTasks(tests) {
   return { parallel, serial, all: [...parallel, ...serial] };
 }
 
+let skippedCount = 0;
+if (!listOnly && selected.some((t) => t.id === 'a11y')) {
+  const axePath = join(root, 'node_modules', 'axe-core', 'axe.min.js');
+  if (!existsSync(axePath)) {
+    if (process.env.CI && process.env.CI !== '0' && process.env.CI !== 'false') {
+      console.error('[ERROR] a11y requires axe-core (missing node_modules/axe-core/axe.min.js). Run npm ci in CI before running E2E tests.');
+      process.exit(1);
+    }
+    console.log('[SKIP] a11y (axe-core not installed; run npm ci)');
+    selected = selected.filter((t) => t.id !== 'a11y');
+    skippedCount++;
+  }
+}
+
 const { parallel: parallelTasks, serial: serialTasks, all: tasks } = expandTasks(selected);
 if (listOnly) {
   console.log(`Selected ${tasks.length} task(s) across ${selected.length} test(s):`);
@@ -279,7 +331,7 @@ if (listOnly) {
   process.exit(0);
 }
 if (!tasks.length) {
-  console.log('No E2E tests selected.');
+  if (!skippedCount) console.log('No E2E tests selected.');
   process.exit(0);
 }
 
@@ -415,7 +467,7 @@ try {
   }
 
   sharedChrome = await chromePromise;
-  const workerEnv = { ...process.env, E2E_BROWSER_WS: sharedChrome.wsUrl };
+  const workerEnv = { ...process.env, E2E_BROWSER_WS: sharedChrome.wsUrl, ...(perfMode ? { E2E_PERF: '1' } : {}) };
 
   const runTask = async (task) => {
     const t0 = Date.now();
@@ -423,6 +475,7 @@ try {
     if (task.shard) args.push('--shard', task.shard);
     if (task.extraArgs?.length) args.push(...task.extraArgs);
     if (!keepMotion && !task.motion) args.push('--noanim');
+    if (perfMode) args.push('--perf');
     if (verbose) args.push('-v');
     const r = await execAsync(process.execPath, args, { env: workerEnv });
     const ms = Date.now() - t0;
@@ -437,7 +490,7 @@ try {
     return { task, ok, status: r.status, ms };
   };
 
-  console.log(`Running ${tasks.length} task(s) with ${Math.min(jobs, Math.max(1, parallelTasks.length))} worker(s)${keepMotion ? ' (motion on)' : ' (--noanim)'}...`);
+  console.log(`Running ${tasks.length} task(s) with ${Math.min(jobs, Math.max(1, parallelTasks.length))} worker(s)${keepMotion ? ' (motion on)' : ' (--noanim)'}${perfMode ? ' (--perf)' : ''}...`);
   const results = await runPool(parallelTasks, jobs, runTask);
   for (const task of serialTasks) results.push(await runTask(task));
 
@@ -446,7 +499,7 @@ try {
   const passed = results.filter((r) => r.ok).length;
   const failed = results.length - passed;
   console.log('');
-  console.log(`Done: ${passed}/${results.length} passed in ${wallSec.toFixed(1)}s wall (${cpuSec.toFixed(1)}s total worker time, ${(cpuSec / Math.max(wallSec, 0.1)).toFixed(1)}x parallelism)`);
+  console.log(`Done: ${passed}/${results.length} passed${skippedCount ? ` (${skippedCount} skipped)` : ''} in ${wallSec.toFixed(1)}s wall (${cpuSec.toFixed(1)}s total worker time, ${(cpuSec / Math.max(wallSec, 0.1)).toFixed(1)}x parallelism)`);
   const slowest = [...results].sort((a, b) => b.ms - a.ms).slice(0, 5);
   console.log(`Slowest: ${slowest.map((r) => `${r.task.label} ${(r.ms / 1000).toFixed(1)}s`).join(' | ')}`);
   process.exit(failed ? 2 : 0);
