@@ -6730,11 +6730,12 @@ if (editing !== id || !draft) begin(note, false);
 const card = opts.openCard(note);
 const text = card && card.querySelector('.note-text');
 if (!text) { if (!card) ({ editing, draft } = prev); return; }
+if (opts.beforeEdit) opts.beforeEdit(note, card, text);
 text.contentEditable = 'true';
 text.focus();
 const range = document.createRange();
 range.selectNodeContents(text);
-range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+if (!opts.selectAll) range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
 const sel = window.getSelection();
 sel.removeAllRanges();
 sel.addRange(range);
