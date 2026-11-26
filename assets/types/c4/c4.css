@@ -41,10 +41,6 @@
     .c4-node[data-kind="external"] { background: var(--bg-soft); color: var(--text-main); }   /* a third-party system stays neutral */
     .c4-group.is-tile { z-index: 20; pointer-events: auto; cursor: pointer; box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-sm); border: var(--ring-thin) dashed var(--ring); }
     .c4-group.is-tile:not([data-sw]) { background: var(--node-bg); color: var(--text-main); }
-    .c4-node:hover, .c4-group.is-tile:hover { --ring: var(--primary); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-md); }
-    .c4-node.selected, .c4-group.is-tile.selected { --ring: var(--primary); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-ring); }
-    .c4-node.is-dim, .c4-group.is-tile.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
-    body.exporting .is-dim { opacity: 1 !important; filter: none !important; }
     .c4-disc {
       flex: none; display: flex; align-items: center; justify-content: center;
       width: calc(var(--icon-tile) * 1.35); height: calc(var(--icon-tile) * 1.35);
@@ -65,7 +61,7 @@
     .c4-node:has(.is-editing) { height: auto !important; min-height: var(--c4-h); z-index: 45; }
     .c4-node.selected:not(.is-dragging):has(.c4-ph-row) .c4-text,
     .c4-node:has(.is-editing) .c4-text { overflow: visible; }
-    .c4-multi .c4-node.selected,
+    .is-multi .c4-node.selected,
     body.presentation .c4-node.selected,
     body.exporting .c4-node.selected,
     body.c4-moving .c4-node.selected,
@@ -74,9 +70,8 @@
     .c4-name, .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
     .c4-desc { -webkit-line-clamp: 3; }
     .c4-tech { font-style: italic; }
-    .c4-group.is-tile .frame-chev { position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; margin: 0; color: inherit; }
-    .c4-group.is-tile .frame-chev svg { transform: rotate(-90deg); }
-    .c4-group.is-frame .frame-chev { width: 24px; height: 24px; margin: 0 0 0 -6px; vertical-align: baseline; }
+    .c4-group.is-tile .chevron { position: absolute; left: 4px; top: 4px; margin: 0; }
+    .c4-group.is-frame .chevron { margin: 0 0 0 -6px; vertical-align: baseline; }
 
     /* --- Arrows: the shared edge line (edge.css), neutral at rest (or palette-tinted via --sw-line); in/out lit as the flowchart does --- */
     .c4-edge { transition: opacity 110ms var(--curve-inout); }
@@ -106,7 +101,7 @@
     .c4-label-tech { color: var(--text-soft); }
     .c4-label.is-dim, .c4-step.is-dim { opacity: var(--dim); }
     .c4-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
-    .c4-label.editing { z-index: 60; min-width: 80px; border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+    .c4-label.is-editing { z-index: 60; min-width: 80px; border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
     /* Step badge pill: high-contrast sequence number on an arrow, centred on badge box */
     .c4-step {
@@ -159,9 +154,9 @@
     .c4-node.selected:not(.is-dragging) .c4-placeholder,
     .c4-node:has(.c4-placeholder.is-editing) .c4-placeholder.is-editing,
     .c4-label.selected:not(.drag-fade) .c4-placeholder,
-    .c4-label.editing .c4-placeholder.is-editing { display: inline-block; }
+    .c4-label.is-editing .c4-placeholder.is-editing { display: inline-block; }
     .c4-placeholder:hover { color: var(--primary); border-color: var(--primary); background: var(--bg-panel); }
-    .c4-multi .c4-ph-row, .c4-multi .c4-placeholder,
+    .is-multi .c4-ph-row, .is-multi .c4-placeholder,
     body.presentation .c4-ph-row, body.presentation .c4-placeholder,
     body.exporting .c4-ph-row, body.exporting .c4-placeholder,
     body.c4-moving .c4-ph-row, body.c4-moving .c4-placeholder,
@@ -169,28 +164,7 @@
     #c4-html:has(.is-editing) .c4-actionbar { display: none !important; }
 
     .c4-group.selected.is-frame { border-color: var(--primary); }
-    /* Ports: a dot on each side of an element, matching Flowchart's anchor circles; shown on hover (and on selected on touch) */
-    .c4-port {
-      position: absolute; width: 12px; height: 12px; box-sizing: content-box; padding: 0; z-index: 35; touch-action: none; cursor: crosshair;
-      border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
-      opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
-      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
-    }
-    .c4-port[data-side="N"] { top: 0; left: 50%; }
-    .c4-port[data-side="S"] { top: 100%; left: 50%; }
-    .c4-port[data-side="W"] { top: 50%; left: 0; }
-    .c4-port[data-side="E"] { top: 50%; left: 100%; }
-    .c4-node:hover > .c4-port, .c4-node:focus-within > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); }
-    @media (hover: none) { .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); } }
-    body.c4-touch .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); }
-    .c4-port:hover, .c4-port:focus-visible { transform: scale(1.35); background: var(--primary); outline: none; }
-    .c4-multi .c4-port, body.c4-dragging .c4-port, body.c4-moving .c4-port, .is-dragging > .c4-port, .c4-node:has(.is-editing) > .c4-port { opacity: 0 !important; pointer-events: none !important; }
-    body.presentation .c4-port, body.exporting .c4-port { display: none !important; }
-    body.c4-touch .c4-port { width: 20px; height: 20px; border-width: 2.5px; }
-    @media (prefers-reduced-motion: reduce) {
-      .c4-port { transition: none; transform: none; }
-      .c4-port:hover, .c4-port:focus-visible { transform: none; }
-    }
+    /* Ports: the shared connection handle (components/port.css), a dot on each side of an element */
     #c4-overlay { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 54; }
     #c4-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
     .c4-node.c4-target { --ring: var(--primary); background: var(--primary-wash); }
@@ -289,7 +263,6 @@
     body.c4-moving { cursor: grabbing; }
     body.c4-moving .c4-actionbar { display: none !important; }
     .is-dragging, .is-dragging * { cursor: grabbing !important; }
-    .is-dragging > .c4-port { display: none !important; }
     .c4-node.is-dragging, .c4-group.is-tile.is-dragging { z-index: 50; box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-lg); will-change: translate; }
     .c4-group.is-frame.is-dragging { will-change: translate; }
     .c4-edge.drag-fade, .c4-label.drag-fade, #c4-notes .note.drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }

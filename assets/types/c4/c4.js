@@ -118,7 +118,7 @@
         return `url(#${id})`;
       }
 
-      document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch'); }, true);   // bigger ports for a finger
+      document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch', 'is-touch'); }, true);   // bigger ports for a finger
 
       // --- INPUT CHECKS (the boundary: a name or a label is checked once, here, and refused loudly) ---
       function cleanText(v, what, max) {
@@ -278,7 +278,7 @@
         if (isTyping()) document.activeElement.blur();   // commit a field being edited, as any click on the canvas does
         if (presenting()) { setSel([item]); return; }
         if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { ev.preventDefault(); toggleSel(item); return; }
-        if (ev.target.closest && ev.target.closest('.frame-chev')) return;
+        if (ev.target.closest && ev.target.closest('.chevron')) return;
         if (item.kind !== 'edge' && sel.length > 1 && inSel(item.kind, item.id)) { startMove(ev, item, sel.slice()); return; }   // the whole selection moves; a click without a move selects this one
         setSel([item]);
         if (item.kind !== 'edge') startMove(ev, item, [item]);
@@ -316,6 +316,7 @@
       }
       function buildNode(e) {
         const el = htmlEl('div', 'c4-node');
+        el.dataset.item = '';
         el.dataset.nodeId = e.id;
         el.dataset.kind = e.kind;
         el.tabIndex = -1;
@@ -343,9 +344,8 @@
         const pin = notePin('element', e.id, nameOf(e));
         if (pin) el.appendChild(pin);
         ['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
-          const port = htmlEl('span', 'c4-port');
+          const port = ui.port({ N: 'top', E: 'right', S: 'bottom', W: 'left' }[side]);
           port.dataset.side = side;
-          port.dataset.exportSkip = '';
           port.dataset.touchDrag = '';
           port.setAttribute('role', 'button');
           port.setAttribute('aria-label', `Connect from ${nameOf(e)}: drag to another element`);
@@ -359,13 +359,8 @@
       }
 
       function chevron(g, collapsed) {
-        const b = htmlEl('button', 'frame-chev');
-        b.type = 'button';
+        const b = ui.chevron({ expanded: !collapsed, label: collapsed ? `Expand ${nameOf(g)}` : `Collapse ${nameOf(g)} to one box` });
         b.dataset.exportSkip = '';
-        b.title = collapsed ? `Expand ${nameOf(g)}` : `Collapse ${nameOf(g)} to one box`;
-        b.setAttribute('aria-label', b.title);
-        b.setAttribute('aria-expanded', String(!collapsed));
-        b.innerHTML = ui.icon('chevron-down', { size: 'sm', bold: true });
         b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
         b.addEventListener('click', (ev) => { ev.stopPropagation(); toggleGroup(g.id); });
         return b;
@@ -374,6 +369,7 @@
         const tile = isTile(g);
         const el = htmlEl('div', `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}`);
         el.dataset.groupId = g.id;
+        if (tile) el.dataset.item = '';
         el.dataset.kind = g.kind;
         Object.assign(el.style, { left: px(g.x), top: px(g.y), width: px(g.w), height: px(g.h) });
         if (tile) {
@@ -588,7 +584,7 @@
           const t = el.querySelector('.frame-tag');
           if (t) t.classList.toggle('selected', inSel('group', id));
         });
-        canvas.classList.toggle('c4-multi', sel.length > 1);
+        canvas.classList.toggle('is-multi', sel.length > 1);
         applyNoteSelection();
         drawBar();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
@@ -758,7 +754,7 @@
       }
 
       // --- Inline text editing (double-click, ghost placeholder click, Enter / F2, or straight after creating something) ---
-      // o: raw (text to edit), restore (text when unchanged), placeholder (empty hint), host (element toggled with .editing),
+      // o: raw (text to edit), restore (text when unchanged), placeholder (empty hint), host (element toggled with .is-editing),
       // validate(value, why) -> 'ok' | 'keep' | 'drop', forceApply (apply even if value === original), apply(value) -> true when
       // model changed, onCancel(), onTab(dir), settle(changed), pending (an add whose undo step ends here), after().
       function beginEdit(el, o) {
@@ -767,7 +763,7 @@
         if (o.raw !== undefined) el.textContent = o.raw;
         if (o.placeholder) el.dataset.editPh = o.placeholder;
         el.classList.add('is-editing');
-        if (host) host.classList.add('editing');
+        if (host) host.classList.add('is-editing');
         el.contentEditable = 'plaintext-only';
         el.spellcheck = false;
         if (o.label) el.setAttribute('aria-label', o.label);
@@ -784,7 +780,7 @@
           el.removeEventListener('keydown', onKey);
           el.contentEditable = 'false';
           el.classList.remove('is-editing');
-          if (host) host.classList.remove('editing');
+          if (host) host.classList.remove('is-editing');
           delete el.dataset.editPh;
         };
         const finish = (why, tabDir) => {
@@ -994,7 +990,7 @@
         const t = e.target;
         const kl = t.closest('.color-key-label');
         if (kl) { if (!kl.isContentEditable) { e.stopPropagation(); keyDraft = kl.dataset.color; editKey(kl.dataset.color); } return; }
-        if (t.closest('.c4-actionbar, .frame-chev, .c4-port') || t.isContentEditable) return;
+        if (t.closest('.c4-actionbar, .chevron, .port') || t.isContentEditable) return;
         const lbl = t.closest('.c4-label');
         if (lbl) {
           e.stopPropagation();
@@ -1065,7 +1061,7 @@
         const d = drag, src = d && nodeOrGroup(d.from);
         if (!d || !src) return;
         if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
-        if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging'); hoverId = null; applyState(); }
+        if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging', 'is-dragging'); hoverId = null; applyState(); }
         const pt = canvasPoint(e);
         rubber.setAttribute('x1', src.x + src.w / 2); rubber.setAttribute('y1', src.y + src.h / 2);
         rubber.setAttribute('x2', pt.x); rubber.setAttribute('y2', pt.y);
@@ -1081,7 +1077,7 @@
         window.removeEventListener('pointermove', onDragMove);
         window.removeEventListener('pointerup', onDragUp);
         window.removeEventListener('pointercancel', cancelDrag);
-        document.body.classList.remove('c4-dragging');
+        document.body.classList.remove('c4-dragging', 'is-dragging');
         rubber.style.display = 'none';
         canvas.querySelectorAll('.c4-target').forEach((el) => el.classList.remove('c4-target'));
         const d = drag;
@@ -1922,7 +1918,7 @@
 
       function beginVisual(m) {
         m.moved = true;
-        document.body.classList.add('c4-moving');
+        document.body.classList.add('c4-moving', 'is-dragging');
         hoverId = null;
         applyState();
         m.els.forEach((el) => el.classList.add('is-dragging'));
@@ -1939,7 +1935,7 @@
         m.els.forEach((el) => { el.style.translate = t; });
       }
       function clearVisual(m) {
-        document.body.classList.remove('c4-moving');
+        document.body.classList.remove('c4-moving', 'is-dragging');
         canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
         m.faded.forEach((x) => x.classList.remove('drag-fade'));
         m.els.forEach((el) => el.classList.remove('is-dragging'));
