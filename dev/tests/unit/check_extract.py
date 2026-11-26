@@ -228,6 +228,35 @@ p_empty = run("extract_tokens.py", "--from", str(empty_partial), "--complete", "
 check("empty --from: exits 2, writes no theme file, and prints [SUGGEST]",
       p_empty.returncode == 2 and not empty_out.exists() and "[SUGGEST]" in p_empty.stdout, p_empty.stdout + p_empty.stderr)
 
+portal_dir = tmp / "portal"
+portal_dir.mkdir()
+(portal_dir / "colour.html").write_text("<!doctype html><html><body>Colour</body></html>", encoding="utf-8")
+(portal_dir / "typography.html").write_text("<!doctype html><html><body>Type</body></html>", encoding="utf-8")
+(portal_dir / "pricing.html").write_text("<!doctype html><html><body>Pricing</body></html>", encoding="utf-8")
+(portal_dir / "download.html").write_text(
+    "<!doctype html><html><body style='font-family: \"Mulish\", sans-serif; color: #28292b;'>"
+    "<nav><a href='colour.html' style='color:#28292b'>Colour</a>"
+    "<a href='typography.html' style='color:#28292b'>Typography</a>"
+    "<a href='pricing.html' style='color:#28292b'>Pricing</a>"
+    "<a href='https://evil.example/colour' style='color:#28292b'>External</a></nav>"
+    "<h1>Downloads</h1></body></html>",
+    encoding="utf-8",
+)
+portal_out = tmp / "portal-theme.json"
+p_portal = run("extract_tokens.py", "--url", (portal_dir / "download.html").as_uri(), "--complete",
+               "--out", str(portal_out), "--offline")
+cap_match = re.search(r"^\[CAPTURE\] (.+)$", p_portal.stdout, re.M)
+cap_file = Path(cap_match[1].strip()) if cap_match else None
+check("brand portal (font-only page): exits 0 with [WARN] no brand colour found, auto [CAPTURE], and same-origin [NAV] subpages",
+      p_portal.returncode == 0
+      and "[WARN] no brand colour found" in p_portal.stdout
+      and cap_file is not None and cap_file.is_file() and cap_file.read_bytes().startswith(b"\x89PNG")
+      and "[NAV]" in p_portal.stdout and "colour.html" in p_portal.stdout and "typography.html" in p_portal.stdout
+      and "pricing.html" not in p_portal.stdout and "evil.example" not in p_portal.stdout,
+      p_portal.stdout[-500:] + p_portal.stderr[-200:])
+if cap_file and cap_file.is_file():
+    cap_file.unlink()
+
 # 6. reset to default: extract_tokens.py --reset and layout_engine.py --theme default ---------------------------------
 reset_target = tmp / "reset-theme.json"
 reset_target.write_text(json.dumps(proj), encoding="utf-8")

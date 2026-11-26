@@ -35,6 +35,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
+from urllib.request import url2pathname
 
 from contrast import check, expand, over, parse_color, ratio
 from tokens import _HREF, _TONES, TOKENS_VERSION, _is_shadow, merge_theme, resolve_colors
@@ -179,7 +180,7 @@ COLLECT_JS = r"""(async () => {
     return w * h > 0 ? { cs, area: w * h, w: r.width, h: r.height } : null;
   };
   const out = { url: location.href, width: W, visibleCount: 0, textChars: 0, surfaces: [], text: [], borders: [], buttons: [], links: [], cards: [], type: {}, fonts: {}, googleHrefs: [],
-                vars: {}, icons: { classes: {}, fonts: [], sprites: [], strokes: [] } };
+                vars: {}, navLinks: [], icons: { classes: {}, fonts: [], sprites: [], strokes: [] } };
   // surfaces: own background of body, html and every visible element, with the area it covers
   const bodyBg = rgb(getComputedStyle(document.body).backgroundColor), htmlBg = rgb(getComputedStyle(document.documentElement).backgroundColor);
   out.canvas = (bodyBg && bodyBg[3] > 0.9 ? bodyBg : htmlBg && htmlBg[3] > 0.9 ? htmlBg : [255, 255, 255, 1]).slice(0, 3);
@@ -210,6 +211,18 @@ COLLECT_JS = r"""(async () => {
   for (const el of [...document.querySelectorAll('a')].slice(0, 300)) {
     if (el.matches(btnSel)) continue;
     const v = vis(el), c = v && rgb(v.cs.color); if (c) out.links.push({ c: c.slice(0, 3), n: (el.textContent || '').trim().length });
+  }
+  const seenNav = new Set(), baseHref = location.href.split('#')[0];
+  for (const el of [...document.querySelectorAll('a[href]')].slice(0, 500)) {
+    let u; try { u = new URL(el.getAttribute('href'), location.href); } catch (e) { continue; }
+    const sameOrigin = u.protocol === location.protocol && (u.protocol === 'file:' ? u.pathname !== location.pathname : (u.protocol === 'http:' || u.protocol === 'https:') && u.origin === location.origin);
+    if (!sameOrigin) continue;
+    const href = u.href.split('#')[0];
+    if (href === baseHref || seenNav.has(href)) continue;
+    seenNav.add(href);
+    const label = (el.textContent || el.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    out.navLinks.push({ href, label });
+    if (out.navLinks.length >= 80) break;
   }
   for (const el of els) {
     const v = vis(el); if (!v || v.w < 120 || v.h < 60 || v.w > W * 0.9) continue;
@@ -334,11 +347,6 @@ def _raw_looks_weak(raw: Dict[str, Any]) -> bool:
     """Fast pre-check on raw COLLECT_JS data to decide whether to capture a browser screenshot before closing Chrome."""
     if raw.get("visibleCount", 1) == 0:
         return True
-    canvas = hx(raw["canvas"]).lower()
-    if canvas != "#ffffff":
-        return False
-    if _is_custom_font(named((raw.get("fonts") or {}).get("body", ""))):
-        return False
     if any(b.get("bg") and chroma(hx(b["bg"])) > 0.06 for b in raw.get("buttons", [])):
         return False
     if any(re.search(r"(primary|brand)(-?colou?r)?(-500|-600)?$", n) for n in raw.get("vars", {})):
@@ -348,6 +356,56 @@ def _raw_looks_weak(raw: Dict[str, Any]) -> bool:
     if any(chroma(hx(s["c"])) > 0.09 for s in raw.get("surfaces", [])):
         return False
     return True
+
+
+_BRAND_NAV_RE = re.compile(
+    r"(?<![a-z0-9])(colou?rs?|palettes?|swatches?|typography|fonts?|typefaces?|icons?|iconography|brand(?:ing)?|"
+    r"guidelines?|design[-_ ]?systems?|tokens?|foundations?|visual[-_ ]?identity|style[-_ ]?guides?|themes?)(?![a-z0-9])",
+    re.I,
+)
+
+
+def brand_subpages(raw: Dict[str, Any], base_url: str) -> List[Tuple[str, str]]:
+    """Same-origin brand or design-system subpages from navLinks (validated URL + sanitized ASCII label only)."""
+    base = urlparse(base_url)
+    if base.scheme not in ("http", "https", "file"):
+        return []
+    base_clean = f"{base.scheme}://{base.netloc}{base.path}" + (f"?{base.query}" if base.query else "")
+    base_dir = Path(url2pathname(base.path)).parent.resolve() if base.scheme == "file" else None
+    out: List[Tuple[str, str]] = []
+    seen = {base_clean}
+    for item in raw.get("navLinks") or []:
+        if not isinstance(item, dict):
+            continue
+        href = str(item.get("href") or "").strip()
+        if not href or any(c in href for c in "\r\n\t\x00 <>\"'"):
+            continue
+        u = urlparse(href)
+        if u.scheme != base.scheme:
+            continue
+        if u.scheme in ("http", "https"):
+            if u.netloc != base.netloc:
+                continue
+            clean_url = f"{u.scheme}://{u.netloc}{u.path}" + (f"?{u.query}" if u.query else "")
+        else:
+            if not base_dir:
+                continue
+            try:
+                Path(url2pathname(u.path)).resolve().relative_to(base_dir)
+            except ValueError:
+                continue
+            clean_url = f"file://{u.path}"
+        if clean_url in seen:
+            continue
+        label = re.sub(r"[^A-Za-z0-9 &/._-]+", " ", str(item.get("label") or "")).strip()
+        label = re.sub(r"\s+", " ", label)[:40]
+        if not (_BRAND_NAV_RE.search(u.path) or _BRAND_NAV_RE.search(label)):
+            continue
+        seen.add(clean_url)
+        out.append((clean_url, label))
+        if len(out) >= 10:
+            break
+    return out
 
 
 def collect_site(
@@ -509,7 +567,8 @@ def site_to_partial(raw: Dict[str, Any], name: str, probe: bool, notes: List[str
             colors["on-primary"] = fg
             src("on-primary", fg, "text colour of that button")
     else:
-        notes.append("[WARN] no brand colour found (no coloured button, primary property or coloured link): primary and the palette stay default")
+        notes.append("[WARN] no brand colour found (no coloured button, primary property or coloured link): primary and the palette stay default — "
+                     "for a brand guide or design system, inspect [NAV] subpages or [CAPTURE] screenshot and author partial.json")
     accents = [hx(s["c"]) for s in raw["surfaces"] if chroma(hx(s["c"])) > 0.09]
     brand_colors += list(dict.fromkeys(accents))[:4]
     partial: Dict[str, Any] = {"tokensVersion": TOKENS_VERSION, "name": name, "color": {mode: colors}}
@@ -583,6 +642,8 @@ def site_to_partial(raw: Dict[str, Any], name: str, probe: bool, notes: List[str
     partial["_icons"] = {"set": marks[0][0] if marks else None, "stroke": statistics.median(ic["strokes"]) if ic["strokes"] else None}
     notes.append(f"[MAP] icon set marker = {marks[0][0] + ' (' + str(marks[0][1]) + ' hits)' if marks else 'none found'}"
                  + (f"; inline SVG stroke width {partial['_icons']['stroke']:.2g} (24-unit grid, {len(ic['strokes'])} icons)" if ic["strokes"] else ""))
+    for sub_url, sub_label in brand_subpages(raw, raw.get("url") or ""):
+        notes.append(f"[NAV] {sub_url}" + (f"  ({sub_label})" if sub_label else ""))
     return partial
 
 
@@ -1044,6 +1105,16 @@ def self_test() -> None:
     assert not has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#ffffff"}}})[0]
     assert has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#111827"}}})[0]
     assert has_meaningful_site_style({"visibleCount": 5}, {"color": {"light": {"bg-page": "#ffffff", "primary": "#0e7c66"}}})[0]
+    assert _raw_looks_weak({"visibleCount": 5, "canvas": [255, 255, 255], "fonts": {"body": "Mulish, sans-serif"}, "buttons": [], "vars": {}, "links": [], "surfaces": []})
+    assert not _raw_looks_weak({"visibleCount": 5, "canvas": [255, 255, 255], "fonts": {"body": "Mulish, sans-serif"}, "buttons": [{"bg": [214, 0, 28]}], "vars": {}, "links": [], "surfaces": []})
+    subs = brand_subpages({"navLinks": [
+        {"href": "https://brand.example/guidelines/colour/", "label": "Colour <script>"},
+        {"href": "https://brand.example/guidelines/typography/", "label": "Typography"},
+        {"href": "https://brand.example/pricing/", "label": "Pricing"},
+        {"href": "https://evil.example/colour/", "label": "Colour"},
+        {"href": "javascript:alert(1)", "label": "Colour"},
+    ]}, "https://brand.example/download/")
+    assert subs == [("https://brand.example/guidelines/colour/", "Colour script"), ("https://brand.example/guidelines/typography/", "Typography")], subs
     print("[PASS] extract_tokens self-test")
 
 
