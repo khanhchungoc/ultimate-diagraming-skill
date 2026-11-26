@@ -189,8 +189,10 @@ if (erd) {
   rc = await t.at(`${TB('review')} .erd-head`);
   await tap(rc.x, rc.y);
   t.check('erd: a tap on a table selects it', await tblSel('review'));
-  const portsShown = await t.ev(`(() => { const ps = [...document.querySelectorAll('${TB('review')} .port:not(.port-end)')]; return ps.length > 1 && ps.every((p) => getComputedStyle(p).display !== 'none' && getComputedStyle(p).pointerEvents !== 'none' && p.hasAttribute('data-touch-drag') && p.getBoundingClientRect().width >= 20); })()`);
-  t.check('erd: the selected table shows its row and header ports as finger-sized touch targets', portsShown);
+  const portInfo = await t.ev(`(() => { const ps = [...document.querySelectorAll('${TB('review')} .port:not(.port-end)')]; return ps.map((p) => { const c = getComputedStyle(p); return { display: c.display, pe: c.pointerEvents, touchDrag: p.hasAttribute('data-touch-drag'), w: p.getBoundingClientRect().width }; }); })()`);
+  // 20px target scaled by stage zoom * (--ui-scale = 1/zoom) can land at ~19.9999px from CSS float32 rounding
+  const portsShown = portInfo.length > 1 && portInfo.every((p) => p.display !== 'none' && p.pe !== 'none' && p.touchDrag && p.w >= 19.5);
+  t.check('erd: the selected table shows its row and header ports as finger-sized touch targets', portsShown, JSON.stringify(portInfo.slice(0, 3)));
   t.check('erd: an unselected table shows none', await t.ev(`[...document.querySelectorAll('${TB('product')} .port:not(.port-end)')].every((p) => { const c = getComputedStyle(p); return c.display === 'none' || c.pointerEvents === 'none'; })`));
   // The selected table drags to move (it stays where it is dropped)
   const v5 = await view();
