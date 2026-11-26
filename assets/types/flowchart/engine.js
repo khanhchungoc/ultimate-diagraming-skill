@@ -231,6 +231,27 @@
           return ls ? ls.reduce((s, l) => s + l, 0) / ls.length : (laneIdx[laneId] || 0);
         };
 
+        // Predecessor track barycenter (lane + sub-row, excluding rank) so a terminal node merged from an
+        // earlier guard never steals track 0 from the continuing main flow on the same track. If a predecessor
+        // sits in the same rank (sub[p] not yet assigned), inherit its track + 0.01 so the zero-step leaf sits
+        // right beside its parent rather than jumping ahead to track 0.
+        const trackBarycenter = (id, sub, seen = new Set()) => {
+          const preds = revAdj[id] || [];
+          if (!preds.length || seen.has(id)) return 0;
+          seen.add(id);
+          let sum = 0, cnt = 0;
+          preds.forEach(p => {
+            if (!nodeMap[p]) return;
+            const s = (sub && sub[p] !== undefined)
+              ? (laneIdx[nodeMap[p].laneId] || 0) * 100 + sub[p]
+              : trackBarycenter(p, sub, seen) + 0.01;
+            sum += s;
+            cnt += 1;
+          });
+          seen.delete(id);
+          return cnt ? sum / cnt : 0;
+        };
+
         // Steps 3-6: order inside lanes, lane heights, x/y, nudge-to-align
         const placeNodes = (ranks, xs, zero, tight) => {
           const groups = new Map();
@@ -245,17 +266,18 @@
           const sub = {};
           [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
             if (g.list.length > 1) {
+              const tbc = new Map(g.list.map(n => [n.id, trackBarycenter(n.id, sub)]));
               const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks, sub)]));
-              // Ties (typically branches of one decision) go by where each node's arrows lead: a node whose
-              // successors sit in lanes above (or that has none) takes the upper row, one heading to a lane below
-              // the lower row, so its arrow leaves toward its target instead of wrapping around its sibling.
-              // On exact ties, keep continuing steps ahead of terminal ends so ends sit on the outer edge to wrap.
+              // Keep predecessor track order first (avoids crossings). On ties (branches from the same track),
+              // pull toward target lanes, then keep continuing steps ahead of terminal ends so ends peel off
+              // as leaves instead of pushing the main flow off the spine.
               const pl = new Map(g.list.map(n => [n.id, successorPull(n.id, g.laneId)]));
-              g.list.sort((a, b) => (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9
-                ? bc.get(a.id) - bc.get(b.id)
+              g.list.sort((a, b) => (Math.abs(tbc.get(a.id) - tbc.get(b.id)) > 1e-9
+                ? tbc.get(a.id) - tbc.get(b.id)
                 : Math.abs(pl.get(a.id) - pl.get(b.id)) > 1e-9
                   ? pl.get(a.id) - pl.get(b.id)
-                  : (isTerminal(a) ? 1 : 0) - (isTerminal(b) ? 1 : 0)));
+                  : (isTerminal(a) ? 1 : 0) - (isTerminal(b) ? 1 : 0)
+                  || (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9 ? bc.get(a.id) - bc.get(b.id) : 0)));
             }
             g.list.forEach((n, i) => { sub[n.id] = i; });
           });
@@ -316,9 +338,10 @@
           nodes.forEach(n => {
             if (!isTerminal(n)) nonEndSubrows[n.laneId] = Math.max(nonEndSubrows[n.laneId] || 1, sub[n.id] + 1);
           });
+          const narrowLanes = lanes.length < 3;
           [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
             const stacked = g.list.filter(n => !slid.has(n.id));
-            const branchCap = stacked.length > 3 ? 3 : 2;
+            const branchCap = narrowLanes ? Math.min(4, Math.max(2, stacked.length)) : (stacked.length > 3 ? 3 : 2);
             const cap = Math.max(branchCap, nonEndSubrows[g.laneId] || 1);
             const terms = stacked.filter(isTerminal);
             const maxSub = stacked.reduce((m, n) => Math.max(m, sub[n.id]), 0);
@@ -753,14 +776,16 @@
           // same-lane step goes to the right instead of cramming beneath the diamond.
           if (sl === dl) {
             const sameLaneOuts = forwardEdges.filter(x => x.from === e.from && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === sl).length;
-            const sideBranch = s.type === 'decision'
+            const isLeaf = !edges.some(x => x.from === e.to) && (revAdj[e.to] || []).length === 1;
+            const sideBranch = (s.type === 'decision'
               && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
               && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
                 || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl)
                 || (sameLaneOuts >= 3 && !edges.some(x => x.from === e.to)))
               && (LE.LABEL_ACROSS
                 ? (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB
-                : sameLaneOuts >= 2);
+                : sameLaneOuts >= 2))
+              || (s.type !== 'decision' && sameLaneOuts >= 2 && isLeaf && !(e.label && e.label.trim()));
             if (!sideBranch) return;
           }
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;

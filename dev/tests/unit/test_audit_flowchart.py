@@ -358,15 +358,20 @@ def main() -> int:
               by3["c"]["x"] == by3["d"]["x"] and by3["a"]["x"] == by3["b"]["x"] > by3["d"]["x"] and r3["passed"],
               f"d={d11_dir} by3={by3} r3={r3}")
 
-    # 12. Fan-out track cap: <=3 branches stay at <=2 sub-tracks; >3 branches stay at <=3 sub-tracks
+    # 12. Fan-out track cap: >=3 lanes stay at <=2 (<=3 branches) or <=3 (>3 branches); <3 lanes allow up to 4
     def track_count(laid_data):
         tb = laid_data.get("direction") == "TB"
-        return len({round((n["y"] + (144 if tb else (96 if n["type"] == "decision" else 64)) / 2) / 40) for n in laid_data["nodes"]})
+        return len({round((n["y"] + (144 if tb else (96 if n["type"] == "decision" else 64)) / 2) / 80) for n in laid_data["nodes"]})
 
+    three_lanes = [
+        {"id": "l1", "name": "L1", "icon": "user"},
+        {"id": "l2", "name": "L2", "icon": "cog"},
+        {"id": "l3", "name": "L3", "icon": "server"},
+    ]
     for d12_dir in ("LR", "TB"):
         d12_three = run_layout("flowchart", {
             "diagramType": "flowchart", "direction": d12_dir,
-            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "lanes": three_lanes,
             "nodes": [
                 {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
                 {"id": "d", "laneId": "l1", "type": "decision", "label": "Check?"},
@@ -387,12 +392,12 @@ def main() -> int:
         })
         t3 = track_count(d12_three)
         r12_3 = FlowchartAudit(d12_three).verify_collisions()
-        check(f"<=3 stacked branches cap at 2 sub-tracks ({d12_dir})",
+        check(f"<=3 stacked branches cap at 2 sub-tracks on >=3 lanes ({d12_dir})",
               t3 <= 2 and r12_3["passed"], f"d={d12_dir} tracks={t3} r={r12_3}")
 
         d12_five = run_layout("flowchart", {
             "diagramType": "flowchart", "direction": d12_dir,
-            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "lanes": three_lanes,
             "nodes": [
                 {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
                 {"id": "d", "laneId": "l1", "type": "decision", "label": "Status?"},
@@ -417,8 +422,55 @@ def main() -> int:
         })
         t5 = track_count(d12_five)
         r12_5 = FlowchartAudit(d12_five).verify_collisions()
-        check(f">3 stacked branches cap at 3 sub-tracks ({d12_dir})",
+        check(f">3 stacked branches cap at 3 sub-tracks on >=3 lanes ({d12_dir})",
               t5 <= 3 and r12_5["passed"], f"d={d12_dir} tracks={t5} r={r12_5}")
+
+        d12_narrow = run_layout("flowchart", {
+            "diagramType": "flowchart", "direction": d12_dir,
+            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "nodes": d12_five["nodes"],
+            "edges": d12_five["edges"],
+        })
+        tn = track_count(d12_narrow)
+        r12_n = FlowchartAudit(d12_narrow).verify_collisions()
+        check(f"<3 lanes allow up to 4 stacked sub-tracks ({d12_dir})",
+              3 <= tn <= 4 and r12_n["passed"], f"d={d12_dir} tracks={tn} r={r12_n}")
+
+    # 13. Main flow stays on track 0 over merged terminal ends; non-decision fork leaves sit beside their parent (0 bends)
+    d13 = run_layout("flowchart", {
+        "diagramType": "flowchart", "direction": "TB",
+        "lanes": [{"id": "l1", "name": "Policy Service", "icon": "cpu"}],
+        "nodes": [
+            {"id": "s", "laneId": "l1", "type": "start", "label": "Submit"},
+            {"id": "v1", "laneId": "l1", "type": "decision", "label": "Valid Body?"},
+            {"id": "v2", "laneId": "l1", "type": "decision", "label": "Config Found?"},
+            {"id": "e400", "laneId": "l1", "type": "end", "label": "Return HTTP 400"},
+            {"id": "db", "laneId": "l1", "type": "database", "label": "Query Payment"},
+            {"id": "save", "laneId": "l1", "type": "database", "label": "Mark Success"},
+            {"id": "pub", "laneId": "l1", "type": "io", "label": "Publish Event"},
+            {"id": "chk", "laneId": "l1", "type": "decision", "label": "Fields Valid?"},
+            {"id": "ok", "laneId": "l1", "type": "end", "label": "Return HTTP 200"},
+        ],
+        "edges": [
+            {"id": "e1", "from": "s", "to": "v1", "label": ""},
+            {"id": "e2", "from": "v1", "to": "e400", "label": "No"},
+            {"id": "e3", "from": "v1", "to": "v2", "label": "Yes"},
+            {"id": "e4", "from": "v2", "to": "e400", "label": "No"},
+            {"id": "e5", "from": "v2", "to": "db", "label": "Yes"},
+            {"id": "e6", "from": "db", "to": "save", "label": ""},
+            {"id": "e7", "from": "save", "to": "pub", "label": ""},
+            {"id": "e8", "from": "save", "to": "chk", "label": ""},
+            {"id": "e9", "from": "chk", "to": "ok", "label": "Yes"},
+        ],
+    })
+    by13 = {n["id"]: n for n in d13["nodes"]}
+    r13 = FlowchartAudit(d13).verify_collisions()
+    check("continuing DB step stays on track 0 ahead of merged terminal Return HTTP 400",
+          by13["db"]["y"] == by13["v2"]["y"] and by13["e400"]["y"] > by13["db"]["y"] and r13["passed"],
+          f"by13={by13} r13={r13}")
+    check("non-decision terminal fork leaf sits beside parent (same flow x, 0 bends)",
+          by13["pub"]["x"] == by13["save"]["x"] and by13["pub"]["y"] != by13["save"]["y"] and r13["passed"],
+          f"by13={by13} r13={r13}")
 
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0

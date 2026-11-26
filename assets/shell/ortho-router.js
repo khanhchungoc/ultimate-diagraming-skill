@@ -1644,9 +1644,9 @@
             const maxX = Math.max(p1[0], p2[0]);
             const goingRight = p2[0] > p1[0];
             // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
-            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (about 14px).
+            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (10px).
             // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
-            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
+            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 10 : 14);
             const lo1 = endRoom(i), lo2 = endRoom(i + 1);
             const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 
@@ -1716,7 +1716,7 @@
         return d;
       }
 
-      const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
+      const ARROWHEAD_LEN = 10;   // the open-chevron arrowhead's length in px (stage.html)
 
       // nodesNear(x1, y1, x2, y2): node boxes that may touch that box, in the router's node order.
       // otherSegsNear(x1, y1, x2, y2): other arrows' segments [_, start, end] that may touch it, in arrow then segment order.
@@ -1780,10 +1780,14 @@
             });
           }
           candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
-          candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+          const seg2Len = Math.hypot(p3[0] - p2[0], p3[1] - p2[1]) || 1;
+          const t2 = points.length === 4 ? Math.max(0, seg2Len - ARROWHEAD_LEN) * 0.5 / seg2Len : 0.5;
+          candidates.push({ x: p2[0] + (p3[0] - p2[0]) * t2, y: p2[1] + (p3[1] - p2[1]) * t2 });
           if (points.length >= 5) {
             const p4 = points[4];
-            candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+            const seg3Len = Math.hypot(p4[0] - p3[0], p4[1] - p3[1]) || 1;
+            const t3 = points.length === 5 ? Math.max(0, seg3Len - ARROWHEAD_LEN) * 0.5 / seg3Len : 0.5;
+            candidates.push({ x: p3[0] + (p4[0] - p3[0]) * t3, y: p3[1] + (p4[1] - p3[1]) * t3 });
           }
         }
 
@@ -1881,6 +1885,18 @@
           );
         }
 
+        // Keep labels clear of the arrowhead tip on the final segment (works in all 4 directions).
+        let arrowBox = null;
+        if (points.length >= 2) {
+          const tip = points[points.length - 1], prev = points[points.length - 2];
+          const dx = tip[0] - prev[0], dy = tip[1] - prev[1], segLen = Math.hypot(dx, dy);
+          if (segLen > 1) {
+            const depth = Math.min(segLen, ARROWHEAD_LEN + 6);
+            const ex = tip[0] - (dx / segLen) * depth, ey = tip[1] - (dy / segLen) * depth;
+            arrowBox = { x: Math.min(tip[0], ex), y: Math.min(tip[1], ey), w: Math.abs(tip[0] - ex), h: Math.abs(tip[1] - ey) };
+          }
+        }
+
         // The first spot that touches nothing wins. When every spot touches something, take the least bad one
         // (a node or another label is far worse than sitting on another arrow) instead of the first.
         let fallback = null;
@@ -1889,6 +1905,9 @@
           const by = cand.y - lh / 2;
           let penalty = 0;
 
+          if (arrowBox && BoxOverlap(bx, by, lw, lh, arrowBox.x, arrowBox.y, arrowBox.w, arrowBox.h, 4)) {
+            penalty += 900;
+          }
           const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
           const softPad = cand.pad ?? 8;
           // pads reach 8px at most: anything further from the label box adds nothing

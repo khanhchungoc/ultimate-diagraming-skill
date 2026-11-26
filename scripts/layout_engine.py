@@ -67,6 +67,7 @@ LANE_BOTTOM_PADDING = 36
 # opens on, less fitView's 80px padding a side and the dock band; and the zoom at which node text (about 13px at 100%)
 # stays at the 11px legibility minimum.
 VIEW_W, VIEW_H = 1920 - 160, 1080 - 160 - 64
+HALF_VIEW_W = 960 - 80  # half-screen agent/split-pane viewport width
 READABLE_ZOOM = 0.84
 TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
 TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
@@ -1731,13 +1732,19 @@ def _choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opt
     """Lay out a flowchart without "direction" in the direction that reads best; return (laid data, audit, report, why)."""
     lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser, tokens=tokens)
     along, across = _flowchart_canvas(lr)
-    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
-    if fit_all >= READABLE_ZOOM:
+    fit_half = min(1.0, HALF_VIEW_W / along, VIEW_H / across)
+    if fit_half >= READABLE_ZOOM:
         return lr, None, None, ""
     tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser, tokens=tokens)
     tb_along, tb_across = _flowchart_canvas(tb)
-    lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
-    if tb_zoom < lr_zoom + TB_MIN_GAIN:
+    lr_zoom = min(1.0, VIEW_H / across)
+    half_tb_zoom = min(1.0, HALF_VIEW_W / tb_across)
+    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
+    tb_zoom = min(1.0, VIEW_W / tb_across)
+    # Half-screen viewports (agent/split-pane workflows): when LR overflows horizontally and TB fits the
+    # half-screen width cleanly (>= READABLE_ZOOM), prefer vertical TB scrolling over sideways panning.
+    half_screen_tb = half_tb_zoom >= READABLE_ZOOM and half_tb_zoom >= lr_zoom - 0.02
+    if not half_screen_tb and (fit_all >= READABLE_ZOOM or tb_zoom < lr_zoom + TB_MIN_GAIN):
         return lr, None, None, ""
     # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
     # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
@@ -1745,11 +1752,13 @@ def _choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opt
     # 11), and a flow turned top to bottom often has a few backward ones that left to right does not flag.
     lr_audit, tb_audit = make_audit(lr, tokens), make_audit(tb, tokens)
     lr_report, tb_report = lr_audit.verify_collisions(), tb_audit.verify_collisions()
+    score_loss = 10 if half_screen_tb else TB_MAX_SCORE_LOSS
     tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
-        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - TB_MAX_SCORE_LOSS
+        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - score_loss
     if tb_quality_ok:
+        shown_zoom = half_tb_zoom if half_screen_tb else tb_zoom
         return tb, tb_audit, tb_report, (
-            f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
+            f"top to bottom: a long flow; lanes fill the screen at {shown_zoom:.0%} "
             f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
             f"({along:.0f} x {across:.0f} px)"
         )
