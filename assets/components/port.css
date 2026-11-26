@@ -1,1 +1,33 @@
-    /* port: shared component, filled in by plan-review-fixes Phase 5 (stream B2). */
+    /* Port: the one connection handle (ui.port in shell.js): a ring on the side of an item that starts a connection when dragged.
+       <span class="port port-top|right|bottom|left"> sits in the item (the item must be positioned); a type only changes where
+       (left, top), never the look. `.port-end` is the end handle of a selected line: a hollow ring, always shown, grab cursor.
+       Shown: while the pointer or focus is in the parent item, on a selected item on touch (a finger has no hover), or in a
+       .touch-ports item. Hidden: while dragging (.is-dragging anywhere above it), several items selected (.is-multi), the parent's
+       text being edited, exporting, presenting, capture. Compatible with the flowchart's `.port .port-${pos}` markup. */
+    .port {
+      --port-d: var(--port-size);
+      position: absolute; box-sizing: content-box; width: var(--port-d); height: var(--port-d); padding: 0; z-index: 35;
+      border-radius: var(--radius-round); border: 2px solid var(--node-accent, var(--primary)); background: var(--node-bg); box-shadow: var(--shadow-chip);
+      opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
+      cursor: crosshair; touch-action: none;
+      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
+    }
+    /* Invisible hit area of at least --hit-min around the visible ring */
+    .port::before { content: ''; position: absolute; inset: min(0px, calc((var(--port-d) - var(--hit-min)) / 2)); }
+    .port-top { top: 0; left: 50%; }
+    .port-bottom { top: 100%; left: 50%; }
+    .port-left { top: 50%; left: 0; }
+    .port-right { top: 50%; left: 100%; }
+    :is(:hover, :focus-within) > .port:not(.port-end), .touch-ports .port, .port.is-shown { opacity: 1; pointer-events: auto; transform: scale(1); }
+    @media (hover: none) { .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); } }
+    .is-touch .selected > .port { opacity: 1; pointer-events: auto; transform: scale(1); }
+    .is-touch .port { --port-d: var(--port-size-touch); border-width: 2.5px; }
+    .port:is(:hover, :focus-visible) { transform: scale(1.35); background: var(--primary); outline: none; }
+    .port-end { opacity: 1; pointer-events: auto; transform: none; border-width: var(--ring-thin); background: transparent; box-shadow: none; cursor: grab; z-index: 54; }
+    .port-end:hover { transform: none; }
+    .is-dragging .port, .is-multi .port, :has(.is-editing) > .port, .is-editing > .port { opacity: 0 !important; pointer-events: none !important; }
+    body:is(.presentation, .present, .exporting, .capture) .port { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      .port { transition: none; transform: none; }
+      .port:is(:hover, :focus-visible) { transform: none; }
+    }
