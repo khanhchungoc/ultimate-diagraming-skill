@@ -42,8 +42,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -76,7 +76,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -146,7 +145,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -463,7 +462,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1623,6 +1675,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -1632,6 +1685,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -3284,7 +3338,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -3561,24 +3623,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -7750,6 +7903,7 @@ pinLaneHeaders();
 renderTabs();
 followTab();
 updateSubButtons();
+syncLaneBar();
 syncNodeBar();
 }
 const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
@@ -7862,11 +8016,39 @@ l.laneEl.style.setProperty('--pill-y', `${y}px`);
 }
 placeLaneBar();
 }
+let lastLaneBarId = null;
+function syncLaneBar() {
+const editable = !isPresenting() && chartData.swimlanes !== false;
+const lane = editable && selectedLaneId ? chartData.lanes.find(l => l.id === selectedLaneId) : null;
+const pill = lane ? lanesRoot.querySelector(`.swimlane[data-lane-id="${lane.id}"] .lane-pill`) : null;
+const key = pill ? lane.id : null;
+const same = key !== null && key === lastLaneBarId;
+lastLaneBarId = key;
+document.querySelectorAll('.lane-bar').forEach(b => { if (same) b.remove(); else motion.hideBar(b); });
+if (!pill) return;
+const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
+const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
+bar.appendChild(ui.abSep());
+bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
+bar.appendChild(ui.abSep());
+if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
+['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
+bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
+bar.addEventListener('click', (e) => {
+e.stopPropagation();
+const b = e.target.closest('.ab-btn');
+if (!b || b.dataset.act === undefined) return;
+if (b.dataset.act === 'rename') { if (pill._startRename) pill._startRename(); }
+else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
+else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; ui.clearBars(); render(); updateStatus(true); }
+});
+ui.pinBar(bar, pill, { gap: 8, align: isTB() ? 'center' : 'left', prefer: 'above', exclusive: true });
+if (!same && motion.enabled()) motion.showBar(bar);
+}
 function placeLaneBar() {
-const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
-if (!bar) return;
-const pill = bar.parentElement;
-bar.classList.toggle('is-below', !ui.roomAbove(pill, bar));
+ui.repositionBars();
 }
 function setLaneColor(laneId, slot) {
 const lane = chartData.lanes.find(l => l.id === laneId);
@@ -7944,28 +8126,6 @@ title.contentEditable = 'false';
 title.spellcheck = false;
 title.textContent = lane.name;
 pill.appendChild(title);
-if (editable) {
-const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
-const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
-bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
-bar.appendChild(ui.abSep());
-bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
-bar.appendChild(ui.abSep());
-if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
-else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
-bar.addEventListener('pointerdown', (e) => e.stopPropagation());
-bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
-bar.addEventListener('dblclick', (e) => e.stopPropagation());
-bar.addEventListener('click', (e) => {
-e.stopPropagation();
-const b = e.target.closest('.ab-btn');
-if (!b || b.dataset.act === undefined) return;
-if (b.dataset.act === 'rename') startRename();
-else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
-else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
-});
-pill.appendChild(bar);
-}
 if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 function startRename() {
 pill.draggable = false;   // a draggable ancestor would swallow text selection
@@ -7978,6 +8138,7 @@ const sel = window.getSelection();
 sel.removeAllRanges();
 sel.addRange(range);
 }
+pill._startRename = startRename;
 title.addEventListener('dblclick', (e) => {
 if (!editable) return;
 e.stopPropagation();
@@ -8228,7 +8389,6 @@ const el = document.createElement('div');
 el.id = `node-${node.id}`;
 el.dataset.nodeId = node.id;
 el.setAttribute('role', 'button');
-el.dataset.noTip = '';
 const label = document.createElement('div');
 label.className = 'node-label';
 label.spellcheck = false;
@@ -8359,10 +8519,7 @@ bar.appendChild(btn('split', 'split', 'Connector: split this arrow into a letter
 }
 bar.appendChild(btn('label', 'label', 'Label (or double-click the arrow)'));
 bar.appendChild(btn('delete', 'trash', 'Delete the arrow', 'is-danger'));
-bar.style.left = `${route.midX + (hasLabel ? labelContainer.offsetWidth / 2 : 0) + 8}px`;
-bar.style.top = `${route.midY}px`;
-bar.addEventListener('pointerdown', (e) => e.stopPropagation());
-bar.addEventListener('dblclick', (e) => e.stopPropagation());
+['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
 bar.addEventListener('click', (e) => {
 e.stopPropagation();
 const b = e.target.closest('.ab-btn');
@@ -8527,14 +8684,12 @@ const nodeEl = document.createElement('div');
 nodeEl.id = `node-${node.id}`;
 nodeEl.dataset.nodeId = node.id;
 nodeEl.dataset.item = '';   // shared hover / selected / dim look (components/item-states.css)
-nodeEl.dataset.noTip = '';
 const outline = shapeOutlineSvg(node.type);
 if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
 const label = document.createElement('div');
 label.className = 'node-label';
 label.contentEditable = 'false';
 label.spellcheck = false;
-label.dataset.noTip = '';
 nodeEl.appendChild(label);
 ['top', 'right', 'bottom', 'left'].forEach(pos => {
 const port = ui.port(pos);   // the shared connection handle (components/port.css)
@@ -8550,7 +8705,6 @@ nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot
 + (selectedNodeIds.has(node.id) ? ' selected' : '') + (sub ? ' has-child' : '');
 placeNodeEl(nodeEl, node);
 nodeEl.style.transformOrigin = '';   // left by an entrance morph; a fresh element has none
-nodeEl.querySelectorAll(':scope > .node-bar').forEach(b => b.remove());   // syncNodeBar draws it anew, as for a new element
 const label = nodeEl.querySelector('.node-label');
 const text = node.label || '';
 if (label.contentEditable !== 'true' && label.textContent !== text) label.textContent = text;
@@ -8606,11 +8760,12 @@ handleNodePointerDown(e, node);
 });
 lanesRoot.addEventListener('dblclick', (e) => {
 const el = nodeElAt(e.target), node = nodeAt(el);
-if (!node) return;
+if (!node || isPresenting()) return;
 if (isConnector(node)) { e.stopPropagation(); editConnectorLabel(el); return; }
 const label = e.target.closest('.node-label');
 if (!label || !el.contains(label)) return;
 e.stopPropagation();
+el.classList.add('is-editing');
 label.contentEditable = 'true';
 label.focus();
 const range = document.createRange();
@@ -8622,6 +8777,7 @@ sel.addRange(range);
 lanesRoot.addEventListener('blur', (e) => {
 const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
 if (!node) return;
+el.classList.remove('is-editing');
 if (isConnector(node)) {
 if (label.contentEditable !== 'true') return;
 label.contentEditable = 'false';
@@ -8647,6 +8803,12 @@ else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connector
 e.stopPropagation();
 } else if (e.key === 'Enter') {
 e.preventDefault();
+label.blur();
+} else if (e.key === 'Escape') {
+e.preventDefault();
+e.stopPropagation();
+label.textContent = node.label || '';
+el.classList.remove('is-editing');
 label.blur();
 }
 });
@@ -8730,9 +8892,9 @@ labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
 let lastEdgeBarId = null;
 const edgeEls = new Map();   // edge id -> { path, hit, label, text }: this render's elements of each arrow
 function renderEdges() {
-const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
+const oldBars = [...document.querySelectorAll('.edge-bar')];
 const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
-if (oldBar && barChanged) motion.hideBar(oldBar);   // another arrow: the old bar closes, then the new one opens
+oldBars.forEach(b => { if (barChanged) motion.hideBar(b); else b.remove(); });   // another arrow: the old bar closes, then the new one opens
 edgeGroup.innerHTML = '';
 edgeLabelsGroup.innerHTML = '';
 edgeEls.clear();
@@ -8806,12 +8968,24 @@ duration: 110, easing: motion.curve('curve-spring-tactile')
 });
 }
 });
+if (!isPresenting()) {
 const bar = buildEdgeBar(edge, labelContainer, pathD, hasLabel);
-labelContainer.after(bar);
+const getEdgeAnchor = () => {
+if (hasLabel && labelContainer.isConnected) {
+const r = labelContainer.getBoundingClientRect();
+if (r.width > 0 || r.height > 0) return r;
+}
+const sr = swimlanesContainer.getBoundingClientRect();
+const cx = sr.left + pathD.midX * scale;
+const cy = sr.top + pathD.midY * scale;
+return { left: cx, right: cx, top: cy, bottom: cy };
+};
+ui.pinBar(bar, getEdgeAnchor, { gap: 8, align: 'center', prefer: 'above', exclusive: true });
 if (popBar && motion.enabled()) {
 const br = bar.getBoundingClientRect();
 if (br.width > 0) {
 motion.showBar(bar);   // fades and slides in whole (its shadow with it)
+}
 }
 }
 }
@@ -9460,19 +9634,12 @@ lanesRoot.querySelectorAll('.swimlane').forEach(l => l.classList.toggle('lane-se
 }
 function selectLane(laneId) {
 const hadEdge = selectedEdgeId;
-const prevBar = lanesRoot.querySelector('.lane-selected .lane-bar');
 selectedLaneId = laneId;
 clearNodeSelection();
 selectedEdgeId = null;
 if (hadEdge) renderEdges();
 markSelectedLane();
-const nextBar = lanesRoot.querySelector('.lane-selected .lane-bar');
-if (nextBar && nextBar !== prevBar && motion.enabled()) {
-const nr = nextBar.getBoundingClientRect();
-if (nr.width > 0) {
-motion.showBar(nextBar);
-}
-}
+syncLaneBar();
 }
 function deleteLane(laneId) {
 if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
@@ -9548,14 +9715,11 @@ else if (b.dataset.act === 'goto') jumpToPartner(node);
 else if (many) deleteNodes([...selectedNodeIds]);
 else deleteNode(selectedNodeId);
 });
-el.appendChild(bar);
-placeNodeBar();
+ui.pinBar(bar, el, { gap: 10, align: 'center', prefer: 'above', exclusive: true });
 if (!same) motion.showBar(bar);
 }
 function placeNodeBar() {
-const bar = document.querySelector('.node-bar');
-if (!bar) return;
-bar.classList.toggle('is-below', !ui.roomAbove(bar.parentElement, bar));
+ui.repositionBars();
 }
 function clearNodeSelection() {
 selectedNodeId = null;
@@ -10012,13 +10176,13 @@ window.removeEventListener('pointercancel', cancelPaletteDrag);
 return had;
 }
 function updateLaneButton() {
-const label = btnAddLane.querySelector('.btn-label');
+const label = btnAddLane.querySelector('.tile-caption, .btn-label');
 const off = chartData.swimlanes === false;
 if (label) label.textContent = off ? 'Show lanes' : 'Lane';
-btnAddLane.title = off ? 'Show swimlanes (name the actor, then add more lanes)' : 'Add a swimlane';
+btnAddLane.title = off ? 'Show swimlanes (name the actor, then add more lanes)' : 'Add a swimlane (click, or drag onto the canvas)';
 btnAddLane.setAttribute('aria-label', off ? 'Show swimlanes' : 'Lane');
 }
-btnAddLane.addEventListener('click', () => {
+function addLaneAt(insertIdx) {
 if (chartData.swimlanes === false) {
 withMotion(() => {
 delete chartData.swimlanes;
@@ -10034,10 +10198,75 @@ name: `Actor / Role ${chartData.lanes.length + 1}`,
 icon: 'users',
 height: LE.LANE_MIN
 };
-chartData.lanes.push(newLane);
+const idx = insertIdx === undefined ? chartData.lanes.length : Math.max(0, Math.min(insertIdx, chartData.lanes.length));
+chartData.lanes.splice(idx, 0, newLane);
 relayout();
 }, { duration: 210, skipFreeNotes: true });
+}
+btnAddLane.addEventListener('click', (e) => {
+if (btnAddLane.dataset.dragged) { delete btnAddLane.dataset.dragged; e.preventDefault(); return; }
+if (btnAddLane.disabled || isPresenting()) return;
+addLaneAt();
 });
+let laneToolDrag = null;   // { startX, startY, ghost, onCanvas, insertIdx }
+btnAddLane.addEventListener('pointerdown', (e) => {
+delete btnAddLane.dataset.dragged;
+if (e.button !== 0 || btnAddLane.disabled || isPresenting()) return;
+motion.cancelAll();
+laneToolDrag = { startX: e.clientX, startY: e.clientY, ghost: null, onCanvas: false, insertIdx: chartData.lanes.length };
+window.addEventListener('pointermove', onLaneToolMove);
+window.addEventListener('pointerup', onLaneToolUp);
+window.addEventListener('pointercancel', cancelLaneToolDrag);
+});
+function onLaneToolMove(e) {
+const d = laneToolDrag;
+if (!d) return;
+if (!d.ghost) {
+if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+const wrap = btnAddLane.closest('[data-dock-pop]');
+if (wrap) {
+wrap.classList.remove('open');
+const trig = wrap.querySelector('.dock-pop-trigger');
+if (trig) trig.setAttribute('aria-expanded', 'false');
+}
+d.ghost = document.createElement('div');
+d.ghost.className = 'palette-ghost lane-ghost';
+d.ghost.innerHTML = `${ui.icon('lane', { size: 'sm' })}<span>${chartData.swimlanes === false ? 'Show lanes' : 'New lane'}</span>`;
+document.body.appendChild(d.ghost);
+document.body.classList.add('palette-dragging');
+}
+d.ghost.style.left = `${e.clientX + 12}px`;
+d.ghost.style.top = `${e.clientY + 12}px`;
+const under = document.elementFromPoint(e.clientX, e.clientY);
+d.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
+d.ghost.classList.toggle('off-canvas', !d.onCanvas);
+if (d.onCanvas && chartData.swimlanes !== false) {
+d.insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
+showLaneDropLine(d.insertIdx);
+} else {
+laneDropLine.style.display = 'none';
+}
+}
+function cancelLaneToolDrag() {
+const d = laneToolDrag;
+const had = !!(d && d.ghost);
+laneToolDrag = null;
+if (d && d.ghost) d.ghost.remove();
+document.body.classList.remove('palette-dragging');
+laneDropLine.style.display = 'none';
+window.removeEventListener('pointermove', onLaneToolMove);
+window.removeEventListener('pointerup', onLaneToolUp);
+window.removeEventListener('pointercancel', cancelLaneToolDrag);
+return had;
+}
+function onLaneToolUp() {
+const d = laneToolDrag;
+const dragged = !!(d && d.ghost);
+if (dragged) btnAddLane.dataset.dragged = '1';   // swallow the click that may follow on the tile
+cancelLaneToolDrag();
+if (!dragged || !d.onCanvas) return;
+addLaneAt(d.insertIdx);
+}
 const BIG_MS = 520;
 function updateDirectionButton() {
 if (!btnDirection) return;
@@ -10378,7 +10607,7 @@ document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('note-
 function peekSoon(nodeId, delay) {
 clearTimeout(peekTimer);
 peekTimer = setTimeout(() => {
-if (draggingNode || noteDrag || noteLink || noteToolDrag || paletteDrag || connectingFromNodeId) return;
+if (draggingNode || noteDrag || noteLink || noteToolDrag || paletteDrag || laneToolDrag || connectingFromNodeId) return;
 if (peekNodeId !== nodeId) { peekNodeId = nodeId; applyNoteVisibility(); }
 }, delay);
 }
@@ -11386,6 +11615,10 @@ selectedEdgeId = null;
 selectedLaneId = null;
 selectedNoteId = null;
 peekNodeId = null;
+lastNodeBarKey = null;
+lastLaneBarId = null;
+lastEdgeBarId = null;
+ui.clearBars();
 setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
 markSelectedLane();
 if (hadNodes || hadEdge) renderEdges();
@@ -11411,7 +11644,7 @@ cancelConnecting();
 const wasPicking = notePicking || connectorPicking;
 setNotePicking(false);
 setConnectorPicking(false);
-return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
+return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || cancelLaneToolDrag() || wasConnecting || wasPicking;
 },
 searchItems() {
 const items = [];
@@ -11438,7 +11671,7 @@ add('note:' + el.dataset.noteId, shown ? el : nodeElOf(first), el.querySelector(
 document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
 return items;
 },
-onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); placeNodeBar(); },
+onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); ui.repositionBars(); },
 contentOverflow() {
 const W = swimlanesContainer.offsetWidth, H = swimlanesContainer.offsetHeight, PAD = 12;
 const o = { left: 0, top: 0, right: 0, bottom: 0 };

@@ -323,11 +323,11 @@
 --dot-edge: rgba(0, 0, 0, 0.18);
 --dot-edge-soft: rgba(0, 0, 0, 0.15);
 --menu-border: #cbd5e1;
---glass-top: rgba(255, 255, 255, 0.62);
---glass-bottom: rgba(255, 255, 255, 0.44);
---glass-bg: rgba(255, 255, 255, 0.53);
---confirm-top: rgba(255, 255, 255, 0.78);
---confirm-bottom: rgba(255, 255, 255, 0.68);
+--glass-top: rgba(255, 255, 255, 0.52);
+--glass-bottom: rgba(255, 255, 255, 0.34);
+--glass-bg: rgba(255, 255, 255, 0.43);
+--confirm-top: rgba(255, 255, 255, 0.68);
+--confirm-bottom: rgba(255, 255, 255, 0.58);
 --glass-border: rgba(255, 255, 255, 0.85);
 --glass-outer-ring: rgba(15, 23, 42, 0.10);
 --glass-rim: rgba(255, 255, 255, 0.96);
@@ -500,11 +500,11 @@ color-scheme: light;
 --lane-hover-bg: #1a2742;
 --on-primary: #0b1220;
 --on-danger: #1a1a1a;
---glass-top: rgba(24, 35, 58, 0.62);
---glass-bottom: rgba(13, 20, 38, 0.46);
---glass-bg: rgba(18, 28, 48, 0.54);
---confirm-top: rgba(24, 35, 58, 0.80);
---confirm-bottom: rgba(13, 20, 38, 0.70);
+--glass-top: rgba(16, 24, 42, 0.56);
+--glass-bottom: rgba(8, 13, 26, 0.42);
+--glass-bg: rgba(12, 18, 34, 0.49);
+--confirm-top: rgba(18, 28, 48, 0.72);
+--confirm-bottom: rgba(10, 16, 32, 0.62);
 --glass-border: rgba(148, 163, 184, 0.28);
 --glass-outer-ring: rgba(0, 0, 0, 0.36);
 --glass-rim: rgba(255, 255, 255, 0.20);
@@ -1208,6 +1208,50 @@ right: auto !important;
 transform: translateX(-50%);
 }
 }
+dialog.save-modal {
+width: 400px;
+max-width: calc(100vw - 24px);
+margin: auto;
+padding: var(--space-16);
+box-sizing: border-box;
+border-radius: var(--radius-3xl);
+border: 1px solid var(--border-dark);
+background: var(--bg-panel);
+color: var(--text-main);
+box-shadow: var(--shadow-glass-lg);
+font-size: var(--t-control-size);
+line-height: var(--t-control-leading);
+}
+dialog.save-modal:modal { overscroll-behavior: contain; }
+dialog.save-modal::backdrop {
+background: var(--scrim-bg);
+overflow: hidden;
+overscroll-behavior: contain;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+dialog.save-modal {
+background: linear-gradient(180deg, var(--confirm-top) 0%, var(--confirm-bottom) 100%);
+border-color: var(--glass-border);
+backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+}
+}
+@media (prefers-reduced-transparency: reduce) {
+dialog.save-modal {
+background: var(--bg-panel);
+border-color: var(--border-dark);
+backdrop-filter: none;
+-webkit-backdrop-filter: none;
+}
+}
+.save-modal-title { margin: 0 0 var(--space-8); font-weight: var(--weight-semibold); font-size: var(--text-lg); color: var(--text-main); }
+.save-modal-msg { margin: 0 0 var(--space-12); color: var(--text-soft); overflow-wrap: anywhere; }
+.save-modal-check {
+display: flex; align-items: center; gap: var(--space-8); margin: var(--space-8) 0 var(--space-16);
+font-size: var(--text-xs); color: var(--text-soft); cursor: pointer; user-select: none;
+}
+.save-modal-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+dialog.save-modal .btn { padding: var(--space-4) var(--space-12); font-size: var(--t-control-size); white-space: nowrap; }
 .note {
 position: absolute;
 box-sizing: border-box;
@@ -1596,6 +1640,11 @@ box-shadow: var(--shadow-md);
 scale: var(--ui-scale, 1); transform-origin: 50% 100%;
 }
 :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
+#actionbar-layer { position: absolute; inset: 0; pointer-events: none; z-index: 53; overflow: visible; }
+#actionbar-layer > :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) {
+position: absolute; scale: none; translate: none; pointer-events: auto;
+}
+body.presentation #actionbar-layer, body.exporting #actionbar-layer { display: none !important; }
 .ab-btn {
 display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
 border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
@@ -2539,10 +2588,18 @@ background: transparent; color: var(--c4-tile-ink);
 :root[data-theme="dark"] #btn-add-container { --c4-tile-ink: var(--sw-3-line); }
 :root[data-theme="dark"] #btn-add-database { --c4-tile-ink: var(--sw-8-line); }
 :root[data-theme="dark"] #btn-add-queue { --c4-tile-ink: var(--sw-5-line); }
+#c4-pop .btn-shape { cursor: grab; touch-action: none; }
 #c4-pop .btn-shape:hover .c4-tile-card { border-color: var(--primary); }
 #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--bg-soft) 35%, transparent); stroke: var(--border-dark); stroke-width: var(--ring-thin); }
 #btn-add-group svg > .c4-grp-tag { fill: var(--bg-soft); stroke: var(--border-dark); stroke-width: 1px; }
 #btn-add-group:hover svg > * { stroke: var(--primary); }
+.c4-ghost, .c4-node.c4-ghost, .c4-group.c4-ghost, .note.c4-ghost {
+position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0;
+opacity: 0.92; box-shadow: var(--shadow-xl);
+transition: opacity var(--dur-micro) var(--curve-out);
+}
+.c4-ghost.off-target { opacity: 0.45; }
+body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
   </style>
 </head>
 <body>
@@ -2747,7 +2804,23 @@ background: transparent; color: var(--c4-tile-ink);
         <svg id="c4-overlay" data-export-skip width="1" height="1" aria-hidden="true"><line id="c4-rubber" x1="0" y1="0" x2="0" y2="0"/></svg>
       </div>
     </div>
+    <div id="actionbar-layer" data-export-skip></div>
   </div>
+
+  <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
+  <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
+    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    <p id="save-modal-msg" class="save-modal-msg"></p>
+    <code id="save-modal-path" class="save-where" hidden></code>
+    <label class="save-modal-check">
+      <input id="save-modal-skip" type="checkbox">
+      <span>Don’t show this again</span>
+    </label>
+    <form method="dialog" class="confirm-actions">
+      <button type="submit" value="cancel" class="btn">Cancel</button>
+      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    </form>
+  </dialog>
 
   <!-- Help & Shortcuts Popover (Built with Ultimate Diagram: https://github.com/khanhchungoc/ultimate-diagraming-skill) -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
@@ -2834,8 +2907,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -2868,7 +2941,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -2938,7 +3010,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -3255,7 +3327,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -4415,6 +4540,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -4424,6 +4550,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -6076,7 +6203,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -6353,24 +6488,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -10900,7 +11126,8 @@ return { a, snap: motion.enabled() && html.childElementCount > 0 ? motion.captur
 clearSelection: (id) => { if (selNoteId === id) selNoteId = null; },
 render: ({ note, token, reason }) => {
 if (reason === 'text') {
-noteCard(note.id).setAttribute('aria-label', `Note on ${noteNames(note)}: ${note.text}`);
+const names = noteNames(note);
+noteCard(note.id).setAttribute('aria-label', names ? `Note on ${names}: ${note.text}` : `Note: ${note.text}`);
 placeNotes();
 updateNotesButton();
 } else if (reason !== 'same') render({ snap: token.snap, toKey: token.a ? { [note.id]: token.a.id } : undefined, duration: 160 });
@@ -11501,10 +11728,6 @@ rec.g.classList.toggle('selected', isSel);
 rec.g.classList.toggle('hover', hov);
 if (rec.label) { rec.label.classList.toggle('selected', isSel); rec.label.classList.toggle('linked', hov); }
 if (rec.badge) { rec.badge.classList.toggle('selected', isSel); }
-const dim = !!hoverId && !out && !inn && !isSel;
-rec.g.classList.toggle('is-dim', dim);
-if (rec.label) rec.label.classList.toggle('is-dim', dim);
-if (rec.badge) rec.badge.classList.toggle('is-dim', dim);
 });
 const tags = [...els.groups].filter(([, el]) => !el.classList.contains('is-tile')).map(([id, el]) => [id, el.querySelector('.frame-tag')]).filter(([, t]) => t);
 const items = [...els.nodes, ...[...els.groups].filter(([id]) => isTile(groupOf(id))), ...tags];
@@ -11512,7 +11735,7 @@ const first = primary();
 items.forEach(([id, el]) => {
 const isNode = el.classList.contains('c4-node');
 if (isNode) el.classList.toggle('selected', inSel('element', id));
-if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-dim', !!hoverId && !near.has(id) && !inSel(isNode ? 'element' : 'group', id));
+if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-hover', !!hoverId && id !== hoverId && near.has(id));
 const ti = first && first.kind !== 'edge' && first.id === id ? '0' : '-1';
 if (el.getAttribute('tabindex') !== ti) el.setAttribute('tabindex', ti);   // written only when it changes: a write restyles the box
 });
@@ -11924,27 +12147,158 @@ e.stopPropagation();
 const id = grp.dataset.groupId;
 if (!grp.classList.contains('is-tile') || t.closest('.c4-name')) editName('group', id); else toggleGroup(id);
 });
-function addItem(kind) {
+function addItem(kind, drop) {
 if (presenting()) return null;
 const isGroup = kind === 'group';
 if (!isGroup && !KINDS.includes(kind)) throw new RangeError(`unknown element kind "${kind}"`);
 if (isTyping()) document.activeElement.blur();
 motion.cancelAll();
-const p = primary(), host = sel.length === 1 && p.kind === 'group' ? groupOf(p.id) : null;
+const p = primary();
+const host = drop ? (drop.hostId ? groupOf(drop.hostId) : null) : (sel.length === 1 && p.kind === 'group' ? groupOf(p.id) : null);
 const useMotion = motion.enabled() && html.childElementCount > 0;
 const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
 const o = isGroup ? { id: newId('g'), name: 'New group', kind: 'system' } : { id: newId('e'), kind, name: DEFAULT_NAME[kind] };
 if (host) { host.collapsed = false; o[isGroup ? 'parent' : 'group'] = host.id; }
 if (isGroup) (chartData.groups = groups()).push(o); else (chartData.elements = elements()).push(o);
+let pinned = null;
+if (drop && !host && drop.pt) {
+const sz = isGroup ? { w: TOKENS.c4.emptyW, h: TOKENS.c4.emptyH } : c4Card(o.name, '');
+o.x = Math.max(0, Math.round(drop.pt.x - sz.w / 2));
+o.y = Math.max(0, Math.round(drop.pt.y - sz.h / 2));
+chartData._manual = true;
+pinned = [o.id];
+routeDiagram(chartData, { pinned });
+} else {
 lay();
+}
 sel = [{ kind: isGroup ? 'group' : 'element', id: o.id }];
-render({ snap, prevEdges, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
+render({ snap, prevEdges, pinned, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
 editName(sel[0].kind, o.id, true);
 return o.id;
 }
+let paletteDrag = null;   // { kind, btn, startX, startY, pointerId, ghost, w, h, onCanvas, hostId, dropEl }
+function buildPaletteGhost(kind) {
+let el, w, h;
+if (kind === 'note') {
+el = htmlEl('div', 'note c4-ghost');
+el.appendChild(htmlEl('div', 'note-text', 'Note'));
+w = 160; h = 56;
+} else if (kind === 'group') {
+el = htmlEl('div', 'c4-group is-frame c4-ghost');
+const tag = htmlEl('div', 'frame-tag c4-tag');
+tag.appendChild(htmlEl('span', 'c4-tag-name', 'New group'));
+el.appendChild(tag);
+w = TOKENS.c4.emptyW; h = TOKENS.c4.emptyH;
+el.style.width = px(w); el.style.height = px(h);
+} else {
+const sz = c4Card(DEFAULT_NAME[kind], '');
+w = sz.w; h = sz.h;
+el = htmlEl('div', 'c4-node swatch-scope c4-ghost');
+el.dataset.kind = kind;
+el.style.width = px(w); el.style.height = px(h);
+setSwatch(el, KIND_SLOT[kind] || '9');
+const chip = htmlEl('span', 'c4-disc');
+chip.innerHTML = ui.icon(KIND_ICON[kind] || 'cloud', { size: 'tile', fine: true });
+const text = htmlEl('span', 'c4-text');
+text.appendChild(htmlEl('span', 'c4-name t-title', DEFAULT_NAME[kind]));
+el.append(chip, text);
+}
+document.body.appendChild(el);
+return { el, w, h };
+}
+function hostAtPoint(kind, x, y) {
+if (kind === 'note') return '';
+const height = kind === 'group' ? 1 : 0;
+const hit = groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)
+&& x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h
+&& depthOf(g) + height <= MAX_GROUP_DEPTH)
+.sort((a, b) => depthOf(b) - depthOf(a))[0];
+return hit ? hit.id : '';
+}
+function setPaletteDrop(pd, hostId) {
+const next = hostId ? els.groups.get(hostId) || null : null;
+if (pd.dropEl && pd.dropEl !== next) pd.dropEl.classList.remove('c4-drop');
+if (next) next.classList.add('c4-drop');
+pd.dropEl = next;
+pd.hostId = hostId || '';
+}
+function startPaletteDrag(e, kind, btn) {
+delete btn.dataset.dragged;
+if (e.button !== 0 || btn.disabled || presenting() || paletteDrag) return;
+paletteDrag = { kind, btn, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId, ghost: null, w: 0, h: 0, onCanvas: false, hostId: '', dropEl: null };
+window.addEventListener('pointermove', onPaletteMove);
+window.addEventListener('pointerup', onPaletteUp);
+window.addEventListener('pointercancel', cancelPaletteDrag);
+}
+function onPaletteMove(e) {
+const pd = paletteDrag;
+if (!pd || e.pointerId !== pd.pointerId) return;
+if (!pd.ghost) {
+if (Math.hypot(e.clientX - pd.startX, e.clientY - pd.startY) < 4) return;
+const wrap = pd.btn.closest('.dock-pop-wrap');
+if (wrap) {
+wrap.classList.remove('open');
+const trig = wrap.querySelector('.dock-pop-trigger');
+if (trig) trig.setAttribute('aria-expanded', 'false');
+}
+document.body.classList.add('palette-dragging');
+const built = buildPaletteGhost(pd.kind);
+pd.ghost = built.el;
+pd.w = built.w;
+pd.h = built.h;
+}
+pd.ghost.style.transform = `scale(${scale})`;
+pd.ghost.style.left = `${e.clientX - (pd.w * scale) / 2}px`;
+pd.ghost.style.top = `${e.clientY - (pd.h * scale) / 2}px`;
+const under = document.elementFromPoint(e.clientX, e.clientY);
+pd.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
+pd.ghost.classList.toggle('off-target', !pd.onCanvas);
+if (pd.onCanvas && pd.kind !== 'note') {
+const pt = canvasPoint(e);
+setPaletteDrop(pd, hostAtPoint(pd.kind, pt.x, pt.y));
+} else {
+setPaletteDrop(pd, '');
+}
+}
+function endPaletteDrag() {
+window.removeEventListener('pointermove', onPaletteMove);
+window.removeEventListener('pointerup', onPaletteUp);
+window.removeEventListener('pointercancel', cancelPaletteDrag);
+const pd = paletteDrag;
+paletteDrag = null;
+if (pd) {
+if (pd.dropEl) pd.dropEl.classList.remove('c4-drop');
+if (pd.ghost) pd.ghost.remove();
+}
+document.body.classList.remove('palette-dragging');
+return pd;
+}
+function onPaletteUp(e) {
+if (!paletteDrag || e.pointerId !== paletteDrag.pointerId) return;
+const pd = endPaletteDrag();
+const dragged = !!(pd && pd.ghost);
+if (dragged) pd.btn.dataset.dragged = '1';
+if (!dragged || !pd.onCanvas) return;
+const pt = canvasPoint(e);
+if (pd.kind === 'note') {
+addFreeNoteAt({ x: Math.max(0, Math.round(pt.x - pd.w / 2)), y: Math.max(0, Math.round(pt.y - pd.h / 2)) });
+} else {
+addItem(pd.kind, { pt, hostId: pd.hostId });
+}
+}
+function cancelPaletteDrag() {
+const pd = endPaletteDrag();
+if (pd && !pd.ghost) delete pd.btn.dataset.dragged;
+return !!(pd && pd.ghost);
+}
 [...KINDS, 'group'].forEach((k) => {
 const b = document.getElementById(`btn-add-${k}`);
-if (b) b.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k); });
+if (!b) return;
+b.addEventListener('click', (e) => {
+if (b.dataset.dragged) { delete b.dataset.dragged; e.preventDefault(); return; }
+if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k);
+});
+b.addEventListener('pointerdown', (e) => startPaletteDrag(e, k, b));
 });
 function nodeIdAt(x, y) {
 const el = document.elementFromPoint(x, y);
@@ -12092,9 +12446,10 @@ const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
 const noteOf = (id) => notesList().find((n) => n.id === id);
 const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
 const noteTargets = (n) => (n.elements || []).map((id) => ({ kind: 'element', id })).concat((n.groups || []).map((id) => ({ kind: 'group', id })));
+const isFreeNote = (n) => !!n && !noteTargets(n).length && !!n.pos && typeof n.pos.x === 'number' && typeof n.pos.y === 'number';
 const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
 const noteAnchor = (n) => noteTargets(n).find(targetEl);
-const noteShown = (n) => !!noteAnchor(n) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
+const noteShown = (n) => (isFreeNote(n) || !!noteAnchor(n)) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
 const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
 const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
 function renderNotes() {
@@ -12114,7 +12469,8 @@ const { card, text } = ui.noteCard(n, edit ? { onDelete: () => removeNote(n.id),
 card.classList.add('show');
 card.tabIndex = 0;
 card.setAttribute('role', 'note');
-card.setAttribute('aria-label', `Note on ${noteNames(n)}: ${noteText(n) || 'empty'}`);
+const names = noteNames(n);
+card.setAttribute('aria-label', names ? `Note on ${names}: ${noteText(n) || 'empty'}` : `Note: ${noteText(n) || 'empty'}`);
 if (edit) text.addEventListener('blur', () => commitNote(n, text));
 card.addEventListener('pointerdown', (ev) => {
 if (ev.button !== 0 || ev.target.isContentEditable) return;
@@ -12147,7 +12503,15 @@ for (let i = 1; i < p.length; i++) segs.push({ x: Math.min(p[i - 1][0], p[i][0])
 const cards = [...notesLayer.children];
 const sizes = cards.map((c) => ({ w: c.offsetWidth, h: c.offsetHeight }));
 cards.forEach((card, i) => {
-const t = noteAnchor(noteOf(card.dataset.noteId));
+const n = noteOf(card.dataset.noteId);
+if (isFreeNote(n)) {
+const b = { x: Math.round(n.pos.x), y: Math.round(n.pos.y), w: sizes[i].w, h: sizes[i].h };
+boxes.push(b);
+card.style.left = px(b.x);
+card.style.top = px(b.y);
+return;
+}
+const t = noteAnchor(n);
 const b = fitNote(boxOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id)), sizes[i], boxes, segs, C);
 boxes.push(b);   // a placed card is an obstacle for the next
 card.style.left = px(b.x);
@@ -12268,11 +12632,31 @@ sel = [];
 render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
 editNote(note.id);
 }
+function addFreeNoteAt(pt) {
+if (presenting()) return;
+if (isTyping()) document.activeElement.blur();
+motion.cancelAll();
+const useMotion = motion.enabled() && html.childElementCount > 0;
+const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null;
+const note = { id: newId('n'), text: '', pos: { x: Math.max(0, Math.round(pt.x)), y: Math.max(0, Math.round(pt.y)) } };
+(chartData.notes = notesList()).push(note);
+noteCtl.begin(note, true);
+chartData.showNotes = true;
+sel = [];
+render({ snap, enterScale: 0.82, duration: 170 });
+editNote(note.id);
+}
 function editNote(id) { noteCtl.edit(id); }
 function commitNote(n, text) { noteCtl.commit(n, text); }
 function removeNote(id, step = true) { noteCtl.remove(id, step); }
 const btnAddNote = document.getElementById('btn-add-note');
-if (btnAddNote) btnAddNote.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(addNote, 0); else addNote(); });
+if (btnAddNote) {
+btnAddNote.addEventListener('click', (e) => {
+if (btnAddNote.dataset.dragged) { delete btnAddNote.dataset.dragged; e.preventDefault(); return; }
+if (e.detail === 0) setTimeout(addNote, 0); else addNote();
+});
+btnAddNote.addEventListener('pointerdown', (e) => startPaletteDrag(e, 'note', btnAddNote));
+}
 function setColor(slot) {
 const objs = [];
 sel.forEach((s) => {
@@ -12355,8 +12739,8 @@ names.forEach((n) => {
 const b = htmlEl('button', 'c4-icon-opt');
 b.type = 'button';
 b.dataset.icon = n;
-b.title = !n ? `Default for ${KIND_NAME[o.kind] || o.kind}` : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
-b.setAttribute('aria-label', b.title);
+const label = !n ? `Default for ${KIND_NAME[o.kind] || o.kind}` : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
+b.setAttribute('aria-label', label);
 b.setAttribute('aria-pressed', String((o.icon || '') === n));
 if (n.startsWith('logo:')) b.innerHTML = `<span class="c4-icon-logo">${ui.logo(n.slice(5), { size: 'lg' })}</span>`;   // a vendor logo keeps its own colours on a white disc
 else b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
@@ -12481,7 +12865,9 @@ const boxOf = (o) => ({ x: o.x, y: o.y, w: o.w || 0, h: o.h || 0 });
 const anchorOfBox = (b) => ({ x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h });
 function elementBar(bar, o) {
 bar.setAttribute('aria-label', 'Element');
-bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
+const iconBtn = abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo');
+iconBtn.removeAttribute('title');
+bar.appendChild(iconBtn);
 if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
 bar.appendChild(ui.abSep('ab-sep'));
 bar.appendChild(colourPicker(o.color));
@@ -12642,6 +13028,7 @@ if (ui.closeConfirm()) did = true;
 if (closeFloating('cancel')) did = true;
 if (cancelDrag()) did = true;
 if (cancelMove()) did = true;
+if (cancelPaletteDrag()) did = true;
 return did;
 }
 function clearSelectionNow() {
@@ -12907,7 +13294,7 @@ let modeTimer = 0;
 if (modeBadge && document.getElementById('save-status')) document.getElementById('save-status').after(modeBadge);
 function updateModeUi(announce) {
 const man = manualMode();
-if (btnTidy) { btnTidy.setAttribute('aria-pressed', String(!man)); btnTidy.title = man ? TIDY_MANUAL : TIDY_AUTO; }
+if (btnTidy) { btnTidy.removeAttribute('aria-pressed'); btnTidy.title = man ? TIDY_MANUAL : TIDY_AUTO; }
 if (!modeBadge) return;
 const show = man && !presenting(), was = !modeBadge.hidden;
 modeBadge.hidden = !show;

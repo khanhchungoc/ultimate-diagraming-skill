@@ -42,8 +42,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -76,7 +76,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -146,7 +145,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -463,7 +462,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1623,6 +1675,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -1632,6 +1685,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -3284,7 +3338,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -3561,24 +3623,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -7003,7 +7156,7 @@ const LEVELS = ['user', 'subfunction'];   // a file may still carry level: summa
 const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
 const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 let selIds = [];            // selected actors and use cases (primary last)
-let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
+let selOther = null;        // { kind: 'link' | 'subject' | 'note' | 'key', id }
 let hoverLinkId = null;
 let linkBarAvoid = null;    // { id, x, y }: pointer position of the press that selected a link, so the bar flips away from it
 let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
@@ -7301,6 +7454,7 @@ function otherExists(o) {
 if (o.kind === 'link') return !!linkOf(o.id);
 if (o.kind === 'subject') return !!subjectOf(o.id);
 if (o.kind === 'note') return !!noteOf(o.id);
+if (o.kind === 'key') return ucKeyColors().includes(o.id);
 return false;
 }
 function buildSubject(s) {
@@ -7524,25 +7678,44 @@ if (rec.label) { rec.label.classList.toggle('selected', sel); rec.label.classLis
 });
 }
 let legendEl = null;
+function ucKeyColors() {
+const used = [];
+const add = (c) => { if (c && swatchSlot(c) && !used.includes(c)) used.push(c); };
+cases().forEach((u) => add(u.color));
+actors().forEach((a) => add(a.color));
+return used;
+}
 function renderLegend() {
+html.querySelectorAll('.uc-key').forEach((el) => el.remove());
 legendEl = null;
-const key = chartData.colorKey && typeof chartData.colorKey === 'object' ? chartData.colorKey : {};
-const slots = Object.keys(key).filter((k) => key[k] && swatchSlot(k));
-if (!slots.length) return;
+const el = ui.colorKey(ucKeyColors(), chartData.colorKey || {}, { prompts: true, cls: 'uc-key' });
+if (!el) return;
 const C = chartData.canvas || { height: 0 };
-legendEl = htmlEl('div', 'uc-legend');
-legendEl.setAttribute('role', 'list');
-legendEl.setAttribute('aria-label', 'Colour key');
-legendEl.style.top = px(C.height + 12);
-slots.forEach((k) => {
-const item = htmlEl('span', 'uc-legend-item t-detail');
-item.setAttribute('role', 'listitem');
-const dot = htmlEl('span', 'swatch-dot');
-setSwatch(dot, k);
-item.append(dot, document.createTextNode(String(key[k])));
-legendEl.appendChild(item);
-});
+el.style.top = px(C.height + 12);
+legendEl = el;
 html.appendChild(legendEl);
+}
+function setKeyLabel(color, value) {
+const v = String(value == null ? '' : value).trim();
+const was = (chartData.colorKey && chartData.colorKey[color]) || '';
+if (v === was) return false;
+if (v) (chartData.colorKey = chartData.colorKey || {})[color] = v;
+else if (chartData.colorKey) {
+delete chartData.colorKey[color];
+if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey;
+}
+return true;
+}
+function editKey(el) {
+if (!el || presenting()) return;
+const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
+el.classList.remove('is-empty');
+beginEdit(el, {
+raw: was,
+restore: was,
+apply: (value) => setKeyLabel(color, value),
+onCancel: () => { if (!was) el.classList.add('is-empty'); }
+});
 }
 const primaryId = () => selIds[selIds.length - 1] || null;
 function setSel(ids, other) {
@@ -7567,6 +7740,7 @@ el.tabIndex = id === primaryId() ? 0 : -1;
 if (!selIds.length) { const first = els.items.values().next().value; if (first) first.tabIndex = 0; }
 canvas.classList.toggle('is-multi', selIds.length > 1);
 els.subjects.forEach((el, id) => el.classList.toggle('selected', !!selOther && selOther.kind === 'subject' && selOther.id === id));
+html.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!selOther && selOther.kind === 'key' && selOther.id === l.dataset.color));
 applyLinkState();
 applyNoteSelection();
 applyFocus();
@@ -8204,7 +8378,7 @@ if (itemEl && !t.closest('.note-badge')) selectItem(itemEl.dataset.nodeId);
 else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.chevron')) selectOther('subject', st.parentNode.dataset.subjectId); }
 return;
 }
-if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note')) return;
+if (t.closest('.uc-actionbar, .confirm, .chevron, .note-badge, .note-del, .note-link, .note, .uc-key')) return;
 closeMenu();
 const grip = t.closest('.uc-subject-tab');
 if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
@@ -8533,6 +8707,7 @@ if (presenting()) return;
 const o = selOther;
 if (o && o.kind === 'note') { removeNote(o.id); return; }
 if (o && o.kind === 'link') { deleteLink(o.id); return; }
+if (o && o.kind === 'key') { if (setKeyLabel(o.id, '')) { selOther = null; commit(false); } return; }
 if (o && o.kind === 'subject') {
 const n = cases().filter((u) => caseSubjectId(u) === o.id).length;
 const s = subjectOf(o.id);
@@ -8798,6 +8973,13 @@ return { x: m.x, y: m.y, bottom: m.y };
 }
 html.addEventListener('click', (e) => {
 const t = e.target;
+const kl = t instanceof Element && t.closest('.uc-key .color-key-label');
+if (kl) {
+if (kl.isContentEditable || presenting()) return;
+e.stopPropagation();
+selectOther('key', kl.dataset.color);
+return;
+}
 const chev = t instanceof Element && t.closest('.uc-subject-title > .chevron');
 if (chev) { e.stopPropagation(); toggleCollapsed(chev.parentNode.parentNode.dataset.subjectId); return; }
 const badge = t instanceof Element && t.closest('.uc-actor > .note-badge, .uc-case > .note-badge');
@@ -8978,6 +9160,7 @@ function editSelection() {
 if (selOther && selOther.kind === 'note') { editNote(selOther.id); return; }
 if (selOther && selOther.kind === 'subject') { editSubjectName(selOther.id); return; }
 if (selOther && selOther.kind === 'link') { editLinkCondition(selOther.id); return; }
+if (selOther && selOther.kind === 'key') { editKey(html.querySelector(`.uc-key .color-key-label[data-color="${selOther.id}"]`)); return; }
 if (selIds.length === 1) editName(selIds[0]);
 }
 html.addEventListener('dblclick', (e) => {
@@ -8992,6 +9175,8 @@ return;
 if (presenting()) return;
 const t = e.target;
 if (t.closest('.uc-actionbar, .chevron, .note-badge, .port, .note') || t.isContentEditable) return;
+const kl = t.closest('.uc-key .color-key-label');
+if (kl) { e.stopPropagation(); editKey(kl); return; }
 const ep = t.closest('.uc-ep');
 const item = t.closest('.uc-actor, .uc-case');
 if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }
@@ -9203,6 +9388,11 @@ slotColors(d, 'actors', 'useCases');
 DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));
 DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
 renameGeneratedIds(d);
+if (d.colorKey && typeof d.colorKey === 'object') {
+const inUse = new Set([...(d.useCases || []), ...(d.actors || [])].map((q) => q.color).filter(Boolean));
+Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k) || !String(d.colorKey[k] || '').trim()) delete d.colorKey[k]; });
+if (!Object.keys(d.colorKey).length) delete d.colorKey;
+}
 const layout = {};
 ['actors', 'useCases'].forEach((list) => (d[list] || []).forEach((o) => {
 if (isNum(o.x) && isNum(o.y)) { layout[o.id] = { x: o.x, y: o.y }; delete o.x; delete o.y; }

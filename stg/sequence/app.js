@@ -42,8 +42,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -76,7 +76,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -146,7 +145,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -463,7 +462,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1623,6 +1675,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -1632,6 +1685,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -3284,7 +3338,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -3561,24 +3623,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -5630,7 +5783,7 @@ const mIdx = {};
 ms.forEach((m, i) => { mIdx[m.id] = i; });
 const showDetails = data.showDetails !== false;
 const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
-const numW = data.numbered ? SQ.NUM_W : 0;
+const numW = data.numbered !== false ? SQ.NUM_W : 0;
 const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
 const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
 const msgW = (m) => Math.max(labelW(m), detailW(m));
@@ -6966,9 +7119,9 @@ const stepOf = {};
 ms.forEach((m, i) => { stepOf[m.id] = i + 1; });
 const canAnim = motion.enabled() && document.documentElement.dataset.diagramSettled === '1';
 if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-const oldBar = seqHtml.querySelector('.seq-actionbar');
+const oldBar = document.querySelector('#actionbar-layer > .seq-actionbar');
 pendingBarRect = oldBar && canAnim && seqSel && !isPresent() ? oldBar.getBoundingClientRect() : null;
-if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
+if (oldBar && (!seqSel || isPresent())) { motion.hideBar(oldBar); ui.clearBars(); }
 let snap = null, exitSnap = null;
 const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
 const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
@@ -7224,7 +7377,7 @@ const line = seqPut(msgL, `ml:${mid}`, '', `seq-line item-shape${m.kind === 'rep
 seqAttrs(line.el, { d, 'marker-end': marker });
 const mh = seqPut(msgL, `mh:${mid}`, '', 'seq-msg-hit', (c) => svgEl('path', { class: c, 'data-edge-id': mid }));
 seqAttrs(mh.el, { d });
-const numbered = !!chartData.numbered;
+const numbered = chartData.numbered !== false;
 const lab = seqPut(htmlL, `mb:${mid}`, numbered ? 'n' : '', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, (c, refs) => {
 const el = htmlEl('div', c);
 el.dataset.edgeId = mid;
@@ -7297,6 +7450,7 @@ else { if (c.name.dataset.tip !== undefined) delete c.name.dataset.tip; if (c.bo
 applySelection();
 seqPinCache = null;
 pinParticipants();
+ui.repositionBars();
 if (canAnim) {
 const railShift = prevRails !== ps.some((p) => p.rail);
 const hasCollapseChange = fs.some((f) => prevCollapsed.has(f.id) && prevCollapsed.get(f.id) !== !!f.collapsed);
@@ -7383,7 +7537,7 @@ if (chev) motion.anim(chev, [
 { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
 ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-inout') });
 });
-if (!prevNumbered && chartData.numbered) {
+if (!prevNumbered && chartData.numbered !== false) {
 seqHtml.querySelectorAll('.seq-msg-num').forEach((num) => motion.anim(num, [
 { transform: 'scale(0.4)', clipPath: 'inset(0 50% 0 50%)' },
 { transform: 'none', clipPath: 'inset(0 0 0 0)' }
@@ -7445,14 +7599,6 @@ if (!chartData.lifespans) continue;
 const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
 el.style.translate = own > 0 ? `0 ${own}px` : 'none';
 el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
-}
-if (chartData.lifespans && seqSel && seqSel.kind === 'participant') {
-const bar = seqHtml.querySelector('.seq-actionbar.is-pill');
-const p = partById(seqSel.id);
-if (bar && p) {
-const own = pinned ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-bar.style.setProperty('--pin-dy', `${own}px`);
-}
 }
 let below = pinTop + topRowH() + PIN_INSET;
 for (let i = 0; i < fragTags.length; i++) {
@@ -7683,8 +7829,9 @@ return { a, b, ok: !crossesFrame(a, b) };
 }
 function refreshDock() {
 const kind = seqSel && seqSel.kind;
-btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
-btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
+const isNumbered = chartData.numbered !== false;
+btnNumbers.setAttribute('aria-checked', String(isNumbered));
+btnNumbers.title = isNumbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
 const hasDetails = chartData.messages.some((m) => m.detail);
 btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
 setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
@@ -7697,10 +7844,10 @@ if (!anyCollapsed) motion.ghostExit(btnShowAll, { duration: 110, transform: 'sca
 motion.flipDock(() => { btnShowAll.hidden = !anyCollapsed; });
 }
 btnShowAll.title = 'Expand every collapsed frame';
-setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
+setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one (or drag onto the diagram)' : 'Add a participant at the right end (or drag onto the diagram)');
 const msgOk = kind === 'participant' || kind === 'message';
-setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
-: chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
+setDockButton(btnAddMessage, true, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag onto the diagram'
+: chartData.participants.length ? 'Add a message (click, or drag onto the diagram)' : 'Add a participant first');
 const fc = frameCandidate();
 setDockButton(btnFrame, true, fc && fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : frameHint(fc));
 const noteOk = kind === 'participant' || kind === 'message';
@@ -8320,17 +8467,19 @@ const delButton = (title, icon = 'trash') => ui.abButton('seq-ab-btn', 'delete',
 const delSep = () => ui.abSep('seq-ab-sep');
 function drawSelectionTools(sel) {
 if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
-const oldBar = seqHtml.querySelector('.seq-actionbar');
+const oldBar = document.querySelector('#actionbar-layer > .seq-actionbar');
 pendingBarRect = null;
 const barKey = sel.kind ? JSON.stringify([sel.kind, sel.id, sel.ids || null, sel.at || null]) : null;
 const sameBar = barKey !== null && barKey === lastBarKey;
 lastBarKey = barKey;
 if (!sel.kind || isPresent()) {
 if (oldBar) motion.hideBar(oldBar);
+ui.clearBars();
 seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
 return;
 }
 if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
+ui.clearBars();
 seqHtml.querySelectorAll('[data-handle], .seq-add-branch').forEach((el) => el.remove());
 const bar = ui.actionBar('seq-actionbar');
 let at = null;
@@ -8435,24 +8584,21 @@ at = { x: f.x + f.w / 2, top: dv.y, bottom: dv.y + 10 };
 } else {
 return;
 }
-bar.style.left = px(Math.round(at.x));   // before measuring: how far it has to the right edge decides how it wraps
-seqHtml.appendChild(bar);
-if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
 const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
-const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
-if (at.pill) {
-bar.classList.add('is-pill');
-if (chartData.lifespans) {
-const p = partById(sel.id);
-const pinDy = parseFloat(seqCanvas.style.getPropertyValue('--pin-dy')) || 0;
-const pinTop = SQ.TOP + (seqCanvas.classList.contains('seq-pinned') ? pinDy : 0);
-const own = p ? Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top)) : 0;
-bar.style.setProperty('--pin-dy', `${own}px`);
-}
-}
-bar.classList.toggle('is-below', !above);
-const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
-bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
+if (at.pill) bar.classList.add('is-pill');
+bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+bar.addEventListener('click', (e) => {
+e.stopPropagation();
+const b = e.target.closest('.seq-ab-btn');
+if (!b || !b.dataset.act || !seqSel) return;
+runAction(b.dataset.act, b.dataset.value, b);
+});
+const getAnchor = pillEl || (() => {
+const r = seqHtml.getBoundingClientRect();
+const cx = r.left + at.x * scale;
+return { left: cx, right: cx, top: r.top + at.top * scale, bottom: r.top + at.bottom * scale };
+});
+ui.pinBar(bar, getAnchor, { gap: 8 });
 if (!sameBar) motion.showBar(bar);
 }
 seqHtml.addEventListener('click', (e) => {
@@ -8950,20 +9096,24 @@ insertParticipant(i >= 0 ? i + 1 : chartData.participants.length);
 btnAddMessage.addEventListener('click', () => {
 ensureModel();
 const ps = chartData.participants, ms = chartData.messages;
-if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+if (!ps.length) { ui.toast('Add a participant first'); return; }
 let m;
-if (seqSel.kind === 'message') {
+if (seqSel && seqSel.kind === 'message') {
 const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
 if (!last) return;
 const i = ms.indexOf(last), kind = drawnKind(last.from, last.to, i + 1);
 m = { id: seqUid('m'), from: last.from, to: last.to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
 ms.splice(i + 1, 0, m);
 chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
-} else {
+} else if (seqSel && seqSel.kind === 'participant') {
 const i = ps.findIndex((p) => p.id === seqSel.id);
 const to = (ps[i + 1] || ps[i - 1] || ps[i]).id, kind = drawnKind(ps[i].id, to, 0);
 m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
 ms.unshift(m);
+} else {
+const from = ps[0].id, to = (ps[1] || ps[0]).id, kind = drawnKind(from, to, ms.length);
+m = { id: seqUid('m'), from, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+ms.push(m);
 }
 pendingDrawEdges.add(m.id);
 editCreated('message', m.id);
@@ -9012,17 +9162,26 @@ if (outline) outline.remove();
 ghost = null; spot = null; outline = null;
 seqDrop.style.display = 'none';
 lightLifeline(null);
-document.body.classList.remove('seq-dragging');
+document.body.classList.remove('seq-dragging', 'palette-dragging');
 };
 function onMove(e) {
 if (!start) return;
 if (!ghost) {
 if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
 dragged = true;
+const wrap = btn.closest('[data-dock-pop]');
+if (wrap) {
+wrap.classList.remove('open');
+const trig = wrap.querySelector('.dock-pop-trigger');
+if (trig) trig.setAttribute('aria-expanded', 'false');
+}
 ghost = htmlEl('div', `seq-dock-ghost is-${kind}`);
-ghost.innerHTML = kind === 'frame' ? '<span>opt</span>' : '<span>Note</span>';
+ghost.innerHTML = kind === 'frame' ? '<span>opt</span>'
+: kind === 'participant' ? '<span>Participant</span>'
+: kind === 'message' ? '<span>Message</span>'
+: '<span>Note</span>';
 document.body.appendChild(ghost);
-document.body.classList.add('seq-dragging');
+document.body.classList.add('seq-dragging', 'palette-dragging');
 hidePlus();
 }
 Object.assign(ghost.style, kind === 'frame' ? { left: `${e.clientX - 12}px`, top: `${e.clientY - 10}px` } : { left: `${e.clientX}px`, top: `${e.clientY}px` });
@@ -9033,6 +9192,20 @@ lightLifeline(null);
 if (outline) outline.style.display = 'none';
 if (!overCanvas(e) || !chartData.layout) return;
 const pt = canvasPoint(e);
+if (kind === 'participant') {
+const ps = chartData.participants, L = chartData.layout;
+const index = ps.filter((p) => p.x < pt.x).length;
+const left = ps[index - 1], right = ps[index];
+const x = left && right ? (left.x + right.x) / 2
+: left ? left.x + SQ.BOX_W / 2 + 16
+: right ? right.x - SQ.BOX_W / 2 - 16
+: pt.x;
+Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+animateDropLine('y');
+seqDrop.style.display = 'block';
+spot = { pt, index };
+return;
+}
 if (kind === 'frame') {
 const m = nearestMessage(pt.y);
 if (!m) return;
@@ -9048,19 +9221,51 @@ if (!slots.length) return;
 spot = { pt, slot: nearestSlot(slots, pt.y) };
 showDropLine(spot.slot.y, spot.slot.frame);
 if (kind === 'note') { const p = snapLifeline(pt.x); lightLifeline(p && p.id); }
+else if (kind === 'message') { const p = snapLifeline(pt.x) || nearestParticipant(pt.x); lightLifeline(p && p.id); }
+}
+function onCancel() {
+window.removeEventListener('pointermove', onMove);
+window.removeEventListener('pointerup', onUp);
+window.removeEventListener('pointercancel', onCancel);
+clear();
+start = null;
 }
 function onUp() {
 window.removeEventListener('pointermove', onMove);
 window.removeEventListener('pointerup', onUp);
+window.removeEventListener('pointercancel', onCancel);
 const at = spot;
-const noteRect = kind === 'note' && at && ghost ? ghost.getBoundingClientRect() : null;
+const ghostRect = at && ghost ? ghost.getBoundingClientRect() : null;
+const noteRect = kind === 'note' ? ghostRect : null;
 const tagSpan = kind === 'frame' && at && outline ? outline.querySelector('span') : null;
 const frameTagRect = tagSpan ? tagSpan.getBoundingClientRect() : null;
 clear();
 start = null;
 if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
+if (dragged && kind === 'message' && !chartData.participants.length) { ui.toast('Add a participant first'); return; }
 if (!dragged || !at) return;
 ensureModel();
+if (kind === 'participant') {
+pendingOriginRect = ghostRect;
+insertParticipant(at.index);
+return;
+}
+if (kind === 'message') {
+const ps = chartData.participants;
+if (!ps.length) { ui.toast('Add a participant first'); return; }
+const from = snapLifeline(at.pt.x) || nearestParticipant(at.pt.x);
+const fi = ps.indexOf(from);
+const to = ps[fi + 1] || ps[fi - 1] || from;
+const idx = at.slot.index;
+const mKind = drawnKind(from.id, to.id, idx);
+expandFramesHiding([from.id, to.id]);
+const m = { id: seqUid('m'), from: from.id, to: to.id, label: mKind === 'reply' ? 'Reply' : 'Message', kind: mKind };
+chartData.messages.splice(idx, 0, m);
+joinFrames(at.slot, m.id);
+pendingDrawEdges.add(m.id);
+editCreated('message', m.id);
+return;
+}
 if (kind === 'note') {
 const n = Object.assign({ id: seqUid('n'), text: 'Note' }, at.slot.note);
 setNoteSpot(n, at.pt.x);
@@ -9084,13 +9289,16 @@ start = { x: e.clientX, y: e.clientY };
 dragged = false;
 window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp);
+window.addEventListener('pointercancel', onCancel);
 });
 btn.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopImmediatePropagation(); } }, true);
 }
+dockDrag(btnAddParticipant, 'participant');
+dockDrag(btnAddMessage, 'message');
 dockDrag(btnFrame, 'frame');
 dockDrag(btnAddNote, 'note');
 btnNumbers.addEventListener('click', () => {
-if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
+if (chartData.numbered === false) delete chartData.numbered; else chartData.numbered = false;
 relayout();
 });
 btnLifespans.addEventListener('click', () => {

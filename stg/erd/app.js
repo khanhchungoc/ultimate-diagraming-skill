@@ -42,8 +42,8 @@ const b = document.createElement('button');
 b.type = 'button';
 b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
 b.dataset.value = sw.slot;
-b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
-b.setAttribute('aria-label', b.title);
+const swLabel = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
+b.setAttribute('aria-label', swLabel);
 b.setAttribute('aria-pressed', String(now === sw.slot));
 const dot = document.createElement('span');
 dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
@@ -76,7 +76,6 @@ dot.className = slot ? 'swatch-dot' : 'swatch-dot is-none';
 if (slot) setSwatch(dot, slot);
 else { dot.style.removeProperty('--swatch-color'); delete dot.dataset.sw; dot.classList.remove('swatch-scope'); }
 const label = w ? `Colour: ${w.name}` : (o.white && slot === o.white ? 'Colour: white' : 'Colour: none');
-trig.title = label;
 trig.setAttribute('aria-label', label);
 };
 syncTrigger(current);
@@ -146,7 +145,7 @@ let shift = 0;
 if (r2.left < pad) shift = pad - r2.left;
 else if (r2.right > window.innerWidth - pad) shift = (window.innerWidth - pad) - r2.right;
 if (shift) {
-const uiScale = bar ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
+const uiScale = (bar && !bar.closest('#actionbar-layer')) ? (parseFloat(getComputedStyle(bar).getPropertyValue('--ui-scale')) || 1) : 1;
 pop.style.setProperty('--pop-shift', `${Math.round(shift / uiScale)}px`);
 }
 const above = pop.classList.contains('is-above');
@@ -463,7 +462,60 @@ box.appendChild(item);
 });
 return box;
 }
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+let pinnedBars = [];
+function placePinnedBar(entry) {
+const vp = document.getElementById('viewport');
+if (!vp || !entry.bar.isConnected) return;
+const anchor = entry.getAnchor;
+if (anchor && anchor.nodeType === 1 && !anchor.isConnected) { entry.bar.remove(); return; }
+const raw = typeof anchor === 'function' ? anchor() : (anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null);
+if (!raw) return;
+const vr = vp.getBoundingClientRect();
+const aLeft = raw.left - vr.left, aRight = raw.right - vr.left, aTop = raw.top - vr.top, aBottom = raw.bottom - vr.top;
+const { w, h } = barSize(entry.bar);
+const gap = entry.opts.gap !== undefined ? entry.opts.gap : 10;
+const topLimit = chromeTop() + 8;
+const preferBelow = entry.opts.prefer === 'below';
+const fitsAbove = aTop - gap - h >= topLimit;
+const fitsBelow = aBottom + gap + h <= vr.height - 8;
+const above = preferBelow ? (!fitsBelow && fitsAbove) : (fitsAbove || !fitsBelow);
+entry.bar.classList.toggle('is-below', !above);
+let top = above ? aTop - gap - h : aBottom + gap;
+top = Math.max(topLimit, Math.min(vr.height - h - 8, top));
+let left = entry.opts.align === 'left' ? aLeft : ((aLeft + aRight) / 2 - w / 2);
+left = Math.max(8, Math.min(vr.width - w - 8, left));
+entry.bar.style.left = `${Math.round(left)}px`;
+entry.bar.style.top = `${Math.round(top)}px`;
+}
+function clearBars() {
+for (let i = 0; i < pinnedBars.length; i++) pinnedBars[i].bar.remove();
+pinnedBars = [];
+const layer = document.getElementById('actionbar-layer');
+if (layer) layer.innerHTML = '';
+}
+function pinBar(bar, getAnchor, opts) {
+const layer = document.getElementById('actionbar-layer');
+if (!layer) return bar;
+const o = opts || {};
+if (o.exclusive !== false) clearBars();
+if (bar.parentNode !== layer) layer.appendChild(bar);
+if (bar.classList.contains('is-wrap')) fitBar(bar);
+const entry = { bar, getAnchor, opts: o };
+pinnedBars.push(entry);
+placePinnedBar(entry);
+return bar;
+}
+function repositionBars() {
+if (!pinnedBars.length) return;
+pinnedBars = pinnedBars.filter((e) => {
+if (!e.bar.isConnected) return false;
+if (e.getAnchor && e.getAnchor.nodeType === 1 && !e.getAnchor.isConnected) { e.bar.remove(); return false; }
+placePinnedBar(e);
+return true;
+});
+}
+window.addEventListener('resize', repositionBars);
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
@@ -1623,6 +1675,7 @@ stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo 
 showZoom();
 }
 if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
+ui.repositionBars();
 }
 const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
 const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
@@ -1632,6 +1685,7 @@ if (el.dataset.noTip !== undefined) return;
 if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
 const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
 if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+if (el.dataset.autoTitle) { el.removeAttribute('title'); delete el.dataset.autoTitle; }
 }
 });
 function publishRenderReport() {
@@ -3284,7 +3338,15 @@ return formatJson(buildDiskData());
 }
 function buildSavedHtml(sourceText) {
 const updatedJson = serializeDiagramJson();
-const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+let fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+if (skipSaveModalFlag || document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const promptMeta = '<meta name="diagram-save-prompt" content="off">';
+if (/<meta name="diagram-save-prompt"[^>]*>/.test(fullHtml)) {
+fullHtml = fullHtml.replace(/<meta name="diagram-save-prompt"[^>]*>/, () => promptMeta);
+} else {
+fullHtml = fullHtml.replace(/(<meta charset="UTF-8">)/i, (_, m) => `${m}\n  ${promptMeta}`);
+}
+}
 const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
 const replacedHtml = stampReadingGuide(fullHtml
 .replace(
@@ -3561,24 +3623,115 @@ accept: { 'text/html': ['.html'] }
 }]
 });
 }
-async function writeFile(replacedHtml, picked) {
-if (canPickSaveFile()) {
-let pickedNow = false;
+const SKIP_SAVE_MODAL_KEY = 'ultimate-diagram-skip-save-modal';
+let skipSaveModalFlag = !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+function shouldSkipSaveModal() {
+if (skipSaveModalFlag) return true;
 try {
-if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
-const loc = !fileHandle && !picked ? localFilePath() : null;
+if (localStorage.getItem(SKIP_SAVE_MODAL_KEY) === '1') return true;
+} catch (_) {}
+return !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+}
+function markSkipSaveModal() {
+skipSaveModalFlag = true;
+try { localStorage.setItem(SKIP_SAVE_MODAL_KEY, '1'); } catch (_) {}
+if (!document.querySelector('meta[name="diagram-save-prompt"][content="off"]')) {
+const m = document.createElement('meta');
+m.name = 'diagram-save-prompt';
+m.content = 'off';
+if (document.head) document.head.appendChild(m);
+}
+}
+function savePathText(loc) {
+if (!loc) return { text: '', mac: false };
+const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+const mac = !loc.win && /mac/.test(plat);
+return { text: mac ? loc.folder : loc.file, mac };
+}
+(function wireSaveModalLightDismiss() {
+const modal = document.getElementById('save-modal');
+if (!modal || ('closedBy' in HTMLDialogElement.prototype)) return;
+const outside = (e) => {
+const r = modal.getBoundingClientRect();
+return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
+})();
+async function openSaveModal(loc, onContinue) {
+const modal = document.getElementById('save-modal');
+const { text, mac } = savePathText(loc);
+const copied = text ? await copyText(text) : false;
+if (!modal || typeof modal.showModal !== 'function') {
+onContinue();
+return;
+}
+const titleEl = document.getElementById('save-modal-title');
+const msgEl = document.getElementById('save-modal-msg');
+const pathEl = document.getElementById('save-modal-path');
+const skipEl = document.getElementById('save-modal-skip');
+const pasteHint = mac
+? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
+: (loc && !loc.win
+? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
+: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
+if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (msgEl) {
+msgEl.textContent = text
+? (copied
+? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
+: `Copy the path below, then in the next window ${pasteHint}`)
+: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+}
+if (pathEl) {
+pathEl.textContent = text;
+pathEl.hidden = !text;
+}
+if (skipEl) skipEl.checked = false;
+modal.returnValue = '';
+const onClose = () => {
+const rv = modal.returnValue;
+modal.returnValue = '';
+if (rv !== 'continue') return;
+if (skipEl && skipEl.checked) markSkipSaveModal();
+onContinue();
+};
+modal.addEventListener('close', onClose, { once: true });
+modal.showModal();
+}
+async function writeFile(replacedHtml, picked) {
+const usePicker = canPickSaveFile();
+let loc = null;
+if (usePicker && !picked) {
+try {
+if (!fileHandle) fileHandle = await loadStoredHandle();
+loc = !fileHandle ? localFilePath() : null;
 if (!fileHandle && loc && canPickDirectory()) {
 fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
 if (fileHandle) storeHandle(fileHandle);
 }
-if (!fileHandle) {
-if (loc) {
-const linkFolder = canPickDirectory()
-? () => linkFolderAndSave(loc, replacedHtml)
-: null;
-askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
+} catch (_) {}
+} else if (!picked) {
+loc = localFilePath();
+}
+if (!fileHandle && !picked) {
+if (!shouldSkipSaveModal()) {
+await openSaveModal(loc, async () => {
+const html = skipSaveModalFlag && document.getElementById('diagram-data')
+? buildSavedHtml(await loadSourceText())
+: replacedHtml;
+await writeFile(html, true);
+});
 return;
 }
+const { text } = savePathText(loc);
+if (text) await copyText(text);
+}
+if (usePicker) {
+let pickedNow = false;
+try {
+if (!fileHandle) {
 fileHandle = await pickSaveFile();
 pickedNow = true;
 }
@@ -7550,7 +7703,7 @@ function erdSelExists(sel) {
 if (sel.kind === 'entity') return !!erdEntity(sel.id);
 if (sel.kind === 'rel') return !!erdRel(sel.id);
 if (sel.kind === 'col') { const e = erdEntity(sel.entity); return !!e && (e.columns || []).some((c) => c.name === sel.col); }
-if (sel.kind === 'key') return !!(chartData.colorKey && chartData.colorKey[sel.color]) && erdKeyColors().includes(sel.color);
+if (sel.kind === 'key') return erdKeyColors().includes(sel.color);
 return false;
 }
 function buildEntity(src, asCard) {
@@ -7578,7 +7731,6 @@ if (flat) el.classList.add('is-flat');
 if (e.collapsed === true) el.classList.add('is-collapsed');
 const head = erdHtmlEl('div', 'erd-head');
 const name = erdHtmlEl('span', 'erd-name', erName(e));
-name.title = erName(e);
 head.appendChild(name);
 if (!asCard) head.appendChild(buildPort(''));
 if (!asCard && (e.columns || []).length && detail !== 'names') {
@@ -7610,9 +7762,6 @@ const t = erdHtmlEl('span', 'erd-col-type', `${col.type == null ? '' : col.type}
 if (col.nullable) t.title = 'Nullable';
 row.appendChild(t);
 }
-const tip = [col.pk && col.fk ? 'Primary key, foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '',
-col.unique ? 'unique' : '', col.nullable ? 'nullable' : '', col.note || ''].filter(Boolean).join(' · ');
-if (tip) row.title = tip;
 el.appendChild(row);
 });
 if (vis.more) {
@@ -7772,18 +7921,14 @@ return erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erd
 }
 function applyHighlight() {
 erdHtml.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!erdSel && erdSel.kind === 'key' && erdSel.color === l.dataset.color));
-erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .is-dim')
-.forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'is-dim'));
+erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl')
+.forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl'));
 erdCanvas.querySelectorAll('.ov-show').forEach((el) => el.classList.remove('ov-show'));
-const keep = new Set();
-const keepRels = new Set();
 const focus = erdFocusId();
 if (focus) {
-keep.add(focus);
 erdRelsList().forEach((rel) => {
 const kind = rel.from === focus ? 'out' : rel.to === focus ? 'in' : null;
 if (!kind) return;
-keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
 const g = relEl(rel.id), label = labelEl(rel.id);
 if (g) g.classList.add(`hl-${kind}`);
 if (label) { label.classList.add(`hl-${kind}`, 'ov-show'); }
@@ -7806,16 +7951,11 @@ if (rowEl) rowEl.classList.add('key-hl');
 } else if (hoverRelId) {
 const rel = erdRel(hoverRelId);
 if (rel) {
-keep.add(rel.from); keep.add(rel.to); keepRels.add(rel.id);
 const g = relEl(rel.id), label = labelEl(rel.id);
 if (g) g.classList.add('hover');
 if (label) label.classList.add('hover', 'ov-show');
 markRows(rel, 'hover');
 }
-}
-if (keep.size) {
-erdHtml.querySelectorAll('.erd-entity').forEach((el) => { if (!keep.has(el.dataset.nodeId)) el.classList.add('is-dim'); });
-[...erdRels.children, ...erdHtml.querySelectorAll('.edge-label')].forEach((el) => { if (!keepRels.has(el.dataset.edgeId)) el.classList.add('is-dim'); });
 }
 erdCanvas.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
 if (erdSel) {
@@ -8126,7 +8266,6 @@ cardOf: (id) => noteCard(id),
 canEdit: () => !erdPresenting(),
 openCard: (note) => {
 cancelDrag();
-setRelArmed(false);
 setNotePicking(false);
 selectNote(note.id);
 if (!noteCard(note.id)) renderNotes(false);
@@ -8398,10 +8537,8 @@ updateNotesButton();
 updateStatus(true);
 });
 const erdBtnAddTable = document.getElementById('btn-add-table');
-const erdBtnAddRel = document.getElementById('btn-add-relationship');
 const erdBtnAddNote = document.getElementById('btn-add-note');
 let erdDrag = null;            // the pointer drag in progress: { startX, startY, dx, dy, moved, move?, drop?, click?, cleanup? }
-let relArmed = false;          // the Relationship tool waits for a drag from a column
 let notePicking = false;       // the Note tool waits for a table
 let erdUidCounter = 0;
 const erdUid = (prefix) => `${prefix}_${Date.now()}_${erdUidCounter++}`;
@@ -8615,14 +8752,13 @@ if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
 bar.setAttribute('aria-label', 'Relationship');
 bar.classList.add('is-wrap', 'is-wide');
 const ends = erRelEnds(rel, chartData);
-bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
+const fromEnt = erdEntity(rel.from), toEnt = erdEntity(rel.to);
+bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (fromEnt ? erName(fromEnt) : '') || rel.from));
 ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
+bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', (toEnt ? erName(toEnt) : '') || rel.to));
 ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
 bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
-'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
 bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
 bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
 const gap = ERD_HANDLE_GAP * (erdOverview ? 1 / scale : 1);   // the markers grow by 1 / scale in the overview
@@ -8706,7 +8842,6 @@ if (!rel) return;
 const ends = erRelEnds(rel, chartData);
 if (act === 'fromEnd' && ends.fromEnd !== value) { rel.fromEnd = value; commit(); }
 else if (act === 'toEnd' && ends.toEnd !== value) { rel.toEnd = value; commit(); }
-else if (act === 'identifying') { if (rel.identifying === true) delete rel.identifying; else rel.identifying = true; commit(); }
 else if (act === 'reverse') reverseRelationship(rel);
 else if (act === 'label') editRelLabel(rel.id);
 }
@@ -8730,8 +8865,7 @@ const keySpec = [{ selector: '.color-key-item[data-color]', key: 'color' }];
 const snap = !erdInRender && motion.enabled() ? motion.capture(erdHtml, keySpec) : null;
 erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
 const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
-const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
-const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
+const el = boxes.length && ui.colorKey(erdKeyColors(), key, { prompts: true, cls: 'erd-key' });
 if (!el) return;
 el.querySelectorAll('.color-key-item').forEach((it) => { const lbl = it.querySelector('.color-key-label'); if (lbl) it.dataset.color = lbl.dataset.color; });
 Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
@@ -8749,7 +8883,12 @@ function editKey(el) {
 if (!el || erdPresenting()) return;
 const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
 el.classList.remove('is-empty');
-beginEdit(el, { raw: was, restore: was, apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); } });
+beginEdit(el, {
+raw: was,
+restore: was,
+apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); },
+onCancel: () => { if (!was) el.classList.add('is-empty'); }
+});
 el.addEventListener('blur', () => { if (erdKeyDraft) { erdKeyDraft = null; drawKey(); } });
 }
 function nameColor(color) {
@@ -8787,13 +8926,12 @@ if (erdSel.id !== id) { erdSel = { kind: 'entity', id }; erdMultiOwner = erdSel;
 beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
 return;
 }
-const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
+const port = t.closest('.port:not(.port-end)'), row = t.closest('.erd-row');
 if (port) {
 const from = { entity: id, col: port.dataset.col || null };
 beginDrag(e, connectDrag(from, () => (from.col ? selectCol(id, from.col) : selectEntity(id))));
 return;
 }
-if (relArmed && (row || head)) { beginDrag(e, connectDrag({ entity: id, col: row ? row.dataset.col : null })); return; }
 if (row && e.pointerType === 'touch' && erdSel && erdSel.kind === 'entity' && erdSel.id === id) {
 const drag = entityDrag(id, entEl);
 drag.click = () => selectCol(id, row.dataset.col);
@@ -8805,6 +8943,13 @@ selectEntity(id);
 beginDrag(e, entityDrag(id, entEl));
 }
 erdHtml.addEventListener('pointerdown', onErdPointerDown);
+function syncIdentifying(rel) {
+if (!rel) return;
+const from = erdEntity(rel.from);
+const cols = Array.isArray(rel.columns) ? rel.columns : [];
+const isId = !!(from && cols.length > 0 && cols.every((n) => (from.columns || []).some((c) => c.name === n && c.pk === true)));
+if (isId) rel.identifying = true; else delete rel.identifying;
+}
 function connectDrag(from, onClick) {
 const a = erdEntity(from.entity);
 return {
@@ -8817,7 +8962,6 @@ d.target = erdTargetAt(e);
 markTarget(d.target);
 },
 drop(e, d) {
-if (relArmed) setRelArmed(false);
 if (!d.target) { render(); return; }
 connectEntities(from, d.target);
 }
@@ -8837,7 +8981,7 @@ if (useSrc) rel.columns = [srcCol.name];
 if (dstCol && dstCol.name !== erdFirstPk(b)) rel.toColumns = [dstCol.name];
 rel.fromEnd = 'zeroOrMany';
 rel.toEnd = useSrc && srcCol.nullable ? 'zeroOrOne' : 'one';
-if (useSrc && srcCol.pk) rel.identifying = true;
+syncIdentifying(rel);
 const same = erdRelsList().find((r) => r.from === rel.from && r.to === rel.to && JSON.stringify(r.columns || null) === JSON.stringify(rel.columns || null)
 && JSON.stringify(r.toColumns || null) === JSON.stringify(rel.toColumns || null));
 if (same) { erdHint('Those two are already related that way'); selectRel(same.id); render(); return false; }
@@ -8879,6 +9023,7 @@ if (draft.from === draft.to && !(draft.columns && draft.columns.length)) { erdHi
 Object.keys(rel).forEach((k) => delete rel[k]);
 Object.assign(rel, draft);
 if (role === 'from' && col && !col.fk) col.fk = true;
+syncIdentifying(rel);
 commit();
 }
 };
@@ -8896,6 +9041,7 @@ rel.toEnd = ends.fromEnd;
 if (Array.isArray(rel.toColumns) && rel.toColumns.length) rel.columns = rel.toColumns.slice();
 else if (toCol) rel.columns = [toCol]; else delete rel.columns;
 if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
+syncIdentifying(rel);
 commit();
 const line = relEl(rel.id)?.querySelector('.edge-line');
 if (line && motion.enabled()) {
@@ -9003,6 +9149,13 @@ commit({ snap, duration: 180, easing: 'curve-spring-settle' });
 function beginEdit(el, opts = {}) {
 if (!el || el.isContentEditable) return;
 if (opts.raw !== undefined) el.textContent = opts.raw;
+const card = el.closest('.erd-entity');
+if (card) {
+const ent = erdEntity(card.dataset.nodeId);
+const minW = ent && ent.box ? ent.box.w : card.offsetWidth;
+card.style.setProperty('--edit-min-w', erdPx(minW));
+card.classList.add('has-editing');
+}
 el.classList.add('is-editing');
 el.contentEditable = 'plaintext-only';
 el.spellcheck = false;
@@ -9021,6 +9174,10 @@ el.removeEventListener('blur', finish);
 el.removeEventListener('keydown', onKey);
 el.contentEditable = 'false';
 el.classList.remove('is-editing');
+if (card) {
+card.classList.remove('has-editing');
+card.style.removeProperty('--edit-min-w');
+}
 const value = el.textContent.replace(/\s*\n\s*/g, ' ').trim();
 const changed = value !== original || (how === 'enter' && value === '') ? !!opts.apply(value, how) : false;
 if (changed) commit();
@@ -9178,7 +9335,7 @@ if (!col) return;
 col.name = to;
 notesList().forEach((n) => { if (n.column === from && (n.entities || [])[0] === e.id) n.column = to; });
 erdRelsList().forEach((r) => {
-if (r.from === e.id && Array.isArray(r.columns)) r.columns = r.columns.map((n) => (n === from ? to : n));
+if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.map((n) => (n === from ? to : n)); syncIdentifying(r); }
 if (r.to === e.id && Array.isArray(r.toColumns)) r.toColumns = r.toColumns.map((n) => (n === from ? to : n));
 });
 if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === from) erdSel.col = to;
@@ -9190,7 +9347,7 @@ chartData.notes = notesList().filter((n) => !(n.column === name && (n.entities |
 if (!chartData.notes.length) delete chartData.notes;
 }
 erdRelsList().forEach((r) => {
-if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; }
+if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; syncIdentifying(r); }
 if (r.to === e.id && Array.isArray(r.toColumns)) { r.toColumns = r.toColumns.filter((n) => n !== name); if (!r.toColumns.length) delete r.toColumns; }
 });
 if (erdSel && erdSel.kind === 'col' && erdSel.entity === e.id && erdSel.col === name) erdSel = { kind: 'entity', id: e.id };
@@ -9223,6 +9380,11 @@ function toggleFlag(entityId, name, flag) {
 const e = erdEntity(entityId), col = e && (e.columns || []).find((c) => c.name === name);
 if (!col) return;
 if (col[flag]) delete col[flag]; else col[flag] = true;
+if (flag === 'pk') {
+erdRelsList().forEach((r) => {
+if (r.from === entityId && Array.isArray(r.columns) && r.columns.includes(name)) syncIdentifying(r);
+});
+}
 commit();
 if (!motion.enabled()) return;
 const row = colEls(entityId).find((r) => r.dataset.col === name);
@@ -9434,7 +9596,6 @@ function onNotePointerDown(ev, id, card) {
 if (ev.button !== 0 || ev.target.isContentEditable) return;
 ev.stopPropagation();
 if (erdPresenting()) return;
-setRelArmed(false);
 selectNote(id);
 const x0 = parseFloat(card.style.left) || 0, y0 = parseFloat(card.style.top) || 0;
 beginDrag(ev, {
@@ -9468,39 +9629,30 @@ const id = erdSelectedEntityId();
 e.preventDefault();
 if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
 });
-function setRelArmed(on) {
-if (relArmed === on) return;
-relArmed = on;
-document.body.classList.toggle('erd-armed', on);
-if (erdBtnAddRel) erdBtnAddRel.setAttribute('aria-pressed', String(on));
-if (on) erdHint('Drag from a column to another table or column · <kbd>Esc</kbd> to cancel', true); else if (!notePicking) erdHint(null);
+function closeDockPop(btn) {
+const wrap = btn && btn.closest('.dock-pop-wrap');
+if (!wrap) return;
+wrap.classList.remove('open');
+const trigger = wrap.querySelector('.dock-pop-trigger');
+if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 function setNotePicking(on) {
 if (notePicking === on) return;
 notePicking = on;
 document.body.classList.toggle('note-picking', on);
 if (erdBtnAddNote) erdBtnAddNote.setAttribute('aria-pressed', String(on));
-if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
+if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else erdHint(null);
 }
 function giveNoteTo(id, col) {
 setNotePicking(false);
 if (col) selectCol(id, col); else selectEntity(id);
 addNoteTo(id, col);
 }
-if (erdBtnAddRel) {
-erdBtnAddRel.setAttribute('aria-pressed', 'false');
-erdBtnAddRel.addEventListener('click', () => {
-if (erdPresenting()) return;
-setNotePicking(false);
-setRelArmed(!relArmed);
-});
-}
 let tableToolDrag = null;   // { startX, startY, ghost, pt }
 if (erdBtnAddTable) {
 erdBtnAddTable.addEventListener('click', (e) => {
 if (erdBtnAddTable.dataset.dragged) { delete erdBtnAddTable.dataset.dragged; e.preventDefault(); return; }
 if (erdPresenting()) return;
-setRelArmed(false);
 setNotePicking(false);
 addTable();
 });
@@ -9518,6 +9670,7 @@ const d = tableToolDrag;
 if (!d) return;
 if (!d.ghost) {
 if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+closeDockPop(erdBtnAddTable);
 d.ghost = erdHtmlEl('div', 'erd-entity erd-ghost');
 d.ghost.style.width = erdPx(ER.MIN_W);
 d.ghost.appendChild(erdHtmlEl('div', 'erd-head', ''));
@@ -9567,7 +9720,7 @@ if (erdPresenting()) return;
 const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
 if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
 else if (noteId) editNote(noteId);
-else { setRelArmed(false); setNotePicking(false); addFreeNote(); }
+else { setNotePicking(false); addFreeNote(); }
 });
 erdBtnAddNote.addEventListener('pointerdown', (e) => {
 delete erdBtnAddNote.dataset.dragged;
@@ -9595,6 +9748,7 @@ const d = noteToolDrag;
 if (!d) return;
 if (!d.ghost) {
 if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+closeDockPop(erdBtnAddNote);
 setNotePicking(false);
 d.ghost = erdHtmlEl('div', 'note note-ghost');
 d.ghost.appendChild(erdHtmlEl('div', 'note-text', 'Note'));
@@ -9687,7 +9841,6 @@ if (ui.closeConfirm()) did = true;
 if (cancelDrag()) did = true;
 if (cancelTableToolDrag()) did = true;
 if (cancelNoteToolDrag()) did = true;
-if (relArmed) { setRelArmed(false); did = true; }
 if (notePicking) { setNotePicking(false); did = true; }
 return did;
 }
