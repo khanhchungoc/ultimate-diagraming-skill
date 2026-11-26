@@ -2,7 +2,7 @@
 // (WCAG 2.5.8): small controls must keep an invisible hit area of at least 24x24 px.
 //   node dev/tests/e2e/e2e_a11y.mjs [--browser <chrome>] [--noanim]
 // Builds each page from dev/examples into a temp directory; needs node_modules/axe-core.
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -12,7 +12,12 @@ import { argOf, findBrowser, isNoAnim, launch, sleep } from './cdp.mjs';
 const browser = findBrowser(argOf('browser'));
 if (!browser) { console.error('[ERROR] Chrome/Chromium not found. Pass --browser <path> or set CHROME.'); process.exit(1); }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const axeSrc = readFileSync(join(root, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
+const axePath = join(root, 'node_modules', 'axe-core', 'axe.min.js');
+if (!existsSync(axePath)) {
+  console.error('[ERROR] axe-core not installed (missing node_modules/axe-core/axe.min.js; run npm ci)');
+  process.exit(1);
+}
+const axeSrc = readFileSync(axePath, 'utf8');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const HIT = 24;
 const TYPES = {

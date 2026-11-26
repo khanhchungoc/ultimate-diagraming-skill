@@ -1,0 +1,3 @@
+{
+  "install": "set -euo pipefail; [ -f node_modules/axe-core/axe.min.js ] || npm ci --ignore-scripts; mkdir -p \"$HOME/.local/bin\"; sed -i '/case \\$- in/,/esac/d' \"$HOME/.bashrc\" 2>/dev/null || true; grep -qxF 'export PATH=\"$HOME/.local/bin:$PATH\"' \"$HOME/.bashrc\" 2>/dev/null || echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> \"$HOME/.bashrc\"; export PATH=\"$HOME/.local/bin:$PATH\"; command -v codegraph >/dev/null 2>&1 || npm install -g --prefix \"$HOME/.local\" @colbymchenry/codegraph; if [ -f .codegraph/codegraph.db ]; then CODEGRAPH_TELEMETRY=0 codegraph sync -q; else CODEGRAPH_TELEMETRY=0 codegraph init -y --local-only; fi"
+}

@@ -976,9 +976,11 @@ try {
     URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
     document.querySelector('[data-export="svg"]').click();
   })`);
-  // the lifeline of the sky participant draws its slot's fixed line colour (--sw-1-line, #2f7da8), inlined as computed rgb()
-  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && /stroke:rgb\(47, 125, 168\)/.test(svgOut)
-    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
+  // the lifeline of the sky participant draws its slot's fixed line colour (--sw-1-line), inlined as computed rgb()
+  const skyLineRgb = await t.ev(`(() => { const p = document.createElement('div'); p.style.color = 'var(--sw-1-line)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()`);
+  const hasSkyStroke = svgOut.includes(`stroke:${skyLineRgb}`);
+  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && hasSkyStroke
+    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${hasSkyStroke} (${skyLineRgb}) ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
   // Clearing: "none" removes the colour, and an unused key entry is dropped on save
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   await t.clickOn('.seq-actionbar .swatch-trigger');

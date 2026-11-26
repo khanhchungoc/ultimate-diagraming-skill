@@ -270,15 +270,43 @@ export async function launch(browser) {
       const armed = api.ev(`new Promise((resolve) => {
         const el = document.getElementById('diagram-data');
         if (!el) { resolve(null); return; }
-        let done = false;
-        const finish = () => { if (done) return; done = true; obs.disconnect(); clearTimeout(tm); resolve(el.textContent); };
-        const obs = new MutationObserver(finish);
+        const modal = document.getElementById('save-modal');
+        let skipModal = !modal || !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]');
+        try { if (localStorage.getItem('ultimate-diagram-skip-save-modal') === '1') skipModal = true; } catch (_) {}
+        let done = false, dataDone = false, modalDone = skipModal, modalTm = null;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          obs.disconnect();
+          if (modalObs) modalObs.disconnect();
+          clearTimeout(tm);
+          if (modalTm) clearTimeout(modalTm);
+          if (modal && modal.open) modal.close('cancel');
+          resolve(el.textContent);
+        };
+        const closeModalIfOpen = () => {
+          if (!modal || !modal.open) return false;
+          modal.close('cancel');
+          modalDone = true;
+          if (modalObs) modalObs.disconnect();
+          return true;
+        };
+        const modalObs = modal && !skipModal ? new MutationObserver(() => {
+          if (closeModalIfOpen() && dataDone) finish();
+        }) : null;
+        if (modalObs) modalObs.observe(modal, { attributes: true, attributeFilter: ['open'] });
+        const obs = new MutationObserver(() => {
+          dataDone = true;
+          obs.disconnect();
+          closeModalIfOpen();
+          if (modalDone) finish();
+          else modalTm = setTimeout(finish, Math.min(400, ${timeout}));
+        });
         obs.observe(el, { childList: true, characterData: true, subtree: true });
         const tm = setTimeout(finish, ${timeout});
       })`);
       await api.press('s', { modifiers: 2 });
       const text = await armed;
-      await api.ev(`(() => { const m = document.getElementById('save-modal'); if (m && m.open) m.close('cancel'); })()`);
       return raw ? text : JSON.parse(text);
     },
     /** Run a named independent test section, honouring --shard k/n, --section / E2E_SECTIONS, and --exclude-section. */
