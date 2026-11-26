@@ -78,7 +78,7 @@
         onChange: () => updateStatus(true),
       });
       let notesLayer = null;
-      const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label, badge }
+      const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element, kept across renders (render); edges: id -> { g, line, hit, label, badge, ... }
       let byId = new Map();    // group id -> group (rebuilt each render)
       let elById = new Map();  // element id -> element (rebuilt each render)
       let edgeById = new Map(); // edge id -> edge (rebuilt each render)
@@ -214,17 +214,43 @@
       ];
       function captureEdges() {
         const m = new Map();
-        edgesG.querySelectorAll('.c4-edge[data-edge-id]').forEach((g) => { const l = g.querySelector('.edge-line'); if (l) m.set(g.dataset.edgeId, l.getAttribute('d')); });
+        els.edges.forEach((rec, id) => m.set(id, rec.d));
         return m;
       }
       // A new or re-routed arrow draws itself in; one that did not change stays as it is
       function playEdges(prev) {
         if (!prev || !motion.enabled()) return;
-        edgesG.querySelectorAll('.c4-edge[data-edge-id]').forEach((g) => {
-          const l = g.querySelector('.edge-line');
-          if (l && prev.get(g.dataset.edgeId) !== l.getAttribute('d')) motion.drawPath(l, { duration: 160, easing: 'curve-out' });
-        });
+        els.edges.forEach((rec, id) => { if (prev.get(id) !== rec.d) motion.drawPath(rec.line, { duration: 160, easing: 'curve-out' }); });
       }
+
+      // The elements on screen are kept across renders, keyed by id (els.nodes, els.groups, els.edges): a render updates each
+      // one in place and creates or removes only what changed, so a big diagram is not rebuilt on every edit and each box keeps
+      // its element through the morphs. What a box holds (name, tech, chips, ports, placeholders) is built again only when what
+      // it shows changed (its `sig`); a group that turns from frame to tile (or back) gets a new element. Events reach every
+      // element through one listener per layer (ITEM EVENTS below), so nothing is attached per element on a render.
+      const itemState = new WeakMap();   // element -> { sig, paint, shape }: what the last render built into it
+      const setStyle = (el, k, v) => { if (el.style[k] !== v) el.style[k] = v; };
+      const setAttr = (el, k, v) => { if (el.getAttribute(k) !== v) el.setAttribute(k, v); };
+      const setCls = (el, cls) => { if (el.className !== cls) el.className = cls; };
+      function placeBox(el, o) {
+        setStyle(el, 'left', px(o.x)); setStyle(el, 'top', px(o.y)); setStyle(el, 'width', px(o.w)); setStyle(el, 'height', px(o.h));
+        setStyle(el, 'translate', '');        // left by a move that was let go (MOVING BOXES); a fresh element has none
+        setStyle(el, 'transformOrigin', '');  // left by an entrance morph
+      }
+      function setPaint(el, st, v) {   // the swatch roles of a slot or hex; none clears them (the class comes with the className)
+        if (st.paint === v) return;
+        st.paint = v;
+        if (v) setSwatch(el, v);
+        else { el.style.removeProperty('--swatch-color'); delete el.dataset.sw; }
+      }
+      // Puts the kept elements of one layer in order and drops any other child (the legend, notes and bar are added afresh)
+      function placeChildren(parent, list) {
+        const want = new Set(list);
+        [...parent.children].forEach((c) => { if (!want.has(c)) c.remove(); });
+        let cur = parent.firstElementChild;
+        list.forEach((el) => { if (el === cur) cur = cur.nextElementSibling; else parent.insertBefore(el, cur); });
+      }
+      const itemDirty = (el) => { const st = el && itemState.get(el); if (st) st.sig = null; };   // an inline edit wrote into it: build its content again
 
       function render(opts) {
         const o = opts && typeof opts === 'object' ? opts : {};
@@ -243,25 +269,26 @@
         svg.setAttribute('width', C.width);
         svg.setAttribute('height', C.height);
         const hadFocus = document.activeElement && html.contains(document.activeElement) && (document.activeElement.dataset.nodeId || document.activeElement.dataset.groupId || document.activeElement.dataset.edgeId);
-        edgesG.textContent = '';
-        html.textContent = '';
-        els.nodes = new Map(); els.groups = new Map(); els.edges = new Map();
         sel = sel.filter(selectionExists);
         if (hoverId && !elementOf(hoverId) && !groupOf(hoverId)) hoverId = null;
 
+        const order = [];
+        const seenGroups = new Set();
         groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)).sort((a, b) => depthOf(a) - depthOf(b)).forEach((g) => {
-          const el = buildGroup(g);
-          els.groups.set(g.id, el);
-          html.appendChild(el);
+          order.push(syncGroup(g));
+          seenGroups.add(g.id);
         });
+        els.groups.forEach((el, id) => { if (!seenGroups.has(id)) els.groups.delete(id); });
         renderEdges();
+        const seenNodes = new Set();
         elements().forEach((e) => {
           if (e._hidden || !placed(e) || !(e.w > 0)) return;
-          const el = buildNode(e);
-          els.nodes.set(e.id, el);
-          html.appendChild(el);
+          order.push(syncNode(e));
+          seenNodes.add(e.id);
         });
-        renderLabels();
+        els.nodes.forEach((el, id) => { if (!seenNodes.has(id)) els.nodes.delete(id); });
+        renderLabels(order);
+        placeChildren(html, order);   // also drops the legend, notes and action bar of the last render: they are made again below
         renderLegend();
         renderNotes();
         updateLevelButtons();
@@ -272,7 +299,7 @@
         updateModeUi();
         syncTouchDrag();
         const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
-        if (back) back.focus({ preventScroll: true });
+        if (back && document.activeElement !== back) back.focus({ preventScroll: true });
         if (snap) {
           motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, ghostExit: o.ghostExit, enterScale: o.enterScale });
           playEdges(prevEdges);
@@ -281,7 +308,7 @@
       }
       const selectionExists = (s) => (s.kind === 'edge' ? edges().some((e) => e.id === s.id) : s.kind === 'group' ? !!groupOf(s.id) && !hiddenGroup(groupOf(s.id)) : !!elementOf(s.id) && !elementOf(s.id)._hidden);
 
-      // The icon of an element: its own `icon`, else the generic one of its kind (a `logo:` name present in LOGOS is drawn by buildNode; one that is not falls back to this)
+      // The icon of an element: its own `icon`, else the generic one of its kind (a `logo:` name present in LOGOS is drawn by nodeContent; one that is not falls back to this)
       function iconOf(e) {
         const name = e.icon && ICONS[e.icon] !== undefined ? e.icon : KIND_ICON[e.kind] || 'box';
         return ICONS[name] !== undefined ? name : 'cloud';
@@ -309,47 +336,31 @@
         if (item.kind !== 'edge') startMove(ev, item, [item]);
       }
 
-      function notePin(kind, id, label) {
+      // The note a box shows a pin for (the Notes switch is off and a note with text explains it), or null
+      function pinNoteOf(kind, id) {
         if (chartData.showNotes === true) return null;
         const n = notesList().find((x) => noteText(x) && (kind === 'element' ? (x.elements || []).includes(id) : (x.groups || []).includes(id)));
-        if (!n) return null;
+        return n ? n.id : null;
+      }
+      function notePin(label) {   // a press shows every note and selects the box's note (ITEM EVENTS)
         const b = htmlEl('button', 'c4-note-pin');
         b.type = 'button';
         b.dataset.exportSkip = '';
         b.title = `Show note on ${label}`;
         b.setAttribute('aria-label', b.title);
         b.innerHTML = ui.icon('notes', { size: 'xs' });
-        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        b.addEventListener('click', (ev) => { ev.stopPropagation(); setShowNotes(true); selectNote(n.id); });
         return b;
       }
 
-      function cardPlaceholder(e, field, label, title) {
+      function cardPlaceholder(field, label, title) {   // a press opens the field (ITEM EVENTS)
         const ph = htmlEl('span', `c4-placeholder c4-${field}-ph`, '');
         ph.dataset.exportSkip = '';
         ph.dataset.field = field;
         ph.dataset.ph = label;
         ph.title = title;
-        ph.addEventListener('pointerdown', (ev) => {
-          if (ev.button !== 0 || presenting()) return;
-          ev.preventDefault();
-          ev.stopPropagation();
-          if (isTyping()) document.activeElement.blur();
-          editField(e.id, field);
-        });
         return ph;
       }
-      function buildNode(e) {
-        const el = htmlEl('div', 'c4-node');
-        el.dataset.item = '';
-        el.dataset.nodeId = e.id;
-        el.dataset.kind = e.kind;
-        el.tabIndex = -1;
-        el.setAttribute('role', 'group');
-        el.setAttribute('aria-label', ariaOf(e));
-        Object.assign(el.style, { left: px(e.x), top: px(e.y), width: px(e.w), height: px(e.h) });
-        el.style.setProperty('--c4-h', px(e.h));
-        paint(el, e.color, KIND_SLOT[e.kind] || '9');   // external: the neutral slot
+      function nodeContent(e, pinId) {   // what a tile holds: chip, name, tech, description, placeholders, note pin and ports
         const chip = htmlEl('span', 'c4-disc');
         if (String(e.icon).startsWith('logo:') && ui.hasLogo(e.icon.slice(5))) { chip.classList.add('is-logo'); chip.innerHTML = ui.logo(e.icon.slice(5), { size: 'tile' }); }   // a local-pack logo keeps its own colours on a white disc
         else chip.innerHTML = ui.icon(iconOf(e), { size: 'tile', fine: true });
@@ -361,13 +372,12 @@
         if (missingTech || missingDesc) {
           const phRow = htmlEl('span', 'c4-ph-row');
           phRow.dataset.exportSkip = '';
-          if (missingTech) phRow.appendChild(cardPlaceholder(e, 'tech', '+ tech', 'Add technology (e.g. Node.js, PostgreSQL)'));
-          if (missingDesc) phRow.appendChild(cardPlaceholder(e, 'desc', '+ description', 'Add a short description'));
+          if (missingTech) phRow.appendChild(cardPlaceholder('tech', '+ tech', 'Add technology (e.g. Node.js, PostgreSQL)'));
+          if (missingDesc) phRow.appendChild(cardPlaceholder('desc', '+ description', 'Add a short description'));
           text.appendChild(phRow);
         }
-        el.append(chip, text);
-        const pin = notePin('element', e.id, nameOf(e));
-        if (pin) el.appendChild(pin);
+        const kids = [chip, text];
+        if (pinId) kids.push(notePin(nameOf(e)));
         ['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
           const port = ui.port({ N: 'top', E: 'right', S: 'bottom', W: 'left' }[side]);
           port.dataset.side = side;
@@ -375,59 +385,93 @@
           port.setAttribute('role', 'button');
           port.setAttribute('aria-label', `Connect from ${nameOf(e)}: drag to another element`);
           port.title = 'Drag to another element to connect them';
-          port.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) startConnectDrag(ev, e.id); });
-          el.appendChild(port);
+          kids.push(port);
         });
-        el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'element', id: e.id }));
-        hoverable(el, e.id);
+        return kids;
+      }
+      function syncNode(e) {
+        let el = els.nodes.get(e.id), st = el && itemState.get(el);
+        if (!el) {
+          el = htmlEl('div', 'c4-node');
+          el.dataset.item = '';
+          el.dataset.nodeId = e.id;
+          el.tabIndex = -1;
+          el.setAttribute('role', 'group');
+          st = { sig: null, paint: null };
+          itemState.set(el, st);
+          els.nodes.set(e.id, el);
+        }
+        setCls(el, 'c4-node swatch-scope');   // drops the state classes of the last render (applyState sets them again)
+        if (el.dataset.kind !== e.kind) el.dataset.kind = e.kind;
+        setAttr(el, 'aria-label', ariaOf(e));
+        placeBox(el, e);
+        if (el.style.getPropertyValue('--c4-h') !== px(e.h)) el.style.setProperty('--c4-h', px(e.h));
+        setPaint(el, st, e.color || KIND_SLOT[e.kind] || '9');   // external: the neutral slot
+        const pinId = pinNoteOf('element', e.id);
+        const sig = JSON.stringify([e.kind, nameOf(e), e.tech || '', e.description || '', e.icon || '', showTech(), pinId]);
+        if (st.sig !== sig) { st.sig = sig; el.replaceChildren(...nodeContent(e, pinId)); }
         return el;
       }
 
-      function chevron(g, collapsed) {
+      function chevron(g, collapsed) {   // a click opens or closes the group (ITEM EVENTS)
         const b = ui.chevron({ expanded: !collapsed, label: collapsed ? `Expand ${nameOf(g)}` : `Collapse ${nameOf(g)} to one box` });
         b.dataset.exportSkip = '';
-        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        b.addEventListener('click', (ev) => { ev.stopPropagation(); toggleGroup(g.id); });
         return b;
       }
-      function buildGroup(g) {
-        const tile = isTile(g);
-        const el = htmlEl('div', `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}`);
-        el.dataset.groupId = g.id;
-        if (tile) el.dataset.item = '';
-        el.dataset.kind = g.kind;
-        Object.assign(el.style, { left: px(g.x), top: px(g.y), width: px(g.w), height: px(g.h) });
+      function syncGroup(g) {
+        const tile = isTile(g), shape = tile ? 'tile' : 'frame';
+        let el = els.groups.get(g.id), st = el && itemState.get(el);
+        if (el && st.shape !== shape) { el.remove(); el = null; }   // a frame and a tile are different boxes
+        if (!el) {
+          el = htmlEl('div', 'c4-group');
+          el.dataset.groupId = g.id;
+          if (tile) {
+            el.dataset.item = '';
+            el.tabIndex = -1;
+            el.setAttribute('role', 'group');
+          }
+          st = { sig: null, paint: null, shape };
+          itemState.set(el, st);
+          els.groups.set(g.id, el);
+        }
+        const tint = tile ? (g.color || (g.kind === 'boundary' ? null : GROUP_SLOT)) : swatchOf(g);   // a tile: a system tile; a frame: its colour, a slot or custom hex, as a sequence frame's
+        setCls(el, `c4-group ${tile ? 'is-tile' : 'is-frame'}${g.shared === true ? ' is-shared' : ''}${tint ? ' swatch-scope' : ''}`);
+        if (el.dataset.kind !== g.kind) el.dataset.kind = g.kind;
+        placeBox(el, g);
+        setPaint(el, st, tint || null);
+        const pinId = pinNoteOf('group', g.id);
+        const kind = g.kind === 'boundary' ? 'boundary' : 'software system';
         if (tile) {
           // One system box: the tile of a system, dashed because it opens (the dashed summary of a collapsed frame)
-          paint(el, g.color, g.kind === 'boundary' ? null : GROUP_SLOT);
-          el.tabIndex = -1;
-          el.setAttribute('role', 'group');
-          el.setAttribute('aria-label', `${nameOf(g)}, ${g.kind === 'boundary' ? 'boundary' : 'software system'}, ${descendants(g).filter((id) => elementOf(id)).length} inside, collapsed`);
-          const text = htmlEl('span', 'c4-text');
-          text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(g)));
           const n = descendants(g).filter((id) => elementOf(id)).length;
-          text.appendChild(htmlEl('span', 'c4-desc t-detail', `${n} ${n === 1 ? 'element' : 'elements'} inside`));
-          const chip = htmlEl('span', 'c4-disc');
-          chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
-          el.append(chip, text, chevron(g, true));
-          const pin = notePin('group', g.id, nameOf(g));
-          if (pin) el.appendChild(pin);
-          hoverable(el, g.id);
+          setAttr(el, 'aria-label', `${nameOf(g)}, ${kind}, ${n} inside, collapsed`);
+          const sig = JSON.stringify([nameOf(g), n, pinId]);
+          if (st.sig !== sig) {
+            st.sig = sig;
+            const text = htmlEl('span', 'c4-text');
+            text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(g)));
+            text.appendChild(htmlEl('span', 'c4-desc t-detail', `${n} ${n === 1 ? 'element' : 'elements'} inside`));
+            const chip = htmlEl('span', 'c4-disc');
+            chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
+            el.replaceChildren(chip, text, chevron(g, true));
+            if (pinId) el.appendChild(notePin(nameOf(g)));
+          }
         } else {
-          const tag = htmlEl('div', 'frame-tag c4-tag');
-          const tint = swatchOf(g);   // a group's colour: a slot or custom hex, as a sequence frame's
-          if (tint) { paint(el, tint); paint(tag, tint); }
-          tag.tabIndex = -1;
-          tag.setAttribute('role', 'group');
-          tag.setAttribute('aria-label', `${nameOf(g)}, ${g.kind === 'boundary' ? 'boundary' : 'software system'}`);
           const hasKids = descendants(g).length > 0;
-          if (hasKids) tag.appendChild(chevron(g, false));
-          tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
-          const pin = notePin('group', g.id, nameOf(g));
-          if (pin) tag.appendChild(pin);
-          el.appendChild(tag);
+          const sig = JSON.stringify([nameOf(g), kind, tint, hasKids, pinId]);
+          if (st.sig !== sig) {
+            st.sig = sig;
+            const tag = htmlEl('div', 'frame-tag c4-tag');
+            if (tint) paint(tag, tint);
+            tag.tabIndex = -1;
+            tag.setAttribute('role', 'group');
+            tag.setAttribute('aria-label', `${nameOf(g)}, ${kind}`);
+            if (hasKids) tag.appendChild(chevron(g, false));
+            tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
+            if (pinId) tag.appendChild(notePin(nameOf(g)));
+            el.replaceChildren(tag);
+          }
         }
-        el.addEventListener('pointerdown', (ev) => { if (tile || ev.target.closest('.frame-tag')) press(ev, { kind: 'group', id: g.id }); });
         return el;
       }
 
@@ -439,80 +483,174 @@
         line.style.setProperty('--mk-e-out', 'url(#c4-mk-out)');
         line.style.setProperty('--mk-e-sel', 'url(#c4-mk-sel)');
       }
+      // els.edges: id -> { g, line, hit, tip, d, tint, label, badge }, kept across renders as the boxes are
       function renderEdges() {
+        const list = [];
         edges().forEach((e) => {
           if (!e.path) return;
           const tint = swatchOf(e);
-          const g = svgEl('g', { class: `c4-edge${e.async ? ' is-async' : ''}${tint ? ' is-colored' : ''}`, 'data-edge-id': e.id, 'data-from': e.from, 'data-to': e.to });
-          if (tint) setSwatch(g, tint);
-          const tip = svgEl('title', { 'data-export-skip': '' });
-          tip.textContent = edgeTitle(e);
-          const line = svgEl('path', { class: 'edge-line', d: e.path });
-          setMarkers(line, tint);
-          const hit = svgEl('path', { class: 'edge-hit', d: e.path });
-          g.append(tip, hit, line);
-          g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-          g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-          g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-          edgesG.appendChild(g);
-          els.edges.set(e.id, { g, line, hit, d: e.path, label: null, badge: null });
+          let rec = els.edges.get(e.id);
+          if (!rec) {
+            const g = svgEl('g', { 'data-edge-id': e.id });
+            const tip = svgEl('title', { 'data-export-skip': '' });
+            const line = svgEl('path', { class: 'edge-line' });
+            const hit = svgEl('path', { class: 'edge-hit' });
+            g.append(tip, hit, line);
+            rec = { g, line, hit, tip, d: null, tint: undefined, label: null, badge: null };
+            els.edges.set(e.id, rec);
+          }
+          const { g, line, hit, tip } = rec;
+          setAttr(g, 'class', `c4-edge${e.async ? ' is-async' : ''}${tint ? ' is-colored swatch-scope' : ''}`);   // drops the state classes (applyState sets them again)
+          setAttr(g, 'data-from', e.from);
+          setAttr(g, 'data-to', e.to);
+          if (rec.tint !== tint) {
+            rec.tint = tint;
+            if (tint) setSwatch(g, tint); else { g.style.removeProperty('--swatch-color'); delete g.dataset.sw; }
+            setMarkers(line, tint);
+          }
+          const title = edgeTitle(e);
+          if (tip.textContent !== title) tip.textContent = title;
+          if (rec.d !== e.path) { rec.d = e.path; line.setAttribute('d', e.path); hit.setAttribute('d', e.path); }
+          rec.seen = true;
+          list.push(g);
         });
+        els.edges.forEach((rec, id) => {
+          if (rec.seen) { rec.seen = false; return; }
+          els.edges.delete(id);   // its label and badge go with the html layer (placeChildren)
+        });
+        placeChildren(edgesG, list);
       }
-      function renderLabels() {
+      function renderLabels(order) {
         edges().forEach((e) => {
           const b = e.labelBox, rec = els.edges.get(e.id);
           if (!rec) return;
           const direct = isDirectEdge(e), tint = swatchOf(e);
           const isNewLink = !!(newLink && e.members && e.members.includes(relations().indexOf(newLink)));
           if (b && (e.label || (showTech() && e.tech) || e.count > 1 || isNewLink)) {
-            const el = htmlEl('div', `edge-label c4-label${tint ? ' is-colored' : ''}`);
-            if (tint) setSwatch(el, tint);
-            el.dataset.edgeId = e.id;
-            el.tabIndex = direct ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
-            el.setAttribute('role', 'group');
-            el.setAttribute('aria-label', `${e.step ? `Step ${e.step}, ` : ''}${e.label || 'Arrow'}, from ${nameOf(nodeOrGroup(e.from))} to ${nameOf(nodeOrGroup(e.to))}`);
-            Object.assign(el.style, { left: px(Math.round(b.x + b.w / 2)), top: px(Math.round(b.y + b.h / 2)) });
-            el.title = edgeTitle(e);
-            el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
-            if (showTech()) {
-              if (e.tech) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
-              else if (direct) {
-                const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
-                ph.dataset.exportSkip = '';
-                ph.dataset.field = 'tech';
-                ph.dataset.ph = '+ tech';
-                ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
-                ph.addEventListener('pointerdown', (ev) => {
-                  if (ev.button !== 0 || presenting()) return;
-                  ev.preventDefault();
-                  ev.stopPropagation();
-                  if (isTyping()) document.activeElement.blur();
-                  editEdgeField(e.id, 'tech');
-                });
-                el.appendChild(ph);
-              }
+            let el = rec.label, st = el && itemState.get(el);
+            if (!el) {
+              el = htmlEl('div', 'edge-label');
+              el.dataset.edgeId = e.id;
+              el.setAttribute('role', 'group');
+              st = { sig: null, paint: null };
+              itemState.set(el, st);
+              rec.label = el;
             }
-            el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-            el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-            el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-            html.appendChild(el);
-            rec.label = el;
-          }
+            setCls(el, `edge-label c4-label${tint ? ' is-colored swatch-scope' : ''}`);
+            setPaint(el, st, tint);
+            const ti = direct ? '0' : '-1';   // a merged arrow (a count tag) is not editable: no tab stop
+            if (el.getAttribute('tabindex') !== ti) el.setAttribute('tabindex', ti);
+            setAttr(el, 'aria-label', `${e.step ? `Step ${e.step}, ` : ''}${e.label || 'Arrow'}, from ${nameOf(nodeOrGroup(e.from))} to ${nameOf(nodeOrGroup(e.to))}`);
+            setStyle(el, 'left', px(Math.round(b.x + b.w / 2)));
+            setStyle(el, 'top', px(Math.round(b.y + b.h / 2)));
+            setStyle(el, 'transformOrigin', '');
+            const title = edgeTitle(e);
+            if (el.title !== title) el.title = title;
+            const sig = JSON.stringify([e.label || '', e.count, e.tech || '', showTech(), direct]);
+            if (st.sig !== sig) {
+              st.sig = sig;
+              const kids = [htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`)];
+              if (showTech()) {
+                if (e.tech) kids.push(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
+                else if (direct) {   // a press opens the field (ITEM EVENTS)
+                  const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
+                  ph.dataset.exportSkip = '';
+                  ph.dataset.field = 'tech';
+                  ph.dataset.ph = '+ tech';
+                  ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
+                  kids.push(ph);
+                }
+              }
+              el.replaceChildren(...kids);
+            }
+            order.push(el);
+          } else rec.label = null;
           if (showSteps() && e.step && e.badge) {
-            const sb = htmlEl('div', `c4-step${tint ? ' is-colored' : ''}`, e.step);
-            if (tint) setSwatch(sb, tint);
-            sb.dataset.edgeId = e.id;
-            sb.setAttribute('aria-label', `Step ${e.step}: ${e.label || ''}`);
-            sb.title = edgeTitle(e);
-            Object.assign(sb.style, { left: px(Math.round(e.badge.x + e.badge.w / 2)), top: px(Math.round(e.badge.y + e.badge.h / 2)) });
-            sb.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
-            sb.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-            sb.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
-            html.appendChild(sb);
-            rec.badge = sb;
-          }
+            let sb = rec.badge, st = sb && itemState.get(sb);
+            if (!sb) {
+              sb = htmlEl('div', 'c4-step');
+              sb.dataset.edgeId = e.id;
+              st = { sig: null, paint: null };
+              itemState.set(sb, st);
+              rec.badge = sb;
+            }
+            setCls(sb, `c4-step${tint ? ' is-colored swatch-scope' : ''}`);
+            setPaint(sb, st, tint);
+            if (sb.textContent !== String(e.step)) sb.textContent = e.step;
+            setAttr(sb, 'aria-label', `Step ${e.step}: ${e.label || ''}`);
+            const title = edgeTitle(e);
+            if (sb.title !== title) sb.title = title;
+            setStyle(sb, 'left', px(Math.round(e.badge.x + e.badge.w / 2)));
+            setStyle(sb, 'top', px(Math.round(e.badge.y + e.badge.h / 2)));
+            setStyle(sb, 'transformOrigin', '');
+            order.push(sb);
+          } else rec.badge = null;
         });
       }
+
+      // --- ITEM EVENTS ---
+      // One listener per event and layer (the html layer: tiles, frames, labels, step badges; the svg layer: arrows),
+      // dispatching by data-node-id / data-group-id / data-edge-id. They run in the order the per-element listeners did,
+      // innermost first: a note pin or chevron keeps the press to itself, a placeholder opens its field, a port starts a
+      // connection, anything else is a press on its box. pointerenter / pointerleave do not bubble: they are caught on the
+      // way down (capture) and handled only when they are aimed at the box itself, as on the box.
+      function itemAt(t) {   // the kept box, label or badge an event target belongs to: { el, kind, id } or null
+        const el = t && t.closest ? t.closest('.c4-node, .c4-group, .c4-label, .c4-step') : null;
+        if (!el || !html.contains(el)) return null;
+        if (el.dataset.nodeId) return els.nodes.get(el.dataset.nodeId) === el ? { el, kind: 'element', id: el.dataset.nodeId } : null;
+        if (el.dataset.groupId) return els.groups.get(el.dataset.groupId) === el ? { el, kind: 'group', id: el.dataset.groupId } : null;
+        const rec = els.edges.get(el.dataset.edgeId);
+        return rec && (rec.label === el || rec.badge === el) ? { el, kind: 'edge', id: el.dataset.edgeId } : null;
+      }
+      const edgeAt = (t) => {
+        const g = t && t.closest ? t.closest('.c4-edge') : null, rec = g && els.edges.get(g.dataset.edgeId);
+        return rec && rec.g === g ? g.dataset.edgeId : null;
+      };
+      html.addEventListener('pointerdown', (ev) => {
+        const it = itemAt(ev.target);
+        if (!it) return;
+        const t = ev.target;
+        if (t.closest('.c4-note-pin, .chevron')) { ev.stopPropagation(); return; }
+        const ph = t.closest('.c4-placeholder');
+        if (ph && ev.button === 0 && !presenting()) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (isTyping()) document.activeElement.blur();
+          if (it.kind === 'edge') editEdgeField(it.id, 'tech'); else editField(it.id, ph.dataset.field);
+          return;
+        }
+        if (it.kind === 'element' && t.closest('.port') && ev.button === 0 && !presenting()) { startConnectDrag(ev, it.id); return; }
+        if (it.kind === 'group' && !it.el.classList.contains('is-tile') && !t.closest('.frame-tag')) return;   // a frame takes presses on its tag only
+        press(ev, { kind: it.kind, id: it.id });
+      });
+      html.addEventListener('click', (ev) => {
+        const it = itemAt(ev.target);
+        if (!it) return;
+        const pin = ev.target.closest('.c4-note-pin'), chev = !pin && it.kind === 'group' && ev.target.closest('.chevron');
+        if (pin) { ev.stopPropagation(); const id = pinNoteOf(it.kind, it.id); setShowNotes(true); if (id) selectNote(id); }
+        else if (chev) { ev.stopPropagation(); toggleGroup(it.id); }
+      });
+      html.addEventListener('pointerenter', (ev) => {
+        const it = itemAt(ev.target);
+        if (!it || it.el !== ev.target) return;
+        if (it.kind === 'edge') { hoverEdgeId = it.id; applyState(); }
+        else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = it.id; applyState(); }   // no hover dimming while boxes are carried
+      }, true);
+      html.addEventListener('pointerleave', (ev) => {
+        const it = itemAt(ev.target);
+        if (!it || it.el !== ev.target) return;
+        if (it.kind === 'edge') { if (hoverEdgeId === it.id) { hoverEdgeId = null; applyState(); } }
+        else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && hoverId === it.id) { hoverId = null; applyState(); }
+      }, true);
+      edgesG.addEventListener('pointerdown', (ev) => { const id = edgeAt(ev.target); if (id) press(ev, { kind: 'edge', id }); });
+      edgesG.addEventListener('pointerenter', (ev) => {
+        const id = edgeAt(ev.target);
+        if (id && ev.target === els.edges.get(id).g) { hoverEdgeId = id; applyState(); }
+      }, true);
+      edgesG.addEventListener('pointerleave', (ev) => {
+        const id = edgeAt(ev.target);
+        if (id && ev.target === els.edges.get(id).g && hoverEdgeId === id) { hoverEdgeId = null; applyState(); }
+      }, true);
 
       // The colour key: the palette slots groups, elements and relations use and what each means (colorKey); a slot with no label is left
       // out, except the one being named right now (keyDraft: the prompt "What does Blue mean?" after a colour was picked)
@@ -562,10 +700,6 @@
         setSel(inSel(item.kind, item.id) ? sel.filter((s) => !(s.kind === item.kind && s.id === item.id)) : sel.concat(item));
       }
       const select = (s) => setSel(s ? [s] : []);
-      function hoverable(el, id) {
-        el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = id; applyState(); } });   // no hover dimming while boxes are carried
-        el.addEventListener('pointerleave', () => { if (hoverId === id) { hoverId = null; applyState(); } });
-      }
       // What is lit: the arrows in (amber) and out (blue) of the hovered element, as the flowchart does; a lone selected element
       // lights its arrows too. A hover also greys out the arrows and elements that are not connected to it.
       function applyState() {
@@ -784,6 +918,7 @@
       // model changed, onCancel(), onTab(dir), settle(changed), pending (an add whose undo step ends here), after().
       function beginEdit(el, o) {
         if (!el || el.isContentEditable) return;
+        itemDirty(el.closest('.c4-node, .c4-group, .c4-label'));   // its box is built again on the next render, as before the edit
         const host = o.host || null;
         if (o.raw !== undefined) el.textContent = o.raw;
         if (o.placeholder) el.dataset.editPh = o.placeholder;
@@ -1895,8 +2030,10 @@
         applyState();
         m.els.forEach((el) => el.classList.add('is-dragging'));
         // the arrows and note cards that touch what moves fade out: they are routed again on release
-        edgesG.querySelectorAll('.c4-edge').forEach((g) => { if (m.ids.has(g.dataset.from) || m.ids.has(g.dataset.to)) m.faded.push(g); });
-        html.querySelectorAll('.c4-label, .c4-step').forEach((l) => { const e = edgeOf(l.dataset.edgeId); if (e && (m.ids.has(e.from) || m.ids.has(e.to))) m.faded.push(l); });
+        els.edges.forEach((rec, id) => {
+          const e = edgeOf(id);
+          if (e && (m.ids.has(e.from) || m.ids.has(e.to))) [rec.g, rec.label, rec.badge].forEach((x) => { if (x) m.faded.push(x); });
+        });
         notesList().forEach((n) => { if (noteTargets(n).some((t) => m.ids.has(t.id))) { const c = noteCard(n.id); if (c) m.faded.push(c); } });
         m.faded.forEach((x) => x.classList.add('drag-fade'));
       }
@@ -1932,9 +2069,11 @@
         return descendants(o).map(groupOf).some((g) => g && placed(g) && g.w > 0 && !hiddenGroup(g) && cx >= g.x && cx <= g.x + g.w && cy >= g.y && cy <= g.y + g.h);
       });
       const dropChanges = (m, dx, dy) => m.tops.map((s) => ({ s, host: hostAt(m, s, dx, dy) })).filter(({ s, host }) => host !== parentOf(s));
-      function showDrop(m) {
-        canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
-        dropChanges(m, m.dx, m.dy).forEach(({ host }) => { const el = host && els.groups.get(host); if (el) el.classList.add('c4-drop'); });
+      function showDrop(m) {   // m.drop: the frames lit on the last frame of the move
+        const next = new Set(dropChanges(m, m.dx, m.dy).map(({ host }) => host && els.groups.get(host)).filter(Boolean));
+        (m.drop || []).forEach((el) => { if (!next.has(el)) el.classList.remove('c4-drop'); });
+        next.forEach((el) => el.classList.add('c4-drop'));
+        m.drop = next;
       }
 
       // Release: write positions and membership, route, morph, one undo step. announce: say "Manual layout on" (the keyboard way)

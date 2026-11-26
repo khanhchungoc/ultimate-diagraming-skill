@@ -359,6 +359,65 @@ try {
     t.check('moving away clears the highlight', (await count('.is-dim')) === 0 && (await count('.edge-line.hl-in, .edge-line.hl-out')) === 0);
   });
 
+  // --- Render reuse: the boxes, arrows and labels are kept across renders; events reach them through one listener per layer ---
+  await section('reuse', async () => {
+    await freshPage();
+    const MARK = `[...document.querySelectorAll('.c4-node, .c4-group, .c4-edge, .c4-label')]`;
+    const KEY = `(el) => (el.dataset.nodeId || el.dataset.groupId || el.dataset.edgeId) + ':' + (el.getAttribute('class') || '').split(' ')[0]`;
+    const kept = () => t.ev(`(() => { const k = ${KEY}, els = ${MARK}; return { n: els.length, lost: els.filter((el) => el.__mark !== k(el)).map(k) }; })()`);
+    await t.ev(`(() => { const k = ${KEY}; ${MARK}.forEach((el) => { el.__mark = k(el); }); return true; })()`);
+    // Undo / Redo restore a snapshot and render it: one cheap edit (the title) gives them something to restore
+    await t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      h.textContent = 'Reuse check'; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); return true; })()`);
+    await undo(); await redo();
+    const k1 = await kept();
+    t.check('a render keeps every tile, frame, arrow and label element (identity for the morphs)', k1.n >= 9 && !k1.lost.length, J(k1));
+    // the delegated listeners reach the kept elements: hover, click, double-click, an arrow's hit path, a label
+    const p = await t.at(await sel('Web API'));
+    await t.mouse('mouseMoved', p.x, p.y);
+    await sleep(200);
+    const lit = await count('.edge-line.hl-in, .edge-line.hl-out');
+    await t.click(p.x, p.y);
+    await sleep(120);
+    const selected = await t.ev(`document.querySelector(${J(item(await idOf('Web API')))}).classList.contains('selected')`);
+    await t.click(p.x, p.y, { count: 2 });
+    await sleep(120);
+    const ed = await editing();
+    await t.press('Escape');
+    await blank();
+    t.check('after a render: hover lights the 3 arrows, a click selects the tile, a double-click opens its name', lit === 3 && selected && !!ed, `lit=${lit} selected=${selected} editing=${J(ed)}`);
+    await selectEdge('Reads');
+    const edgeSel = await t.ev(`[...document.querySelectorAll('.c4-edge.selected')].length === 1 && document.querySelector('.c4-label.selected') && document.querySelector('.c4-label.selected').textContent.includes('Reads')`);
+    t.check('a press on a kept arrow selects it and its label', !!edgeSel);
+    await blank();
+    const lab = await t.at(`${A.label}[data-edge-id="${await t.ev(`[...document.querySelectorAll(${J(A.label)})].find((e) => e.textContent.includes('Sends mail')).dataset.edgeId`)}"]`);
+    await t.mouse('mouseMoved', lab.x, lab.y);
+    await sleep(150);
+    const linked = await t.ev(`!!document.querySelector('.c4-label.linked') && !!document.querySelector('.c4-edge.hover')`);
+    await t.mouse('mouseMoved', 5, 5);
+    await sleep(150);
+    t.check('hovering a kept label lights its arrow, leaving clears it', linked && (await count('.c4-label.linked, .c4-edge.hover')) === 0);
+    // a rename keeps the tile element (its content is built again); a collapse swaps the frame for a tile and keeps the rest
+    await clickName('Web API');
+    await t.press('F2');
+    await t.press('a', { modifiers: 2 });
+    await t.type('Web Gateway');
+    await t.press('Enter');
+    await t.settle();
+    const k2 = await kept();
+    t.check('a rename keeps every element and shows the new name', !k2.lost.length && (await tileNames()).includes('Web Gateway'), J(k2));
+    await blank();
+    await t.clickOn(A.chevron);
+    await sleep(500); await t.settle(1500);
+    const k3 = await t.ev(`(() => { const k = ${KEY}, tile = document.querySelector(${J(A.tile)});
+      return { tileNew: !!tile && tile.__mark === undefined, custKept: document.querySelector('.c4-node[data-kind="person"]').__mark === k(document.querySelector('.c4-node[data-kind="person"]')) }; })()`);
+    t.check('a chevron click (delegated) collapses the group: the frame becomes a new tile element, the other tiles are kept', k3.tileNew && k3.custKept, J(k3));
+    await t.clickOn(A.tile + ' ' + A.chevron);
+    await sleep(500); await t.settle(1500);
+    t.check('the tile\'s chevron (delegated) expands it again', (await count(A.frame)) === 1 && (await count(A.edge)) === 3);
+    t.check('no page errors in the reuse checks', t.errors.length === 0, t.errors.join(' | '));
+  });
+
   await section('search', async () => {
     await freshPage();
     await t.press('f', { modifiers: 2 });
