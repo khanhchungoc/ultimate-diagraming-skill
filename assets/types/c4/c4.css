@@ -115,11 +115,11 @@
       min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-pill);
       background: var(--sw-pill-solid, var(--primary)); color: var(--sw-on-solid, var(--on-primary));
       border: 1.5px solid var(--bg-canvas, var(--bg-panel)); box-shadow: var(--shadow-sm);
-      font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: 1; white-space: nowrap;
+      font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: var(--leading-none); white-space: nowrap;
       pointer-events: auto; cursor: pointer;
       transition: transform var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out), opacity 110ms var(--curve-inout);
     }
-    .c4-step.selected { box-shadow: 0 0 0 2px var(--primary-ring), var(--shadow-md); }
+    .c4-step.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary-ring), var(--shadow-md); }
     .c4-step.drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
 
     /* The colour key (ui.colorKey), above the diagram; its entries can be renamed (double-click, or the prompt after a colour pick) */
