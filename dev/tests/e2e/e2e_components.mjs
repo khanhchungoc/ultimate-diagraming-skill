@@ -113,6 +113,17 @@ try {
       t.check(`${theme}: dimmed items use the --dim token`, dim[0] === dim[2] && dim[1] === dim[2], JSON.stringify(dim));
       const shape = await t.ev(`(() => ['shape-rest', 'shape-selected'].map((id) => { const c = getComputedStyle(document.getElementById(id)); return [c.stroke, c.strokeWidth]; }))()`);
       t.check(`${theme}: a selected SVG shape is drawn in --primary at --select-ring-w`, shape[1][0] !== shape[0][0] && shape[1][1] === '2px', JSON.stringify(shape));
+
+      // Dock overflow More menu
+      const dockMore = await t.ev(`(() => {
+        const btn = document.getElementById('gal-dock-more');
+        const menu = document.getElementById('gal-dock-more-menu');
+        const items = [...menu.querySelectorAll('[role^="menuitem"]')];
+        const minH = items.reduce((m, el) => Math.min(m, el.getBoundingClientRect().height), Infinity);
+        const br = btn.getBoundingClientRect();
+        return { btnH: br.height, btnW: br.width, count: items.length, minH };
+      })()`);
+      t.check(`${theme}: dock More button and menu items meet >= ${HIT}px target height`, dockMore.btnH >= HIT && dockMore.btnW >= HIT && dockMore.count >= 3 && dockMore.minH >= HIT, JSON.stringify(dockMore));
       t.check(`${theme}: the gallery logs no errors`, t.errors.length === 0, t.errors.join(' | ').slice(0, 200));
 
       if (shots) {

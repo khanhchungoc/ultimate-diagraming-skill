@@ -6,16 +6,16 @@
     #search-dock > * { pointer-events: auto; }
     /* One rounded box like the other panels: icon, text, count, previous, next. Controls are flat (no boxes); the focus ring is the pill's */
     #search-bar {
-      display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; height: 40px; box-sizing: border-box;
+      display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12); height: 40px; box-sizing: border-box;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl);
       box-shadow: var(--shadow-lg); transform-origin: top right;
       transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
     #search-bar:focus-within { border-color: var(--primary); }
     #search-bar[hidden] { display: none; }
-    .search-glyph { display: inline-flex; align-items: center; color: var(--text-muted); margin-right: 4px; }
+    .search-glyph { display: inline-flex; align-items: center; color: var(--text-muted); margin-right: var(--space-4); }
     #search-input {
-      width: 190px; min-height: 28px; padding: 0 4px; box-sizing: border-box; border: 0; background: transparent; outline: none;
+      width: 190px; min-height: 28px; padding: 0 var(--space-4); box-sizing: border-box; border: 0; background: transparent; outline: none;
       font-size: var(--t-control-size); color: var(--text-main);
     }
     #search-input::-webkit-search-cancel-button, #search-input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }

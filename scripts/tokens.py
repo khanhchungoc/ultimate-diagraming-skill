@@ -116,11 +116,12 @@ def _validate(t: Dict[str, Any]) -> None:
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
     for k, v in t["space"].items():  # spacing scale: key = px, value a length ("0", "4px", ...)
         if not re.fullmatch(r"\d+", k) or not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"space.{k}", v)
-    # interaction sizes: a length, or var(--x) naming a size token (ring-md) or a shadow token (shadow-md)
-    refs = set(t["size"]) | {f"shadow-{k}" for k in t["shadow"]}
-    for k, v in t["interaction"].items():
-        ref = re.fullmatch(r"var\(--([\w-]+)\)", v) if isinstance(v, str) else None
-        if not _KEY.match(k) or not (isinstance(v, str) and (_LENGTH.match(v) or (ref and ref[1] in refs))): raise _err(f"interaction.{k}", v)
+    # interaction and control sizes: a length, or var(--x) naming a size, space, or shadow token
+    refs = set(t["size"]) | {f"space-{k}" for k in t["space"]} | {f"shadow-{k}" for k in t["shadow"]}
+    for group in ("interaction", "control"):
+        for k, v in t.get(group, {}).items():
+            ref = re.fullmatch(r"var\(--([\w-]+)\)", v) if isinstance(v, str) else None
+            if not _KEY.match(k) or not (isinstance(v, str) and (_LENGTH.match(v) or (ref and ref[1] in refs))): raise _err(f"{group}.{k}", v)
     for k, v in t["primitive"].items():  # raw colour shades the semantic colours point at; plain hex only
         if not _KEY.match(k) or not (isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{3,8}", v)): raise _err(f"primitive.{k}", v)
     for k, v in t["c4"].items():  # c4 layout sizes in px, read by assets/types/c4/engine.js
@@ -375,7 +376,7 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     light = {**_type_vars(tokens),
              **{f"icon-{k}": f"{v}px" for k, v in tokens["icon"]["size"].items()},
              "c4-label-max-w": f"{tokens['c4']['labelMaxW']}px",
-             **tokens["size"], **{f"space-{k}": v for k, v in tokens["space"].items()}, **tokens["interaction"], **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
+             **tokens["size"], **{f"space-{k}": v for k, v in tokens["space"].items()}, **tokens["interaction"], **tokens.get("control", {}), **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
              **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}
     dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}

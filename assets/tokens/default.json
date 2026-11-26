@@ -191,6 +191,15 @@
     "port-size": "12px",
     "port-size-touch": "20px"
   },
+  "control": {
+    "ctrl-h": "32px",
+    "ctrl-pad-y": "var(--space-4)",
+    "ctrl-pad-x": "var(--space-12)",
+    "pill-pad-y": "var(--space-4)",
+    "pill-pad-x": "var(--space-12)",
+    "dock-inset": "var(--space-20)",
+    "dock-pad": "var(--space-4)"
+  },
   "effect": {
     "dim": "0.28",
     "dim-line": "0.12",

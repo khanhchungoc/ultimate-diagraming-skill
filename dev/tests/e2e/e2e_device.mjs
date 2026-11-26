@@ -148,6 +148,91 @@ try {
         t.check(`${k}: it leaves as a morph (a ghost that moves or scales, not only a fade)`, ghosts.length > 0 && ghosts.some((props) => props.includes('transform') || props.includes('width') || props.includes('clipPath')), JSON.stringify(ghosts));
       }
       t.check(`${k}: no page errors`, t.errors.length === 0, t.errors.join(' | '));
+
+      // Dock overflow & More menu across phone widths (320, 390, 412 px)
+      for (const pw of [320, 390, 412]) {
+        await t.send('Emulation.setDeviceMetricsOverride', { width: pw, height: H, deviceScaleFactor: 2, mobile: true });
+        await sleep(220);
+        const dockInfo = await t.ev(`(() => {
+          const dock = document.querySelector('.toolbar-center');
+          if (!dock) return { missing: true };
+          const vw = window.innerWidth;
+          const dr = dock.getBoundingClientRect();
+          const kids = [...dock.children].filter((el) => !el.hidden && getComputedStyle(el).display !== 'none');
+          const bad = kids.map((el) => {
+            const r = el.getBoundingClientRect();
+            return { id: el.id || el.className, l: Math.round(r.left * 10) / 10, r: Math.round(r.right * 10) / 10, w: Math.round(r.width) };
+          }).filter((x) => x.w > 0 && (x.l < -0.5 || x.r > vw + 0.5));
+          const folded = [...dock.children].filter((el) => el.dataset.dockFolded === 'true').map((el) => el.id || el.className);
+          const moreBtn = document.getElementById('btn-dock-more');
+          const moreVisible = !!moreBtn && !moreBtn.closest('[hidden]') && getComputedStyle(moreBtn).display !== 'none' && moreBtn.getBoundingClientRect().width > 0;
+          return { vw, dockL: Math.round(dr.left), dockR: Math.round(dr.right), bad, folded, moreVisible };
+        })()`);
+        t.check(`${k} @${pw}px: no visible dock child overflows viewport`, !dockInfo.missing && dockInfo.bad.length === 0 && dockInfo.dockL >= 0 && dockInfo.dockR <= dockInfo.vw + 0.5, JSON.stringify(dockInfo));
+        if (dockInfo.folded && dockInfo.folded.length > 0) {
+          t.check(`${k} @${pw}px: #btn-dock-more is visible when controls are folded`, dockInfo.moreVisible, JSON.stringify(dockInfo));
+        }
+      }
+
+      // Exercise the More menu at 320px when items are folded (Gantt, Sequence, etc.)
+      await t.send('Emulation.setDeviceMetricsOverride', { width: 320, height: H, deviceScaleFactor: 2, mobile: true });
+      await sleep(220);
+      const foldedCount = await t.ev(`document.querySelectorAll('.toolbar-center > [data-dock-folded="true"]').length`);
+      if (['gantt', 'sequence'].includes(k)) {
+        t.check(`${k} @320px: secondary controls fold into More`, foldedCount > 0, String(foldedCount));
+      }
+      if (foldedCount > 0) {
+        const morePos = await t.ev(`(() => { const r = document.getElementById('btn-dock-more').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+        await tap(morePos.x, morePos.y);
+        await sleep(220);
+        const menuState = await t.ev(`(() => {
+          const btn = document.getElementById('btn-dock-more');
+          const menu = document.getElementById('dock-more-menu');
+          const items = [...menu.querySelectorAll('[role^="menuitem"]')];
+          const minH = items.reduce((m, el) => Math.min(m, el.getBoundingClientRect().height), Infinity);
+          const mr = menu.getBoundingClientRect();
+          return {
+            expanded: btn.getAttribute('aria-expanded'),
+            hidden: menu.hidden,
+            role: menu.getAttribute('role'),
+            count: items.length,
+            minH: Math.round(minH),
+            inView: mr.left >= 0 && mr.right <= window.innerWidth + 0.5,
+            checkboxes: items.filter((el) => el.getAttribute('role') === 'menuitemcheckbox').map((el) => ({ forId: el.dataset.dockFor, checked: el.getAttribute('aria-checked') })),
+          };
+        })()`);
+        t.check(`${k} @320px: opening #btn-dock-more shows folded items (>=24px height, on screen)`, menuState.expanded === 'true' && !menuState.hidden && menuState.role === 'menu' && menuState.count > 0 && menuState.minH >= 24 && menuState.inView, JSON.stringify(menuState));
+
+        if (menuState.checkboxes.length > 0) {
+          const cb = menuState.checkboxes[0];
+          const cbPos = await t.ev(`(() => { const el = document.querySelector('#dock-more-menu [data-dock-for="' + ${JSON.stringify(cb.forId)} + '"]'); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+          await tap(cbPos.x, cbPos.y);
+          await sleep(180);
+          const afterToggle = await t.ev(`(() => {
+            const item = document.querySelector('#dock-more-menu [data-dock-for="' + ${JSON.stringify(cb.forId)} + '"]');
+            const orig = document.getElementById(${JSON.stringify(cb.forId)});
+            return {
+              itemChecked: item ? item.getAttribute('aria-checked') : null,
+              origChecked: orig ? (orig.getAttribute('aria-checked') ?? orig.getAttribute('aria-pressed')) : null,
+            };
+          })()`);
+          const expected = cb.checked === 'true' ? 'false' : 'true';
+          t.check(`${k} @320px: activating folded toggle (${cb.forId}) updates both menu item and original aria-checked`, afterToggle.itemChecked === expected && afterToggle.origChecked === expected, JSON.stringify({ before: cb.checked, afterToggle }));
+        }
+
+        // Escape closes and returns focus to #btn-dock-more
+        await t.ev(`document.getElementById('dock-more-menu').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))`);
+        await sleep(150);
+        const afterEsc = await t.ev(`({ hidden: document.getElementById('dock-more-menu').hidden, expanded: document.getElementById('btn-dock-more').getAttribute('aria-expanded'), focused: document.activeElement && document.activeElement.id })`);
+        t.check(`${k} @320px: Escape closes More menu and returns focus to #btn-dock-more`, afterEsc.hidden && afterEsc.expanded === 'false' && afterEsc.focused === 'btn-dock-more', JSON.stringify(afterEsc));
+
+        // Unfold when resized back to desktop width
+        await t.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false });
+        await sleep(220);
+        const wideState = await t.ev(`({ folded: document.querySelectorAll('.toolbar-center > [data-dock-folded="true"]').length, moreHidden: document.getElementById('btn-dock-more').closest('.dock-more-wrap').hidden })`);
+        t.check(`${k} @1400px: controls unfold and #btn-dock-more hides when space returns`, wideState.folded === 0 && wideState.moreHidden, JSON.stringify(wideState));
+      }
+      t.check(`${k}: no page errors after dock overflow checks`, t.errors.length === 0, t.errors.join(' | '));
     });
   }
   code = t.finish();

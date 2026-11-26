@@ -1,7 +1,7 @@
     /* Use case diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; buttons, notes, edge labels, confirm bubbles and
        the rest of the shared parts are in assets/components/. Only what is specific to actors, use cases, subjects and their lines is here. */
 
-    #uc-canvas { position: relative; box-sizing: content-box; margin: 40px; }
+    #uc-canvas { position: relative; box-sizing: content-box; margin: var(--space-40); }
     /* No stacking context on the layers below: subjects (5) under lines (10) under actors and use cases (20) */
     #uc-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #uc-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -17,8 +17,8 @@
     }
     /* Edge tabs: a short pill centred on the right and on the bottom edge, shown on hover or selection; drag to resize that way */
     .uc-subject-tab { position: absolute; box-sizing: border-box; background: var(--bg-panel); border: 2px solid var(--primary); border-radius: var(--radius-pill); opacity: 0; pointer-events: auto; touch-action: none; transition: opacity var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out); }
-    .uc-subject-tab.is-x { right: -5px; top: 50%; width: 10px; height: 36px; margin-top: -18px; cursor: ew-resize; }
-    .uc-subject-tab.is-y { bottom: -5px; left: 50%; height: 10px; width: 36px; margin-left: -18px; cursor: ns-resize; }
+    .uc-subject-tab.is-x { right: -5px; top: 50%; width: 10px; height: 36px; margin-top: -18px; /* tokens-ok: centers 36px resize tab */ cursor: ew-resize; }
+    .uc-subject-tab.is-y { bottom: -5px; left: 50%; height: 10px; width: 36px; margin-left: -18px; /* tokens-ok: centers 36px resize tab */ cursor: ns-resize; }
     .uc-subject:is(:hover, .is-hover, .selected) .uc-subject-tab { opacity: 1; }
     .uc-subject-tab:hover { background: var(--primary); }
     .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
@@ -28,12 +28,12 @@
     body.capture .uc-subject .uc-subject-tab,
     body.presentation .uc-subject .uc-subject-tab { display: none; }
     .uc-subject-title {
-      position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
+      position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-8); box-sizing: border-box;
       pointer-events: auto; cursor: move; color: var(--text-main);
     }
         .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; }
-    .uc-subject .chevron { margin: 0 0 0 -4px; }
+    .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 var(--space-2); }
+    .uc-subject .chevron { margin: 0 0 0 calc(-1 * var(--space-4)); }
 
     /* --- Lines --- */
     .uc-link { transition: opacity 110ms var(--curve-inout); }
@@ -53,14 +53,14 @@
 
     /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
     .uc-label {
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0 8px; max-width: none; pointer-events: auto;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0 var(--space-8); max-width: none; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight); white-space: nowrap; cursor: pointer;
       color: var(--text-muted); background: var(--bg-panel); border-color: var(--border-color); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
       transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity 110ms var(--curve-inout);
     }
     .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }   /* wraps as the engine wrapped it (labelBox is sized for its lines) */
-    .uc-label.is-editing-cond { width: auto !important; height: auto !important; min-width: 96px; padding: 3px 8px; z-index: 60; border-color: var(--primary); box-shadow: var(--shadow-ring); }
-    .uc-cond.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 4px; min-width: 64px; min-height: 16px; white-space: nowrap; }
+    .uc-label.is-editing-cond { width: auto !important; height: auto !important; min-width: 96px; padding: var(--space-2) var(--space-8); z-index: 60; border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .uc-cond.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 var(--space-4); min-width: 64px; min-height: 16px; white-space: nowrap; }
     .uc-cond.is-editing:empty::before { content: "condition"; color: var(--text-muted); pointer-events: none; }
     .uc-label.is-dim:not(.hover, .selected) { opacity: var(--dim); }
     .uc-label.hl:not(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
@@ -94,17 +94,17 @@
     .uc-case.is-dim, .uc-actor.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
     .uc-case.is-dragging, .uc-actor.is-dragging { opacity: 0.8; z-index: 50; }
     .uc-case.is-dragging .uc-shape, .uc-actor.is-dragging .uc-figure { transform: scale(1.02); }
-    .uc-name-wrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 14px; }
+    .uc-name-wrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 var(--space-12); }
     .uc-name { text-align: center; white-space: pre; }
     .uc-name.is-abstract { font-style: italic; }
-    .uc-name.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
+    .uc-name.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 var(--space-2); min-width: 24px; }
     /* Extension points: a compartment under a line across the ellipse */
-    .uc-eps { flex: none; border-top: var(--ring-thin) solid var(--ring); padding: 10px 14px; text-align: center; }
+    .uc-eps { flex: none; border-top: var(--ring-thin) solid var(--ring); padding: var(--space-8) var(--space-12); text-align: center; }
     .uc-ep { display: block; white-space: nowrap; line-height: var(--line-16); }
     .uc-ep.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     /* Requirement ids under the ellipse (the Refs switch) */
-    .uc-refs { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); display: flex; gap: 3px; white-space: nowrap; pointer-events: none; }
-    .uc-ref { padding: 0 6px; border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--border-color); }
+    .uc-refs { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); display: flex; gap: var(--space-2); white-space: nowrap; pointer-events: none; }
+    .uc-ref { padding: 0 var(--space-4); border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--border-color); }
 
     /* --- Actors: a round avatar (person, server or clock), the name below, «system» / «time» under the name --- */
     .uc-actor {
@@ -118,9 +118,9 @@
       box-shadow: var(--shadow-sm); transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), transform var(--dur-micro) var(--curve-out);
     }
     .uc-figure svg { display: block; }
-    .uc-actor-name { text-align: center; margin-top: 8px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); font-weight: var(--weight-medium); }
+    .uc-actor-name { text-align: center; margin-top: var(--space-8); max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); font-weight: var(--weight-medium); }
     .uc-actor-name.is-abstract { font-style: italic; }
-    .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
+    .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 var(--space-2); min-width: 24px; }
     .uc-kw { color: var(--text-muted); }
     .uc-actor[data-sw] { --ring: var(--sw-line); }
     .uc-actor[data-sw] .uc-figure { background: var(--sw-tint, var(--sw-pill-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
@@ -131,8 +131,8 @@
     @media (max-width: 720px) { .uc-search { left: 12px; right: 12px; } .uc-search input { width: auto; flex: 1 1 auto; min-width: 0; } }
 
     /* Legend of the colour key, under the diagram */
-    .uc-legend { position: absolute; left: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; pointer-events: none; color: var(--text-main); }
-    .uc-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: var(--radius-pill); background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+    .uc-legend { position: absolute; left: 0; display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-16); pointer-events: none; color: var(--text-main); }
+    .uc-legend-item { display: inline-flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-8) var(--space-2) var(--space-8); border-radius: var(--radius-pill); background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
     .uc-legend .swatch-dot { background: var(--sw-pill-bg); border: var(--ring-thin) solid var(--sw-line); }
 
     /* Keyboard focus */
@@ -153,13 +153,13 @@
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
     .uc-actionbar {
-      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      position: absolute; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); z-index: 53;
       white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none; translate: -50% 0;
     }
-    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(340px, calc(100vw - 24px)); row-gap: 2px; }
+    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(340px, calc(100vw - 24px)); row-gap: var(--space-2); }
     .uc-ab-break { flex-basis: 100%; height: 0; }
     .uc-ab-btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: 30px; min-width: 30px; padding: 0 var(--space-4); box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
@@ -171,8 +171,8 @@
     .uc-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .uc-ab-btn svg { display: block; }
     .uc-ab-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-    .uc-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
-    .uc-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .uc-ab-sep { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--border-color); }
+    .uc-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .uc-ab-swatch { height: 30px; width: 30px; }
     .uc-ab-glyph svg path { stroke: currentColor; fill: none; }
     body.uc-dragging .uc-actionbar { display: none !important; }
@@ -186,7 +186,7 @@
     body.presentation .uc-actionbar { display: none !important; }
 
     /* The tiny drawings in the help drawer */
-    .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .uc-help-line { display: flex; align-items: center; gap: var(--space-8); margin: var(--space-4) 0; }
     .uc-help-line svg { flex: none; fill: none; stroke: var(--node-border); stroke-width: var(--ring-thin); stroke-linecap: round; stroke-linejoin: round; }
     .uc-help-line svg .d { stroke-dasharray: var(--dash); }
     .uc-help-line svg .f { fill: var(--node-border); }
@@ -199,7 +199,7 @@
     #uc-pop .btn-shape { cursor: grab; touch-action: none; }
     #uc-pop .btn-shape svg > * { transition: stroke var(--dur-micro) var(--curve-out); }
     .uc-tile-avatar {
-      width: 28px; height: 28px; margin: 2px 0; box-sizing: border-box; border-radius: var(--radius-round);
+      width: 28px; height: 28px; margin: var(--space-2) 0; box-sizing: border-box; border-radius: var(--radius-round);
       display: inline-flex; align-items: center; justify-content: center;
       border: 1px solid var(--uc-tile-line); background: var(--uc-tile-bg); color: var(--uc-tile-ink);
       transition: border-color var(--dur-micro) var(--curve-out);

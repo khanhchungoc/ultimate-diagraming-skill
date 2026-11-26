@@ -35,7 +35,7 @@
       }
     }
     /* swatchRow(): 2-row grid of colour buttons (a "none" button, then one per palette slot) */
-    .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: 2px; justify-items: center; }
+    .swatch-row { display: grid; grid-template-columns: repeat(5, auto); gap: var(--space-2); justify-items: center; }
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; cursor: pointer;
@@ -50,14 +50,14 @@
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     /* swatchPicker(): a single trigger button showing the active swatch, opening a popover with swatchRow() */
     .swatch-picker { position: relative; display: inline-flex; align-items: center; }
-    .swatch-trigger { gap: 4px; width: auto; padding: 0 7px; }
+    .swatch-trigger { gap: var(--space-4); width: auto; padding: 0 var(--space-8); }
     .swatch-trigger[aria-expanded="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
     .swatch-trigger .swatch-caret-wrap { display: inline-flex; align-items: center; color: var(--text-muted); }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
     .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
     .swatch-popover {
       position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0;
-      padding: 4px; border-radius: var(--radius-lg);
+      padding: var(--space-4); border-radius: var(--radius-lg);
       background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md);
       white-space: nowrap;
     }
@@ -88,6 +88,6 @@
       backdrop-filter: none; -webkit-backdrop-filter: none;
     }
     @media (pointer: coarse) {
-      .swatch-row { gap: 4px; }
+      .swatch-row { gap: var(--space-4); }
       .swatch-btn { width: 34px; height: 34px; }
     }

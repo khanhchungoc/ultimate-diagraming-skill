@@ -1,7 +1,7 @@
     /* C4 diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; the edge line and label, the frame tag and chevron, the
        buttons and the colour swatches are in assets/components/. Only what is specific to C4 tiles, groups and their arrows is here. */
 
-    #c4-canvas { position: relative; box-sizing: content-box; margin: 40px; }
+    #c4-canvas { position: relative; box-sizing: content-box; margin: var(--space-40); }
     /* No stacking context on the layers below: frames under arrows (10) under tiles (20), frame tags (25) and labels (30) */
     #c4-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #c4-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -23,7 +23,7 @@
     :root[data-theme="dark"] .c4-group.is-frame { border-color: color-mix(in srgb, var(--node-border) 80%, var(--border-dark)); }
     :root[data-theme="dark"] .c4-group.is-shared.is-frame:not(.swatch-scope) { background: color-mix(in srgb, var(--bg-soft) 72%, var(--bg-canvas, var(--bg-panel))); }
     :root[data-theme="dark"] .c4-group.is-frame.swatch-scope { background: color-mix(in srgb, var(--sw-line) 10%, var(--bg-canvas, var(--bg-panel))); border-color: color-mix(in srgb, var(--sw-line) 65%, var(--node-border)); }
-    .c4-tag { z-index: 25; left: 12px; top: 8px; box-sizing: border-box; height: 26px; display: flex; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
+    .c4-tag { z-index: 25; left: 12px; top: 8px; box-sizing: border-box; height: 26px; display: flex; align-items: center; gap: var(--space-2); pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
     .c4-tag:focus-visible, .c4-node:focus-visible, .c4-group.is-tile:focus-visible, .c4-label:focus-visible, .c4-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 
     /* --- Icon cards: the flowchart tile (an inset ring that thickens to the accent on hover and selection) with a coloured disc and
@@ -31,7 +31,7 @@
        --sw-on-solid; the box size is the engine's. --- */
     .c4-node, .c4-group.is-tile {
       --ring: var(--node-border);
-      position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px; text-align: center;
+      position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-8) var(--space-12); text-align: center;
       background: var(--sw-tint, var(--sw-pill-bg, var(--node-bg))); color: var(--sw-pill-ink, var(--text-main));
       border-radius: var(--radius-lg); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-sm);
       transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), opacity 110ms var(--curve-inout), filter 110ms var(--curve-inout);
@@ -56,7 +56,7 @@
       width: calc(var(--icon-tile) * 1.5); height: calc(var(--icon-tile) * 1.5);
       border-radius: var(--radius-round); background: var(--swatch-disc-logo);
     }   /* a vendor logo keeps its own colours, so its disc is white in both themes (vendor terms) */
-    .c4-node.selected:not(.is-dragging) { padding-bottom: 6px; }
+    .c4-node.selected:not(.is-dragging) { padding-bottom: var(--space-4); }
     .c4-node.selected:not(.is-dragging):has(.c4-ph-row),
     .c4-node:has(.is-editing) { height: auto !important; min-height: var(--c4-h); z-index: 45; }
     .c4-node.selected:not(.is-dragging):has(.c4-ph-row) .c4-text,
@@ -71,7 +71,7 @@
     .c4-desc { -webkit-line-clamp: 3; }
     .c4-tech { font-style: italic; }
     .c4-group.is-tile .chevron { position: absolute; left: 4px; top: 4px; margin: 0; }
-    .c4-group.is-frame .chevron { margin: 0 0 0 -6px; vertical-align: baseline; }
+    .c4-group.is-frame .chevron { margin: 0 0 0 calc(-1 * var(--space-4)); vertical-align: baseline; }
 
     /* --- Arrows: the shared edge line (edge.css), neutral at rest (or palette-tinted via --sw-line); in/out lit as the flowchart does --- */
     .c4-edge { transition: opacity 110ms var(--curve-inout); }
@@ -89,7 +89,7 @@
     .c4-label {
       translate: -50% -50%;
       display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 2px; padding: 4px 10px;
+      gap: var(--space-2); padding: var(--space-4) var(--space-8);
       width: max-content; height: auto; max-width: var(--c4-label-max-w, 140px);
       white-space: normal; text-align: center; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight);
@@ -107,7 +107,7 @@
     .c4-step {
       position: absolute; z-index: 32; translate: -50% -50%;
       display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
-      min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-pill);
+      min-width: 22px; height: 22px; padding: 0 var(--space-4); border-radius: var(--radius-pill);
       background: var(--sw-pill-solid, var(--primary)); color: var(--sw-on-solid, var(--on-primary));
       border: 1.5px solid var(--bg-canvas, var(--bg-panel)); box-shadow: var(--shadow-sm);
       font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: var(--leading-none); white-space: nowrap;
@@ -127,23 +127,23 @@
     .c4-name.is-editing, .c4-tech.is-editing, .c4-desc.is-editing, .c4-tag-name.is-editing,
     .c4-node .c4-placeholder.is-editing {
       display: block; -webkit-line-clamp: unset; overflow: visible; -webkit-user-select: text; user-select: text; min-width: 36px; cursor: text;
-      background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border: none; border-radius: var(--radius-xs); padding: 0 4px;
+      background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border: none; border-radius: var(--radius-xs); padding: 0 var(--space-4);
       font-style: normal; opacity: 1;
     }
     .c4-tech.is-editing, .c4-tech-ph.is-editing { font-style: italic; }
     .c4-label-text.is-editing, .c4-label-tech.is-editing, .c4-label-tech-ph.is-editing {
       display: inline-block; min-width: 48px; -webkit-user-select: text; user-select: text; cursor: text;
-      background: transparent; color: var(--text-main); outline: none; border: none; padding: 0 2px;
+      background: transparent; color: var(--text-main); outline: none; border: none; padding: 0 var(--space-2);
       font-style: normal; opacity: 1;
     }
     .c4-label-tech.is-editing, .c4-label-tech-ph.is-editing { color: var(--text-soft); }
     .is-editing:empty::before { content: attr(data-edit-ph); color: var(--text-muted); font-style: italic; pointer-events: none; }
     /* Subtle ghost placeholders on a single selected card or direct arrow (skipped in export and ?present) */
-    .c4-ph-row { display: none; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; margin-top: 2px; }
+    .c4-ph-row { display: none; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-4); margin-top: var(--space-2); }
     .c4-node.selected:not(.is-dragging) .c4-ph-row,
     .c4-node:has(.c4-placeholder.is-editing) .c4-ph-row { display: inline-flex; }
     .c4-placeholder {
-      display: none; cursor: text; padding: 0 4px; border-radius: var(--radius-xs);
+      display: none; cursor: text; padding: 0 var(--space-4); border-radius: var(--radius-xs);
       border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
       color: var(--text-soft); font-size: var(--t-overline-size); line-height: var(--leading-tight); font-style: italic;
       transition: color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
@@ -176,14 +176,14 @@
     .c4-actionbar { translate: -50% 0; pointer-events: auto; }
     .c4-actionbar .ab-btn:focus-visible, .c4-actionbar .swatch-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .c4-actionbar .ab-btn[aria-pressed="true"] svg { color: var(--primary); }
-    .c4-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .c4-ab-tag { padding: 0 var(--space-4) 0 var(--space-4); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .c4-menu { position: fixed; right: auto; top: auto; z-index: 2100; max-height: calc(100vh - 16px); overflow-y: auto; }
     .c4-menu button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     body.presentation .c4-actionbar, body.exporting .c4-actionbar { display: none !important; }
 
     /* The icon picker and step popover (screen-fixed, under its button) */
     .c4-pop {
-      position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; width: 280px; max-width: calc(100vw - 16px); padding: 10px;
+      position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-8); width: 280px; max-width: calc(100vw - 16px); padding: var(--space-8);
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-3xl); box-shadow: var(--shadow-xl); color: var(--text-main);
     }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -205,19 +205,19 @@
       }
     }
     .c4-step-pop { width: 210px; }
-    .c4-step-row { display: flex; gap: 6px; align-items: center; }
+    .c4-step-row { display: flex; gap: var(--space-4); align-items: center; }
     .c4-step-pop .c4-step-hint { color: var(--text-muted); font-size: var(--t-overline-size); }
     .c4-icons-note, .c4-icons-missing { color: var(--text-muted); }
     .c4-input {
-      width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      width: 100%; box-sizing: border-box; padding: var(--space-4) var(--space-8); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
     }
     .c4-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .c4-icons { width: 300px; }
     .c4-icon-list { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
     .c4-icon-list::-webkit-scrollbar { display: none; }
-    .c4-icon-head { color: var(--text-muted); margin: 8px 0 4px; }
-    .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; }
+    .c4-icon-head { color: var(--text-muted); margin: var(--space-8) 0 var(--space-4); }
+    .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: var(--space-4); }
     .c4-icon-opt {
       display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-lg);
       background: transparent; color: var(--text-soft); cursor: pointer;
@@ -240,11 +240,11 @@
     .c4-node.note-linked, .c4-group.note-linked { outline-offset: 5px; }
     .c4-note-pin {
       display: inline-flex; align-items: center; justify-content: center;
-      padding: 2px 5px; border: 1px solid var(--note-border); border-radius: var(--radius-pill);
+      padding: var(--space-2) var(--space-4); border: 1px solid var(--note-border); border-radius: var(--radius-pill);
       background: var(--note-bg); color: var(--note-ink); cursor: pointer; line-height: var(--leading-none);
     }
     .c4-node > .c4-note-pin, .c4-group.is-tile > .c4-note-pin { position: absolute; top: 6px; right: 6px; }
-    .c4-tag .c4-note-pin { position: relative; margin-left: 4px; padding: 1px 4px; }
+    .c4-tag .c4-note-pin { position: relative; margin-left: var(--space-4); padding: var(--space-2) var(--space-4); }
     /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
     .c4-note-pin::before {
       content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
@@ -270,13 +270,13 @@
     .c4-group.c4-drop.is-tile { --ring: var(--primary); background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), 0 0 0 var(--ring-md) var(--primary-ring); }
     .c4-group { transition: background-color var(--dur-micro) var(--curve-inout), border-color var(--dur-micro) var(--curve-inout); }
     /* the manual layout badge, beside the save status (c4.js moves it there) */
-    .c4-mode { margin-left: 6px; transform-origin: left center; background: var(--primary-wash); color: var(--primary); }
+    .c4-mode { margin-left: var(--space-4); transform-origin: left center; background: var(--primary-wash); color: var(--primary); }
     .c4-mode[hidden] { display: none; }
 
     /* Add-menu shape tiles: miniature C4 cards matching the real canvas swatch tokens, and dashed group frame */
     .c4-tile-card {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 34px; height: 28px; margin: 2px 0; box-sizing: border-box;
+      width: 34px; height: 28px; margin: var(--space-2) 0; box-sizing: border-box;
       border-radius: var(--radius-md); border: var(--ring-thin) solid var(--c4-tile-line); background: var(--c4-tile-bg);
       transition: border-color var(--dur-micro) var(--curve-out);
     }

@@ -87,6 +87,27 @@
   <div class="cell"><svg width="120" height="60"><rect class="item-shape is-dim" id="shape-dim" x="8" y="8" width="104" height="44" rx="8"/></svg><small>.is-dim</small></div>
 </div>
 
+<h2>Dock overflow More menu (.dock-more-wrap)</h2>
+<p class="gal-note">When the bottom dock runs out of room, low-priority controls (highest <code>data-dock-priority</code> first) fold into <code>#btn-dock-more</code> and stay interactive via <code>#dock-more-menu</code>.</p>
+<div class="row" id="dock-more" style="padding-top: 140px;">
+  <div class="cell">
+    <div class="toolbar-center" role="toolbar" aria-label="Sample dock">
+      <button type="button" class="btn">{{icon:plus}}<span class="btn-label">Add</span></button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button type="button" class="btn">{{icon:tidy}}<span class="btn-label">Tidy</span></button>
+      <div class="menu-wrap dock-more-wrap">
+        <button id="gal-dock-more" type="button" class="btn btn-icon dock-more-btn" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="true" aria-controls="gal-dock-more-menu">{{icon:more}}</button>
+        <div id="gal-dock-more-menu" class="menu dock-more-menu" role="menu" aria-label="More actions">
+          <button type="button" role="menuitemcheckbox" aria-checked="true">{{icon:calendar:sm}}<span>Weekends</span>{{icon:check:sm}}</button>
+          <button type="button" role="menuitemcheckbox" aria-checked="false">{{icon:link:sm}}<span>Arrows</span>{{icon:check:sm}}</button>
+          <button type="button" role="menuitem">{{icon:clock:sm}}<span>Today</span></button>
+        </div>
+      </div>
+    </div>
+    <small>open menu above #btn-dock-more (click items to toggle)</small>
+  </div>
+</div>
+
 <script>
   var root = document.documentElement;
   function setTheme(t) { root.setAttribute('data-theme', t); document.getElementById('theme-toggle').textContent = t === 'dark' ? 'Light theme' : 'Dark theme'; }
@@ -98,6 +119,21 @@
   document.querySelectorAll('[data-item], .item-shape').forEach(function (el) {
     el.addEventListener('click', function () { el.classList.toggle('selected'); });
   });
+  var galMoreBtn = document.getElementById('gal-dock-more');
+  var galMoreMenu = document.getElementById('gal-dock-more-menu');
+  if (galMoreMenu) {
+    galMoreMenu.querySelectorAll('button[role="menuitemcheckbox"] > svg:last-child').forEach(function (ic) { ic.classList.add('dock-more-check'); });
+    galMoreMenu.querySelectorAll('button[role="menuitemcheckbox"]').forEach(function (b) {
+      b.addEventListener('click', function () { b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true')); });
+    });
+  }
+  if (galMoreBtn && galMoreMenu) {
+    galMoreBtn.addEventListener('click', function () {
+      var open = galMoreMenu.hidden;
+      galMoreMenu.hidden = !open;
+      galMoreBtn.setAttribute('aria-expanded', String(open));
+    });
+  }
 </script>
 </body>
 </html>

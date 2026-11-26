@@ -2,7 +2,7 @@
     .toast {
       position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50;
       pointer-events: none;   /* a status line, never a target: it must not swallow clicks meant for the action bar beneath */
-      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
+      max-width: min(90vw, 420px); padding: var(--space-8) var(--space-12); border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
       font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
       animation: toast-in 170ms var(--curve-spring-tactile);

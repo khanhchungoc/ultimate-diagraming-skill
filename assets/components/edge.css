@@ -29,7 +29,7 @@
       box-shadow: var(--shadow-sm);
       /* The pill: one box that wraps its text onto up to a few lines (the flowchart look). A type only positions it (left, top,
          transform, z-index, max-width, display); a one-line label adds .edge-label--single. */
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 3px 8px;
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-2) var(--space-8);
       font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading);
       white-space: normal; overflow-wrap: break-word; text-align: center;
       max-width: var(--edge-label-max-w, 140px);   /* keep in sync with LE.LABEL_MAX_W */
@@ -38,7 +38,7 @@
     .edge-label--wrap { white-space: normal; }
     /* One line of detail text that ends in an ellipsis (ER relationship names) */
     .edge-label--single {
-      display: flex; padding: 0 8px; max-width: none; white-space: nowrap; pointer-events: auto;
+      display: flex; padding: 0 var(--space-8); max-width: none; white-space: nowrap; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-none);
     }
     .edge-label--single > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

@@ -11,7 +11,7 @@
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- What is shown -->
       <!-- Columns: one of three views, so a choice from a popover (a radio group), not a button that cycles. Types below is a plain on/off switch. -->
-      <div class="dock-pop-wrap" data-dock-pop>
+      <div class="dock-pop-wrap" data-dock-pop data-dock-priority="7">
         <button id="btn-columns" class="btn dock-pop-trigger" aria-label="Columns" aria-haspopup="true" aria-expanded="false" aria-controls="columns-pop">
           {{icon:columns}}<span class="btn-label">Columns</span><span class="btn-count">All</span>
           <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
@@ -30,7 +30,7 @@
           </div>
         </div>
       </div>
-      <button id="btn-types" class="btn btn-switch" role="switch" title="Show or hide the column types" aria-label="Types" aria-checked="true">
+      <button id="btn-types" class="btn btn-switch" role="switch" data-dock-priority="8" title="Show or hide the column types" aria-label="Types" aria-checked="true">
         {{icon:types}}<span class="btn-label">Types</span>
       </button>
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
