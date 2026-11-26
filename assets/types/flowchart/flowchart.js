@@ -3009,13 +3009,28 @@
       let noteSizes = {};            // noteId -> {w, h}: measured card size
       let peekNodeId = null;         // node whose notes are peeked by hover
       let selectedNoteId = null;     // the note card itself is selected (Delete removes the note)
-      let editingNoteId = null;
       let peekTimer = 0;
       let noteDrag = null;           // { id, card, sx, sy, x, y, nx, ny, moved }
       let noteLink = null;           // { id, line, target }: dragging a note's link handle
 
       const nodeById = (id) => chartData.nodes.find(n => n.id === id);
       const nodeElOf = (id) => document.getElementById(`node-${id}`);
+      const noteCtl = createNotes({
+        data: () => chartData,
+        cardOf: (id) => noteCard(id),
+        anchorEl: (note) => { const a = linkedIds(note)[0]; return a && nodeElOf(a)?.querySelector('.note-badge'); },
+        canEdit: () => !isPresenting(),
+        openCard: (note) => {
+          cancelConnecting();
+          setNotePicking(false);
+          selectedNoteId = note.id;
+          if (!noteCard(note.id)) renderNotes(false); else applyNoteVisibility();
+          return noteCard(note.id);
+        },
+        clearSelection: (id) => { if (selectedNoteId === id) selectedNoteId = null; },
+        render: () => render(),   // badges appear or go, and the notes are re-fitted around the new size
+        onChange: () => updateStatus(true),
+      });
       const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
       const noteById = (id) => notesList().find(n => n.id === id);
       const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
@@ -3024,7 +3039,7 @@
       // Container px <-> a free note's flow-term position (see placeNodeEl)
       const toFlowPos = (x, y) => { const off = trackOffset(); return isTB() ? { x: Math.round(y - off), y: Math.round(x) } : { x: Math.round(x - off), y: Math.round(y) }; };
       const freeAt = (note) => flowToContainer(note.pos.x, note.pos.y);
-      const isLive = (note) => !!noteTextOf(note) || note.id === editingNoteId;
+      const isLive = (note) => !!noteTextOf(note) || note.id === noteCtl.editingId();
       const linkedIds = (note) => (note.nodes || []).filter(id => nodeElOf(id));
       // Notes with text that explain a node (the one being typed counts too, so its card exists)
       const notesOf = (nodeId) => notesList().filter(n => isLive(n) && (n.nodes || []).includes(nodeId));
@@ -3059,7 +3074,7 @@
           if ((note.nodes || []).length && !kept.length) orphans.add(note.id);
           note.nodes = kept;
         });
-        chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === editingNoteId));
+        chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === noteCtl.editingId()));
         if (!chartData.notes.length) delete chartData.notes;
       }
 
@@ -3215,7 +3230,7 @@
 
       function notePeeked(note) {
         const ids = note.nodes || [];
-        return note.id === selectedNoteId || note.id === editingNoteId || !!(noteDrag && noteDrag.id === note.id)
+        return note.id === selectedNoteId || note.id === noteCtl.editingId() || !!(noteDrag && noteDrag.id === note.id)
           || !!(noteLink && noteLink.id === note.id) || ids.includes(peekNodeId) || ids.includes(selectedNodeId);
       }
       let skipNoteUnfoldId = null;
@@ -3258,7 +3273,7 @@
               const anchorId = linkedIds(note)[0];
               const leaderEl = anchorId && noteLeaderGroup.querySelector(`.note-leader[data-note-id="${CSS.escape(note.id)}"][data-node-id="${CSS.escape(anchorId)}"]`);
               const br = badgeRects.get(note.id);
-              if (note.id === editingNoteId) {
+              if (note.id === noteCtl.editingId()) {
                 motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 170, easing: motion.curve('curve-spring-tactile') });
               } else if (br) {
                 motion.ghostMorph(br, card, 170, 'curve-spring-tactile');
@@ -3369,69 +3384,10 @@
         }
       }
 
-      function editNote(id) {
-        const note = noteById(id);
-        if (!note || isPresenting()) return;
-        cancelConnecting();
-        setNotePicking(false);
-        editingNoteId = id;
-        selectedNoteId = id;
-        if (!noteCard(id)) renderNotes(false); else applyNoteVisibility();
-        const card = noteCard(id);
-        if (!card) return;
-        const text = card.querySelector('.note-text');
-        text.contentEditable = 'true';
-        text.focus();
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-
-      function commitNote(note, text) {
-        text.contentEditable = 'false';
-        if (editingNoteId !== note.id) return;
-        editingNoteId = null;
-        const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        if (value) note.text = value;
-        else {
-          const card = noteCard(note.id), anchorId = linkedIds(note)[0];
-          const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
-          if (card) motion.foldNote(card, badgeEl);
-          chartData.notes = notesList().filter(n => n !== note);
-          if (!chartData.notes.length) delete chartData.notes;
-          if (selectedNoteId === note.id) selectedNoteId = null;
-        }
-        updateStatus(true);
-        render();   // badges appear or go, and the notes are re-fitted around the new size
-      }
-
-      // Clicking anywhere else finishes the note being typed (a node press calls preventDefault, which would
-      // otherwise keep the focus in the note)
-      window.addEventListener('pointerdown', (e) => {
-        if (!editingNoteId) return;
-        const card = noteCard(editingNoteId);
-        if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
-        if (text) text.blur();
-        if (text && note) commitNote(note, text);   // no-op if the blur already committed it
-      }, true);
-
-      function removeNote(id) {
-        const note = noteById(id);
-        if (!note) return;
-        const card = noteCard(id), anchorId = linkedIds(note)[0];
-        const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
-        if (card) motion.foldNote(card, badgeEl);
-        chartData.notes = notesList().filter(n => n.id !== id);
-        if (!chartData.notes.length) delete chartData.notes;
-        if (editingNoteId === id) editingNoteId = null;
-        if (selectedNoteId === id) selectedNoteId = null;
-        updateStatus(true);
-        render();
-      }
+      // Typing state, text cleanup, empty-note removal and the fold animation live in the shared controller (shell/notes.js)
+      function editNote(id) { noteCtl.edit(id); }
+      function commitNote(note, text) { noteCtl.commit(note, text); }
+      function removeNote(id) { noteCtl.remove(id); }
 
       // Link a note to a step, or unlink it when it is linked already (a note keeps at least one step). A pinned
       // note whose anchor goes keeps its place on screen, measured from its new anchor.
