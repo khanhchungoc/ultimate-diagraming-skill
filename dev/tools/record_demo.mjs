@@ -249,7 +249,287 @@ function createDirector(t, framesDir) {
   return { frames, setCursor, camera, snap, hold, pause, glideTo, clickHere, dragTo, wheel, typeText, pressKey };
 }
 
-/** Hero clip: Drag/Rename + Auto-Tidy, Subprocess tab, Copy/Import Mermaid, Save, Present mode. */
+const CHAT_INTRO_INSTALL_JS = `(() => {
+  if (document.getElementById('__demo-chat')) return;
+  const style = document.createElement('style');
+  style.id = '__demo-chat-style';
+  style.textContent = \`
+    #__demo-chat {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483640;
+      background: #faf9f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1f1e1d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      box-sizing: border-box;
+    }
+    .__dc-shell {
+      width: 100%;
+      max-width: 740px;
+      height: 540px;
+      background: #ffffff;
+      border: 1px solid #e8e4dc;
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(31, 30, 29, 0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .__dc-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid #f2efe9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #3d3a36;
+    }
+    .__dc-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #d97757;
+    }
+    .__dc-msgs {
+      flex: 1;
+      padding: 24px 24px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: hidden;
+    }
+    .__dc-welcome {
+      margin: auto;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      max-width: 440px;
+    }
+    .__dc-welcome-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1f1e1d;
+      letter-spacing: -0.01em;
+    }
+    .__dc-welcome-sub {
+      font-size: 14px;
+      color: #78736a;
+      line-height: 1.45;
+    }
+    .__dc-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .__dc-chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #faf9f5;
+      border: 1px solid #e6dfd3;
+      font-size: 12.5px;
+      color: #5c574f;
+    }
+    .__dc-user {
+      align-self: flex-end;
+      background: #f4efe6;
+      color: #1f1e1d;
+      border: 1px solid #e6dfd3;
+      padding: 11px 16px;
+      border-radius: 14px 14px 4px 14px;
+      font-size: 15px;
+      line-height: 1.45;
+      max-width: 82%;
+    }
+    .__dc-ai {
+      align-self: flex-start;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 82%;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #2c2a27;
+    }
+    .__dc-thinking {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: #78736a;
+      font-size: 14px;
+    }
+    .__dc-spin {
+      width: 15px;
+      height: 15px;
+      border: 2px solid #f0ddd4;
+      border-top-color: #d97757;
+      border-radius: 50%;
+      animation: __dc-rot 700ms linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes __dc-rot {
+      to { transform: rotate(360deg); }
+    }
+    .__dc-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #faf9f5;
+      border: 1.5px solid #e2dbd0;
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+    .__dc-file:hover {
+      border-color: #d97757;
+      background: #fdf6f2;
+    }
+    .__dc-file-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: #fae8e0;
+      color: #c6613f;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .__dc-file-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .__dc-file-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f1e1d;
+    }
+    .__dc-file-sub {
+      font-size: 12.5px;
+      color: #78736a;
+    }
+    .__dc-compose {
+      padding: 16px 20px 20px;
+      border-top: 1px solid #f2efe9;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .__dc-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      border: 1.5px solid #dcd6cb;
+      border-radius: 11px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: #1f1e1d;
+      background: #ffffff;
+      outline: none;
+    }
+    .__dc-input:focus {
+      border-color: #d97757;
+    }
+    .__dc-send {
+      height: 44px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 11px;
+      background: #d97757;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .__dc-send:hover {
+      background: #c6613f;
+    }
+  \`;
+  document.head.appendChild(style);
+
+  const root = document.createElement('div');
+  root.id = '__demo-chat';
+  root.innerHTML = \`
+    <div class="__dc-shell">
+      <div class="__dc-head"><span class="__dc-dot"></span>AI Assistant</div>
+      <div class="__dc-msgs" id="__dc-msgs">
+        <div class="__dc-welcome" id="__dc-welcome">
+          <div class="__dc-welcome-title">What would you like to diagram?</div>
+          <div class="__dc-welcome-sub">Describe a process or system and get a single interactive HTML file you can edit offline.</div>
+          <div class="__dc-chips">
+            <span class="__dc-chip">Swimlane flowchart</span>
+            <span class="__dc-chip">Sequence diagram</span>
+            <span class="__dc-chip">ER diagram</span>
+            <span class="__dc-chip">C4 architecture</span>
+          </div>
+        </div>
+      </div>
+      <div class="__dc-compose">
+        <input id="__dc-input" class="__dc-input" type="text" placeholder="Ask AI to draw a diagram..." />
+        <button id="__dc-send" class="__dc-send" type="button">Send</button>
+      </div>
+    </div>
+  \`;
+  document.body.appendChild(root);
+
+  const input = document.getElementById('__dc-input');
+  const send = document.getElementById('__dc-send');
+  const msgs = document.getElementById('__dc-msgs');
+
+  function submitPrompt() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    document.getElementById('__dc-welcome')?.remove();
+    const u = document.createElement('div');
+    u.className = '__dc-user';
+    u.textContent = text;
+    msgs.appendChild(u);
+
+    const ai = document.createElement('div');
+    ai.className = '__dc-ai';
+    ai.innerHTML = '<div class="__dc-thinking"><span class="__dc-spin"></span>Creating loan-approval.html...</div>';
+    msgs.appendChild(ai);
+
+    setTimeout(() => {
+      ai.innerHTML = \`
+        <div>Here is your editable swimlane flowchart:</div>
+        <button id="__demo-chat-file" class="__dc-file" type="button">
+          <span class="__dc-file-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </span>
+          <span class="__dc-file-meta">
+            <span class="__dc-file-name">loan-approval.html</span>
+            <span class="__dc-file-sub">Interactive diagram · Click to open</span>
+          </span>
+        </button>
+      \`;
+      document.getElementById('__demo-chat-file')?.addEventListener('click', () => {
+        root.remove();
+        style.remove();
+      });
+    }, 1000);
+  }
+
+  send.addEventListener('click', submitPrompt);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPrompt();
+  });
+})()`;
+
+/** Hero clip: AI chat prompt -> open HTML -> Drag/Rename + Auto-Tidy, Subprocess tab, Copy/Import Mermaid, Save, Present mode. */
 async function runHero(t, d) {
   await t.send('Page.addScriptToEvaluateOnNewDocument', { source: DEMO_STUBS_JS });
   await t.open(join(ROOT, 'dev/samples/example-flowchart.html'), '?keep-picker', { motion: true });
@@ -257,11 +537,38 @@ async function runHero(t, d) {
   await sleep(120);
   await t.ev(`[...document.querySelectorAll('button')].find(b => /choose|continue/i.test(b.textContent))?.click()`);
   await sleep(200);
+  await t.ev(CHAT_INTRO_INSTALL_JS);
   await t.ev(CURSOR_INSTALL_JS);
 
-  await d.setCursor(VIEW_W * 0.56, VIEW_H * 0.64, false);
+  // 0. AI chat intro: type prompt, send, click generated loan-approval.html
+  await d.setCursor(VIEW_W * 0.45, VIEW_H * 0.72, false);
   d.camera(1.0, VIEW_W / 2, VIEW_H / 2, 1.0);
   await d.pause(550);
+
+  const chatInput = await t.at('#__dc-input');
+  if (!chatInput) throw new Error('Missing #__dc-input');
+  await d.glideTo(chatInput.x, chatInput.y, { frames: 8, stepMs: 62 });
+  await d.clickHere({ count: 1 });
+  await d.pause(250);
+  await d.typeText('/ultimate-diagram Draw a swimlane flowchart of our loan approval process.', { chunkSize: 3, stepMs: 75 });
+  await d.pause(550);
+
+  const sendBtn = await t.at('#__dc-send');
+  if (!sendBtn) throw new Error('Missing #__dc-send');
+  await d.glideTo(sendBtn.x, sendBtn.y, { frames: 6, stepMs: 62 });
+  await d.clickHere({ count: 1 });
+  await d.hold(1150, 75);
+  await d.pause(900);
+
+  const fileCard = await t.at('#__demo-chat-file');
+  if (!fileCard) throw new Error('Missing #__demo-chat-file');
+  await d.glideTo(fileCard.x, fileCard.y, { frames: 8, stepMs: 65 });
+  await d.pause(350);
+  await d.clickHere({ count: 1 });
+  await d.hold(240, 65);
+
+  const posterFrame = d.frames.length;
+  await d.pause(700);
 
   // 1. Drag step across lanes (Auto-Tidy) & rename
   const nodeSel = '.flow-node[data-node-id="n_verify_income_employment"]';
@@ -358,7 +665,7 @@ async function runHero(t, d) {
   }
   await d.pause(550);
 
-  return { posterFrame: 0 };
+  return { posterFrame };
 }
 
 /**
