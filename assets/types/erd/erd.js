@@ -522,9 +522,21 @@
         }
         return out;
       }
-      const entityEl = (id) => [...erdHtml.querySelectorAll('.erd-entity')].find((el) => el.dataset.nodeId === id);
-      const relEl = (id) => [...erdRels.children].find((el) => el.dataset.edgeId === id);
-      const labelEl = (id) => [...erdHtml.querySelectorAll('.edge-label')].find((el) => el.dataset.edgeId === id);
+      // id -> element lookups through an index built on first use and rebuilt when it misses or holds a removed element
+      // (a render replaces them all), so a hover highlight is not a scan of every table per relationship.
+      // The first element in document order wins, as a find() over the list would.
+      const erdIndex = (list, key) => {
+        let map = null;
+        const build = () => { map = new Map(); for (const el of list()) { const k = el.dataset[key]; if (!map.has(k)) map.set(k, el); } };
+        return (id) => {
+          let el = map && map.get(id);
+          if (!el || !el.isConnected) { build(); el = map.get(id); }
+          return el;
+        };
+      };
+      const entityEl = erdIndex(() => erdHtml.querySelectorAll('.erd-entity'), 'nodeId');
+      const relEl = erdIndex(() => erdRels.children, 'edgeId');
+      const labelEl = erdIndex(() => erdHtml.querySelectorAll('.edge-label'), 'edgeId');
       function markRows(rel, cls) {
         joinedRows(rel).forEach((end) => {
           const el = entityEl(end.id);
