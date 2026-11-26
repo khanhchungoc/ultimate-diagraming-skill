@@ -274,7 +274,7 @@
     /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
     .c4-note-pin::before {
       content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
-      width: var(--hit-min, 24px); height: var(--hit-min, 24px);
+      width: var(--hit-min); height: var(--hit-min);
     }
     .c4-note-pin:hover { border-color: var(--primary); color: var(--primary); }
     .c4-note-pin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
