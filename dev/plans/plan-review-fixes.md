@@ -1,8 +1,54 @@
 # Plan: engineering review fixes (performance, tokens, WCAG AA)
 
-Follow-up to the 2026-11-26 codebase review. Eight phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
+Follow-up to the 2026-11-26 codebase review. Nine phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
 
 Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating, and `npm run test:e2e:changed`, light/dark contrast, and `build_examples.py --check` before merge. Goldens (`check_golden.py`) must stay byte-identical unless a phase says otherwise: layout and routing are deterministic and the file format does not change in any phase.
+
+## Progress and where to pick up (paused 2026-11-26)
+
+Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration branch; it is based on `stg` and holds everything below that is not yet on `stg`.
+
+### Done
+
+| Item | Where | Notes |
+|---|---|---|
+| Wave A: Phase 1 (WCAG quick fixes), Phase 2 steps 1, 2, 4 (router grid index, bench, perf test), Phase 4 steps 2, 4, 5, 6 + `space` and interaction token definitions, Phase 7 (smaller pages) | `stg` (PR #155) | 400-node routing ~5.3 s to ~0.45 s, pages 20-29% smaller |
+| 9 stale goldens refreshed (C4 #113, flowchart 88c41fd) | `stg` (PR #156) | golden 60/60 |
+| Wave B1: Phase 2 step 3 + Phase 3 for flowchart (keyed reuse, delegation, incremental drag re-route) and ERD element index | integration branch | 500 steps: render ~225 ms to ~112 ms, drag move ~60 ms to ~12 ms |
+| Wave B2: Phase 5 for all six types, flowchart included (shared chevron, port, edge label, item states, state names, `dev/docs/ui-elements.md`, `check_components.py`, gallery `dev/playground/components.html`, `e2e_components.mjs`) | integration branch | port is 12 px outer; a side port's 24 px target runs outward only; shell sets `body.is-touch` |
+| Wave B3: Phase 6 shared notes controller for flowchart, usecase, erd, c4, gantt | integration branch | `assets/shell/notes.js` |
+| Phone check `dev/tests/e2e/e2e_device.mjs` (registered as `device`) | integration branch | see "Open failures" |
+| Harness rule for shared UI elements | `ultimate-harness` PR #17 | open, not merged |
+
+Last full run on the integration branch (commit f71e00a, before `e2e_device.mjs` was added): unit `--all` 29/29, e2e 46/46, samples up to date.
+
+### Open failures (expected until the work below lands)
+
+`e2e_device.mjs` fails 3 checks: sequence "emptying the note removes it" and "it leaves as a morph" (sequence restores the old text; fixed by the sequence notes migration), and gantt "it leaves as a morph" (gantt never animated note removal; fixed by passing `anchorEl`). Fix these before opening the `stg` PR, or the full e2e suite is red.
+
+### In progress: render reuse for the other types (saved as patches)
+
+Phase 3 for usecase, c4, gantt and sequence was started in four parallel streams and stopped before any commit. Their uncommitted work is saved in `dev/plans/wip/wave-c-<type>.patch` (each applies cleanly with `git apply` on the integration branch). State when stopped:
+
+| Type | Patch | State | Next step |
+|---|---|---|---|
+| usecase | `wave-c-usecase.patch` (usecase.js) | refactor written | compare DOM output base vs new on the examples, run `--type usecase` e2e, add identity/delegation checks to `e2e_usecase.mjs` |
+| c4 | `wave-c-c4.patch` (c4.js, e2e_c4.mjs) | refactor and identity/delegation e2e checks written | run the c4 e2e suites with motion on (`--only c4,c4_drag,c4_fit,c4_export,c4_packs,c4_picker_packs`), `check_c4_engine`, `check_c4_route` |
+| gantt | `wave-c-gantt.patch` (gantt.js, table.js) | timeline done and verified by the stream; table view started | finish the table view (`table.js`); add `anchorEl` to its `createNotes` so a removed note folds into its badge; run `--type gantt` |
+| sequence | `wave-c-sequence.patch` (sequence.js, e2e_sequence.mjs) | render reuse written; unit and golden pass | run `--type sequence` e2e; the notes migration (below) was not started |
+
+Rules each stream followed (keep them when resuming): keep element identity (a Map by id, update in place, rebuild only on a shape/kind change) so morphs keep working; one listener per layer dispatching by `data-*` id, capture for non-bubbling events, and the "first click re-renders, so the dblclick lands on a removed element" trap handled as in flowchart (`e.detail >= 2`); batch reads before writes; drag frames update only what the dragged item affects with a full render on drop; output unchanged (golden 60/60 and a DOM geometry comparison of item boxes, path `d` and label positions before vs after); before/after timings on a 300-500 item diagram; checks go into the type's existing e2e file. The flowchart implementation (`nodeEls`, `nodeElAt`, `rerouteDragFrame` in `flowchart.js`, `e2e_render_reuse.mjs`, `dev/bench/bench_render.mjs`) is the reference. Delete `dev/plans/wip/` once all four patches are merged or dropped.
+
+### Remaining, in order
+
+1. Finish the four patches above (one PR, or one per type), plus:
+   - **Sequence notes onto the shared controller** (`createNotes` in `assets/shell/notes.js`): only additive, optional hooks in `notes.js`; keep the sequence note function names as thin wrappers. An emptied note is then removed with a fold, like the other types.
+   - **Gantt note fold animation:** pass `anchorEl` (the note's badge on its bar or row) to `createNotes`.
+2. Open the integration branch PR to `stg` (Waves B and B follow-ups), with full unit and e2e suites green and samples rebuilt. Merge harness PR #17 once the skill PR is on `stg`.
+3. Investigate the known Gantt issue below (opens scrolled to 2022 below ~1,280 px wide).
+4. Phase 4 step 1 (migrate every CSS file to `--space-*`, add a `spacing-literal` rule) and step 3 (control height, padding and dock inset tokens): not started.
+5. Phase 9 (phone toolbar More menu): planned, agree the fold order with the user first.
+6. Phase 8 (keyboard access): lowest priority, not started.
 
 | # | Phase | Size | Risk | Changes look? |
 |---|---|---|---|---|
