@@ -515,7 +515,137 @@ return true;
 });
 }
 window.addEventListener('resize', repositionBars);
-return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+const ICON_GROUPS = [
+['People', ['user', 'users', 'actor', 'headset']],
+['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
+['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale', 'workflow', 'sensor']],
+['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers', 'stream', 'brain', 'chart']],
+['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
+['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
+['Security', ['lock', 'key', 'shield']]
+];
+if (typeof ICONS !== 'undefined') {
+ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => {
+if (ICONS[n] === undefined) throw new Error(`Icon picker: "${n}" (${g}) is not in assets/icons/default.json`);
+}));
+}
+const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+function buildIconPicker(opts) {
+const o = opts || {};
+const cls = o.classes || {};
+const mk = (tag, c, text) => {
+const el = document.createElement(tag);
+if (c) el.className = c;
+if (text !== undefined) el.textContent = text;
+return el;
+};
+const box = mk('div', `icon-picker${cls.box ? ` ${cls.box}` : ''}`);
+if (o.id) box.id = o.id;
+box.setAttribute('role', 'dialog');
+box.setAttribute('aria-label', 'Icon');
+const search = mk('input', `icon-picker-input${cls.input ? ` ${cls.input}` : ''}`);
+if (o.searchId) search.id = o.searchId;
+search.type = 'search';
+search.placeholder = 'Search icons';
+search.setAttribute('aria-label', 'Search icons');
+search.autocomplete = 'off';
+const list = mk('div', `icon-picker-list${cls.list ? ` ${cls.list}` : ''}`);
+const note = mk('div', `icon-picker-note t-detail${cls.note ? ` ${cls.note}` : ''}`);
+note.setAttribute('role', 'status');
+const current = o.current || '';
+const defaultIcon = o.defaultIcon || 'cloud';
+const defaultLabel = o.defaultLabel || 'Default';
+const fill = () => {
+const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
+list.textContent = '';
+let shown = 0;
+const section = (heading, names) => {
+if (!names.length) return;
+if (heading) list.appendChild(mk('div', `icon-picker-head t-detail${cls.head ? ` ${cls.head}` : ''}`, heading));
+const grid = mk('div', `icon-picker-grid${cls.grid ? ` ${cls.grid}` : ''}`);
+grid.setAttribute('role', 'group');
+grid.setAttribute('aria-label', heading || 'Default');
+names.forEach((n) => {
+const b = mk('button', `icon-picker-opt${cls.opt ? ` ${cls.opt}` : ''}`);
+b.type = 'button';
+b.dataset.icon = n;
+const label = !n ? defaultLabel : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
+b.setAttribute('aria-label', label);
+b.setAttribute('aria-pressed', String(current === n));
+if (n.startsWith('logo:')) b.innerHTML = `<span class="icon-picker-logo${cls.logo ? ` ${cls.logo}` : ''}">${logo(n.slice(5), { size: 'lg' })}</span>`;
+else b.innerHTML = icon(n || defaultIcon, { size: 'md' });
+b.addEventListener('click', () => { if (o.onPick) o.onPick(n); });
+grid.appendChild(b);
+});
+list.appendChild(grid);
+};
+section('', ['']);
+ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
+const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
+const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
+const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
+shown += techLogos.length; section('Tech logos', techLogos);
+shown += localPacks.length; section('Local packs', localPacks);
+note.textContent = shown ? '' : 'No icon matches.';
+};
+search.addEventListener('input', fill);
+box.append(search, list, note);
+if (o.missing && o.missing.length) {
+const m = mk('div', `icon-picker-missing t-detail${cls.missing ? ` ${cls.missing}` : ''}`, o.missingText || `Missing icon pack: ${o.missing.join(', ')}.`);
+m.setAttribute('role', 'status');
+box.appendChild(m);
+}
+box.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (o.onEscape) o.onEscape(); }
+});
+fill();
+return { box, search };
+}
+let iconPickerEl = null;
+let iconPickerTrigger = null;
+function closeIconPicker(restoreFocus) {
+if (!iconPickerEl) return false;
+const el = iconPickerEl, trig = iconPickerTrigger;
+iconPickerEl = null;
+iconPickerTrigger = null;
+document.removeEventListener('pointerdown', onIconPickerOutside, true);
+if (typeof motion !== 'undefined') motion.ghostExit(el, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: el.style.transformOrigin || 'top left' });
+el.remove();
+if (restoreFocus && trig && trig.isConnected) trig.focus();
+return true;
+}
+function onIconPickerOutside(e) {
+if (iconPickerEl && !iconPickerEl.contains(e.target) && !(iconPickerTrigger && iconPickerTrigger.contains(e.target))) closeIconPicker(false);
+}
+function openIconPicker(anchor, opts) {
+const o = opts || {};
+const sameTrigger = o.trigger && iconPickerTrigger === o.trigger && iconPickerEl;
+closeIconPicker(false);
+if (sameTrigger) return null;
+const { box, search } = buildIconPicker(Object.assign({}, o, {
+onPick: (name) => { closeIconPicker(false); if (o.onPick) o.onPick(name); },
+onEscape: () => closeIconPicker(true)
+}));
+box.dataset.exportSkip = '';
+document.body.appendChild(box);
+iconPickerEl = box;
+iconPickerTrigger = o.trigger || null;
+const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
+box.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - box.offsetWidth - 8)))}px`;
+const below = r.bottom + 6 + box.offsetHeight < innerHeight - 8;
+box.style.top = `${Math.round(below ? r.bottom + 6 : Math.max(8, r.top - 6 - box.offsetHeight))}px`;
+box.style.transformOrigin = below ? 'top left' : 'bottom left';
+if (typeof motion !== 'undefined') {
+motion.anim(box, [
+{ transform: `scale(0.92, 0.86) translateY(${below ? -4 : 4}px)`, clipPath: below ? 'inset(0 0 25% 0 round 8px)' : 'inset(25% 0 0 0 round 8px)' },
+{ transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+], { duration: 130, easing: motion.curve('curve-spring-tactile') });
+}
+document.addEventListener('pointerdown', onIconPickerOutside, true);
+search.focus();
+return box;
+}
+return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, buildIconPicker, openIconPicker, closeIconPicker, isIconPickerOpen: () => !!iconPickerEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
 })();
 const currentScriptEl = document.currentScript;
 function sliceEngineSource(text) {
