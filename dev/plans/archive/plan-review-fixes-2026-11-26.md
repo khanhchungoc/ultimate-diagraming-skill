@@ -1,32 +1,27 @@
 # Plan: engineering review fixes (performance, tokens, WCAG AA)
 
-Follow-up to the 2026-11-26 codebase review. Nine phases, in priority order. Keyboard access for diagram items (review item 3) is deliberately last.
+**Status:** Completed (merged to `stg` across PRs #155, #156, #158, #159). Phase 8 (keyboard access for diagram items) was deferred and moved to `dev/plans/plan-keyboard-access.md`.
+
+Follow-up to the 2026-11-26 codebase review. Nine phases, in priority order. Keyboard access for diagram items (review item 3) was split into its own plan.
 
 Every phase is one PR to `stg`, with `npm run test:fast:changed` while iterating, and `npm run test:e2e:changed`, light/dark contrast, and `build_examples.py --check` before merge. Goldens (`check_golden.py`) must stay byte-identical unless a phase says otherwise: layout and routing are deterministic and the file format does not change in any phase.
 
-## Progress and where to pick up (paused 2026-11-26)
-
-Work paused for usage limits. Branch `ccr-fb499656-4hes42` is the integration branch; it is based on `stg` and holds everything below that is not yet on `stg`. To resume: start from that branch (not `stg`), read this section, then `git apply dev/plans/wip/wave-c-<type>.patch` for the type being finished.
-
-### Done
+## Completion summary
 
 | Item | Where | Notes |
 |---|---|---|
 | Wave A: Phase 1 (WCAG quick fixes), Phase 2 steps 1, 2, 4 (router grid index, bench, perf test), Phase 4 steps 2, 4, 5, 6 + `space` and interaction token definitions, Phase 7 (smaller pages) | `stg` (PR #155) | 400-node routing ~5.3 s to ~0.45 s, pages 20-29% smaller |
 | 9 stale goldens refreshed (C4 #113, flowchart 88c41fd) | `stg` (PR #156) | golden 60/60 |
-| Wave B1: Phase 2 step 3 + Phase 3 for flowchart (keyed reuse, delegation, incremental drag re-route) and ERD element index | integration branch | 500 steps: render ~225 ms to ~112 ms, drag move ~60 ms to ~12 ms |
-| Wave B2: Phase 5 for all six types, flowchart included (shared chevron, port, edge label, item states, state names, `dev/docs/ui-elements.md`, `check_components.py`, gallery `dev/playground/components.html`, `e2e_components.mjs`) | integration branch | port is 12 px outer; a side port's 24 px target runs outward only; shell sets `body.is-touch` |
+| Wave B1: Phase 2 step 3 + Phase 3 for flowchart (keyed reuse, delegation, incremental drag re-route) and ERD element index | `stg` (PR #158) | 500 steps: render ~225 ms to ~112 ms, drag move ~60 ms to ~12 ms |
+| Wave B2: Phase 5 for all six types, flowchart included (shared chevron, port, edge label, item states, state names, `dev/docs/ui-elements.md`, `check_components.py`, gallery `dev/playground/components.html`, `e2e_components.mjs`) | `stg` (PR #158) | port is 12 px outer; a side port's 24 px target runs outward only; shell sets `body.is-touch` |
 | Wave B3: Phase 6 shared notes controller for all six types (flowchart, usecase, erd, c4, gantt + anchorEl fold, sequence + optional `beforeEdit`/`selectAll` hooks) | `stg` (PR #158) | `assets/shell/notes.js` |
 | Wave C: Phase 3 render reuse & event delegation for c4, usecase, gantt (timeline + table), sequence | `stg` (PR #158) | `dev/plans/wip/` removed; reuse + delegation checks added to each type's e2e |
-| Phone check `dev/tests/e2e/e2e_device.mjs` (registered as `device`) | `stg` (PR #158) | all 6 types green (including gantt + sequence note fold morphs) |
+| Phone check `dev/tests/e2e/e2e_device.mjs` (registered as `device`) | `stg` (PR #158, #159) | all 6 types green (including gantt + sequence note fold morphs and 320/390/412 px overflow) |
 | Harness rule for shared UI elements | `ultimate-harness` `main` (PR #17, merged) | points at files now on `stg` |
-| Gantt narrow-viewport scroll fix (opens scrolled to 2022 below ~1,280 px) | `feat/wave-c1-phase9-gantt-scroll` | `behavior: 'instant'` for programmatic jumps + directional `maybeExtendTimeline()`; e2e regression at 900/1024 px |
-| Wave C1: Phase 4 steps 1 & 3 (spacing migration to `--space-*`, `spacing-literal` checker rule, control height/padding/dock inset tokens) | `feat/wave-c1-phase9-gantt-scroll` | all 23 CSS files migrated; `check_tokens.py` 8/8 rules |
-| Phase 9: Phone toolbar `More` overflow menu | `feat/wave-c1-phase9-gantt-scroll` | shared `ResizeObserver` controller in `shell.js` + `dock.css`, `data-dock-priority` across all 6 `toolbar.html`, gallery + `ui-elements.md`, `e2e_device.mjs` 320/390/412 px checks |
-
-### Remaining
-
-1. Phase 8 (keyboard access for diagram items): deferred.
+| Gantt narrow-viewport scroll fix (opens scrolled to 2022 below ~1,280 px) | `stg` (PR #159) | `behavior: 'instant'` for programmatic jumps + directional `maybeExtendTimeline()`; e2e regression at 900/1024 px |
+| Wave C1: Phase 4 steps 1 & 3 (spacing migration to `--space-*`, `spacing-literal` checker rule, control height/padding/dock inset tokens) | `stg` (PR #159) | all 23 CSS files migrated; `check_tokens.py` 8/8 rules |
+| Phase 9: Phone toolbar `More` overflow menu | `stg` (PR #159) | shared `ResizeObserver` controller in `shell.js` + `dock.css`, `data-dock-priority` across all 6 `toolbar.html`, gallery + `ui-elements.md`, `e2e_device.mjs` 320/390/412 px checks |
+| Phase 8: Keyboard access for diagram items | Moved to `dev/plans/plan-keyboard-access.md` | Deferred |
 
 | # | Phase | Size | Risk | Changes look? |
 |---|---|---|---|---|
