@@ -908,4 +908,9 @@
       transition: background var(--ease);
     }
     .sub-open:hover { background: var(--primary-wash); }
+    /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
+    .sub-open::before {
+      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+      width: var(--hit-min, 24px); height: var(--hit-min, 24px);
+    }
     .btn-sub[hidden] { display: none; }

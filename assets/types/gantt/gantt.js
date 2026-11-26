@@ -513,6 +513,12 @@
     sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)));
     if (sidebar) sidebar.style.width = `${sidebarWidth}px`;
     if (root) root.style.setProperty('--gantt-sidebar-w', `${sidebarWidth}px`);
+    if (splitter) {
+      splitter.setAttribute('aria-valuemin', String(SIDEBAR_MIN));
+      splitter.setAttribute('aria-valuemax', String(SIDEBAR_MAX));
+      splitter.setAttribute('aria-valuenow', String(sidebarWidth));
+      splitter.setAttribute('aria-valuetext', `${sidebarWidth} pixels`);
+    }
   }
 
   function ensureDepsSvg() {
@@ -815,6 +821,10 @@
       const row = htmlEl('div', `gantt-tree-row${idx % 2 === 1 ? ' is-alt' : ''}`);
       row.dataset.itemId = it.id;
       row.dataset.kind = it.kind || 'task';
+      row.setAttribute('role', 'treeitem');
+      row.setAttribute('aria-level', String((it._depth || 0) + 1));
+      row.setAttribute('aria-selected', String(selItems.has(it.id)));
+      if (it._hasChildren || it.kind === 'group') row.setAttribute('aria-expanded', String(!it.collapsed));
       row.style.height = `${rowH}px`;
       row.style.paddingLeft = `${6 + (it._depth || 0) * 14}px`;
       if (it._hasChildren || it.kind === 'group') row.classList.add('is-parent');
@@ -3440,6 +3450,16 @@
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
+    });
+    splitter.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 40 : 10;
+      const next = e.key === 'ArrowLeft' ? sidebarWidth - step
+        : e.key === 'ArrowRight' ? sidebarWidth + step
+        : e.key === 'Home' ? SIDEBAR_MIN
+        : e.key === 'End' ? SIDEBAR_MAX : null;
+      if (next == null) return;
+      e.preventDefault();
+      applySidebarWidth(next);
     });
     splitter.addEventListener('dblclick', (e) => {
       e.preventDefault();

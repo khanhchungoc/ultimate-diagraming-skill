@@ -270,7 +270,12 @@
       background: var(--note-bg); color: var(--note-ink); cursor: pointer; line-height: var(--leading-none);
     }
     .c4-node > .c4-note-pin, .c4-group.is-tile > .c4-note-pin { position: absolute; top: 6px; right: 6px; }
-    .c4-tag .c4-note-pin { margin-left: 4px; padding: 1px 4px; }
+    .c4-tag .c4-note-pin { position: relative; margin-left: 4px; padding: 1px 4px; }
+    /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
+    .c4-note-pin::before {
+      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+      width: var(--hit-min, 24px); height: var(--hit-min, 24px);
+    }
     .c4-note-pin:hover { border-color: var(--primary); color: var(--primary); }
     .c4-note-pin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     body.capture .c4-note-pin, body.exporting .c4-note-pin { display: none !important; }

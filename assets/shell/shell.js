@@ -2511,10 +2511,27 @@
       function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
 
       // A short message that slides in and retracts; used for save and download problems inside an artifact
+      // One persistent live region: toasts are inserted and filled in the same tick, which screen readers often miss.
+      function announce(message) {
+        let r = document.getElementById('sr-announcer');
+        if (!r) {
+          r = document.createElement('div');
+          r.id = 'sr-announcer';
+          r.className = 'visually-hidden';
+          r.setAttribute('role', 'status');
+          r.setAttribute('aria-live', 'polite');
+          r.setAttribute('data-export-skip', '');
+          document.body.appendChild(r);
+        }
+        r.textContent = '';
+        setTimeout(() => { r.textContent = message; }, 50);
+      }
+
       function showToast(message) {
+        announce(message);
         const t = document.createElement('div');
         t.className = 'toast';
-        t.setAttribute('role', 'status');
+        t.setAttribute('aria-hidden', 'true');   // announced through #sr-announcer
         t.textContent = message;
         document.body.appendChild(t);
         setTimeout(() => {
