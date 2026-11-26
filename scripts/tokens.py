@@ -414,7 +414,7 @@ if __name__ == "__main__":
     t = load_tokens()
     assert t["tokensVersion"] == 1 and len(t["palette"]) == 9
     d, l = resolve_colors(t, "dark"), resolve_colors(t, "light")
-    assert d["bg-page"] == "#0b1220" and l["bg-page"] == "#f8fafc"
+    assert d["bg-page"] == "#1d2028" and l["bg-page"] == "#f8fafc"
     assert d["warning"] == l["warning"], "dark falls back to light"
     assert all(not v.startswith("var(") for v in [*d.values(), *l.values()])
     css = tokens_css(t)
