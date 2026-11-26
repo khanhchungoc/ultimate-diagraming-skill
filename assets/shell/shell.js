@@ -1534,6 +1534,11 @@
           updateTransform();
         };
 
+        // A face can start and finish loading between the first render (whose layout asks for it) and the frame below,
+        // which would then see every font in and skip the re-render: note any load that finishes in that gap
+        let fontLoadedSinceRender = false;
+        const onFontLoaded = () => { fontLoadedSinceRender = true; };
+        if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
         try {
           plugin.render();
           applyInitialView();
@@ -1550,7 +1555,8 @@
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
           syncHeaderCompact();
-          const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+          if (document.fonts) document.fonts.removeEventListener('loadingdone', onFontLoaded);
+          const fontsIn = document.fonts && (document.fonts.status !== 'loaded' || fontLoadedSinceRender)
             ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {

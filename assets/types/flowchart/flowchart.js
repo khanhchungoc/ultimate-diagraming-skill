@@ -277,6 +277,7 @@
 
       // Last computed arrow routes (renderEdges), and the arrow a dragged node would be inserted into
       let lastRoutes = {};
+      let laneTracks = new Map();   // lane id -> its .lane-track, rebuilt by renderLanes (no page-wide query per node)
       let insertTarget = null;   // { edgeId, x, y } in container coords, or null
 
       // Dragging a new shape out of the bottom dock
@@ -503,6 +504,7 @@
         const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
         hoverLaneEl = null;
         lanesRoot.innerHTML = '';
+        laneTracks = new Map();
         const xById = {};
         chartData.nodes.forEach(n => { xById[n.id] = n.x || 0; });
         chartData.lanes.forEach((lane, index) => {
@@ -546,6 +548,7 @@
           const track = document.createElement('div');
           track.className = 'lane-track';
           track.dataset.laneId = lane.id;
+          laneTracks.set(lane.id, track);
           if (tb) track.style.minHeight = `${trackWidth}px`;
           else track.style.minWidth = `${trackWidth}px`;
 
@@ -852,16 +855,25 @@
       // designed size for the legibility report (shell.js), so a fitted label does not count as small text.
       const FIT_MIN_PX = parseFloat(TOKENS.type.fitMin);
       function fitNodeLabel(label, type) {
-        label.style.fontSize = '';
-        delete label.dataset.basePx;
-        if (type === 'connector' || !label.isConnected) return;   // a connector is one letter
-        const over = () => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
-        if (!over()) return;
-        const base = parseFloat(getComputedStyle(label).fontSize);
-        label.dataset.basePx = base;
-        for (let px = Math.ceil(base) - 1; px >= FIT_MIN_PX; px--) {
-          label.style.fontSize = `${px}px`;
-          if (!over()) return;
+        if (type !== 'connector') fitNodeLabels([label]);
+      }
+      // The same for many labels at once, reading before writing so a render forces one layout, not one per label:
+      // every size is reset, then all are measured together, and only the few that overflow step down (each step
+      // needs a fresh measure of that label alone)
+      function fitNodeLabels(labels) {
+        for (let i = 0; i < labels.length; i++) { labels[i].style.fontSize = ''; delete labels[i].dataset.basePx; }
+        const over = (label) => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
+        const tooBig = [];
+        for (let i = 0; i < labels.length; i++) {
+          const label = labels[i];
+          if (label.isConnected && over(label)) tooBig.push({ label, base: parseFloat(getComputedStyle(label).fontSize) });
+        }
+        for (const { label, base } of tooBig) {
+          label.dataset.basePx = base;
+          for (let px = Math.ceil(base) - 1; px >= FIT_MIN_PX; px--) {
+            label.style.fontSize = `${px}px`;
+            if (!over(label)) break;
+          }
         }
       }
 
@@ -902,50 +914,38 @@
         return `Connector ${letter}`;
       }
 
+      // A connector circle's element; its events go through the node layer's listeners (NODE EVENTS)
       function buildConnectorEl(node) {
         const el = document.createElement('div');
-        el.className = 'flow-node type-connector';
-        el.dataset.style = connectorStyle(connectorLetter(node));
         el.id = `node-${node.id}`;
         el.dataset.nodeId = node.id;
         el.setAttribute('role', 'button');
-        el.setAttribute('aria-label', connectorAria(node));
         el.dataset.noTip = '';
-        placeNodeEl(el, node);
-        if (selectedNodeIds.has(node.id)) el.classList.add('selected');
         const label = document.createElement('div');
         label.className = 'node-label';
         label.spellcheck = false;
-        label.textContent = connectorLetter(node);
         el.appendChild(label);
-        el.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          if (isPresenting()) return;
-          label.contentEditable = 'true';
-          label.focus();
-          const range = document.createRange();
-          range.selectNodeContents(label);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        });
-        label.addEventListener('blur', () => {
-          if (label.contentEditable !== 'true') return;
-          label.contentEditable = 'false';
-          renameConnector(node, label.textContent);
-        });
-        label.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
-          else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connectorLetter(node); label.blur(); }
-          e.stopPropagation();
-        });
-        el.addEventListener('pointerdown', (e) => {
-          if (isPresenting()) { e.preventDefault(); e.stopPropagation(); jumpToPartner(node); return; }
-          handleNodePointerDown(e, node);
-        });
-        el.addEventListener('mouseenter', () => { hoveredNodeId = node.id; applyNodeHover(); showConnectorPair(node); });
-        el.addEventListener('mouseleave', () => { if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover(); showConnectorPair(null); });
+        updateConnectorEl(el, node);
         return el;
+      }
+      function updateConnectorEl(el, node) {
+        el.className = 'flow-node type-connector' + (selectedNodeIds.has(node.id) ? ' selected' : '');
+        el.dataset.style = connectorStyle(connectorLetter(node));
+        el.setAttribute('aria-label', connectorAria(node));
+        placeNodeEl(el, node);
+        const label = el.firstElementChild;
+        if (label.contentEditable !== 'true') label.textContent = connectorLetter(node);
+      }
+      function editConnectorLabel(el) {
+        if (isPresenting()) return;
+        const label = el.querySelector('.node-label');
+        label.contentEditable = 'true';
+        label.focus();
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
       }
 
       // Light every circle of the hovered connector's letter and join each in-connector to its out-connector with a
@@ -1081,7 +1081,7 @@
           const b = e.target.closest('.ab-btn');
           if (!b) return;
           if (b.dataset.act === 'delete') { deleteEdge(edge.id); return; }
-          if (b.dataset.act === 'label') { labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })); return; }
+          if (b.dataset.act === 'label') { editEdgeLabel(edge.id); return; }
           bar.querySelector('.edge-split-menu')?.remove();
           const joins = joinableLetters(edge.to);
           if (!joins.length) { splitEdge(edge.id); return; }
@@ -1256,112 +1256,217 @@
         }, { duration: 180, skipFreeNotes: true });
       }
 
-      function renderNodes() {
-        document.querySelectorAll('.flow-node').forEach(el => el.remove());
+      // --- NODE ELEMENTS ---
+      // Kept across renders by node id: a render updates each element in place and only creates or removes what changed,
+      // so a big chart is not rebuilt on every edit and each step keeps its element (the motion morphs key on it). A node
+      // whose shape changes (type, or a terminal turning into a dot) gets a new element. Events reach the elements
+      // through one listener per layer (NODE EVENTS), so nothing is attached per element on a render.
+      const nodeEls = new Map();        // node id -> its .flow-node element
+      const nodeState = new WeakMap();  // element -> { shape, badge, sub, fit }: what the last render built into it
+      const nodeShape = (node) => (isConnector(node) ? 'connector' : `${node.type}${isDot(node) ? ':dot' : ''}`);
 
-        chartData.nodes.forEach(node => {
-          const laneTrack = document.querySelector(`.lane-track[data-lane-id="${node.laneId}"]`);
-          if (!laneTrack) return;
-          if (isConnector(node)) { laneTrack.appendChild(buildConnectorEl(node)); return; }
-
-          const nodeEl = document.createElement('div');
-          nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
-          nodeEl.id = `node-${node.id}`;
-          nodeEl.dataset.nodeId = node.id;
-          nodeEl.dataset.noTip = '';
-          placeNodeEl(nodeEl, node);
-          if (selectedNodeIds.has(node.id)) nodeEl.classList.add('selected');
-
-          // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
-          const outline = shapeOutlineSvg(node.type);
-          if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
-
-          // Text content with double-click edit
-          const label = document.createElement('div');
-          label.className = 'node-label';
-          label.contentEditable = 'false';
-          label.spellcheck = false;
-          label.dataset.noTip = '';
-          label.textContent = node.label || '';
-
-          label.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            label.contentEditable = 'true';
-            label.focus();
-            const range = document.createRange();
-            range.selectNodeContents(label);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-          });
-          label.addEventListener('blur', () => {
-            label.contentEditable = 'false';
-            if ((node.label || '') !== label.textContent.trim()) {
-              const wasDot = isDot(node);
-              node.label = label.textContent.trim();
-              syncChildName(node);
-              updateStatus(true);
-              if (wasDot !== isDot(node)) withMotion(render, { duration: 180, skipFreeNotes: true });
-              else fitNodeLabel(label, node.type);
-            }
-          });
-          label.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              label.blur();
-            }
-          });
-          nodeEl.appendChild(label);
-
-          // 4 Anchor Ports
-          ['top', 'right', 'bottom', 'left'].forEach(pos => {
-            const port = document.createElement('div');
-            port.className = `port port-${pos}`;
-            port.dataset.port = pos;
-            port.dataset.nodeId = node.id;
-            port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
-            nodeEl.appendChild(port);
-          });
-
-          const badge = buildNoteBadge(node);   // a note badge (no hover "+": the step bar adds notes)
-          if (badge) nodeEl.appendChild(badge);
-          if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
-
-          nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
-          nodeEl.addEventListener('mouseenter', () => {
-            hoveredNodeId = node.id; applyNodeHover();
-            const attached = connectorsAttachedTo(node.id);
-            if (attached.length) showConnectorPair(attached);
-            if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
-          });
-          nodeEl.addEventListener('mouseleave', () => {
-            if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
-            showConnectorPair(null);
-            unpeekSoon(node.id);
-          });
-          laneTrack.appendChild(nodeEl);
-          fitNodeLabel(label, node.type);
+      function buildNodeEl(node) {
+        const nodeEl = document.createElement('div');
+        nodeEl.id = `node-${node.id}`;
+        nodeEl.dataset.nodeId = node.id;
+        nodeEl.dataset.noTip = '';
+        // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
+        const outline = shapeOutlineSvg(node.type);
+        if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
+        // Text content, double-click to edit (NODE EVENTS)
+        const label = document.createElement('div');
+        label.className = 'node-label';
+        label.contentEditable = 'false';
+        label.spellcheck = false;
+        label.dataset.noTip = '';
+        nodeEl.appendChild(label);
+        // 4 Anchor Ports
+        ['top', 'right', 'bottom', 'left'].forEach(pos => {
+          const port = document.createElement('div');
+          port.className = `port port-${pos}`;
+          port.dataset.port = pos;
+          port.dataset.nodeId = node.id;
+          nodeEl.appendChild(port);
         });
+        return nodeEl;
       }
 
-      // Reads each node's box and the lane borders from the DOM (px at zoom 1) and runs the shared router (assets/shell/ortho-router.js).
-      function computeAllEdgeRoutes() {
+      // Brings a step's element up to date. Returns its label when the label needs fitting (new text, shape or font).
+      function updateNodeEl(nodeEl, node, st, fontKey) {
+        const sub = node.type === 'subprocess' && hasChild(node.id);
+        nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '')
+          + (selectedNodeIds.has(node.id) ? ' selected' : '') + (sub ? ' has-child' : '');
+        placeNodeEl(nodeEl, node);
+        nodeEl.style.transformOrigin = '';   // left by an entrance morph; a fresh element has none
+        nodeEl.querySelectorAll(':scope > .node-bar').forEach(b => b.remove());   // syncNodeBar draws it anew, as for a new element
+        const label = nodeEl.querySelector('.node-label');
+        const text = node.label || '';
+        if (label.contentEditable !== 'true' && label.textContent !== text) label.textContent = text;
+        if (st.badge) st.badge.remove();
+        if (st.sub) st.sub.remove();
+        st.badge = buildNoteBadge(node);   // a note badge (no hover "+": the step bar adds notes)
+        if (st.badge) nodeEl.appendChild(st.badge);
+        st.sub = sub ? buildSubLink(node) : null;
+        if (st.sub) nodeEl.appendChild(st.sub);
+        const fit = `${fontKey}|${isTB()}|${sub}|${label.textContent}`;
+        if (st.fit === fit) return null;
+        st.fit = fit;
+        return label;
+      }
+
+      function renderNodes() {
+        // The font the labels were fitted with: a theme switch or the web font arriving fits them again
+        const fontKey = `${document.fonts ? document.fonts.status : ''}|${document.documentElement.dataset.theme || ''}|${getComputedStyle(swimlanesContainer).font}`;
+        const seen = new Set(), fit = [];
+        chartData.nodes.forEach(node => {
+          const laneTrack = laneTracks.get(node.laneId);
+          if (!laneTrack) return;
+          const shape = nodeShape(node);
+          let el = nodeEls.get(node.id), st = el && nodeState.get(el);
+          if (el && st.shape !== shape) { el.remove(); el = null; }
+          if (!el) {
+            el = isConnector(node) ? buildConnectorEl(node) : buildNodeEl(node);
+            st = { shape, badge: null, sub: null, fit: null };
+            nodeState.set(el, st);
+            nodeEls.set(node.id, el);
+          }
+          if (isConnector(node)) updateConnectorEl(el, node);
+          else {
+            const label = updateNodeEl(el, node, st, fontKey);
+            if (label) fit.push(label);
+          }
+          laneTrack.appendChild(el);   // lanes are rebuilt each render: this also keeps the order of chartData.nodes
+          seen.add(node.id);
+        });
+        nodeEls.forEach((el, id) => { if (!seen.has(id)) { el.remove(); nodeEls.delete(id); } });
+        fitNodeLabels(fit);
+      }
+
+      // --- NODE EVENTS ---
+      // One listener per event on the node layer, dispatching by data-node-id. Events that do not bubble (mouseenter,
+      // mouseleave, blur) are caught on the way down (capture), so they still arrive once per step, as on the step itself.
+      const nodeElAt = (target) => {
+        const el = target && target.closest ? target.closest('.flow-node[data-node-id]') : null;
+        return el && nodeEls.get(el.dataset.nodeId) === el ? el : null;
+      };
+      const nodeAt = (el) => (el ? nodeById(el.dataset.nodeId) : null);
+      lanesRoot.addEventListener('pointerdown', (e) => {
+        const el = nodeElAt(e.target), node = nodeAt(el);
+        if (!node) return;
+        const port = e.target.closest('.port');
+        if (port && el.contains(port)) { handlePortPointerDown(e, node.id, port.dataset.port); return; }
+        if (isConnector(node) && isPresenting()) { e.preventDefault(); e.stopPropagation(); jumpToPartner(node); return; }
+        handleNodePointerDown(e, node);
+      });
+      lanesRoot.addEventListener('dblclick', (e) => {
+        const el = nodeElAt(e.target), node = nodeAt(el);
+        if (!node) return;
+        if (isConnector(node)) { e.stopPropagation(); editConnectorLabel(el); return; }
+        const label = e.target.closest('.node-label');
+        if (!label || !el.contains(label)) return;
+        e.stopPropagation();
+        label.contentEditable = 'true';
+        label.focus();
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+      lanesRoot.addEventListener('blur', (e) => {
+        const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
+        if (!node) return;
+        if (isConnector(node)) {
+          if (label.contentEditable !== 'true') return;
+          label.contentEditable = 'false';
+          renameConnector(node, label.textContent);
+          return;
+        }
+        label.contentEditable = 'false';
+        if ((node.label || '') !== label.textContent.trim()) {
+          const wasDot = isDot(node);
+          node.label = label.textContent.trim();
+          syncChildName(node);
+          updateStatus(true);
+          if (wasDot !== isDot(node)) withMotion(render, { duration: 180, skipFreeNotes: true });
+          else fitNodeLabel(label, node.type);
+        }
+      }, true);
+      lanesRoot.addEventListener('keydown', (e) => {
+        const label = e.target, el = label.classList && label.classList.contains('node-label') ? nodeElAt(label) : null, node = nodeAt(el);
+        if (!node) return;
+        if (isConnector(node)) {
+          if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
+          else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connectorLetter(node); label.blur(); }
+          e.stopPropagation();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          label.blur();
+        }
+      });
+      lanesRoot.addEventListener('mouseenter', (e) => {
+        const node = e.target === nodeElAt(e.target) ? nodeAt(e.target) : null;
+        if (!node) return;
+        hoveredNodeId = node.id; applyNodeHover();
+        if (isConnector(node)) { showConnectorPair(node); return; }
+        const attached = connectorsAttachedTo(node.id);
+        if (attached.length) showConnectorPair(attached);
+        if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
+      }, true);
+      lanesRoot.addEventListener('mouseleave', (e) => {
+        const node = e.target === nodeElAt(e.target) ? nodeAt(e.target) : null;
+        if (!node) return;
+        if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
+        showConnectorPair(null);
+        if (!isConnector(node)) unpeekSoon(node.id);
+      }, true);
+
+      // Node boxes and lane borders in container px at zoom 1, read from the DOM after every write of the render (one
+      // layout). Each box also keeps its offset from where the model puts the node in its lane track, so a drag frame
+      // can place the moved steps from the model alone (dragRouteGeom) without measuring anything.
+      let routeGeom = null;   // { boxes, laneDividers, tracks: { laneId: { x, y } }, inset: { nodeId: { dx, dy } } }
+      // Rounded to 0.01px: dividing a screen rect by the zoom leaves ~1e-4 of noise that depends on the camera (mid-glide
+      // or not), and the route search breaks ties on exact comparisons: the same chart must route the same at any zoom
+      const q = (v) => Math.round(v * 100) / 100;
+      function measureRouteGeom() {
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const tb = isTB();
-        const boxes = {};
-        // Rounded to 0.01px: dividing a screen rect by the zoom leaves ~1e-4 of noise that depends on the camera (mid-glide
-        // or not), and the route search breaks ties on exact comparisons: the same chart must route the same at any zoom
-        const q = (v) => Math.round(v * 100) / 100;
+        const tracks = {}, laneDividers = [], boxes = {}, inset = {};
+        const trackEls = [...laneTracks.values()];
+        trackEls.forEach((t, i) => {
+          const r = t.getBoundingClientRect();
+          tracks[t.dataset.laneId] = { x: (r.left - stageRect.left) / scale, y: (r.top - stageRect.top) / scale };
+          if (i < trackEls.length - 1) laneDividers.push((tb ? r.right - stageRect.left : r.bottom - stageRect.top) / scale);
+        });
         chartData.nodes.forEach(n => {
-          const el = document.getElementById(`node-${n.id}`);
+          const el = nodeEls.get(n.id);
           if (!el) return;
           const r = el.getBoundingClientRect();
-          boxes[n.id] = { x: q((r.left - stageRect.left) / scale), y: q((r.top - stageRect.top) / scale), w: q(r.width / scale), h: q(r.height / scale) };
+          const b = boxes[n.id] = { x: q((r.left - stageRect.left) / scale), y: q((r.top - stageRect.top) / scale), w: q(r.width / scale), h: q(r.height / scale) };
+          const t = tracks[n.laneId], p = nodePos(n);
+          if (t) inset[n.id] = { dx: b.x - (t.x + p.left), dy: b.y - (t.y + p.top) };
         });
-        const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
-          .map(t => (tb ? t.getBoundingClientRect().right - stageRect.left : t.getBoundingClientRect().bottom - stageRect.top) / scale);
+        return { boxes, laneDividers, tracks, inset };
+      }
+      // routeGeom with the given steps moved to where the model now puts them (a drag frame)
+      function dragRouteGeom(ids) {
+        const boxes = { ...routeGeom.boxes };
+        ids.forEach(id => {
+          const n = nodeById(id), b = routeGeom.boxes[id], i = routeGeom.inset[id], t = n && routeGeom.tracks[n.laneId];
+          if (!b || !i || !t) return;
+          const p = nodePos(n);
+          boxes[id] = { x: q(t.x + p.left + i.dx), y: q(t.y + p.top + i.dy), w: b.w, h: b.h };
+        });
+        return { ...routeGeom, boxes };
+      }
+
+      // Runs the shared router (assets/shell/ortho-router.js) over the given boxes; `edges` routes only those arrows
+      // (every node is still an obstacle). Without a geometry it measures the page and keeps that as routeGeom.
+      function computeAllEdgeRoutes(geom, edges) {
+        if (!geom) geom = routeGeom = measureRouteGeom();
         return routeEdgesOrthogonal({
-          chartData, tb, boxes, laneDividers,
+          chartData: edges ? { nodes: chartData.nodes, edges } : chartData,
+          tb: isTB(), boxes: geom.boxes, laneDividers: geom.laneDividers,
           loopSide: loopSides(chartData.nodes, chartData.edges, chartData.lanes),
           outlineInset: (node, r, side, along) => (SHAPE_OUTLINES[node.type] || isConnector(node) ? outlineInset(node.type, r, side, along) : 0),
           labelMaxW: LE.LABEL_MAX_W,
@@ -1369,20 +1474,44 @@
       }
 
       let measureLabelCtx = null;
+      let labelFont = null;   // the arrow labels' font, read once per renderEdges (they all share it)
+      // How wide an arrow's label may wrap: the horizontal gap between its two steps, never past LABEL_MAX_W, and never
+      // narrower than its longest word (the width estimates are approximate, so a word would otherwise split: "approve/d")
+      function setLabelMaxW(labelContainer, labelText, edge, route) {
+        const fRect = route.fromRect, tRect = route.toRect;
+        let maxLabelW = LE.LABEL_MAX_W;
+        if (fRect && tRect) {
+          const horizGap = Math.max(tRect.x - (fRect.x + fRect.w), fRect.x - (tRect.x + tRect.w));
+          // Fit the gap with 8px clearance per side (LABEL_STUB total), never past LABEL_MAX_W
+          if (horizGap > 0) maxLabelW = Math.max(40, Math.min(LE.LABEL_MAX_W, horizGap - LE.LABEL_STUB));
+        }
+        if (edge.label && edge.label.trim()) {
+          if (!labelFont) { const cs = getComputedStyle(labelText); labelFont = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; }
+          const ctx = (measureLabelCtx = measureLabelCtx || document.createElement('canvas').getContext('2d'));
+          ctx.font = labelFont;
+          const words = String(edge.label).trim().split(/\s+/);
+          const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
+          maxLabelW = Math.max(maxLabelW, Math.ceil(wordW + 16 + 3 + 4));   // padding + border + slack
+        }
+        labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
+      }
 
       let lastEdgeBarId = null;
+      const edgeEls = new Map();   // edge id -> { path, hit, label, text }: this render's elements of each arrow
       function renderEdges() {
         const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
         const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
         if (oldBar && barChanged) motion.hideBar(oldBar);   // another arrow: the old bar closes, then the new one opens
         edgeGroup.innerHTML = '';
         edgeLabelsGroup.innerHTML = '';
+        edgeEls.clear();
+        labelFont = null;
 
         const routes = computeAllEdgeRoutes();
         lastRoutes = routes;
 
         // An arrow that hops over another is drawn after (above) the ones it hops, so the arc reads as passing over
-        // (a hop is the only `A` command in a path: corners are `Q`)
+        // (a hop is the only `A` command in a path: corners are `Q`). Events: ARROW EVENTS, one listener per layer.
         const hops = (ed) => (routes[ed.id] && routes[ed.id].path || '').includes(' A ') ? 1 : 0;
         [...chartData.edges].sort((a, b) => hops(a) - hops(b)).forEach(edge => {
           const pathD = routes[edge.id];
@@ -1396,27 +1525,15 @@
           path.dataset.to = edge.to;
           path.setAttribute('marker-end', edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
 
-          path.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectEdge(edge.id);
-          });
-
-          path.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            selectEdge(edge.id, false);
-            // Reuse the label's own double-click handler (makes it editable, clears the "+" placeholder)
-            const labelBox = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
-            if (labelBox) labelBox.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
-          });
-
           // Wide invisible hit area so thin arrows are easy to click and select
           const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           hit.setAttribute('d', pathD.path);
           hit.setAttribute('class', 'edge-hit');
-          hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge.id); });
-          hit.addEventListener('dblclick', (e) => path.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })));
+          hit.dataset.hitFor = edge.id;
           edgeGroup.appendChild(hit);
           edgeGroup.appendChild(path);
+          const els = { path, hit, label: null, text: null };
+          edgeEls.set(edge.id, els);
 
           // Edge Label Pill
           if (pathD.midX !== undefined && pathD.midY !== undefined) {
@@ -1426,19 +1543,6 @@
             labelContainer.style.pointerEvents = 'auto';
             labelContainer.style.left = `${pathD.midX}px`;
             labelContainer.style.top = `${pathD.midY}px`;
-
-            // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
-            const fRect = pathD.fromRect;
-            const tRect = pathD.toRect;
-            let maxLabelW = LE.LABEL_MAX_W;
-            if (fRect && tRect) {
-              const horizGap = Math.max(tRect.x - (fRect.x + fRect.w), fRect.x - (tRect.x + tRect.w));
-              if (horizGap > 0) {
-                // Fit the gap with 8px clearance per side (LABEL_STUB total), never past LABEL_MAX_W
-                maxLabelW = Math.max(40, Math.min(LE.LABEL_MAX_W, horizGap - LE.LABEL_STUB));
-              }
-            }
-            labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
 
             const isSelected = (edge.id === selectedEdgeId);
             const hasLabel = Boolean(edge.label && edge.label.trim());
@@ -1458,62 +1562,11 @@
             labelText.dataset.tip = 'Double-click to edit the label';
             labelText.textContent = hasLabel ? edge.label : '';
 
-            labelText.addEventListener('pointerdown', (e) => {
-              e.stopPropagation();
-            });
-
-            labelText.addEventListener('blur', () => {
-              labelText.contentEditable = 'false';
-              edge.label = labelText.textContent.trim();
-              updateStatus(true);
-              render();
-            });
-
-            labelText.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                labelText.blur();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                labelText.textContent = edge.label || '';
-                labelText.blur();
-              }
-            });
-
-            labelContainer.addEventListener('dblclick', (e) => {
-              e.stopPropagation();
-              const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('editing');
-              labelText.contentEditable = 'true';
-              labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
-              if (wasEmpty) {
-                motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
-                  duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
-                });
-              }
-              labelText.focus();
-              if (hasLabel) {
-                const range = document.createRange();
-                range.selectNodeContents(labelText);
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-              }
-            });
-
             labelContainer.appendChild(labelText);
-            edgeLabelsGroup.appendChild(labelContainer); // in DOM so it can be measured below
-
-            // Never let the box be narrower than its longest word: the width estimates above are approximate,
-            // so measure the real text and widen the box if a word would otherwise be split ("approve/d")
-            if (hasLabel) {
-              const cs = getComputedStyle(labelText);
-              const ctx = (measureLabelCtx = measureLabelCtx || document.createElement('canvas').getContext('2d'));
-              ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-              const words = String(edge.label).trim().split(/\s+/);
-              const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
-              const need = Math.ceil(wordW + 16 + 3 + 4);   // padding + border + slack
-              if (need > maxLabelW) labelContainer.style.setProperty('--edge-label-max-w', `${need}px`);
-            }
+            edgeLabelsGroup.appendChild(labelContainer); // in DOM so its font can be read below
+            els.label = labelContainer;
+            els.text = labelText;
+            setLabelMaxW(labelContainer, labelText, edge, pathD);
 
             if (isSelected) {
               const total = path.getTotalLength();
@@ -1549,24 +1602,6 @@
                 }
               }
             }
-
-            labelContainer.addEventListener('click', (e) => {
-              e.stopPropagation();
-              selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
-            });
-
-            // Hovering the arrow or its label lights up both, so it is clear which label belongs to which arrow
-            const setLinked = (on) => {
-              path.classList.toggle('hover', on);
-              labelContainer.classList.toggle('linked', on);
-              if (edge.id !== selectedEdgeId) path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
-            };
-            [path, hit].forEach(el => {
-              el.addEventListener('mouseenter', () => setLinked(true));
-              el.addEventListener('mouseleave', () => setLinked(false));
-            });
-            labelContainer.addEventListener('mouseenter', () => setLinked(true));
-            labelContainer.addEventListener('mouseleave', () => setLinked(false));
           }
         });
         if (!draggingNode) lastEdgeBarId = selectedEdgeId;
@@ -1574,12 +1609,168 @@
         positionNotes();  // notes follow their nodes (a dragged node moves its note with it)
       }
 
+      // A drag frame: re-routes only the arrows the moved steps can change (dragAffectedEdges) against boxes taken from
+      // the model, and redraws just those. Every other arrow keeps its path until the drop, whose render routes all.
+      let dragBoxes = null;   // the boxes the last drag frame routed against (null: routeGeom's)
+      function rerouteDragFrame() {
+        if (!routeGeom || !draggingNode) { renderEdges(); return; }
+        const ids = draggedIds();
+        const geom = dragRouteGeom(ids);
+        const edges = dragAffectedEdges(ids, dragBoxes || routeGeom.boxes, geom.boxes);
+        dragBoxes = geom.boxes;
+        if (!edges.length) return;
+        if (selectedEdgeId && edges.some(e => e.id === selectedEdgeId)) { renderEdges(); return; }   // its handles follow its ends
+        const routes = computeAllEdgeRoutes(geom, edges);
+        edges.forEach(edge => {
+          const r = routes[edge.id], els = edgeEls.get(edge.id);
+          if (!r || !r.path || !els) return;
+          lastRoutes[edge.id] = r;
+          els.path.setAttribute('d', r.path);
+          els.hit.setAttribute('d', r.path);
+          if (els.label && r.midX !== undefined && r.midY !== undefined) {
+            els.label.style.left = `${r.midX}px`;
+            els.label.style.top = `${r.midY}px`;
+            setLabelMaxW(els.label, els.text, edge, r);
+          }
+        });
+        positionNotes();
+      }
+      // The arrows a drag frame re-routes: those on a moved step, those whose drawn path crosses where a moved step was
+      // or now is, and the other arrows of the steps at their far ends (the router spreads arrows that share a side)
+      function dragAffectedEdges(ids, oldBoxes, newBoxes) {
+        const moved = new Set(ids), ends = new Set(), pick = new Set();
+        const zones = [];
+        ids.forEach(id => { if (oldBoxes[id]) zones.push(oldBoxes[id]); if (newBoxes[id]) zones.push(newBoxes[id]); });
+        const PAD = 4;
+        const crosses = (pts) => {
+          for (let i = 0; i + 1 < pts.length; i++) {
+            const x1 = Math.min(pts[i][0], pts[i + 1][0]), x2 = Math.max(pts[i][0], pts[i + 1][0]);
+            const y1 = Math.min(pts[i][1], pts[i + 1][1]), y2 = Math.max(pts[i][1], pts[i + 1][1]);
+            for (let k = 0; k < zones.length; k++) {
+              const b = zones[k];
+              if (x2 >= b.x - PAD && x1 <= b.x + b.w + PAD && y2 >= b.y - PAD && y1 <= b.y + b.h + PAD) return true;
+            }
+          }
+          return false;
+        };
+        chartData.edges.forEach(e => {
+          if (moved.has(e.from) || moved.has(e.to)) { pick.add(e.id); ends.add(e.from); ends.add(e.to); return; }
+          const r = lastRoutes[e.id];
+          if (r && r.points && crosses(r.points)) pick.add(e.id);
+        });
+        chartData.edges.forEach(e => { if (ends.has(e.from) || ends.has(e.to)) pick.add(e.id); });
+        return chartData.edges.filter(e => pick.has(e.id));
+      }
+
+      // --- ARROW EVENTS ---
+      // One listener per event on the arrow layer and on the label layer, dispatching by data-edge-id (the hit path
+      // carries data-hit-for). Non-bubbling events (mouseenter, mouseleave, blur) are caught on the way down (capture).
+      const edgeOfEl = (el) => (el ? chartData.edges.find(ed => ed.id === (el.dataset.edgeId || el.dataset.hitFor)) : null);
+      const arrowAt = (target) => (target.closest ? target.closest('.edge-line[data-edge-id], .edge-hit[data-hit-for]') : null);
+      // Hovering the arrow or its label lights up both, so it is clear which label belongs to which arrow
+      function setLinked(edgeId, on) {
+        const els = edgeEls.get(edgeId);
+        if (!els || !els.label) return;
+        els.path.classList.toggle('hover', on);
+        els.label.classList.toggle('linked', on);
+        if (edgeId !== selectedEdgeId) els.path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+      }
+      // Opens an arrow's label for typing (the label's own double-click, the arrow's, and the bar's Label button)
+      function editEdgeLabel(edgeId) {
+        const els = edgeEls.get(edgeId);
+        if (!els || !els.label) return;
+        const labelContainer = els.label, labelText = els.text;
+        const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('editing');
+        labelText.contentEditable = 'true';
+        labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
+        if (wasEmpty) {
+          motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+            duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
+          });
+        }
+        labelText.focus();
+        if (labelContainer.classList.contains('has-label')) {
+          const range = document.createRange();
+          range.selectNodeContents(labelText);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+      edgeGroup.addEventListener('click', (e) => {
+        const edge = edgeOfEl(arrowAt(e.target));
+        if (!edge) return;
+        e.stopPropagation();
+        // The second click of a double-click keeps the arrow's elements: redrawn, the double-click would go to the
+        // removed ones and never reach this layer
+        selectEdge(edge.id, !(e.detail >= 2 && edge.id === selectedEdgeId));
+      });
+      edgeGroup.addEventListener('dblclick', (e) => {
+        const edge = edgeOfEl(arrowAt(e.target));
+        if (!edge) return;
+        e.stopPropagation();
+        selectEdge(edge.id, false);
+        editEdgeLabel(edge.id);   // makes it editable, clears the "+" placeholder
+      });
+      const onArrowHover = (on) => (e) => {
+        const el = arrowAt(e.target);
+        if (el === e.target) setLinked(el.dataset.edgeId || el.dataset.hitFor, on);
+      };
+      edgeGroup.addEventListener('mouseenter', onArrowHover(true), true);
+      edgeGroup.addEventListener('mouseleave', onArrowHover(false), true);
+
+      const labelAt = (target) => (target.closest ? target.closest('.edge-label[data-edge-id]') : null);
+      edgeLabelsGroup.addEventListener('pointerdown', (e) => {
+        if (e.target.closest && e.target.closest('.edge-label-text')) e.stopPropagation();
+      });
+      edgeLabelsGroup.addEventListener('click', (e) => {
+        const edge = edgeOfEl(labelAt(e.target));
+        if (!edge) return;
+        e.stopPropagation();
+        selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
+      });
+      edgeLabelsGroup.addEventListener('dblclick', (e) => {
+        const edge = edgeOfEl(labelAt(e.target));
+        if (!edge) return;
+        e.stopPropagation();
+        editEdgeLabel(edge.id);
+      });
+      edgeLabelsGroup.addEventListener('blur', (e) => {
+        const labelText = e.target;
+        if (!labelText.classList || !labelText.classList.contains('edge-label-text')) return;
+        const edge = edgeOfEl(labelAt(labelText));
+        labelText.contentEditable = 'false';
+        if (edge) edge.label = labelText.textContent.trim();
+        updateStatus(true);
+        render();
+      }, true);
+      edgeLabelsGroup.addEventListener('keydown', (e) => {
+        const labelText = e.target;
+        if (!labelText.classList || !labelText.classList.contains('edge-label-text')) return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          labelText.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          const edge = edgeOfEl(labelAt(labelText));
+          labelText.textContent = (edge && edge.label) || '';
+          labelText.blur();
+        }
+      });
+      const onLabelHover = (on) => (e) => {
+        const el = labelAt(e.target);
+        if (el === e.target) setLinked(el.dataset.edgeId, on);
+      };
+      edgeLabelsGroup.addEventListener('mouseenter', onLabelHover(true), true);
+      edgeLabelsGroup.addEventListener('mouseleave', onLabelHover(false), true);
+
       // Hovering a node highlights every arrow touching it (and its label): amber for those entering the
       // node, green for those leaving it (a self-loop counts as leaving)
       function applyNodeHover() {
-        document.querySelectorAll('.edge-line, .edge-label').forEach(el => el.classList.remove('hl-in', 'hl-out'));
-        document.querySelectorAll('.edge-line').forEach(p => {
-          p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+        edgeEls.forEach((els, id) => {
+          els.path.classList.remove('hl-in', 'hl-out');
+          if (els.label) els.label.classList.remove('hl-in', 'hl-out');
+          els.path.setAttribute('marker-end', id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
         });
         // A lone selected step lights its arrows like a hover does; a hover elsewhere takes over meanwhile
         const focusId = hoveredNodeId || (selectedNodeIds.size === 1 ? selectedNodeId : null);
@@ -1587,13 +1778,11 @@
         chartData.edges.forEach(edge => {
           const kind = edge.from === focusId ? 'out' : edge.to === focusId ? 'in' : null;
           if (!kind) return;
-          const path = document.querySelector(`.edge-line[data-edge-id="${edge.id}"]`);
-          const label = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
-          if (path) {
-            path.classList.add('hl-' + kind);
-            path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
-          }
-          if (label) label.classList.add('hl-' + kind);
+          const els = edgeEls.get(edge.id);
+          if (!els) return;
+          els.path.classList.add('hl-' + kind);
+          els.path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
+          if (els.label) els.label.classList.add('hl-' + kind);
         });
       }
 
@@ -1652,6 +1841,7 @@
         dragStartX = e.clientX;
         dragStartY = e.clientY;
 
+        dragBoxes = null;     // drag frames route against the boxes of the last full pass (rerouteDragFrame)
         motion.cancelAll();   // a layout animation still in flight would skew the start rect below
         const nodeEl = document.getElementById(`node-${node.id}`);
         const nRect = nodeEl.getBoundingClientRect();
@@ -1732,7 +1922,7 @@
           const p = nodePos(n);
           if (n.laneId !== item.laneId) {
             item.laneId = n.laneId;
-            const track = document.querySelector(`.lane-track[data-lane-id="${n.laneId}"]`);
+            const track = laneTracks.get(n.laneId);
             if (track && el.parentElement !== track) track.appendChild(el);
             item.baseLeft = p.left; item.baseTop = p.top;
             el.style.left = `${p.left}px`;
@@ -1796,7 +1986,7 @@
         // Re-route at most once per frame: pointer events can arrive faster than a full route pass,
         // and handling each one synchronously queues them up so the node trails the cursor
         if (!dragEdgeFrame) {
-          dragEdgeFrame = requestAnimationFrame(() => { dragEdgeFrame = 0; renderEdges(); });
+          dragEdgeFrame = requestAnimationFrame(() => { dragEdgeFrame = 0; rerouteDragFrame(); });
         }
       }
 
@@ -1887,6 +2077,7 @@
 
       function onDragNodeUp(e) {
         if (dragEdgeFrame) { cancelAnimationFrame(dragEdgeFrame); dragEdgeFrame = 0; }
+        dragBoxes = null;
         hideSnapGuides();
         document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
         const target = insertTarget;
