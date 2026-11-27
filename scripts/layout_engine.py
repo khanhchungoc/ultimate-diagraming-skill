@@ -42,7 +42,7 @@ from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
                          handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 from strip_bundle import minify_css, minify_js, strip_css, strip_js
-from version_check import REPO as GITHUB_REPO, check_nonblocking as check_version_nonblocking
+from version_check import REPO as GITHUB_REPO, start_async_check as start_version_check
 
 
 REPO_URL = f"https://github.com/{GITHUB_REPO}"
@@ -2088,6 +2088,7 @@ def main():
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
+    version_check = start_version_check() if (args.extract or args.layout) else None
     tokens = theme = None
     given = next((Path(v) for v in (args.layout, args.verify, args.extract) if v), None)
     ICON_DIRS[:] = ([Path(args.icons)] if args.icons else [(given.parent if given else Path(".")) / "icons", Path("icons")]) + [BUNDLED_LOGOS_DIR]
@@ -2147,7 +2148,7 @@ def main():
                 text += "\n%% Notes (free: they explain nothing in particular)\n" + "\n".join(free)
         if ext_html_text is not None:
             handle_extract_html(ext_p, ext_html_text, no_helper=args.no_save_helper)
-        update_note = check_version_nonblocking()
+        update_note = version_check.result() if version_check else None
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -2385,7 +2386,7 @@ def main():
                 helper_note = handle_layout_output(out_path, save_id, no_helper=args.no_save_helper)
                 if helper_note:
                     print(helper_note)
-            update_note = check_version_nonblocking()
+            update_note = version_check.result() if version_check else None
             if update_note:
                 print(update_note)
         print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else

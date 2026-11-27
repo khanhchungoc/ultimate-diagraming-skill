@@ -13,7 +13,7 @@
     }
     #search-bar:focus-within { border-color: var(--primary); }
     #search-bar[hidden] { display: none; }
-    .search-glyph { display: inline-flex; align-items: center; color: var(--text-muted); margin-right: var(--space-4); }
+    #search-clear[hidden] { display: none; }
     #search-input {
       width: 190px; min-height: 28px; padding: 0 var(--space-4); box-sizing: border-box; border: 0; background: transparent; outline: none;
       font-size: var(--t-control-size); color: var(--text-main);

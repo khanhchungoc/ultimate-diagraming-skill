@@ -676,8 +676,8 @@ try {
     await clickName('Customer');
     const topOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const topActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level element action bar has icon, core, color, note, delete (note before delete)',
-      (await present(A.bar)) && J(topActs) === J(['color', 'core', 'delete', 'icon', 'note']) && /,"note","delete"\]$/.test(topOrder), `${topActs} ${topOrder}`);
+    t.check('top-level element action bar has icon, color, note, delete (note before delete, no core ring button)',
+      (await present(A.bar)) && J(topActs) === J(['color', 'delete', 'icon', 'note']) && /,"note","delete"\]$/.test(topOrder), `${topActs} ${topOrder}`);
     await clickAct('note');
     await sleep(200);
     await t.type('Component note');
@@ -688,7 +688,7 @@ try {
     await blank();
     await clickName('Web API');
     const groupedActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('grouped element action bar omits core (icon, color, note, delete)',
+    t.check('grouped element action bar has icon, color, note, delete',
       J(groupedActs) === J(['color', 'delete', 'icon', 'note']), J(groupedActs));
     // icon picker (intercepts remote devicon.json locally for deterministic online testing)
     await t.mockDevicon('local');
@@ -742,16 +742,6 @@ try {
       t.check('choosing a swatch colours the element', !!byName((await saved()).elements, 'Customer')?.color, J(byName((await saved()).elements, 'Customer')));
     } else t.check('the colour action shows a swatch row', false, `swatches: ${sw}`);
     await blank();
-    // core
-    await clickName('Customer');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core toggle sets core on the element', byName((await saved()).elements, 'Customer')?.core === true);
-    await tidy('making it the centre');
-    await clickName('Customer');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core toggled again removes it', !byName((await saved()).elements, 'Customer')?.core);
     // delete
     await clickName('Customer');
     await clickAct('delete');
@@ -768,16 +758,16 @@ try {
     await sleep(150);
     const gOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const gActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level group action bar has core, ungroup, color, note, delete (no connect button; note before delete)',
-      (await present(A.bar)) && J(gActs) === J(['color', 'core', 'delete', 'note', 'ungroup']) && /,"note","delete"\]$/.test(gOrder), `${gActs} ${gOrder}`);
-    // nested group omits core
+    t.check('top-level group action bar has ungroup, color, note, delete (no connect or core button; note before delete)',
+      (await present(A.bar)) && J(gActs) === J(['color', 'delete', 'note', 'ungroup']) && /,"note","delete"\]$/.test(gOrder), `${gActs} ${gOrder}`);
+    // nested group
     await tile('group');
     await t.press('a', { modifiers: 2 });
     await t.type('Inner');
     await t.press('Enter');
     await sleep(250); await t.settle(1500);
     const nActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('nested group action bar omits core (ungroup, color, note, delete)', J(nActs) === J(['color', 'delete', 'note', 'ungroup']), J(nActs));
+    t.check('nested group action bar has ungroup, color, note, delete', J(nActs) === J(['color', 'delete', 'note', 'ungroup']), J(nActs));
     await undo();
     await blank();
     await t.clickOn(A.tag);
@@ -787,11 +777,6 @@ try {
     await t.press('Escape');
     await sleep(250); await t.settle(1500);
     t.check('group action bar note button adds a note on the group', (await saved()).notes?.some((n) => n.text === 'Platform rule' && (n.groups || []).length === 1), J((await saved()).notes));
-    await undo();
-    await t.clickOn(A.tag);
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core on the group toggles it off', !(await saved()).groups[0].core);
     await undo();
     await t.clickOn(A.tag);
     await t.clickOn('.c4-actionbar .swatch-trigger');
@@ -1098,16 +1083,12 @@ try {
     await t.type('Pays');
     await t.press('Enter');
     await sleep(300); await t.settle(1500);
-    await blank();
-    await clickName('Billing System');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
     const raw = await rawSaved();
     const d = JSON.parse(raw);
     const ids = new Set([...d.elements, ...d.groups].map((o) => o.id));
     t.check('editor ids e_/g_ are renamed to name slugs (unique, no e_<digits>)', !d.elements.concat(d.groups).some((o) => /^[eg]_\d/.test(o.id)) && ids.size === d.elements.length + d.groups.length && /^[a-z0-9][a-z0-9_-]*$/.test(byName(d.elements, 'Billing System')?.id || ''), J(d.elements.map((e) => e.id)));
     t.check('relations and group references use the slugs', d.relations.every((r) => ids.has(r.from) && ids.has(r.to)) && d.elements.every((e) => !e.group || ids.has(e.group)), J(d.relations));
-    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Billing System')?.core === true && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
+    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
     t.check('Auto-Tidy saves no layout map, sizes or derived fields',
       !('layout' in d) && d.elements.every((e) => !('x' in e) && !('w' in e) && !('h' in e) && !Object.keys(e).some((k) => k[0] === '_')) && d.groups.every((g) => !('w' in g) && !('h' in g) && !('x' in g))
       && !('canvas' in d) && !('_edges' in d) && d.relations.every((r) => !('points' in r) && !('path' in r) && !('labelBox' in r) && !('id' in r)), J(Object.keys(d)));

@@ -19,15 +19,15 @@
     .seq-arrow-fill { fill: var(--text-main); }
     .seq-arrow-open { fill: none; stroke: var(--text-main); stroke-width: 1.5; }
     .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; touch-action: none; }
-    .seq-frag-box { fill: var(--primary); fill-opacity: 0.02; stroke: var(--border-dark); stroke-width: 1.5; pointer-events: none; transition: fill var(--dur-base) var(--curve-inout), stroke var(--dur-base) var(--curve-inout); }
+    .seq-frag-box { fill: var(--primary); fill-opacity: 0.01; stroke: color-mix(in srgb, var(--text-muted) 45%, var(--border-dark)); stroke-width: 1.5; pointer-events: none; transition: fill var(--dur-base) var(--curve-inout), stroke var(--dur-base) var(--curve-inout); }
     /* The frame's border selects it: an 8px invisible stroke, the inside stays click-through */
     .seq-frag-hit { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer; }
     .seq-div-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: row-resize; }
     /* Phase colours: a frame with a colour (slot or custom hex, see setSwatch) takes its line colour, at low opacity in both themes */
-    .seq-frag-box.swatch-scope { fill: var(--sw-line); fill-opacity: 0.035; stroke: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
-    .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .seq-frag-box.swatch-scope { fill: var(--sw-line); fill-opacity: 0.018; stroke: color-mix(in srgb, var(--sw-line) 65%, var(--border-dark)); }
+    .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 14%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 65%, var(--border-dark)); }
     .seq-frag-box.selected.swatch-scope { stroke: var(--primary); }
-    .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; transition: stroke var(--dur-micro) var(--curve-out); }
+    .seq-frag-else { stroke: color-mix(in srgb, var(--text-muted) 45%, var(--border-dark)); stroke-width: 1.5; stroke-dasharray: 6 4; transition: stroke var(--dur-micro) var(--curve-out); }
     #seq-drop-line { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 4; display: none; transform-box: fill-box; transform-origin: center; }
     /* A participant is the shared swatch pill (components/pill.css), BOX_W wide and sitting on the lifeline's top end:
        the pill is shorter than the engine's BOX_H slot, so its top margin makes up the rest; it holds two lines of name */
@@ -62,9 +62,9 @@
     .seq-msg-label:has([contenteditable="true"], [contenteditable="plaintext-only"]) { cursor: text; height: auto; white-space: pre-wrap; min-width: 60px; width: max-content; max-width: var(--seq-label-max, 320px); background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: var(--space-4); }
     .seq-frag-text { outline: none; color: var(--text-main); }
-    .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; translate: -100% 0; }
+    .seq-frag-else-label { position: absolute; line-height: var(--line-22); font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; translate: -100% 0; }
     .seq-frag-branch-label {
-      position: absolute; height: 18px; line-height: var(--line-18); font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft);
+      position: absolute; height: 22px; line-height: var(--line-22); font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--text-soft);
       white-space: nowrap; user-select: none; cursor: pointer; padding: 0 var(--space-4); border-radius: var(--radius-xs); transition: color var(--dur-micro) var(--curve-out);
       background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
     }
@@ -78,6 +78,7 @@
     }
     /* The tag lays its chevron, kind, label and focus button out on one centred row */
     #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
+    #seq-html .frame-tag:not(.selected):not(.swatch-scope) { border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border-dark)); }
     #seq-html .frame-tag .chevron { margin: 0 var(--space-2) 0 calc(-1 * var(--space-4)); vertical-align: baseline; }
     #seq-html .frame-summary { translate: -50% -50%; }
     .seq-frag-focus { position: relative; }

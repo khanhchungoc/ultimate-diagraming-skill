@@ -292,6 +292,68 @@ try {
   t.check('c4: opens on a starter landscape (tiles and arrows), not unsaved, title is the blank title',
     (await count('.c4-node')) >= 3 && (await count('.c4-edge')) >= 2 && !(await unsaved()) && (await titleText()) === 'C4 diagram');
 
+  // Quick paste Mermaid in playground: same-type confirm, cross-type auto-detect & switch, manual Import auto-switch, unsupported warning
+  const pasteOnPlayground = async (payload) => {
+    await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', ${JSON.stringify(payload)});
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+  };
+
+  await open('flowchart');
+  // 1. Same-type paste -> confirm -> Replace overrides in place
+  await pasteOnPlayground('flowchart LR\n  a(["Begin"]) --> b["Quick step"] --> c(["Done"])');
+  await t.waitFor('!!document.querySelector(".confirm")', { timeout: 2000 });
+  const sameMsg = await t.ev(`document.querySelector('.confirm')?.textContent || ''`);
+  t.check('playground paste (same type): asks to confirm before replacing', /Replace diagram\?/.test(sameMsg) && /Cancel/.test(sameMsg), sameMsg);
+  await t.clickOn('.confirm .confirm-ok');
+  await t.settle();
+  t.check('playground paste (same type): Replace overrides the flowchart in place',
+    (await href()).includes('/flowchart/index.html') && (await t.ev(`document.body.textContent.includes('Quick step')`)));
+
+  // 2. Cross-type paste with unsaved edits -> confirm offers Save + Switch & Replace + Cancel; Cancel stays; Confirm switches to ERD and renders pasted tables
+  const erdSample = 'erDiagram\n  ACCOUNT ||--o{ INVOICE : issues\n  ACCOUNT {\n    uuid id PK\n    string email\n  }\n  INVOICE {\n    uuid id PK\n    int total\n  }';
+  await pasteOnPlayground(erdSample);
+  await t.waitFor('!!document.querySelector(".confirm")', { timeout: 2000 });
+  const crossMsg = await t.ev(`document.querySelector('.confirm')?.textContent || ''`);
+  t.check('playground paste (cross-type, unsaved): detects ER diagram and offers Save, Switch & Replace, Cancel',
+    /Switch to ER diagram\?/.test(crossMsg) && /Save/.test(crossMsg) && /Switch & Replace/.test(crossMsg) && /Cancel/.test(crossMsg), crossMsg);
+  await t.clickOn('.confirm .confirm-cancel');
+  await t.settle();
+  t.check('playground paste (cross-type): Cancel stays on flowchart', (await href()).includes('/flowchart/index.html'));
+
+  await pasteOnPlayground(erdSample);
+  await t.waitFor('!!document.querySelector(".confirm .confirm-ok")', { timeout: 2000 });
+  await t.clickOn('.confirm .confirm-ok');
+  const pastedErd = await waitNav('/erd/index.html', 5000);
+  t.check('playground paste (cross-type): Switch & Replace navigates to ER diagram and imports pasted Mermaid',
+    pastedErd && (await t.ev(`document.body.textContent.includes('INVOICE') && document.body.textContent.includes('ACCOUNT')`)),
+    await href().catch(() => ''));
+
+  // 3. Cross-type paste to Gantt from ERD via header "Paste Mermaid" box -> auto-detects Gantt and switches
+  const ganttSample = 'gantt\n  title Launch Plan\n  section Phase 1\n  Design spec :2026-06-01, 5d\n  Build prototype :2026-06-06, 7d';
+  await t.clickOn('#btn-import-mermaid');
+  await t.waitFor('!!document.querySelector(".confirm-field")', { timeout: 2000 });
+  await t.ev(`document.querySelector('.confirm-field').value = ${JSON.stringify(ganttSample)}`);
+  await t.clickOn('.confirm-ok');
+  await t.waitFor('!!document.querySelector(".confirm") && !document.querySelector(".confirm-field")', { timeout: 2000 });
+  const ganttPrompt = await t.ev(`document.querySelector('.confirm')?.textContent || ''`);
+  t.check('playground Paste Mermaid box (cross-type): detects Gantt chart and asks to switch',
+    /Switch to Gantt chart\?/.test(ganttPrompt), ganttPrompt);
+  await t.clickOn('.confirm .confirm-ok');
+  const pastedGantt = await waitNav('/gantt/index.html', 5000);
+  t.check('playground Paste Mermaid box (cross-type): navigates to Gantt chart and renders pasted tasks',
+    pastedGantt && (await t.ev(`document.body.textContent.includes('Design spec') && document.body.textContent.includes('Build prototype')`)),
+    await href().catch(() => ''));
+
+  // 4. Unsupported Mermaid type in playground -> dismissible warning popup, stays on current page
+  await pasteOnPlayground('classDiagram\n  class Order');
+  await t.waitFor('!!document.querySelector(".confirm")', { timeout: 2000 });
+  const unsupPg = await t.ev(`(() => { const c = document.querySelector('.confirm'); return c ? { text: c.textContent || '', hasCancel: !!c.querySelector('.confirm-cancel') } : null; })()`);
+  t.check('playground paste (unsupported Mermaid): shows dismissible warning popup and stays on page',
+    !!unsupPg && !unsupPg.hasCancel && /classDiagram/.test(unsupPg.text) && (await href()).includes('/gantt/index.html'),
+    JSON.stringify(unsupPg));
+  await t.clickOn('.confirm .confirm-ok');
+  await t.settle();
+
   t.check('no page errors', collectErrors().length === 0, allErrors.join(' | '));
 } catch (e) {
   console.error('[ERROR]', e.stack || e.message);

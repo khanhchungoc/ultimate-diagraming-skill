@@ -66,9 +66,9 @@ try {
   await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await t.ev(HELPERS);
 
-  const missing = await t.ev(`['btn-search','search-bar','search-input','search-count','search-prev','search-next']
+  const missing = await t.ev(`['btn-search','search-bar','search-input','search-clear','search-count','search-prev','search-next']
     .filter((id) => !document.getElementById(id)).concat(typeof window.__searchItems === 'function' ? [] : ['window.__searchItems'])`);
-  t.check('search UI and debug hook exist', missing.length === 0, 'missing: ' + missing.join(', '));
+  t.check('search UI and debug hook exist (without duplicate search glyph)', missing.length === 0 && !(await t.ev(`!!document.querySelector('#search-bar .search-glyph')`)), 'missing: ' + missing.join(', '));
   const nItems = missing.length ? 0 : await t.ev(`window.__searchItems().length`);
   if (!missing.length) t.check('searchItems() returns items with id, text, el', nItems > 0 && await t.ev(`window.__searchItems().every((i) => i.id && typeof i.text === 'string' && i.el instanceof Element)`), `items=${nItems}`);
   const q = missing.length || !nItems ? null : await T('pickQuery()');
@@ -93,12 +93,19 @@ try {
     t.check('Ctrl+F inside the title field leaves the browser find alone', !(await visible('search-bar')) && !prevented2);
     await t.ev(`(() => { const h = document.getElementById('chart-title'); h.blur(); h.contentEditable = 'false'; })()`);
 
-    // 10. zero matches
+    // 10. zero matches & clear button
     await t.ev(`document.getElementById('btn-search').click()`);
+    t.check('clear button is hidden when search input is empty', !(await visible('search-clear')));
     await T(`setQuery('zzqxjv-no-such-text')`); await settle();
-    t.check('0 matches: counter says "No matches", Previous and Next disabled',
+    t.check('0 matches: counter says "No matches", Previous and Next disabled, clear button visible',
       /no matches/i.test(await t.ev(`document.getElementById('search-count').textContent`)) &&
+      (await visible('search-clear')) &&
       await t.ev(`document.getElementById('search-prev').disabled && document.getElementById('search-next').disabled`));
+    await t.ev(`document.getElementById('search-clear').click()`); await settle();
+    t.check('clear button clears query, hides itself, and keeps focus in input',
+      (await t.ev(`document.getElementById('search-input').value`)) === '' &&
+      !(await visible('search-clear')) &&
+      (await t.ev(`document.activeElement.id`)) === 'search-input');
 
     // 2 + 5. count and classes
     await T(`setQuery(${J(q)})`); await settle();

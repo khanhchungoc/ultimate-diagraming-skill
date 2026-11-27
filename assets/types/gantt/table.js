@@ -299,7 +299,12 @@
     let markersOpen = true;
     let lastTree = buildTreeModel([]);
     let activeCellCoord = { itemId: null, colIdx: 1 };
+    let lastAnchorIdx = -1;
+    let cellClipboard = null; // { col, value, text }
     let depPopState = null; // { el, itemId, anchorEl, onDocDown, onDocKey }
+    let catPopState = null; // { el, anchorEl, onDocDown, onDocKey }
+    let stickyTargetId = null;
+    let stickyRafId = 0;
     const rowRecs = new Map();   // itemId -> { tr, shape } (keyed sheet rows, reused across renders)
     let metaById = new Map();    // itemId -> visible row meta of the last render (delegated events read it)
 
@@ -307,27 +312,15 @@
     hostEl.textContent = '';
     hostEl.classList.add('gt-view');
 
-    // 1. Top summary bar
-    const topbar = el('div', 'gt-topbar');
-    const topbarLeft = el('div', 'gt-topbar-left');
-    const countBadge = el('span', 'gt-count', '0 items');
-    const hintEl = el('span', 'gt-hint', 'Paste from Excel (Ctrl+V) · Tab/Shift+Tab to indent · Click dates for calendar');
-    topbarLeft.appendChild(countBadge);
-    topbarLeft.appendChild(hintEl);
+    // 1. Sticky parent breadcrumb bar (shown when scrolling inside a parent phase/group)
+    const stickyPhaseEl = el('button', 'gt-sticky-phase');
+    stickyPhaseEl.id = 'gt-sticky-phase';
+    stickyPhaseEl.type = 'button';
+    stickyPhaseEl.hidden = true;
+    stickyPhaseEl.setAttribute('aria-label', 'Jump to parent phase');
+    hostEl.appendChild(stickyPhaseEl);
 
-    const topbarActions = el('div', 'gt-topbar-actions');
-    const btnCopyAll = el('button', 'gt-btn');
-    btnCopyAll.type = 'button';
-    btnCopyAll.id = 'btn-table-copy-all';
-    btnCopyAll.appendChild(makeIcon(api, 'clipboard', { size: 14 }, ''));
-    btnCopyAll.appendChild(el('span', '', 'Copy CSV/TSV'));
-    topbarActions.appendChild(btnCopyAll);
-
-    topbar.appendChild(topbarLeft);
-    topbar.appendChild(topbarActions);
-    hostEl.appendChild(topbar);
-
-    // 2. Scrollable wrapper with main table + collapsible markers section
+    // 2. Scrollable wrapper with main table + collapsible milestones section
     const scrollEl = el('div', 'gt-scroll');
 
     const table = el('table', 'gantt-sheet');
@@ -338,29 +331,28 @@
     const thead = el('thead');
     const headRow = el('tr');
 
-    const thCheck = el('th', 'gt-col-check');
-    thCheck.setAttribute('scope', 'col');
-    const selectAllCb = el('input', 'gt-checkbox');
-    selectAllCb.type = 'checkbox';
-    selectAllCb.id = 'gt-select-all';
-    selectAllCb.setAttribute('aria-label', 'Select all rows');
-    thCheck.appendChild(selectAllCb);
-    headRow.appendChild(thCheck);
-
     const colDefs = [
-      { cls: 'gt-col-num',   label: '#' },
-      { cls: 'gt-col-task',  label: 'Task' },
-      { cls: 'gt-col-type',  label: 'Type' },
-      { cls: 'gt-col-start', label: 'Start' },
-      { cls: 'gt-col-end',   label: 'End' },
-      { cls: 'gt-col-dur',   label: 'Duration' },
-      { cls: 'gt-col-dep',   label: 'Depends on' },
-      { cls: 'gt-col-cat',   label: 'Category' },
-      { cls: 'gt-col-note',  label: 'Notes' }
+      { key: 'num',   cls: 'gt-col-num',   label: '#' },
+      { key: 'task',  cls: 'gt-col-task',  label: 'Task' },
+      { key: 'type',  cls: 'gt-col-type',  label: 'Type' },
+      { key: 'start', cls: 'gt-col-start', label: 'Start' },
+      { key: 'end',   cls: 'gt-col-end',   label: 'End' },
+      { key: 'dur',   cls: 'gt-col-dur',   label: 'Duration' },
+      { key: 'dep',   cls: 'gt-col-dep',   label: 'Depends on' },
+      { key: 'cat',   cls: 'gt-col-cat',   label: 'Category' },
+      { key: 'note',  cls: 'gt-col-note',  label: 'Notes' }
     ];
+    let thNum = null;
     for (let i = 0; i < colDefs.length; i++) {
       const th = el('th', colDefs[i].cls, colDefs[i].label);
       th.setAttribute('scope', 'col');
+      th.setAttribute('data-col', colDefs[i].key);
+      if (colDefs[i].key === 'num') {
+        thNum = th;
+        th.title = 'Click to select or deselect all rows';
+        th.setAttribute('role', 'button');
+        th.setAttribute('aria-label', 'Select all rows');
+      }
       headRow.appendChild(th);
     }
     thead.appendChild(headRow);
@@ -373,7 +365,7 @@
     const addRow = el('tr');
     addRow.id = 'gantt-sheet-add-row';
     const addTd = el('td');
-    addTd.colSpan = 10;
+    addTd.colSpan = 9;
     const quickAddInput = el('input');
     quickAddInput.id = 'gantt-sheet-quick-add';
     quickAddInput.type = 'text';
@@ -386,10 +378,10 @@
 
     scrollEl.appendChild(table);
 
-    // 3. Collapsible Date Lines section (#gantt-markers-section)
+    // 3. Collapsible Milestones section (#gantt-markers-section)
     const markersSection = el('section', 'is-open');
     markersSection.id = 'gantt-markers-section';
-    markersSection.setAttribute('aria-label', 'Date Lines');
+    markersSection.setAttribute('aria-label', 'Milestones');
 
     const markersHead = el('div', 'gt-markers-head');
     const btnMarkersToggle = el('button');
@@ -397,14 +389,14 @@
     btnMarkersToggle.id = 'btn-markers-toggle';
     btnMarkersToggle.setAttribute('aria-expanded', 'true');
     btnMarkersToggle.appendChild(makeIcon(api, 'chevron-down', { size: 13 }, '▾'));
-    const markersToggleText = el('span', '', 'Date Lines (0)');
+    const markersToggleText = el('span', '', 'Milestones (0)');
     btnMarkersToggle.appendChild(markersToggleText);
 
     const btnAddMarkerRow = el('button', 'gt-btn');
     btnAddMarkerRow.type = 'button';
     btnAddMarkerRow.id = 'btn-add-marker-row';
     btnAddMarkerRow.appendChild(makeIcon(api, 'plus', { size: 13 }, '+'));
-    btnAddMarkerRow.appendChild(el('span', '', 'Add date line'));
+    btnAddMarkerRow.appendChild(el('span', '', 'Add milestone'));
 
     markersHead.appendChild(btnMarkersToggle);
     markersHead.appendChild(btnAddMarkerRow);
@@ -479,10 +471,12 @@
 
     const bulkCountEl = el('span', 'gt-bulk-count', '0 selected');
 
-    const bulkCatWrap = el('span', 'gt-bulk-cat-wrap');
-    const bulkCatSelect = el('select', 'gt-bulk-cat-select');
-    bulkCatSelect.setAttribute('aria-label', 'Set category for selected rows');
-    bulkCatWrap.appendChild(bulkCatSelect);
+    const bulkCatBtn = el('button', 'gt-cat-btn gt-bulk-cat-btn');
+    bulkCatBtn.type = 'button';
+    bulkCatBtn.setAttribute('aria-label', 'Set category for selected rows');
+    bulkCatBtn.setAttribute('aria-haspopup', 'listbox');
+    bulkCatBtn.appendChild(el('span', 'gt-cat-label', 'Category...'));
+    bulkCatBtn.appendChild(makeIcon(api, 'chevron-down', { size: 12 }, '▾'));
 
     const btnBulkIndent = el('button', 'gt-btn gt-btn-icon');
     btnBulkIndent.type = 'button';
@@ -505,7 +499,7 @@
 
     bulkBar.appendChild(bulkCountEl);
     bulkBar.appendChild(el('span', 'gt-bulk-sep'));
-    bulkBar.appendChild(bulkCatWrap);
+    bulkBar.appendChild(bulkCatBtn);
     bulkBar.appendChild(el('span', 'gt-bulk-sep'));
     bulkBar.appendChild(btnBulkIndent);
     bulkBar.appendChild(btnBulkOutdent);
@@ -646,8 +640,84 @@
       return parts.join(', ');
     }
 
+    function getActiveCategories() {
+      if (typeof api.getCategories === 'function') {
+        return api.getCategories() || [];
+      }
+      const ck = (api.getColorKey && api.getColorKey()) || {};
+      const used = new Set();
+      Object.keys(ck).forEach((k) => {
+        if (ck[k] && String(ck[k]).trim()) used.add(String(k));
+      });
+      (api.getAllItems() || []).forEach((it) => {
+        if (it && it.color) used.add(String(it.color));
+      });
+      (api.getMarkers() || []).forEach((mk) => {
+        if (mk && mk.color) used.add(String(mk.color));
+      });
+      const allSlots = api.getPaletteSlots() || [];
+      const out = [];
+      const seen = new Set();
+      for (let i = 0; i < allSlots.length; i++) {
+        const s = allSlots[i];
+        const slotStr = String(s.slot);
+        if (used.has(slotStr)) {
+          out.push({ slot: slotStr, label: s.label || `Color ${slotStr}`, color: s.color || api.resolveColor(slotStr) });
+          seen.add(slotStr);
+        }
+      }
+      used.forEach((u) => {
+        if (!seen.has(u)) {
+          out.push({ slot: u, label: String(ck[u] || u), color: api.resolveColor(u) });
+        }
+      });
+      return out;
+    }
+
+    function addCategoryByName(name) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return null;
+      if (typeof api.addCategory === 'function') {
+        return api.addCategory(trimmed);
+      }
+      const existing = getActiveCategories();
+      const lower = trimmed.toLowerCase();
+      for (let i = 0; i < existing.length; i++) {
+        if (existing[i].label && existing[i].label.toLowerCase() === lower) {
+          return existing[i];
+        }
+      }
+      const data = api.getData();
+      if (!data.colorKey || typeof data.colorKey !== 'object') data.colorKey = {};
+      const usedSlots = new Set(existing.map((c) => String(c.slot)));
+      let chosen = null;
+      for (let i = 1; i <= 9; i++) {
+        if (!usedSlots.has(String(i))) { chosen = String(i); break; }
+      }
+      if (!chosen) chosen = String((existing.length % 9) + 1);
+      data.colorKey[chosen] = trimmed;
+      return { slot: chosen, label: trimmed, color: api.resolveColor(chosen) };
+    }
+
+    function nextCycledSlotColor() {
+      const existing = getActiveCategories();
+      const usedSlots = new Set(existing.map((c) => String(c.slot)));
+      let chosen = null;
+      for (let i = 1; i <= 9; i++) {
+        if (!usedSlots.has(String(i))) { chosen = String(i); break; }
+      }
+      if (!chosen) chosen = String((existing.length % 9) + 1);
+      return api.resolveColor(chosen);
+    }
+
     function formatCategoryLabel(slotVal) {
       if (!slotVal) return '';
+      const active = getActiveCategories();
+      for (let i = 0; i < active.length; i++) {
+        if (String(active[i].slot) === String(slotVal)) {
+          return active[i].label || `Color ${active[i].slot}`;
+        }
+      }
       const slots = api.getPaletteSlots() || [];
       for (let i = 0; i < slots.length; i++) {
         if (String(slots[i].slot) === String(slotVal)) {
@@ -655,6 +725,35 @@
         }
       }
       return String(slotVal);
+    }
+
+    function positionPopoverNear(pop, anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.bottom + 4;
+      if (left + popRect.width > window.innerWidth - 12) {
+        left = Math.max(12, window.innerWidth - popRect.width - 12);
+      }
+      if (top + popRect.height > window.innerHeight - 12) {
+        top = Math.max(12, rect.top - popRect.height - 4);
+      }
+      pop.style.left = `${Math.round(left)}px`;
+      pop.style.top = `${Math.round(top)}px`;
+    }
+
+    function closeCatPopover(restoreFocus = false) {
+      if (!catPopState) return;
+      const anchorEl = catPopState.anchorEl;
+      document.removeEventListener('pointerdown', catPopState.onDocDown, true);
+      document.removeEventListener('keydown', catPopState.onDocKey, true);
+      if (catPopState.el && catPopState.el.parentNode) {
+        catPopState.el.parentNode.removeChild(catPopState.el);
+      }
+      catPopState = null;
+      if (restoreFocus && anchorEl && typeof anchorEl.focus === 'function' && anchorEl.isConnected) {
+        anchorEl.focus({ preventScroll: true });
+      }
     }
 
     function closeDepPopover(restoreFocus = false) {
@@ -667,28 +766,259 @@
       }
       depPopState = null;
       if (restoreFocus && anchorEl && typeof anchorEl.focus === 'function' && anchorEl.isConnected) {
-        anchorEl.focus();
+        anchorEl.focus({ preventScroll: true });
       }
     }
 
     function openDatePicker(anchorEl, opts) {
       if (api.isPresenting()) return;
+      closeCatPopover();
+      closeDepPopover();
       if (window.GanttDatePicker && typeof window.GanttDatePicker.open === 'function') {
         window.GanttDatePicker.open(anchorEl, opts);
       }
     }
 
+    function openCategoryPopover(anchorEl, currentVal, onSelect) {
+      if (api.isPresenting()) return;
+      closeCatPopover();
+      closeDepPopover();
+
+      const pop = el('div', 'gt-cat-pop');
+      pop.setAttribute('role', 'dialog');
+      pop.setAttribute('aria-label', 'Select category');
+
+      const input = el('input', 'gt-cat-input');
+      input.type = 'text';
+      input.placeholder = 'Search or add category...';
+      input.setAttribute('aria-label', 'Search or add category');
+      pop.appendChild(input);
+
+      const listEl = el('div', 'gt-cat-list');
+      listEl.setAttribute('role', 'listbox');
+      pop.appendChild(listEl);
+
+      let options = [];
+      let activeIdx = 0;
+
+      function pickOption(opt) {
+        if (!opt) return;
+        let nextSlot = opt.value;
+        if (opt.isAdd) {
+          const created = addCategoryByName(opt.addName);
+          if (!created) return;
+          nextSlot = String(created.slot);
+        }
+        closeCatPopover(true);
+        if (typeof onSelect === 'function') onSelect(nextSlot);
+      }
+
+      function syncActiveHighlight() {
+        const btns = listEl.querySelectorAll('.gt-cat-item');
+        for (let i = 0; i < btns.length; i++) {
+          const active = i === activeIdx;
+          btns[i].classList.toggle('is-active', active);
+          btns[i].setAttribute('aria-selected', active ? 'true' : 'false');
+          if (active) btns[i].scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      function renderList() {
+        listEl.textContent = '';
+        const query = input.value.trim();
+        const lower = query.toLowerCase();
+        const cats = getActiveCategories();
+        options = [];
+
+        if (!lower || 'none'.includes(lower)) {
+          options.push({
+            value: '',
+            label: 'None',
+            color: null,
+            isNone: true,
+            selected: !currentVal
+          });
+        }
+
+        let exactMatch = false;
+        for (let i = 0; i < cats.length; i++) {
+          const c = cats[i];
+          const lbl = c.label || `Color ${c.slot}`;
+          if (lbl.toLowerCase() === lower) exactMatch = true;
+          if (!lower || lbl.toLowerCase().includes(lower) || String(c.slot).toLowerCase() === lower) {
+            options.push({
+              value: String(c.slot),
+              label: lbl,
+              color: c.color || api.resolveColor(c.slot),
+              selected: String(c.slot) === String(currentVal)
+            });
+          }
+        }
+
+        if (query && !exactMatch && lower !== 'none') {
+          options.push({
+            value: '__add__',
+            isAdd: true,
+            addName: query,
+            label: `+ Add "${query}"`,
+            color: nextCycledSlotColor(),
+            selected: false
+          });
+        }
+
+        if (options.length === 0) {
+          listEl.appendChild(el('div', 'gt-cat-empty', 'No matching categories'));
+          activeIdx = -1;
+          return;
+        }
+
+        activeIdx = Math.max(0, Math.min(activeIdx, options.length - 1));
+        for (let i = 0; i < options.length; i++) {
+          const opt = options[i];
+          const btn = el('button', 'gt-cat-item' + (opt.isAdd ? ' is-add' : '') + (opt.selected ? ' is-selected' : ''));
+          btn.type = 'button';
+          btn.setAttribute('role', 'option');
+
+          const dot = el('span', 'gt-cat-dot' + (opt.isNone ? ' is-none' : ''));
+          if (opt.color) dot.style.background = opt.color;
+          btn.appendChild(dot);
+
+          const lbl = el('span', 'gt-cat-item-label', opt.label);
+          btn.appendChild(lbl);
+
+          if (opt.selected) {
+            const chk = el('span', 'gt-cat-check');
+            chk.appendChild(makeIcon(api, 'check', { size: 13 }, '✓'));
+            btn.appendChild(chk);
+          }
+
+          btn.addEventListener('pointerenter', () => {
+            activeIdx = i;
+            syncActiveHighlight();
+          });
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pickOption(opt);
+          });
+          listEl.appendChild(btn);
+        }
+        syncActiveHighlight();
+      }
+
+      input.addEventListener('input', () => {
+        activeIdx = 0;
+        renderList();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (options.length > 0) {
+            activeIdx = (activeIdx + 1) % options.length;
+            syncActiveHighlight();
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (options.length > 0) {
+            activeIdx = (activeIdx - 1 + options.length) % options.length;
+            syncActiveHighlight();
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (options.length > 0) {
+            pickOption(options[activeIdx >= 0 ? activeIdx : 0]);
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closeCatPopover(true);
+        }
+      });
+
+      renderList();
+      document.body.appendChild(pop);
+      positionPopoverNear(pop, anchorEl);
+
+      const onDocDown = (e) => {
+        if (!pop.contains(e.target) && !anchorEl.contains(e.target)) {
+          closeCatPopover();
+        }
+      };
+      const onDocKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeCatPopover(true);
+        }
+      };
+      document.addEventListener('pointerdown', onDocDown, true);
+      document.addEventListener('keydown', onDocKey, true);
+
+      catPopState = { el: pop, anchorEl, onDocDown, onDocKey };
+      input.focus();
+    }
+
+    function isDepShorthandQuery(raw) {
+      return /^#?\d+(\s*(FS|SS))?([\s,;]+#?\d+(\s*(FS|SS))?)*$/i.test(raw);
+    }
+
+    function applyDepShorthandForItem(item, raw) {
+      const data = api.getData();
+      const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+      const baseDeps = curDeps.filter((d) => !(d && d.to === item.id));
+
+      const trimmed = String(raw || '').trim();
+      if (!trimmed || trimmed === '-') {
+        data.dependencies = baseDeps;
+        api.commit('dep');
+        return true;
+      }
+
+      const tokens = trimmed.split(/[\s,;]+/).filter(Boolean);
+      const parsed = [];
+      const seenFrom = new Set();
+
+      for (let i = 0; i < tokens.length; i++) {
+        const m = /^#?(\d+)\s*(FS|SS)?$/i.exec(tokens[i]);
+        if (!m) {
+          api.toast(`Invalid dependency "${tokens[i]}" (use row numbers, e.g. 2, 5)`);
+          return false;
+        }
+        const num = Number(m[1]);
+        const target = lastTree.itemByRowNum.get(num);
+        if (!target) {
+          api.toast(`Row #${num} not found`);
+          return false;
+        }
+        if (target.id === item.id) {
+          api.toast('Task cannot depend on itself');
+          return false;
+        }
+        if (seenFrom.has(target.id)) continue;
+        const testDeps = baseDeps.concat(parsed);
+        if (wouldCreateCycle(testDeps, target.id, item.id)) {
+          api.toast('Circular dependency prevented');
+          return false;
+        }
+        seenFrom.add(target.id);
+        parsed.push({ from: target.id, to: item.id, type: 'fs' });
+      }
+
+      data.dependencies = baseDeps.concat(parsed);
+      api.commit('dep');
+      return true;
+    }
+
     function openDepPopover(anchorEl, item) {
       if (api.isPresenting()) return;
       closeDepPopover();
+      closeCatPopover();
 
-      const tree = lastTree;
       const pop = el('div', 'gt-dep-pop');
       pop.setAttribute('role', 'dialog');
       pop.setAttribute('aria-label', `Dependencies for ${item.label || 'task'}`);
 
       const head = el('div', 'gt-dep-pop-head');
-      head.appendChild(el('span', 'gt-dep-pop-title', `Depends on · ${item.label || 'Task'}`));
+      head.appendChild(el('span', 'gt-dep-pop-title', `Depends on - ${item.label || 'Task'}`));
       const closeBtn = el('button', 'gt-btn gt-btn-ghost');
       closeBtn.type = 'button';
       closeBtn.setAttribute('aria-label', 'Close');
@@ -700,9 +1030,8 @@
       const inputRow = el('div', 'gt-dep-input-row');
       const input = el('input', 'gt-dep-input');
       input.type = 'text';
-      input.placeholder = 'e.g. 2, 5';
-      input.setAttribute('aria-label', 'Predecessor row numbers');
-      input.value = formatDepShorthand(item.id, tree.rowNumById);
+      input.placeholder = 'Search tasks or enter row # (e.g. 2, 5)...';
+      input.setAttribute('aria-label', 'Search predecessor tasks or enter row numbers');
       const applyBtn = el('button', 'gt-btn gt-btn-primary', 'Apply');
       applyBtn.type = 'button';
       inputRow.appendChild(input);
@@ -712,8 +1041,34 @@
       const listEl = el('div', 'gt-dep-list');
       pop.appendChild(listEl);
 
-      function syncInputFromModel() {
-        input.value = formatDepShorthand(item.id, lastTree.rowNumById);
+      let filteredRows = [];
+      let activeIdx = 0;
+
+      function toggleCandidate(other) {
+        const data = api.getData();
+        const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+        const hasDep = curDeps.some((d) => d && d.from === other.id && d.to === item.id);
+        if (!hasDep) {
+          if (wouldCreateCycle(curDeps, other.id, item.id)) {
+            api.toast('Circular dependency prevented');
+            return;
+          }
+          data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
+          data.dependencies.push({ from: other.id, to: item.id, type: 'fs' });
+        } else {
+          data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
+        }
+        api.commit('dep');
+        renderChecklist();
+      }
+
+      function syncDepActiveHighlight() {
+        const rows = listEl.querySelectorAll('.gt-dep-item');
+        for (let i = 0; i < rows.length; i++) {
+          const active = i === activeIdx;
+          rows[i].classList.toggle('is-active', active);
+          if (active) rows[i].scrollIntoView({ block: 'nearest' });
+        }
       }
 
       function renderChecklist() {
@@ -726,14 +1081,36 @@
           if (d && d.to === item.id) incomingByFrom.set(d.from, d);
         }
 
-        const candidates = lastTree.orderedAll.filter((m) => m.item.id !== item.id && m.item.kind !== 'group');
-        if (candidates.length === 0) {
+        const query = input.value.trim();
+        const lower = query.toLowerCase();
+        const numTokens = isDepShorthandQuery(query)
+          ? new Set(query.split(/[\s,;]+/).map((t) => t.replace(/^#/, '').replace(/(FS|SS)$/i, '')).filter(Boolean))
+          : null;
+
+        const allCandidates = lastTree.orderedAll.filter((m) => m.item.id !== item.id && !m.hasChildren);
+        filteredRows = allCandidates.filter((cand) => {
+          if (!lower) return true;
+          const lbl = (cand.item.label || 'Untitled').toLowerCase();
+          const numStr = String(cand.rowNum);
+          if (numTokens) return numTokens.has(numStr) || numStr.includes(lower.replace(/^#/, ''));
+          return lbl.includes(lower) || numStr.includes(lower.replace(/^#/, '')) || `#${numStr}`.includes(lower);
+        });
+
+        if (allCandidates.length === 0) {
           listEl.appendChild(el('div', 'gt-dep-empty', 'No other tasks or milestones'));
+          activeIdx = -1;
+          return;
+        }
+        if (filteredRows.length === 0) {
+          listEl.appendChild(el('div', 'gt-dep-empty', 'No matching tasks'));
+          activeIdx = -1;
           return;
         }
 
-        for (let i = 0; i < candidates.length; i++) {
-          const cand = candidates[i];
+        activeIdx = Math.max(0, Math.min(activeIdx, filteredRows.length - 1));
+
+        for (let i = 0; i < filteredRows.length; i++) {
+          const cand = filteredRows[i];
           const other = cand.item;
           const existing = incomingByFrom.get(other.id) || null;
 
@@ -747,29 +1124,14 @@
           const lblSpan = el('span', 'gt-dep-item-label', other.label || 'Untitled');
           lblSpan.title = other.label || 'Untitled';
 
-          cb.addEventListener('change', () => {
-            const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
-            if (cb.checked) {
-              if (wouldCreateCycle(curDeps, other.id, item.id)) {
-                cb.checked = false;
-                api.toast('Circular dependency prevented');
-                return;
-              }
-              data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
-              data.dependencies.push({ from: other.id, to: item.id, type: 'fs' });
-              api.commit('dep');
-            } else {
-              data.dependencies = curDeps.filter((d) => !(d && d.from === other.id && d.to === item.id));
-              api.commit('dep');
-            }
-            syncInputFromModel();
-            renderChecklist();
+          cb.addEventListener('change', () => toggleCandidate(other));
+          row.addEventListener('pointerenter', () => {
+            activeIdx = i;
+            syncDepActiveHighlight();
           });
-
           row.addEventListener('click', (e) => {
             if (e.target === cb) return;
-            cb.checked = !cb.checked;
-            cb.dispatchEvent(new Event('change'));
+            toggleCandidate(other);
           });
 
           row.appendChild(cb);
@@ -777,83 +1139,56 @@
           row.appendChild(lblSpan);
           listEl.appendChild(row);
         }
+        syncDepActiveHighlight();
       }
 
-      function applyShorthand() {
+      function handleSubmit() {
         const raw = input.value.trim();
-        const data = api.getData();
-        const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
-        const baseDeps = curDeps.filter((d) => !(d && d.to === item.id));
-
         if (!raw) {
-          data.dependencies = baseDeps;
-          api.commit('dep');
-          closeDepPopover();
+          closeDepPopover(true);
           return;
         }
-
-        const tokens = raw.split(/[\s,;]+/).filter(Boolean);
-        const parsed = [];
-        const seenFrom = new Set();
-
-        for (let i = 0; i < tokens.length; i++) {
-          const m = /^#?(\d+)\s*(FS|SS)?$/i.exec(tokens[i]);
-          if (!m) {
-            api.toast(`Invalid dependency "${tokens[i]}" (use row numbers, e.g. 2, 5)`);
-            return;
-          }
-          const num = Number(m[1]);
-          const target = lastTree.itemByRowNum.get(num);
-          if (!target) {
-            api.toast(`Row #${num} not found`);
-            return;
-          }
-          if (target.id === item.id) {
-            api.toast('Task cannot depend on itself');
-            return;
-          }
-          if (seenFrom.has(target.id)) continue;
-          const testDeps = baseDeps.concat(parsed);
-          if (wouldCreateCycle(testDeps, target.id, item.id)) {
-            api.toast('Circular dependency prevented');
-            return;
-          }
-          seenFrom.add(target.id);
-          parsed.push({ from: target.id, to: item.id, type: 'fs' });
+        if (isDepShorthandQuery(raw)) {
+          if (applyDepShorthandForItem(item, raw)) closeDepPopover(true);
+          return;
         }
-
-        data.dependencies = baseDeps.concat(parsed);
-        api.commit('dep');
-        closeDepPopover();
+        if (filteredRows.length > 0) {
+          const targetCand = filteredRows[activeIdx >= 0 ? activeIdx : 0];
+          if (targetCand) toggleCandidate(targetCand.item);
+        }
       }
 
+      input.addEventListener('input', () => {
+        activeIdx = 0;
+        renderChecklist();
+      });
+
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'ArrowDown') {
           e.preventDefault();
-          applyShorthand();
+          if (filteredRows.length > 0) {
+            activeIdx = (activeIdx + 1) % filteredRows.length;
+            syncDepActiveHighlight();
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (filteredRows.length > 0) {
+            activeIdx = (activeIdx - 1 + filteredRows.length) % filteredRows.length;
+            syncDepActiveHighlight();
+          }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSubmit();
         } else if (e.key === 'Escape') {
           e.preventDefault();
           closeDepPopover(true);
         }
       });
-      applyBtn.addEventListener('click', applyShorthand);
+      applyBtn.addEventListener('click', handleSubmit);
 
       renderChecklist();
       document.body.appendChild(pop);
-
-      // Position near anchorEl, clamped to viewport
-      const rect = anchorEl.getBoundingClientRect();
-      const popRect = pop.getBoundingClientRect();
-      let left = rect.left;
-      let top = rect.bottom + 4;
-      if (left + popRect.width > window.innerWidth - 12) {
-        left = Math.max(12, window.innerWidth - popRect.width - 12);
-      }
-      if (top + popRect.height > window.innerHeight - 12) {
-        top = Math.max(12, rect.top - popRect.height - 4);
-      }
-      pop.style.left = `${Math.round(left)}px`;
-      pop.style.top = `${Math.round(top)}px`;
+      positionPopoverNear(pop, anchorEl);
 
       const onDocDown = (e) => {
         if (!pop.contains(e.target) && !anchorEl.contains(e.target)) {
@@ -871,7 +1206,6 @@
 
       depPopState = { el: pop, itemId: item.id, anchorEl, onDocDown, onDocKey };
       input.focus();
-      input.select();
     }
 
     // --- Indent / Outdent helpers ---
@@ -916,7 +1250,8 @@
 
       const input = el('input', 'gt-inline-input' + (opts && opts.isNum ? ' is-num' : ''));
       input.type = 'text';
-      input.value = initialVal || '';
+      const hasSeed = Boolean(opts && opts.seedKey);
+      input.value = hasSeed ? opts.seedKey : (initialVal || '');
       if (opts && opts.placeholder) input.placeholder = opts.placeholder;
 
       const targetChild = (opts && opts.replaceTarget) || cellEl;
@@ -933,7 +1268,8 @@
         targetChild.style.display = prevDisplay;
         if (save && opts && typeof opts.onSave === 'function') {
           opts.onSave(val);
-        } else if (cellEl.isConnected) {
+        }
+        if (cellEl.isConnected) {
           cellEl.focus({ preventScroll: true });
         }
       }
@@ -952,10 +1288,15 @@
       input.addEventListener('blur', () => finish(true));
 
       input.focus();
-      input.select();
+      if (hasSeed) {
+        const len = input.value.length;
+        try { input.setSelectionRange(len, len); } catch (_) { /* ignore */ }
+      } else {
+        input.select();
+      }
     }
 
-    // --- Copy / Paste for Excel ---
+    // --- Copy / Paste for Excel & Single Cells ---
     function buildTsvForRows(rowMetas) {
       const header = ['Task', 'Type', 'Start', 'End', 'Duration', 'Depends on', 'Category', 'Notes'].join('\t');
       const lines = [header];
@@ -970,9 +1311,10 @@
           : (meta.hasChildren ? (meta.end || '') : (ganttFormatDate(it.end) || ''));
         let durStr = '';
         if (it.kind === 'milestone') {
-          durStr = '0d';
+          durStr = '-';
         } else if (meta.start && meta.end) {
-          durStr = `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d`;
+          const days = Math.max(0, ganttDiffDays(meta.start, meta.end) + 1);
+          durStr = days > 0 ? `${days}d` : '-';
         }
         const depStr = formatDepShorthand(it.id, lastTree.rowNumById);
         const catStr = formatCategoryLabel(it.color);
@@ -1017,6 +1359,7 @@
         api.toast('No rows to copy');
         return;
       }
+      cellClipboard = null;
       const tsv = buildTsvForRows(rowMetas);
       copyTextToClipboard(tsv);
       api.toast(`Copied ${rowMetas.length} ${rowMetas.length === 1 ? 'row' : 'rows'} for Excel`);
@@ -1024,19 +1367,204 @@
 
     function resolveCategoryFromText(raw) {
       const s = String(raw || '').trim();
-      if (!s || /^none$/i.test(s)) return undefined;
+      if (!s || s === '-' || /^none$/i.test(s)) return undefined;
       if (/^#[0-9a-f]{3,8}$/i.test(s)) return s;
+      const lower = s.toLowerCase();
+      const active = getActiveCategories();
+      for (let i = 0; i < active.length; i++) {
+        if (String(active[i].slot) === s) return String(active[i].slot);
+        if (active[i].label && active[i].label.toLowerCase() === lower) return String(active[i].slot);
+      }
       const slots = api.getPaletteSlots() || [];
       for (let i = 0; i < slots.length; i++) {
         if (String(slots[i].slot) === s) return String(slots[i].slot);
       }
-      const lower = s.toLowerCase();
       for (let i = 0; i < slots.length; i++) {
         if (slots[i].label && slots[i].label.toLowerCase() === lower) {
           return String(slots[i].slot);
         }
       }
       return undefined;
+    }
+
+    function getCellCopyPayload(meta, col) {
+      const it = meta.item;
+      if (col === 'task') {
+        const val = it.label || '';
+        return { col, value: val, text: val };
+      }
+      if (col === 'type') {
+        const k = meta.hasChildren ? 'group' : (it.kind === 'milestone' ? 'milestone' : 'task');
+        return { col, value: k, text: TYPE_LABELS[k] || 'Task' };
+      }
+      if (col === 'start') {
+        const val = meta.hasChildren ? (meta.start || '') : (ganttFormatDate(it.start) || '');
+        return { col, value: val, text: val };
+      }
+      if (col === 'end') {
+        const val = it.kind === 'milestone'
+          ? ''
+          : (meta.hasChildren ? (meta.end || '') : (ganttFormatDate(it.end) || ''));
+        return { col, value: val, text: val };
+      }
+      if (col === 'dur') {
+        if (it.kind === 'milestone') return { col, value: 0, text: '-' };
+        const days = (meta.start && meta.end) ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
+        return { col, value: days, text: days ? `${days}d` : '' };
+      }
+      if (col === 'dep') {
+        const ids = getDepsForItem(it.id).map((d) => d.from);
+        const text = formatDepShorthand(it.id, lastTree.rowNumById);
+        return { col, value: ids, text };
+      }
+      if (col === 'cat') {
+        const slot = it.color ? String(it.color) : '';
+        return { col, value: slot, text: formatCategoryLabel(slot) };
+      }
+      if (col === 'note') {
+        const noteObj = api.getNoteForItem(it.id);
+        const text = noteObj && noteObj.text ? noteObj.text : '';
+        return { col, value: text, text };
+      }
+      return null;
+    }
+
+    function applyCellPaste(meta, col, rawText, internalClip) {
+      const it = meta.item;
+      const trimmed = String(rawText == null ? '' : rawText).trim();
+      const useInternal = Boolean(internalClip && internalClip.col === col && internalClip.text === rawText);
+
+      if (col === 'task') {
+        const cleaned = api.cleanLabel(trimmed, '');
+        if (!cleaned) return false;
+        if (cleaned !== it.label) {
+          it.label = cleaned;
+          api.commit('label');
+        }
+        return true;
+      }
+
+      if (col === 'type') {
+        if (meta.hasChildren) return false;
+        const lower = (useInternal ? String(internalClip.value || '') : trimmed).toLowerCase();
+        let nextKind = null;
+        if (lower === 'milestone' || lower === 'ms') nextKind = 'milestone';
+        else if (lower === 'task') nextKind = 'task';
+        else if (lower === 'group' || lower === 'phase') nextKind = 'group';
+        if (!nextKind) return false;
+        it.kind = nextKind;
+        if (nextKind === 'milestone') {
+          const s = ganttFormatDate(it.start) || meta.start || api.getTodayStr();
+          it.start = s;
+          it.end = s;
+        } else {
+          const s = ganttFormatDate(it.start) || meta.start;
+          if (s && (!it.end || it.end === s)) {
+            it.start = s;
+            it.end = ganttAddDays(s, 6);
+          }
+        }
+        api.commit('kind');
+        return true;
+      }
+
+      if (col === 'start') {
+        if (meta.hasChildren) return false;
+        if (!trimmed || trimmed === '-') {
+          delete it.start;
+          if (it.kind === 'milestone') delete it.end;
+          api.commit('start');
+          return true;
+        }
+        const parsed = parseFlexDate(trimmed);
+        if (!parsed) {
+          api.toast('Invalid date');
+          return false;
+        }
+        it.start = parsed;
+        if (it.kind === 'milestone') it.end = parsed;
+        else if (it.end && parsed > it.end) it.end = parsed;
+        api.commit('start');
+        return true;
+      }
+
+      if (col === 'end') {
+        if (meta.hasChildren || it.kind === 'milestone') return false;
+        if (!trimmed || trimmed === '-') {
+          delete it.end;
+          api.commit('end');
+          return true;
+        }
+        const parsed = parseFlexDate(trimmed);
+        if (!parsed) {
+          api.toast('Invalid date');
+          return false;
+        }
+        it.end = parsed;
+        if (!it.start || parsed < it.start) it.start = parsed;
+        api.commit('end');
+        return true;
+      }
+
+      if (col === 'dur') {
+        if (meta.hasChildren || it.kind === 'milestone') return false;
+        const days = parseDurationDays(trimmed);
+        if (!days) return false;
+        const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
+        it.start = baseStart;
+        it.end = ganttAddDays(baseStart, Math.max(1, days) - 1);
+        api.commit('duration');
+        return true;
+      }
+
+      if (col === 'cat') {
+        let nextVal = '';
+        if (useInternal) {
+          nextVal = internalClip.value ? String(internalClip.value) : '';
+        } else if (!trimmed || trimmed === '-' || /^none$/i.test(trimmed)) {
+          nextVal = '';
+        } else {
+          const resolved = resolveCategoryFromText(trimmed);
+          if (resolved) {
+            nextVal = resolved;
+          } else {
+            const created = addCategoryByName(trimmed);
+            nextVal = created ? String(created.slot) : '';
+          }
+        }
+        applyCategoryWithSync(it, nextVal, lastTree);
+        api.commit('color');
+        return true;
+      }
+
+      if (col === 'dep') {
+        if (useInternal && Array.isArray(internalClip.value)) {
+          const data = api.getData();
+          const curDeps = Array.isArray(data.dependencies) ? data.dependencies : (data.dependencies = []);
+          const baseDeps = curDeps.filter((d) => !(d && d.to === it.id));
+          const parsed = [];
+          for (let i = 0; i < internalClip.value.length; i++) {
+            const fromId = internalClip.value[i];
+            if (!fromId || fromId === it.id || !lastTree.byId.has(fromId)) continue;
+            if (wouldCreateCycle(baseDeps.concat(parsed), fromId, it.id)) {
+              api.toast('Circular dependency prevented');
+              continue;
+            }
+            parsed.push({ from: fromId, to: it.id, type: 'fs' });
+          }
+          data.dependencies = baseDeps.concat(parsed);
+          api.commit('dep');
+          return true;
+        }
+        return applyDepShorthandForItem(it, trimmed);
+      }
+
+      if (col === 'note') {
+        api.setNoteForItem(it.id, trimmed);
+        return true;
+      }
+
+      return false;
     }
 
     function handleExcelPaste(text) {
@@ -1152,21 +1680,24 @@
     }
 
     // --- Event wiring ---
-    btnCopyAll.addEventListener('click', () => {
-      copyRows(lastTree.visibleRows);
-    });
-
-    selectAllCb.addEventListener('change', () => {
-      if (api.isPresenting()) return;
-      const next = new Set();
-      if (selectAllCb.checked) {
-        for (let i = 0; i < lastTree.visibleRows.length; i++) {
-          next.add(lastTree.visibleRows[i].item.id);
+    if (thNum) {
+      thNum.addEventListener('click', () => {
+        if (api.isPresenting()) return;
+        const vis = lastTree.visibleRows;
+        if (vis.length === 0) return;
+        const cur = api.getSelectedIds() || new Set();
+        let allSelected = true;
+        for (let i = 0; i < vis.length; i++) {
+          if (!cur.has(vis[i].item.id)) { allSelected = false; break; }
         }
-      }
-      api.setSelectedIds(next);
-      render();
-    });
+        const next = new Set();
+        if (!allSelected) {
+          for (let i = 0; i < vis.length; i++) next.add(vis[i].item.id);
+        }
+        api.setSelectedIds(next);
+        render();
+      });
+    }
 
     // Quick-add row
     quickAddInput.addEventListener('keydown', (e) => {
@@ -1201,7 +1732,7 @@
       quickAddInput.focus();
     });
 
-    // Date Lines toggle & add
+    // Milestones toggle & add
     btnMarkersToggle.addEventListener('click', () => {
       markersOpen = !markersOpen;
       markersSection.classList.toggle('is-open', markersOpen);
@@ -1215,7 +1746,7 @@
       if (!Array.isArray(data.markers)) data.markers = [];
       data.markers.push({
         id: api.newId('m'),
-        label: 'New date line',
+        label: 'New milestone',
         date: api.getTodayStr(),
         color: '4'
       });
@@ -1227,23 +1758,23 @@
     });
 
     // Bulk actions
-    bulkCatSelect.addEventListener('change', () => {
+    bulkCatBtn.addEventListener('click', (e) => {
       if (api.isPresenting()) return;
-      const val = bulkCatSelect.value;
-      if (val === '__placeholder__') return;
-      const sel = api.getSelectedIds();
-      const all = api.getAllItems();
-      const tree = buildTreeModel(all);
-      let changed = 0;
-      for (let i = 0; i < all.length; i++) {
-        const it = all[i];
-        if (it && sel.has(it.id)) {
-          applyCategoryWithSync(it, val, tree);
-          changed++;
+      e.stopPropagation();
+      openCategoryPopover(bulkCatBtn, '', (val) => {
+        const sel = api.getSelectedIds();
+        const all = api.getAllItems();
+        const tree = buildTreeModel(all);
+        let changed = 0;
+        for (let i = 0; i < all.length; i++) {
+          const it = all[i];
+          if (it && sel.has(it.id)) {
+            applyCategoryWithSync(it, val, tree);
+            changed++;
+          }
         }
-      }
-      bulkCatSelect.value = '__placeholder__';
-      if (changed > 0) api.commit('bulk-color');
+        if (changed > 0) api.commit('bulk-color');
+      });
     });
 
     btnBulkIndent.addEventListener('click', () => {
@@ -1320,39 +1851,84 @@
     });
 
     // Clipboard paste & copy on hostEl
+    function getActiveCellElement() {
+      if (!activeCellCoord.itemId) return null;
+      const rec = rowRecs.get(activeCellCoord.itemId);
+      if (!rec || !rec.tr.isConnected) return null;
+      return rec.tr.querySelector(`td[data-gt-cell][data-col-idx="${activeCellCoord.colIdx}"]`);
+    }
+
     function onHostPaste(e) {
       if (api.isPresenting()) return;
+      const active = document.activeElement;
+      const isTextInput = Boolean(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA'));
       const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
-      if (!text) return;
-      if (text.indexOf('\t') === -1 && text.indexOf('\n') === -1) return;
+      if (text === null || text === undefined) return;
+
+      if (text.indexOf('\t') !== -1 || text.indexOf('\n') !== -1) {
+        if (isTextInput && active.closest('.gt-inline-input, .gt-cat-pop, .gt-dep-pop')) return;
+        e.preventDefault();
+        handleExcelPaste(text);
+        return;
+      }
+
+      if (isTextInput) return;
+      const td = getActiveCellElement();
+      if (!td) return;
+      const meta = metaById.get(activeCellCoord.itemId);
+      if (!meta) return;
+      const col = td.getAttribute('data-col');
+      if (!col) return;
       e.preventDefault();
-      handleExcelPaste(text);
+      applyCellPaste(meta, col, text, cellClipboard);
     }
 
     function onHostCopy(e) {
       const active = document.activeElement;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-        if (active.selectionStart !== active.selectionEnd) return; // let native text copy work
+        return; // let native text copy work
       }
       const sel = api.getSelectedIds();
-      let rows = [];
-      if (sel && sel.size > 0) {
-        rows = lastTree.visibleRows.filter((m) => sel.has(m.item.id));
-      } else if (active && active.closest && active.closest('#gantt-sheet')) {
-        const tr = active.closest('tr[data-item-id]');
-        if (tr) {
-          const id = tr.getAttribute('data-item-id');
-          const m = lastTree.metaById.get(id);
-          if (m) rows = [m];
+      if (sel && sel.size > 1) {
+        const rows = lastTree.visibleRows.filter((m) => sel.has(m.item.id));
+        if (rows.length === 0) return;
+        cellClipboard = null;
+        const tsv = buildTsvForRows(rows);
+        if (e.clipboardData) {
+          e.preventDefault();
+          e.clipboardData.setData('text/plain', tsv);
+          api.toast(`Copied ${rows.length} rows for Excel`);
+        }
+        return;
+      }
+
+      const td = getActiveCellElement();
+      if (td && activeCellCoord.itemId) {
+        const meta = metaById.get(activeCellCoord.itemId);
+        const col = td.getAttribute('data-col');
+        if (meta && col) {
+          const payload = getCellCopyPayload(meta, col);
+          if (payload && e.clipboardData) {
+            e.preventDefault();
+            cellClipboard = payload;
+            e.clipboardData.setData('text/plain', payload.text);
+            td.classList.add('is-copied');
+            setTimeout(() => td.classList.remove('is-copied'), 450);
+            return;
+          }
         }
       }
-      if (rows.length === 0) return;
 
-      const tsv = buildTsvForRows(rows);
-      if (e.clipboardData) {
-        e.preventDefault();
-        e.clipboardData.setData('text/plain', tsv);
-        api.toast(`Copied ${rows.length} ${rows.length === 1 ? 'row' : 'rows'} for Excel`);
+      if (sel && sel.size === 1) {
+        const rows = lastTree.visibleRows.filter((m) => sel.has(m.item.id));
+        if (rows.length === 0) return;
+        cellClipboard = null;
+        const tsv = buildTsvForRows(rows);
+        if (e.clipboardData) {
+          e.preventDefault();
+          e.clipboardData.setData('text/plain', tsv);
+          api.toast('Copied 1 row for Excel');
+        }
       }
     }
 
@@ -1362,6 +1938,14 @@
     // --- Roving-tabindex spatial keyboard navigation on #gantt-sheet ---
     function getNavigableCellsInRow(tr) {
       return Array.from(tr.querySelectorAll('td[data-gt-cell]')).filter((td) => td.offsetParent !== null);
+    }
+
+    function syncActiveCellClass(nextCell) {
+      const prevActive = tbody.querySelectorAll('td[data-gt-cell].is-active-cell');
+      for (let i = 0; i < prevActive.length; i++) {
+        if (prevActive[i] !== nextCell) prevActive[i].classList.remove('is-active-cell');
+      }
+      if (nextCell) nextCell.classList.add('is-active-cell');
     }
 
     function setRovingFocus(nextCell) {
@@ -1374,8 +1958,195 @@
         itemId: tr ? tr.getAttribute('data-item-id') : null,
         colIdx: Number(nextCell.getAttribute('data-col-idx')) || 1
       };
+      syncActiveCellClass(nextCell);
       nextCell.focus({ preventScroll: true });
       nextCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    // --- Delegated sheet events (rows are reused across renders, so nothing is bound per cell) ---
+    function rowMetaAt(target) {
+      const tr = target && target.closest ? target.closest('tr[data-item-id]') : null;
+      if (!tr || tr.parentNode !== tbody) return null;
+      const meta = metaById.get(tr.getAttribute('data-item-id'));
+      return meta && rowRecs.get(meta.item.id) && rowRecs.get(meta.item.id).tr === tr ? meta : null;
+    }
+
+    function openLabelEdit(tdTask, lblSpan, it, seedKey) {
+      if (!lblSpan) return;
+      startInlineTextEdit(tdTask, it.label || '', {
+        replaceTarget: lblSpan,
+        seedKey,
+        onSave(val) {
+          const cleaned = api.cleanLabel(val, it.label || 'Untitled');
+          if (cleaned !== it.label) {
+            it.label = cleaned;
+            api.commit('label');
+          }
+        }
+      });
+    }
+
+    function toggleKind(it, meta) {
+      if (meta && meta.hasChildren) return;
+      const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
+      const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
+      it.kind = nextKind;
+      if (nextKind === 'milestone') {
+        const s = ganttFormatDate(it.start) || (meta && meta.start) || api.getTodayStr();
+        it.start = s;
+        it.end = s;
+      } else {
+        const s = ganttFormatDate(it.start) || (meta && meta.start);
+        if (s && (!it.end || it.end === s)) {
+          it.start = s;
+          it.end = ganttAddDays(s, 6);
+        }
+      }
+      api.commit('kind');
+    }
+
+    function openStartPicker(anchorEl, it) {
+      openDatePicker(anchorEl, {
+        value: it.start || api.getTodayStr(),
+        allowClear: true,
+        onSelect(val) {
+          if (!val) {
+            delete it.start;
+            if (it.kind === 'milestone') delete it.end;
+          } else {
+            it.start = val;
+            if (it.kind === 'milestone') {
+              it.end = val;
+            } else if (it.end && val > it.end) {
+              it.end = val;
+            }
+          }
+          api.commit('start');
+        }
+      });
+    }
+
+    function openEndPicker(anchorEl, it) {
+      openDatePicker(anchorEl, {
+        value: it.end || it.start || api.getTodayStr(),
+        min: it.start || undefined,
+        allowClear: true,
+        onSelect(val) {
+          if (!val) {
+            delete it.end;
+          } else {
+            it.end = val;
+            if (!it.start || val < it.start) it.start = val;
+          }
+          api.commit('end');
+        }
+      });
+    }
+
+    function openDateTextEdit(tdDate, it, field, seedKey) {
+      const wrap = tdDate.querySelector('.gt-date-cell');
+      if (!wrap) return;
+      const curVal = field === 'start' ? (ganttFormatDate(it.start) || '') : (ganttFormatDate(it.end) || '');
+      startInlineTextEdit(tdDate, curVal, {
+        replaceTarget: wrap,
+        isNum: true,
+        seedKey,
+        placeholder: 'YYYY-MM-DD',
+        onSave(val) {
+          const trimmed = String(val || '').trim();
+          if (!trimmed || trimmed === '-') {
+            if (field === 'start') {
+              delete it.start;
+              if (it.kind === 'milestone') delete it.end;
+            } else {
+              delete it.end;
+            }
+            api.commit(field);
+            return;
+          }
+          const parsed = parseFlexDate(trimmed);
+          if (!parsed) {
+            api.toast('Invalid date (use YYYY-MM-DD)');
+            return;
+          }
+          if (field === 'start') {
+            it.start = parsed;
+            if (it.kind === 'milestone') it.end = parsed;
+            else if (it.end && parsed > it.end) it.end = parsed;
+          } else {
+            it.end = parsed;
+            if (!it.start || parsed < it.start) it.start = parsed;
+          }
+          api.commit(field);
+        }
+      });
+    }
+
+    function openDurationEdit(tdDur, durSpan, it, meta, seedKey) {
+      if (!durSpan) return;
+      const days = (meta.start && meta.end) ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
+      startInlineTextEdit(tdDur, days ? `${days}d` : '', {
+        replaceTarget: durSpan,
+        isNum: true,
+        seedKey,
+        placeholder: 'e.g. 14d or 2w',
+        onSave(val) {
+          const parsedDays = parseDurationDays(val);
+          if (!parsedDays) return;
+          const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
+          it.start = baseStart;
+          it.end = ganttAddDays(baseStart, Math.max(1, parsedDays) - 1);
+          api.commit('duration');
+        }
+      });
+    }
+
+    function openNoteEdit(tdNote, noteSpan, it, seedKey) {
+      if (!noteSpan) return;
+      const noteObj = api.getNoteForItem(it.id);
+      const noteText = noteObj && noteObj.text ? noteObj.text : '';
+      startInlineTextEdit(tdNote, noteText, {
+        replaceTarget: noteSpan,
+        seedKey,
+        placeholder: 'Enter note...',
+        onSave(val) {
+          const next = String(val || '').trim();
+          if (next !== noteText) {
+            api.setNoteForItem(it.id, next);
+          }
+        }
+      });
+    }
+
+    function activateCellEdit(cell, meta, seedKey) {
+      if (!cell || !meta || api.isPresenting()) return;
+      const it = meta.item;
+      const col = cell.getAttribute('data-col');
+      if (col === 'task') {
+        openLabelEdit(cell, cell.querySelector('.gt-label-text'), it, seedKey);
+      } else if (col === 'type') {
+        if (!meta.hasChildren && !seedKey) toggleKind(it, meta);
+      } else if (col === 'start') {
+        if (!meta.hasChildren) openDateTextEdit(cell, it, 'start', seedKey);
+      } else if (col === 'end') {
+        if (!meta.hasChildren && it.kind !== 'milestone') openDateTextEdit(cell, it, 'end', seedKey);
+      } else if (col === 'dur') {
+        if (!meta.hasChildren && it.kind !== 'milestone') {
+          openDurationEdit(cell, cell.querySelector('.gt-dur-val'), it, meta, seedKey);
+        }
+      } else if (col === 'dep') {
+        if (!seedKey) openDepPopover(cell.querySelector('.gt-dep-btn') || cell, it);
+      } else if (col === 'cat') {
+        if (!seedKey) {
+          const anchor = cell.querySelector('.gt-cat-btn') || cell;
+          openCategoryPopover(anchor, it.color || '', (val) => {
+            applyCategoryWithSync(it, val, lastTree);
+            api.commit('color');
+          });
+        }
+      } else if (col === 'note') {
+        openNoteEdit(cell, cell.querySelector('.gt-note-preview'), it, seedKey);
+      }
     }
 
     table.addEventListener('keydown', (e) => {
@@ -1436,37 +2207,34 @@
         return;
       }
 
+      const meta = rowMetaAt(cell);
+      if (!meta || api.isPresenting()) return;
+
       // Enter / F2 activates cell editor or control
       if (e.key === 'Enter' || e.key === 'F2') {
-        if (orig !== cell) return; // button/checkbox already handles Enter
+        if (orig !== cell && orig.closest && orig.closest('.chevron, .gt-date-cal-btn')) return;
         e.preventDefault();
+        activateCellEdit(cell, meta);
+        return;
+      }
+
+      // Printable character starts inline edit on text/date/dur cells
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const col = cell.getAttribute('data-col');
-        if (col === 'task') {
-          const lbl = cell.querySelector('.gt-label-text');
-          if (lbl) lbl.click();
-        } else if (col === 'dur') {
-          const dur = cell.querySelector('.gt-dur-val');
-          if (dur) dur.click();
-        } else if (col === 'note') {
-          const note = cell.querySelector('.gt-note-preview');
-          if (note) note.click();
-        } else if (col === 'start' || col === 'end') {
-          const btn = cell.querySelector('.gt-date-btn');
-          if (btn) btn.click();
-        } else if (col === 'dep') {
-          const btn = cell.querySelector('.gt-dep-btn');
-          if (btn) btn.click();
-        } else if (col === 'type' || col === 'cat') {
-          const sel = cell.querySelector('select');
-          if (sel) sel.focus();
-        } else if (col === 'check') {
-          const cb = cell.querySelector('input[type="checkbox"]');
-          if (cb) cb.click();
+        if (col === 'task' || col === 'note') {
+          e.preventDefault();
+          activateCellEdit(cell, meta, e.key);
+        } else if ((col === 'start' || col === 'end') && /[0-9a-zA-Z]/.test(e.key)) {
+          e.preventDefault();
+          activateCellEdit(cell, meta, e.key);
+        } else if (col === 'dur' && /[0-9]/.test(e.key)) {
+          e.preventDefault();
+          activateCellEdit(cell, meta, e.key);
         }
       }
     });
 
-    // Update activeCellCoord when clicking into a cell
+    // Update activeCellCoord when focusing into a cell
     tbody.addEventListener('focusin', (e) => {
       const cell = e.target && e.target.closest ? e.target.closest('td[data-gt-cell]') : null;
       if (!cell) return;
@@ -1478,164 +2246,96 @@
         itemId: tr ? tr.getAttribute('data-item-id') : null,
         colIdx: Number(cell.getAttribute('data-col-idx')) || 1
       };
+      syncActiveCellClass(cell);
     });
 
-    // --- Delegated sheet events (rows are reused across renders, so nothing is bound per cell) ---
-    function rowMetaAt(target) {
-      const tr = target && target.closest ? target.closest('tr[data-item-id]') : null;
-      if (!tr || tr.parentNode !== tbody) return null;
-      const meta = metaById.get(tr.getAttribute('data-item-id'));
-      return meta && rowRecs.get(meta.item.id) && rowRecs.get(meta.item.id).tr === tr ? meta : null;
-    }
-
-    function openLabelEdit(tdTask, lblSpan, it) {
-      startInlineTextEdit(tdTask, it.label || '', {
-        replaceTarget: lblSpan,
-        onSave(val) {
-          const cleaned = api.cleanLabel(val, it.label || 'Untitled');
-          if (cleaned !== it.label) {
-            it.label = cleaned;
-            api.commit('label');
-          }
-        }
-      });
-    }
-
-    function toggleKind(it, meta) {
-      const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
-      const nextKind = curKind === 'milestone' ? 'task' : 'milestone';
-      it.kind = nextKind;
-      if (nextKind === 'milestone') {
-        const s = ganttFormatDate(it.start) || meta.start || api.getTodayStr();
-        it.start = s;
-        it.end = s;
-      } else {
-        const s = ganttFormatDate(it.start) || meta.start;
-        if (s && (!it.end || it.end === s)) {
-          it.start = s;
-          it.end = ganttAddDays(s, 6);
-        }
-      }
-      api.commit('kind');
-    }
-
-    function openStartPicker(startBtn, it) {
-      openDatePicker(startBtn, {
-        value: it.start || api.getTodayStr(),
-        allowClear: true,
-        onSelect(val) {
-          if (!val) {
-            delete it.start;
-            if (it.kind === 'milestone') delete it.end;
-          } else {
-            it.start = val;
-            if (it.kind === 'milestone') {
-              it.end = val;
-            } else if (it.end && val > it.end) {
-              it.end = val;
-            }
-          }
-          api.commit('start');
-        }
-      });
-    }
-
-    function openEndPicker(endBtn, it) {
-      openDatePicker(endBtn, {
-        value: it.end || it.start || api.getTodayStr(),
-        min: it.start || undefined,
-        allowClear: true,
-        onSelect(val) {
-          if (!val) {
-            delete it.end;
-          } else {
-            it.end = val;
-            if (!it.start || val < it.start) it.start = val;
-          }
-          api.commit('end');
-        }
-      });
-    }
-
-    function openDurationEdit(tdDur, durSpan, it, meta) {
-      const days = (meta.start && meta.end) ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
-      startInlineTextEdit(tdDur, days ? `${days}d` : '', {
-        replaceTarget: durSpan,
-        isNum: true,
-        placeholder: 'e.g. 14d or 2w',
-        onSave(val) {
-          const parsedDays = parseDurationDays(val);
-          if (!parsedDays) return;
-          const baseStart = ganttFormatDate(it.start) || api.getTodayStr();
-          it.start = baseStart;
-          it.end = ganttAddDays(baseStart, Math.max(1, parsedDays) - 1);
-          api.commit('duration');
-        }
-      });
-    }
-
-    function openNoteEdit(tdNote, noteSpan, it) {
-      const noteObj = api.getNoteForItem(it.id);
-      const noteText = noteObj && noteObj.text ? noteObj.text : '';
-      startInlineTextEdit(tdNote, noteText, {
-        replaceTarget: noteSpan,
-        placeholder: 'Enter note...',
-        onSave(val) {
-          const next = String(val || '').trim();
-          if (next !== noteText) {
-            api.setNoteForItem(it.id, next);
-          }
-        }
-      });
-    }
-
+    // Single-click: # column multi-select, chevron collapse, calendar icon, or cell selection/focus
     tbody.addEventListener('click', (e) => {
       const meta = rowMetaAt(e.target);
       if (!meta) return;
       const it = meta.item;
       const t = e.target;
-      if (meta.hasChildren && t.closest('.gt-task-cell > .chevron')) {
+
+      // Collapse chevron acts immediately
+      if (meta.hasChildren && t.closest('.gt-task-cell > .chevron, .gt-chevron')) {
         e.stopPropagation();
         it.collapsed = !it.collapsed;
         api.commitSilent();
         return;
       }
+
       if (api.isPresenting()) return;
-      const td = t.closest('td[data-gt-cell]');
-      const col = td ? td.getAttribute('data-col') : '';
-      let hit;
-      if (col === 'task' && (hit = t.closest('.gt-label-text'))) openLabelEdit(td, hit, it);
-      else if (col === 'type' && (hit = t.closest('.gt-type-btn'))) toggleKind(it, meta);
-      else if (col === 'start' && (hit = t.closest('.gt-date-btn'))) openStartPicker(hit, it);
-      else if (col === 'end' && (hit = t.closest('.gt-date-btn'))) openEndPicker(hit, it);
-      else if (col === 'dur' && (hit = t.closest('.gt-dur-val'))) openDurationEdit(td, hit, it, meta);
-      else if (col === 'dep' && (hit = t.closest('.gt-dep-btn'))) openDepPopover(hit, it);
-      else if (col === 'note' && (hit = t.closest('.gt-note-preview'))) openNoteEdit(td, hit, it);
-    });
 
-    tbody.addEventListener('dblclick', (e) => {
-      const meta = rowMetaAt(e.target);
-      const lbl = meta && !api.isPresenting() ? e.target.closest('td[data-col="task"] .gt-label-text') : null;
-      if (lbl) openLabelEdit(lbl.closest('td'), lbl, meta.item);
-    });
+      // Row number (#) column: Click / Ctrl+Click / Shift+Click / Shift+Ctrl+Click selection
+      const tdNum = t.closest('td.gt-col-num');
+      if (tdNum) {
+        e.preventDefault();
+        const vis = lastTree.visibleRows;
+        const idx = vis.findIndex((m) => m.item.id === it.id);
+        if (idx === -1) return;
+        const isMod = e.ctrlKey || e.metaKey;
+        const isShift = e.shiftKey;
+        let nextSel = new Set(api.getSelectedIds());
 
-    tbody.addEventListener('change', (e) => {
-      const meta = rowMetaAt(e.target);
-      if (!meta || api.isPresenting()) return;
-      const it = meta.item;
-      const t = e.target;
-      if (t.matches('td[data-col="check"] input.gt-checkbox')) {
-        const next = new Set(api.getSelectedIds());
-        if (t.checked) next.add(it.id);
-        else next.delete(it.id);
-        api.setSelectedIds(next);
+        if (isShift && isMod) {
+          const anchor = (lastAnchorIdx >= 0 && lastAnchorIdx < vis.length) ? lastAnchorIdx : idx;
+          const lo = Math.min(anchor, idx);
+          const hi = Math.max(anchor, idx);
+          for (let i = lo; i <= hi; i++) nextSel.add(vis[i].item.id);
+        } else if (isShift) {
+          const anchor = (lastAnchorIdx >= 0 && lastAnchorIdx < vis.length) ? lastAnchorIdx : idx;
+          const lo = Math.min(anchor, idx);
+          const hi = Math.max(anchor, idx);
+          nextSel = new Set();
+          for (let i = lo; i <= hi; i++) nextSel.add(vis[i].item.id);
+        } else if (isMod) {
+          if (nextSel.has(it.id)) nextSel.delete(it.id);
+          else nextSel.add(it.id);
+          lastAnchorIdx = idx;
+        } else {
+          nextSel = new Set([it.id]);
+          lastAnchorIdx = idx;
+        }
+
+        api.setSelectedIds(nextSel);
         render();
-      } else if (t.matches('td[data-col="cat"] select.gt-cat-select')) {
-        applyCategoryWithSync(it, t.value, lastTree);
-        api.commit('color');
+        return;
+      }
+
+      const td = t.closest('td[data-gt-cell]');
+      if (!td) return;
+
+      // Explicit calendar icon button opens date picker directly
+      const calBtn = t.closest('.gt-date-cal-btn');
+      if (calBtn) {
+        e.stopPropagation();
+        setRovingFocus(td);
+        const field = calBtn.getAttribute('data-field');
+        if (field === 'start') openStartPicker(calBtn, it);
+        else if (field === 'end') openEndPicker(calBtn, it);
+        return;
+      }
+
+      // Single-click on any cell selects/focuses it without entering edit mode
+      if (!t.closest('.gt-inline-input')) {
+        setRovingFocus(td);
       }
     });
 
+    // Double-click on any cell enters edit mode
+    tbody.addEventListener('dblclick', (e) => {
+      if (api.isPresenting()) return;
+      const t = e.target;
+      if (t.closest('.chevron, .gt-chevron, .gt-date-cal-btn, .gt-row-grip, .gt-inline-input')) return;
+      const meta = rowMetaAt(t);
+      if (!meta) return;
+      const td = t.closest('td[data-gt-cell]');
+      if (!td) return;
+      setRovingFocus(td);
+      activateCellEdit(td, meta);
+    });
+
+    // Dependency hover row highlights
     tbody.addEventListener('mouseenter', (e) => {
       const td = e.target;
       if (!td.matches || !td.matches('td.gt-col-dep')) return;
@@ -1647,76 +2347,366 @@
       if (td.matches && td.matches('td.gt-col-dep') && rowMetaAt(td)) clearDepRowHighlights();
     }, true);
 
-    // --- Render helpers ---
-    function buildCategorySelect(currentVal, slots, onChange, disabled) {
-      const wrap = el('div', 'gt-cat-wrap');
-      const dot = el('span', 'gt-cat-dot' + (currentVal ? '' : ' is-none'));
-      if (currentVal) {
-        dot.style.background = api.resolveColor(currentVal);
+    // Column + row hover crosshair highlight (O(1) delegated)
+    table.addEventListener('pointerover', (e) => {
+      const cell = e.target && e.target.closest ? e.target.closest('td[data-col], th[data-col]') : null;
+      const col = cell ? cell.getAttribute('data-col') : '';
+      if (col) {
+        if (table.dataset.hoverCol !== col) table.dataset.hoverCol = col;
+      } else if (table.dataset.hoverCol) {
+        delete table.dataset.hoverCol;
       }
-      wrap.appendChild(dot);
+    });
+    table.addEventListener('pointerleave', () => {
+      if (table.dataset.hoverCol) delete table.dataset.hoverCol;
+    });
 
-      if (disabled) {
-        wrap.appendChild(el('span', '', currentVal ? formatCategoryLabel(currentVal) : 'None'));
+    // --- Drag-and-drop row reorder & indent/outdent ---
+    let dragCleanup = null;
+    tbody.addEventListener('pointerdown', (e) => {
+      if (api.isPresenting() || e.button !== 0) return;
+      const grip = e.target && e.target.closest ? e.target.closest('.gt-row-grip') : null;
+      if (!grip) return;
+      const meta = rowMetaAt(grip);
+      if (!meta) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const srcId = meta.item.id;
+      const srcRec = rowRecs.get(srcId);
+      const srcTr = srcRec ? srcRec.tr : null;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let started = false;
+      let dropState = null; // { targetId, mode, explicitParentId }
+      let dropLineEl = null;
+      let dropBadgeEl = null;
+      let insideTr = null;
+
+      function clearDropVisuals() {
+        if (insideTr) {
+          insideTr.classList.remove('is-drop-inside');
+          insideTr = null;
+        }
+        if (dropLineEl) dropLineEl.hidden = true;
+        if (dropBadgeEl) dropBadgeEl.hidden = true;
+      }
+
+      function computeDrop(clientX, clientY) {
+        const rows = lastTree.visibleRows;
+        if (rows.length === 0) return null;
+
+        let hitIdx = -1;
+        let hitRect = null;
+        for (let i = 0; i < rows.length; i++) {
+          const rec = rowRecs.get(rows[i].item.id);
+          if (!rec || !rec.tr.isConnected) continue;
+          const r = rec.tr.getBoundingClientRect();
+          if (clientY >= r.top && clientY <= r.bottom) {
+            hitIdx = i;
+            hitRect = r;
+            break;
+          }
+          if (i === 0 && clientY < r.top) {
+            hitIdx = 0;
+            hitRect = r;
+            break;
+          }
+          if (i === rows.length - 1 && clientY > r.bottom) {
+            hitIdx = i;
+            hitRect = r;
+            break;
+          }
+        }
+        if (hitIdx === -1 || !hitRect) return null;
+
+        const tgtMeta = rows[hitIdx];
+        const tgtId = tgtMeta.item.id;
+        if (tgtId === srcId || isDescendant(lastTree.validParent, tgtId, srcId)) {
+          return null;
+        }
+
+        const relY = Math.max(0, Math.min(1, (clientY - hitRect.top) / Math.max(1, hitRect.height)));
+        const dx = clientX - startX;
+        const canBeParent = tgtMeta.item.kind !== 'milestone';
+
+        let mode;
+        if (relY < 0.35) mode = 'before';
+        else if (relY > 0.65) mode = 'after';
+        else mode = canBeParent ? 'inside' : (relY < 0.5 ? 'before' : 'after');
+
+        let explicitParentId;
+        let visualDepth = tgtMeta.depth;
+        let badgeText = '';
+
+        if (dx > 24) {
+          // Horizontal right drag -> Indent
+          if (mode === 'inside' && canBeParent) {
+            explicitParentId = tgtId;
+            visualDepth = tgtMeta.depth + 1;
+            badgeText = `Indent under ${tgtMeta.item.label || 'task'}`;
+          } else if (mode === 'after' && canBeParent) {
+            mode = 'inside';
+            explicitParentId = tgtId;
+            visualDepth = tgtMeta.depth + 1;
+            badgeText = `Indent under ${tgtMeta.item.label || 'task'}`;
+          } else if (mode === 'before' && hitIdx > 0) {
+            const prevMeta = rows[hitIdx - 1];
+            const prevId = prevMeta.item.id;
+            if (prevId !== srcId && !isDescendant(lastTree.validParent, prevId, srcId) && prevMeta.item.kind !== 'milestone') {
+              explicitParentId = prevId;
+              visualDepth = prevMeta.depth + 1;
+              badgeText = `Indent under ${prevMeta.item.label || 'task'}`;
+            }
+          }
+        } else if (dx < -24) {
+          // Horizontal left drag -> Outdent up a level
+          const tgtParent = lastTree.validParent.get(tgtId) || null;
+          const grandParent = tgtParent ? (lastTree.validParent.get(tgtParent) || null) : null;
+          explicitParentId = grandParent;
+          mode = relY < 0.5 ? 'before' : 'after';
+          visualDepth = Math.max(0, tgtMeta.depth - 1);
+          badgeText = 'Outdent';
+        }
+
+        if (!badgeText) {
+          if (mode === 'inside') {
+            visualDepth = tgtMeta.depth + 1;
+            badgeText = `Indent under ${tgtMeta.item.label || 'task'}`;
+          } else if (mode === 'before') {
+            badgeText = `Move before ${tgtMeta.item.label || 'task'}`;
+          } else {
+            badgeText = `Move after ${tgtMeta.item.label || 'task'}`;
+          }
+        }
+
+        return {
+          targetId: tgtId,
+          targetTr: rowRecs.get(tgtId).tr,
+          rect: hitRect,
+          mode,
+          explicitParentId,
+          visualDepth,
+          badgeText
+        };
+      }
+
+      function onMove(ev) {
+        if (!started) {
+          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 4) return;
+          started = true;
+          closeCatPopover();
+          closeDepPopover();
+          if (srcTr) srcTr.classList.add('is-dragging');
+          document.body.classList.add('gt-dragging');
+
+          dropLineEl = el('div', 'gt-drop-line');
+          dropLineEl.hidden = true;
+          document.body.appendChild(dropLineEl);
+
+          dropBadgeEl = el('div', 'gt-drop-badge');
+          dropBadgeEl.hidden = true;
+          document.body.appendChild(dropBadgeEl);
+        }
+
+        const next = computeDrop(ev.clientX, ev.clientY);
+        dropState = next;
+        clearDropVisuals();
+
+        if (!next) return;
+
+        if (next.mode === 'inside') {
+          insideTr = next.targetTr;
+          insideTr.classList.add('is-drop-inside');
+        } else {
+          const tableRect = table.getBoundingClientRect();
+          const y = next.mode === 'before' ? next.rect.top : next.rect.bottom;
+          const leftOffset = tableRect.left + 44 + next.visualDepth * 14;
+          dropLineEl.style.setProperty('--drop-depth', `${next.visualDepth}`);
+          dropLineEl.style.top = `${Math.round(y - 1)}px`;
+          dropLineEl.style.left = `${Math.round(leftOffset)}px`;
+          dropLineEl.style.width = `${Math.max(80, Math.round(tableRect.right - leftOffset))}px`;
+          dropLineEl.hidden = false;
+        }
+
+        dropBadgeEl.textContent = next.badgeText;
+        dropBadgeEl.style.left = `${Math.min(window.innerWidth - 220, Math.max(12, Math.round(ev.clientX + 14)))}px`;
+        dropBadgeEl.style.top = `${Math.min(window.innerHeight - 36, Math.max(12, Math.round(ev.clientY - 14)))}px`;
+        dropBadgeEl.hidden = false;
+      }
+
+      function finishDrag(commit) {
+        document.removeEventListener('pointermove', onMove, true);
+        document.removeEventListener('pointerup', onUp, true);
+        document.removeEventListener('pointercancel', onCancel, true);
+        dragCleanup = null;
+
+        if (srcTr) srcTr.classList.remove('is-dragging');
+        document.body.classList.remove('gt-dragging');
+        clearDropVisuals();
+        if (dropLineEl && dropLineEl.parentNode) dropLineEl.parentNode.removeChild(dropLineEl);
+        if (dropBadgeEl && dropBadgeEl.parentNode) dropBadgeEl.parentNode.removeChild(dropBadgeEl);
+
+        if (commit && started && dropState) {
+          if (typeof api.reorderOrReparent === 'function') {
+            api.reorderOrReparent(srcId, dropState.targetId, dropState.mode, dropState.explicitParentId);
+          } else if (dropState.mode === 'inside') {
+            const it = lastTree.byId.get(srcId);
+            const tgt = lastTree.byId.get(dropState.targetId);
+            if (it && tgt && tgt.kind !== 'milestone') {
+              it.parent = tgt.id;
+              if (tgt.kind !== 'group') tgt.kind = 'group';
+              tgt.collapsed = false;
+              api.commit('reorder');
+            }
+          }
+        }
+      }
+
+      function onUp() { finishDrag(true); }
+      function onCancel() { finishDrag(false); }
+
+      dragCleanup = () => finishDrag(false);
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
+    });
+
+    // --- Sticky parent phase breadcrumb bar on vertical scroll ---
+    function updateStickyPhase() {
+      stickyRafId = 0;
+      if (destroyed) return;
+      const rows = lastTree.visibleRows;
+      if (rows.length === 0 || scrollEl.scrollTop <= 2) {
+        stickyPhaseEl.hidden = true;
+        stickyTargetId = null;
+        return;
+      }
+
+      const theadH = thead.offsetHeight || 36;
+      stickyPhaseEl.style.top = `${theadH}px`;
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const cutoffY = scrollRect.top + theadH;
+
+      let firstVisibleMeta = null;
+      for (let i = 0; i < rows.length; i++) {
+        const rec = rowRecs.get(rows[i].item.id);
+        if (!rec || !rec.tr.isConnected) continue;
+        const r = rec.tr.getBoundingClientRect();
+        if (r.bottom > cutoffY + 4) {
+          firstVisibleMeta = rows[i];
+          break;
+        }
+      }
+
+      if (!firstVisibleMeta) {
+        stickyPhaseEl.hidden = true;
+        stickyTargetId = null;
+        return;
+      }
+
+      // Collect scrolled-past ancestors (outermost to innermost)
+      const ancestors = [];
+      let pid = lastTree.validParent.get(firstVisibleMeta.item.id) || null;
+      const seen = new Set();
+      while (pid && !seen.has(pid)) {
+        seen.add(pid);
+        const pRec = rowRecs.get(pid);
+        const pMeta = lastTree.metaById.get(pid);
+        if (pRec && pRec.tr.isConnected && pMeta) {
+          const pRect = pRec.tr.getBoundingClientRect();
+          if (pRect.top < cutoffY - 2) {
+            ancestors.unshift(pMeta);
+          }
+        }
+        pid = lastTree.validParent.get(pid) || null;
+      }
+
+      if (ancestors.length === 0) {
+        stickyPhaseEl.hidden = true;
+        stickyTargetId = null;
+        return;
+      }
+
+      const deepest = ancestors[ancestors.length - 1];
+      stickyTargetId = deepest.item.id;
+
+      stickyPhaseEl.textContent = '';
+      const dot = el('span', 'gt-sticky-dot');
+      const col = deepest.item.color || deepest.item._color;
+      if (col) dot.style.background = api.resolveColor(col);
+      stickyPhaseEl.appendChild(dot);
+
+      const crumbText = ancestors.map((a) => a.item.label || 'Untitled').join(' / ');
+      stickyPhaseEl.appendChild(el('span', 'gt-sticky-label', crumbText));
+      stickyPhaseEl.appendChild(el('span', 'gt-sticky-cue', '↑'));
+      stickyPhaseEl.title = `Scroll back to ${deepest.item.label || 'parent'}`;
+      stickyPhaseEl.hidden = false;
+    }
+
+    function scheduleStickyPhaseUpdate() {
+      if (stickyRafId || destroyed) return;
+      stickyRafId = requestAnimationFrame(updateStickyPhase);
+    }
+
+    scrollEl.addEventListener('scroll', scheduleStickyPhaseUpdate, { passive: true });
+    stickyPhaseEl.addEventListener('click', () => {
+      if (!stickyTargetId) return;
+      const rec = rowRecs.get(stickyTargetId);
+      if (!rec || !rec.tr.isConnected) return;
+      const theadH = thead.offsetHeight || 36;
+      const trTop = rec.tr.offsetTop;
+      scrollEl.scrollTo({ top: Math.max(0, trTop - theadH - 4), behavior: 'smooth' });
+    });
+
+    // --- Render helpers ---
+    function buildCategoryButton(currentVal, presenting) {
+      const label = currentVal ? formatCategoryLabel(currentVal) : '-';
+      if (presenting) {
+        const wrap = el('div', 'gt-cat-readonly');
+        const dot = el('span', 'gt-cat-dot' + (currentVal ? '' : ' is-none'));
+        if (currentVal) dot.style.background = api.resolveColor(currentVal);
+        wrap.appendChild(dot);
+        wrap.appendChild(el('span', 'gt-cat-label' + (currentVal ? '' : ' is-empty'), label));
         return wrap;
       }
 
-      const select = el('select', 'gt-select gt-cat-select');
-      select.setAttribute('aria-label', 'Category');
-      const noneOpt = el('option', '', 'None');
-      noneOpt.value = '';
-      select.appendChild(noneOpt);
+      const btn = el('button', 'gt-cat-btn' + (currentVal ? '' : ' is-empty'));
+      btn.type = 'button';
+      btn.setAttribute('aria-label', currentVal ? `Category: ${label}` : 'Set category');
+      btn.setAttribute('aria-haspopup', 'listbox');
 
-      let matched = !currentVal;
-      for (let i = 0; i < slots.length; i++) {
-        const s = slots[i];
-        const opt = el('option', '', s.label || `Color ${s.slot}`);
-        opt.value = String(s.slot);
-        if (String(s.slot) === String(currentVal)) matched = true;
-        select.appendChild(opt);
-      }
-      if (!matched && currentVal) {
-        const customOpt = el('option', '', String(currentVal));
-        customOpt.value = String(currentVal);
-        select.appendChild(customOpt);
-      }
-      select.value = currentVal ? String(currentVal) : '';
-      if (onChange) select.addEventListener('change', () => onChange(select.value));
-      wrap.appendChild(select);
-      return wrap;
+      const dot = el('span', 'gt-cat-dot' + (currentVal ? '' : ' is-none'));
+      if (currentVal) dot.style.background = api.resolveColor(currentVal);
+      btn.appendChild(dot);
+
+      const lbl = el('span', 'gt-cat-label', label);
+      lbl.title = currentVal ? label : 'Double-click to set category';
+      btn.appendChild(lbl);
+
+      const caret = el('span', 'gt-cat-caret');
+      caret.appendChild(makeIcon(api, 'chevron-down', { size: 12 }, '▾'));
+      btn.appendChild(caret);
+
+      return btn;
     }
 
-    function renderBulkBar(selectedIds, slots, presenting) {
+    function renderBulkBar(selectedIds, presenting) {
       const count = selectedIds ? selectedIds.size : 0;
       bulkBar.hidden = presenting || count === 0;
       if (bulkBar.hidden) return;
-
       bulkCountEl.textContent = `${count} selected`;
-
-      bulkCatSelect.textContent = '';
-      const ph = el('option', '', 'Category...');
-      ph.value = '__placeholder__';
-      bulkCatSelect.appendChild(ph);
-      const noneOpt = el('option', '', 'None');
-      noneOpt.value = '';
-      bulkCatSelect.appendChild(noneOpt);
-      for (let i = 0; i < slots.length; i++) {
-        const s = slots[i];
-        const opt = el('option', '', s.label || `Color ${s.slot}`);
-        opt.value = String(s.slot);
-        bulkCatSelect.appendChild(opt);
-      }
-      bulkCatSelect.value = '__placeholder__';
     }
 
-    function renderMarkers(slots, presenting) {
+    function renderMarkers(presenting) {
       const markers = api.getMarkers() || [];
-      markersToggleText.textContent = `Date Lines (${markers.length})`;
+      markersToggleText.textContent = `Milestones (${markers.length})`;
       markersTbody.textContent = '';
 
       if (markers.length === 0) {
         const tr = el('tr');
-        const td = el('td', 'gt-marker-empty', 'No date lines yet');
+        const td = el('td', 'gt-marker-empty', 'No milestones yet');
         td.colSpan = presenting ? 3 : 4;
         tr.appendChild(td);
         markersTbody.appendChild(tr);
@@ -1733,11 +2723,11 @@
         const tdLbl = el('td');
         const lblSpan = el('span', 'gt-label-text', mk.label || 'Untitled');
         if (!presenting) {
-          lblSpan.addEventListener('click', () => {
+          lblSpan.addEventListener('dblclick', () => {
             startInlineTextEdit(tdLbl, mk.label || '', {
               replaceTarget: lblSpan,
               onSave(val) {
-                const cleaned = api.cleanLabel(val, mk.label || 'Date line');
+                const cleaned = api.cleanLabel(val, mk.label || 'Milestone');
                 if (cleaned !== mk.label) {
                   mk.label = cleaned;
                   api.commit('marker-label');
@@ -1752,12 +2742,18 @@
         // Date
         const tdDate = el('td', 'gt-marker-col-date');
         if (presenting) {
-          tdDate.appendChild(el('span', 'gt-rolled', mk.date || '—'));
+          tdDate.appendChild(el('span', 'gt-rolled', mk.date || '-'));
         } else {
-          const dateBtn = el('button', 'gt-date-btn' + (mk.date ? '' : ' is-empty'), mk.date || 'Set date');
-          dateBtn.type = 'button';
-          dateBtn.addEventListener('click', () => {
-            openDatePicker(dateBtn, {
+          const dateWrap = el('div', 'gt-date-cell');
+          const dateVal = el('span', 'gt-date-val' + (mk.date ? '' : ' is-empty'), mk.date || '-');
+          const calBtn = el('button', 'gt-date-cal-btn');
+          calBtn.type = 'button';
+          calBtn.title = 'Pick date';
+          calBtn.setAttribute('aria-label', 'Pick milestone date');
+          calBtn.appendChild(makeIcon(api, 'calendar', { size: 13 }, ''));
+          calBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDatePicker(calBtn, {
               value: mk.date || api.getTodayStr(),
               allowClear: false,
               onSelect(val) {
@@ -1768,17 +2764,41 @@
               }
             });
           });
-          tdDate.appendChild(dateBtn);
+          dateWrap.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.gt-date-cal-btn')) return;
+            startInlineTextEdit(tdDate, mk.date || '', {
+              replaceTarget: dateWrap,
+              isNum: true,
+              placeholder: 'YYYY-MM-DD',
+              onSave(val) {
+                const parsed = parseFlexDate(val);
+                if (parsed && parsed !== mk.date) {
+                  mk.date = parsed;
+                  api.commit('marker-date');
+                }
+              }
+            });
+          });
+          dateWrap.appendChild(dateVal);
+          dateWrap.appendChild(calBtn);
+          tdDate.appendChild(dateWrap);
         }
         tr.appendChild(tdDate);
 
         // Category
         const tdCat = el('td', 'gt-marker-col-cat');
-        tdCat.appendChild(buildCategorySelect(mk.color || '', slots, (val) => {
-          if (val) mk.color = val;
-          else delete mk.color;
-          api.commit('marker-color');
-        }, presenting));
+        const catEl = buildCategoryButton(mk.color || '', presenting);
+        if (!presenting) {
+          catEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCategoryPopover(catEl, mk.color || '', (val) => {
+              if (val) mk.color = val;
+              else delete mk.color;
+              api.commit('marker-color');
+            });
+          });
+        }
+        tdCat.appendChild(catEl);
         tr.appendChild(tdCat);
 
         // Delete
@@ -1786,8 +2806,8 @@
         if (!presenting) {
           const delBtn = el('button', 'gt-icon-del');
           delBtn.type = 'button';
-          delBtn.title = 'Delete date line';
-          delBtn.setAttribute('aria-label', `Delete ${mk.label || 'date line'}`);
+          delBtn.title = 'Delete milestone';
+          delBtn.setAttribute('aria-label', `Delete ${mk.label || 'milestone'}`);
           delBtn.appendChild(makeIcon(api, 'trash', { size: 14 }, '×'));
           delBtn.addEventListener('click', () => {
             const data = api.getData();
@@ -1804,7 +2824,7 @@
 
     // One sheet row, without listeners (tbody events are delegated) and without selection / roving tabindex, which
     // render() patches in place. It is rebuilt only when rowShape() changes, otherwise the element is reused.
-    function buildRow(meta, presenting, slots, depText, noteText) {
+    function buildRow(meta, presenting, depText, noteText) {
       const it = meta.item;
       const isGroup = it.kind === 'group';
       const isMilestone = it.kind === 'milestone';
@@ -1816,7 +2836,7 @@
       if (isParentWithKids) {
         tr.setAttribute('aria-expanded', it.collapsed ? 'false' : 'true');
       }
-      if (isGroup) tr.classList.add('is-group');
+      if (isGroup || isParentWithKids) tr.classList.add('is-group');
 
       function makeCell(colKey, colIdx, cls) {
         const td = el('td', cls);
@@ -1825,52 +2845,55 @@
         td.setAttribute('data-col-idx', String(colIdx));
         const isActive = activeCellCoord.itemId === it.id && activeCellCoord.colIdx === colIdx;
         td.tabIndex = isActive ? 0 : -1;
+        if (isActive) td.classList.add('is-active-cell');
         return td;
       }
 
-      // Col 0: Checkbox
-      const tdCheck = makeCell('check', 0, 'gt-col-check');
-      if (!presenting) {
-        const cb = el('input', 'gt-checkbox');
-        cb.type = 'checkbox';
-        cb.setAttribute('aria-label', `Select ${it.label || 'row'}`);
-        tdCheck.appendChild(cb);
-      }
-      tr.appendChild(tdCheck);
-
-      // Col 1 (non-navigable or static): # row number
+      // Col 0: # row number (click / Ctrl+click / Shift+click to select rows)
       const tdNum = el('td', 'gt-col-num', String(meta.rowNum));
+      tdNum.setAttribute('data-col', 'num');
+      if (!presenting) tdNum.title = 'Click to select row (Ctrl/Shift for multi-select)';
       tr.appendChild(tdNum);
 
-      // Col 2: Task (indented by depth * 14px, chevron if hasChildren, inline editable label)
+      // Col 1: Task (drag grip + indented by depth * 14px + chevron if hasChildren + double-click inline editable label)
       const tdTask = makeCell('task', 1, 'gt-col-task');
       const taskWrap = el('div', 'gt-task-cell');
-      taskWrap.style.paddingLeft = `${meta.depth * 14}px`;
+
+      if (!presenting) {
+        const grip = el('span', 'gt-row-grip');
+        grip.title = 'Drag to reorder, indent, or outdent';
+        grip.setAttribute('aria-hidden', 'true');
+        grip.appendChild(makeIcon(api, 'grip', { size: 13 }, '⋮⋮'));
+        taskWrap.appendChild(grip);
+      }
+
+      const indentBox = el('div', 'gt-task-indent');
+      indentBox.style.paddingLeft = `${meta.depth * 14}px`;
 
       if (isParentWithKids) {
         const chevLabel = it.collapsed ? 'Expand subtasks' : 'Collapse subtasks';
         const chevBtn = api.chevron({ expanded: !it.collapsed, label: chevLabel });
-        taskWrap.appendChild(chevBtn);
+        indentBox.appendChild(chevBtn);
       } else {
-        taskWrap.appendChild(el('span', 'chevron-spacer'));
+        indentBox.appendChild(el('span', 'chevron-spacer'));
       }
 
-      const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isGroup ? ' is-group' : ''));
+      const kindDot = el('span', 'gt-kind-dot' + (isMilestone ? ' is-milestone' : isParentWithKids ? ' is-group' : ''));
       if (it.color || it._color) {
         kindDot.style.background = api.resolveColor(it.color || it._color);
       }
-      taskWrap.appendChild(kindDot);
+      indentBox.appendChild(kindDot);
 
       const lblSpan = el('span', 'gt-label-text', it.label || 'Untitled');
       lblSpan.title = it.label || 'Untitled';
-      taskWrap.appendChild(lblSpan);
+      indentBox.appendChild(lblSpan);
+      taskWrap.appendChild(indentBox);
       tdTask.appendChild(taskWrap);
       tr.appendChild(tdTask);
 
-      // Col 3: Type (hidden for groups and parent rows; leaves toggle Task <-> Milestone with 1-click icon)
+      // Col 2: Type (only hidden when item actually has children; all childless items can switch Task <-> Milestone)
       const tdType = makeCell('type', 2, 'gt-col-type');
-      const isGroupOrParent = it.kind === 'group' || isParentWithKids;
-      if (!isGroupOrParent) {
+      if (!isParentWithKids) {
         const curKind = it.kind === 'milestone' ? 'milestone' : 'task';
         if (presenting) {
           const iconWrap = el('span', 'gt-type-icon' + (curKind === 'milestone' ? ' is-milestone' : ''));
@@ -1883,95 +2906,112 @@
           const typeBtn = el('button', 'gt-type-btn' + (curKind === 'milestone' ? ' is-milestone' : ''));
           typeBtn.type = 'button';
           typeBtn.setAttribute('data-kind', curKind);
-          typeBtn.title = `${TYPE_LABELS[curKind]} — click to switch to ${TYPE_LABELS[nextKind]}`;
-          typeBtn.setAttribute('aria-label', `${TYPE_LABELS[curKind]} (click to switch to ${TYPE_LABELS[nextKind]})`);
+          typeBtn.title = `${TYPE_LABELS[curKind]} - double-click to switch to ${TYPE_LABELS[nextKind]}`;
+          typeBtn.setAttribute('aria-label', `${TYPE_LABELS[curKind]} (double-click to switch to ${TYPE_LABELS[nextKind]})`);
           typeBtn.appendChild(makeTypeSvg(curKind));
           tdType.appendChild(typeBtn);
         }
       }
       tr.appendChild(tdType);
 
-      // Col 4: Start
+      // Col 3: Start (double-click to type date, or click calendar icon)
       const tdStart = makeCell('start', 3, 'gt-col-start');
       if (isParentWithKids) {
-        const rolled = el('span', 'gt-rolled', meta.start || '—');
+        const rolled = el('span', 'gt-rolled', meta.start || '-');
         rolled.title = 'Auto-calculated from subtasks';
         tdStart.appendChild(rolled);
       } else if (presenting) {
-        tdStart.appendChild(el('span', it.start ? 'gt-rolled' : 'gt-muted-dash', it.start || '—'));
+        tdStart.appendChild(el('span', it.start ? 'gt-rolled' : 'gt-muted-dash', it.start || '-'));
       } else {
-        const startBtn = el('button', 'gt-date-btn' + (it.start ? '' : ' is-empty'), it.start || 'Set date');
-        startBtn.type = 'button';
-        startBtn.setAttribute('data-field', 'start');
-        tdStart.appendChild(startBtn);
+        const dateCell = el('div', 'gt-date-cell');
+        const valSpan = el('span', 'gt-date-val' + (it.start ? '' : ' is-empty'), it.start || '-');
+        valSpan.title = 'Double-click to type date';
+        const calBtn = el('button', 'gt-date-cal-btn');
+        calBtn.type = 'button';
+        calBtn.setAttribute('data-field', 'start');
+        calBtn.title = 'Open calendar';
+        calBtn.setAttribute('aria-label', 'Pick start date');
+        calBtn.appendChild(makeIcon(api, 'calendar', { size: 13 }, ''));
+        dateCell.appendChild(valSpan);
+        dateCell.appendChild(calBtn);
+        tdStart.appendChild(dateCell);
       }
       tr.appendChild(tdStart);
 
-      // Col 5: End
+      // Col 4: End (double-click to type date, or click calendar icon)
       const tdEnd = makeCell('end', 4, 'gt-col-end');
       if (isMilestone) {
-        tdEnd.appendChild(el('span', 'gt-muted-dash', '—'));
+        tdEnd.appendChild(el('span', 'gt-muted-dash', '-'));
       } else if (isParentWithKids) {
-        const rolled = el('span', 'gt-rolled', meta.end || '—');
+        const rolled = el('span', 'gt-rolled', meta.end || '-');
         rolled.title = 'Auto-calculated from subtasks';
         tdEnd.appendChild(rolled);
       } else if (presenting) {
-        tdEnd.appendChild(el('span', it.end ? 'gt-rolled' : 'gt-muted-dash', it.end || '—'));
+        tdEnd.appendChild(el('span', it.end ? 'gt-rolled' : 'gt-muted-dash', it.end || '-'));
       } else {
-        const endBtn = el('button', 'gt-date-btn' + (it.end ? '' : ' is-empty'), it.end || 'Set date');
-        endBtn.type = 'button';
-        endBtn.setAttribute('data-field', 'end');
-        tdEnd.appendChild(endBtn);
+        const dateCell = el('div', 'gt-date-cell');
+        const valSpan = el('span', 'gt-date-val' + (it.end ? '' : ' is-empty'), it.end || '-');
+        valSpan.title = 'Double-click to type date';
+        const calBtn = el('button', 'gt-date-cal-btn');
+        calBtn.type = 'button';
+        calBtn.setAttribute('data-field', 'end');
+        calBtn.title = 'Open calendar';
+        calBtn.setAttribute('aria-label', 'Pick end date');
+        calBtn.appendChild(makeIcon(api, 'calendar', { size: 13 }, ''));
+        dateCell.appendChild(valSpan);
+        dateCell.appendChild(calBtn);
+        tdEnd.appendChild(dateCell);
       }
       tr.appendChild(tdEnd);
 
-      // Col 6: Duration
+      // Col 5: Duration (shows '-' for milestones and 0d durations)
       const tdDur = makeCell('dur', 5, 'gt-col-dur');
       if (isMilestone) {
-        tdDur.appendChild(el('span', 'gt-muted-dash', '0d'));
+        tdDur.appendChild(el('span', 'gt-muted-dash', '-'));
       } else if (isParentWithKids) {
-        const durText = (meta.start && meta.end) ? `${Math.max(1, ganttDiffDays(meta.start, meta.end) + 1)}d*` : '—';
+        const days = (meta.start && meta.end) ? Math.max(0, ganttDiffDays(meta.start, meta.end) + 1) : 0;
+        const durText = days > 0 ? `${days}d*` : '-';
         const rolled = el('span', 'gt-rolled', durText);
         rolled.title = 'Auto-calculated from subtasks';
         tdDur.appendChild(rolled);
       } else {
         const hasDates = Boolean(meta.start && meta.end);
-        const days = hasDates ? Math.max(1, ganttDiffDays(meta.start, meta.end) + 1) : null;
-        const durStr = days ? `${days}d` : '—';
+        const days = hasDates ? Math.max(0, ganttDiffDays(meta.start, meta.end) + 1) : 0;
+        const durStr = days > 0 ? `${days}d` : '-';
         if (presenting) {
-          tdDur.appendChild(el('span', days ? 'gt-rolled' : 'gt-muted-dash', durStr));
+          tdDur.appendChild(el('span', days > 0 ? 'gt-rolled' : 'gt-muted-dash', durStr));
         } else {
-          const durSpan = el('span', 'gt-dur-val', durStr);
-          durSpan.title = 'Click to edit duration (e.g. 14, 14d, 2w)';
+          const durSpan = el('span', 'gt-dur-val' + (days > 0 ? '' : ' is-empty'), durStr);
+          durSpan.title = 'Double-click to edit duration (e.g. 14, 14d, 2w)';
           tdDur.appendChild(durSpan);
         }
       }
       tr.appendChild(tdDur);
 
-      // Col 7: Depends on
+      // Col 6: Depends on
       const tdDep = makeCell('dep', 6, 'gt-col-dep');
       if (presenting) {
-        tdDep.appendChild(el('span', depText ? 'gt-rolled' : 'gt-muted-dash', depText || '—'));
+        tdDep.appendChild(el('span', depText ? 'gt-rolled' : 'gt-muted-dash', depText || '-'));
       } else {
-        const depBtn = el('button', 'gt-dep-btn' + (depText ? '' : ' is-empty'), depText || '—');
+        const depBtn = el('button', 'gt-dep-btn' + (depText ? '' : ' is-empty'), depText || '-');
         depBtn.type = 'button';
-        depBtn.title = depText ? `Depends on: ${depText}` : 'Click to add dependencies';
+        depBtn.title = depText ? `Depends on: ${depText}` : 'Double-click to add dependencies';
         tdDep.appendChild(depBtn);
       }
       tr.appendChild(tdDep);
 
-      // Col 8: Category
+      // Col 7: Category (design-system typeahead trigger button)
       const tdCat = makeCell('cat', 7, 'gt-col-cat');
-      tdCat.appendChild(buildCategorySelect(it.color || '', slots, null, presenting));
+      tdCat.appendChild(buildCategoryButton(it.color || '', presenting));
       tr.appendChild(tdCat);
 
-      // Col 9: Notes
+      // Col 8: Notes
       const tdNote = makeCell('note', 8, 'gt-col-note');
       if (presenting) {
-        tdNote.appendChild(el('span', noteText ? 'gt-note-preview' : 'gt-muted-dash', noteText || '—'));
+        tdNote.appendChild(el('span', noteText ? 'gt-note-preview' : 'gt-muted-dash', noteText || '-'));
       } else {
         const noteSpan = el('span', 'gt-note-preview' + (noteText ? '' : ' is-empty'), noteText || 'Add note...');
-        noteSpan.title = noteText || 'Click to add note';
+        noteSpan.title = noteText || 'Double-click to add note';
         tdNote.appendChild(noteSpan);
       }
       tr.appendChild(tdNote);
@@ -1979,11 +3019,11 @@
       return tr;
     }
 
-    function rowShape(meta, presenting, slotsKey, depText, noteText) {
+    function rowShape(meta, presenting, catsKey, depText, noteText) {
       const it = meta.item;
       return JSON.stringify([presenting, meta.depth, meta.rowNum, meta.hasChildren, meta.start, meta.end, it.kind, it.label,
         it.start, it.end, Boolean(it.collapsed), it.color || '', it.color || it._color ? api.resolveColor(it.color || it._color) : '',
-        depText, noteText, slotsKey]);
+        depText, noteText, catsKey]);
     }
 
     // --- Main render() ---
@@ -2000,23 +3040,21 @@
       lastTree = tree;
 
       const selectedIds = api.getSelectedIds() || new Set();
-      const slots = api.getPaletteSlots() || [];
+      const cats = getActiveCategories();
 
-      // Summary count
-      const totalCount = tree.orderedAll.length;
-      countBadge.textContent = `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`;
-
-      // Update select-all checkbox state
+      // Update # header selection indicator
       const visCount = tree.visibleRows.length;
       let selVisCount = 0;
       for (let i = 0; i < visCount; i++) {
         if (selectedIds.has(tree.visibleRows[i].item.id)) selVisCount++;
       }
-      selectAllCb.checked = visCount > 0 && selVisCount === visCount;
-      selectAllCb.indeterminate = selVisCount > 0 && selVisCount < visCount;
+      if (thNum) {
+        thNum.classList.toggle('is-all-selected', visCount > 0 && selVisCount === visCount);
+        thNum.classList.toggle('is-some-selected', selVisCount > 0 && selVisCount < visCount);
+      }
 
-      // Ensure activeCellCoord points to a visible row & visible column if possible
-      if (presenting && activeCellCoord.colIdx === 0) {
+      // Ensure activeCellCoord points to a visible row & valid column
+      if (activeCellCoord.colIdx < 1 || activeCellCoord.colIdx > 8) {
         activeCellCoord.colIdx = 1;
       }
       if (visCount > 0) {
@@ -2028,7 +3066,7 @@
 
       // Keyed rows: reuse each row whose shape is unchanged, rebuild the rest, then put them in order
       clearDepRowHighlights();
-      const slotsKey = slots.map((sl) => `${sl.slot}:${sl.label || ''}`).join(',');
+      const catsKey = cats.map((c) => `${c.slot}:${c.label || ''}`).join(',');
       const incomingByTo = new Map();
       (api.getDeps() || []).forEach((d) => {
         if (!d || !d.to) return;
@@ -2045,16 +3083,14 @@
         const depText = formatDepShorthand(it.id, tree.rowNumById, incomingByTo.get(it.id) || []);
         const noteObj = api.getNoteForItem(it.id);
         const noteText = noteObj && noteObj.text ? noteObj.text : '';
-        const shape = rowShape(meta, presenting, slotsKey, depText, noteText);
+        const shape = rowShape(meta, presenting, catsKey, depText, noteText);
         let rec = rowRecs.get(it.id);
         if (!rec || rec.shape !== shape) {
-          rec = { tr: buildRow(meta, presenting, slots, depText, noteText), shape };
+          rec = { tr: buildRow(meta, presenting, depText, noteText), shape };
           rowRecs.set(it.id, rec);
         }
         const isSelected = selectedIds.has(it.id);
         rec.tr.classList.toggle('is-selected', isSelected);
-        const cb = rec.tr.querySelector('input.gt-checkbox');
-        if (cb) cb.checked = isSelected;
         seen.add(it.id);
         order.push(rec.tr);
       }
@@ -2068,20 +3104,21 @@
       }
       while (at) { const next = at.nextSibling; at.remove(); at = next; }
 
-      // Roving tabindex: exactly the active cell is 0
+      // Roving tabindex & active cell ring: exactly the active cell is 0
       const activeRec = activeCellCoord.itemId ? rowRecs.get(activeCellCoord.itemId) : null;
       const activeTd = activeRec ? activeRec.tr.querySelector(`td[data-gt-cell][data-col-idx="${activeCellCoord.colIdx}"]`) : null;
       tbody.querySelectorAll('td[data-gt-cell][tabindex="0"]').forEach((td) => { if (td !== activeTd) td.tabIndex = -1; });
       if (activeTd) activeTd.tabIndex = 0;
+      syncActiveCellClass(activeTd);
 
       // Restore cell focus if focus was inside tbody prior to render
-      if (wasFocusInTbody && activeCellCoord.itemId) {
-        const activeTd = tbody.querySelector('td[data-gt-cell][tabindex="0"]');
-        if (activeTd) activeTd.focus({ preventScroll: true });
+      if (wasFocusInTbody && activeTd) {
+        activeTd.focus({ preventScroll: true });
       }
 
-      renderMarkers(slots, presenting);
-      renderBulkBar(selectedIds, slots, presenting);
+      renderMarkers(presenting);
+      renderBulkBar(selectedIds, presenting);
+      scheduleStickyPhaseUpdate();
     }
 
     function focusItem(id) {
@@ -2118,6 +3155,10 @@
       if (destroyed) return;
       destroyed = true;
       closeDepPopover();
+      closeCatPopover();
+      if (dragCleanup) dragCleanup();
+      if (stickyRafId) cancelAnimationFrame(stickyRafId);
+      scrollEl.removeEventListener('scroll', scheduleStickyPhaseUpdate);
       hostEl.removeEventListener('paste', onHostPaste);
       hostEl.removeEventListener('copy', onHostCopy);
       hostEl.textContent = '';

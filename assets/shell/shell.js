@@ -306,29 +306,42 @@
           return p;
         }
         let confirmEl = null;
+        let confirmPrevFocus = null;
         function closeConfirm() {
           if (!confirmEl) return false;
+          const hadFocus = confirmEl.contains(document.activeElement);
           if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
           confirmEl.remove();
           confirmEl = null;
           document.removeEventListener('pointerdown', onConfirmOutside, true);
+          const prev = confirmPrevFocus;
+          confirmPrevFocus = null;
+          if (hadFocus && prev && prev.isConnected && prev !== document.body && typeof prev.focus === 'function') prev.focus();
           return true;
         }
         function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
-        // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
-        // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
+        // Ask before a delete or show a dismissible alert: a bubble under `anchor` (a DOM element; above it when there is no room
+        // below; centered in the upper middle of the window when null), kept on screen. opts: { message, title?, label (the dialog's
+        // aria-label), ok? (button text, "Delete"), okClass? (the main button's style, "btn-danger"), noCancel? (single-button
+        // dismissible alert), extra? (a DOM node shown under the message) }.
         // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
         function confirm(anchor, opts, onYes) {
           closeConfirm();
+          confirmPrevFocus = document.activeElement;
           const box = document.createElement('div');
           box.className = 'confirm';
           box.dataset.exportSkip = '';
           box.setAttribute('role', 'alertdialog');
           box.setAttribute('aria-label', opts.label);
-          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
-          if (opts.title) add('confirm-title', opts.title);
-          add('confirm-msg', opts.message);
+          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); return d; };
+          if (opts.title) {
+            const titleEl = add('confirm-title', opts.title);
+            titleEl.id = 'confirm-dialog-title';
+            box.setAttribute('aria-labelledby', titleEl.id);
+          }
+          const msgEl = add('confirm-msg', opts.message);
+          msgEl.id = 'confirm-dialog-msg';
+          box.setAttribute('aria-describedby', msgEl.id);
           if (opts.extra) box.appendChild(opts.extra);
           const row = document.createElement('div');
           row.className = 'confirm-actions';
@@ -336,8 +349,8 @@
           const cancel = button('btn confirm-cancel', 'Cancel');
           cancel.addEventListener('click', () => closeConfirm());
           const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
-          ok.addEventListener('click', () => { closeConfirm(); onYes(); });
-          row.append(cancel);
+          ok.addEventListener('click', () => { closeConfirm(); if (onYes) onYes(); });
+          if (!opts.noCancel) row.append(cancel);
           // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
           if (opts.alt) {
             box.classList.add('has-alt');   // three buttons: a wider bubble
@@ -354,19 +367,22 @@
           });
           document.body.appendChild(box);
           confirmEl = box;
-          const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+          const r = anchor ? anchor.getBoundingClientRect() : null;
           const bw = box.offsetWidth, bh = box.offsetHeight;
-          const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-          box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+          const top = r
+            ? (r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8)
+            : Math.round((innerHeight - bh) / 3);
+          const left = r ? r.left : Math.round((innerWidth - bw) / 2);
+          box.style.left = `${Math.max(8, Math.min(left, innerWidth - bw - 8))}px`;
           box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
           if (typeof motion !== 'undefined' && motion.enabled()) {
-            const above = top < r.top;
+            const above = r ? top < r.top : false;
             motion.anim(box, [
               { transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
               { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
             ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
           }
-          cancel.focus();
+          (opts.noCancel ? ok : cancel).focus();
           document.addEventListener('pointerdown', onConfirmOutside, true);
         }
         // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
@@ -1566,19 +1582,24 @@
           const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
           if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
           const ghost = freezeClone(toEl);
+          const inStage = stage.contains(toEl);
+          const ow = inStage && toEl.offsetWidth ? toEl.offsetWidth : tr.width;
+          const oh = inStage && toEl.offsetHeight ? toEl.offsetHeight : tr.height;
+          const endSx = ow ? tr.width / ow : 1, endSy = oh ? tr.height / oh : 1;
+          const endTransform = (Math.abs(endSx - 1) > 0.01 || Math.abs(endSy - 1) > 0.01) ? `scale(${endSx}, ${endSy})` : 'none';
           ghost.style.position = 'fixed';
           ghost.style.left = `${tr.left}px`;
           ghost.style.top = `${tr.top}px`;
-          ghost.style.width = `${tr.width}px`;
-          ghost.style.height = `${tr.height}px`;
+          ghost.style.width = `${ow}px`;
+          ghost.style.height = `${oh}px`;
           ghost.style.margin = '0';
           ghost.style.transformOrigin = 'top left';
           ensureGhostLayer().appendChild(ghost);
           toEl.style.opacity = '0';
           hiddenWhile.add(toEl);
           const a = ghost.animate([
-            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
-            { transform: 'none' }
+            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / ow}, ${fromRect.height / oh})` },
+            { transform: endTransform }
           ], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
           const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
           a.addEventListener('finish', done, { once: true });
@@ -1619,6 +1640,7 @@
           trackAnim(ring, anim);
         };
 
+        let flipDockSeq = 0;
         const flipDock = (mutateFn) => {
           const dock = document.querySelector('.toolbar-center');
           if (!dock || !enabled()) { mutateFn(); return; }
@@ -1631,15 +1653,25 @@
           mutateFn();
           const durMs = Math.round(dur('dur-base', 180) * speedScale());
           const eas = curve('curve-spring-settle');
+          const anims = [];
           for (let i = 0; i < kids.length; i++) {
             const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
             if (!newR.width) continue;
             if (oldR) {
               const dx = oldR.left - newR.left;
-              if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
+              if (Math.abs(dx) > 0.5) anims.push(trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas })));
             } else {
-              trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
+              anims.push(trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas })));
             }
+          }
+          if (anims.length) {
+            const seq = ++flipDockSeq;
+            dock.dataset.flipping = '1';
+            Promise.all(anims.map((a) => a.finished.catch(() => {}))).then(() => {
+              if (flipDockSeq !== seq) return;
+              delete dock.dataset.flipping;
+              if (typeof queueDockSync === 'function') queueDockSync();
+            });
           }
         };
 
@@ -1699,7 +1731,6 @@
       }
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
-      let initialDataText = null;   // raw inline #diagram-data text at load, used to verify linked-folder file matches
 
       async function loadInitialData() {
         try {
@@ -1708,7 +1739,6 @@
           if (dataEl) {
             // Read inline JSON synchronously before any await so --target file boots synchronously.
             raw = dataEl.textContent.trim();
-            initialDataText = raw.replace(/\r\n?/g, '\n');
           } else {
             const [text] = await Promise.all([
               fetch('diagram.json').then((r) => {
@@ -1791,12 +1821,20 @@
         let fontLoadedSinceRender = false;
         const onFontLoaded = () => { fontLoadedSinceRender = true; };
         if (document.fonts) document.fonts.addEventListener('loadingdone', onFontLoaded);
+        let pendingPasteResult = null;
         try {
           plugin.render();
           applyInitialView();
           updateStatus(false);
           committedJson = savedJson = JSON.stringify(chartData);
           updateHistoryButtons();
+          if (playground && typeof plugin.fromMermaid === 'function') {
+            const pendingText = takePendingMermaidPaste(playground.type);
+            if (pendingText !== null) {
+              try { pendingPasteResult = { notes: importMermaid(pendingText) }; }
+              catch (err) { pendingPasteResult = { error: err.message }; }
+            }
+          }
         } finally {
           document.documentElement.classList.remove('is-loading');
           document.documentElement.dataset.diagramReady = '1';
@@ -1813,6 +1851,11 @@
             : Promise.resolve();
           fontsIn.then(() => {
             document.documentElement.dataset.diagramSettled = '1';
+            if (pendingPasteResult) {
+              if (pendingPasteResult.error) showMermaidWarning('Could not read Mermaid', pendingPasteResult.error);
+              else if (pendingPasteResult.notes.length) showMermaidNotes(pendingPasteResult.notes);
+              else flashStatus('Imported Mermaid');
+            }
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
             if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
           });
@@ -2568,6 +2611,7 @@
       const btnSearch = document.getElementById('btn-search');
       const searchBar = document.getElementById('search-bar');
       const searchInput = document.getElementById('search-input');
+      const searchClear = document.getElementById('search-clear');
       const searchCount = document.getElementById('search-count');
       const searchPrev = document.getElementById('search-prev');
       const searchNext = document.getElementById('search-next');
@@ -2599,6 +2643,7 @@
             if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
           }
         } else searchIndex = 0;
+        if (searchClear) searchClear.hidden = !searchInput.value;
         searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
         searchPrev.disabled = searchNext.disabled = !searchMatches.length;
       }
@@ -2660,6 +2705,7 @@
         btnSearch.hidden = !(plugin && plugin.searchItems);
         if (btnSearch.hidden) return;
         btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
+        if (searchClear) searchClear.addEventListener('click', () => { searchInput.value = ''; searchIndex = 0; applySearch(); searchInput.focus(); });
         searchPrev.addEventListener('click', () => stepSearch(-1));
         searchNext.addEventListener('click', () => stepSearch(1));
         searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
@@ -3055,28 +3101,56 @@
 
       // --- IMPORT MERMAID ---
       // The header's Import button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
-      // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
-      // could not map exactly is listed afterwards, and text of another diagram type is refused.
-      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
-      function mermaidTypeOf(text) {
-        const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
-        const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
-        if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
-        if (head.startsWith('sequencediagram')) return 'sequence';
-        if (head.startsWith('erdiagram')) return 'erd';
-        if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
-        return '';
+      // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. Canvas paste
+      // confirms before replacing, warns on type mismatch / unsupported / invalid Mermaid, and in the playground
+      // automatically detects the diagram type and offers to switch pages before importing.
+      const MERMAID_TYPE_NAME = {
+        flowchart: 'flowchart',
+        usecase: 'use case diagram',
+        sequence: 'sequence diagram',
+        erd: 'ER diagram',
+        c4: 'C4 diagram',
+        gantt: 'Gantt chart',
+      };
+      function detectMermaid(text) {
+        if (typeof mmdDetectType === 'function') return mmdDetectType(text);
+        return { kind: '', unsupported: '', text: String(text == null ? '' : text) };
+      }
+      // The theme travels in the URL, so the next playground page matches even where storage is blocked; the spinner shows until it renders.
+      function navigatePlaygroundType(id) {
+        document.documentElement.classList.add('is-loading');
+        location.assign('../' + id + '/index.html?theme=' + currentTheme());
+      }
+      const PENDING_MERMAID_KEY = 'ud-pending-mermaid-paste';
+      const PENDING_MERMAID_PREFIX = 'ud-paste:';
+      function savePendingMermaidPaste(type, text) {
+        const payload = JSON.stringify({ type, text });
+        try { sessionStorage.setItem(PENDING_MERMAID_KEY, payload); return; } catch (_) {}
+        try { if (window.name !== 'present') window.name = PENDING_MERMAID_PREFIX + payload; } catch (_) {}
+      }
+      function takePendingMermaidPaste(expectedType) {
+        let raw = null;
+        try {
+          raw = sessionStorage.getItem(PENDING_MERMAID_KEY);
+          if (raw !== null) sessionStorage.removeItem(PENDING_MERMAID_KEY);
+        } catch (_) {}
+        if (raw === null) {
+          try {
+            if (typeof window.name === 'string' && window.name.startsWith(PENDING_MERMAID_PREFIX)) {
+              raw = window.name.slice(PENDING_MERMAID_PREFIX.length);
+              window.name = '';
+            }
+          } catch (_) {}
+        }
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.type === expectedType && typeof parsed.text === 'string') return parsed.text;
+        } catch (_) {}
+        return null;
       }
 
-      // Replaces the diagram with the Mermaid text; returns the reader's notes. Throws an Error with a plain message.
-      function importMermaid(text) {
-        if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
-        const kind = mermaidTypeOf(text);
-        if (kind && kind !== plugin.id) {
-          throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
-        }
-        let res;
-        try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+      function applyImportedMermaid(res) {
         const next = res.data;
         if (!next.title && chartData.title) next.title = chartData.title;
         plugin.cancelInteraction();
@@ -3090,6 +3164,21 @@
         fitView(true);
         const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
         return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
+      }
+
+      // Replaces the diagram with the Mermaid text; returns the reader's notes. Throws an Error with a plain message.
+      function importMermaid(text) {
+        if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
+        const det = detectMermaid(text);
+        if (det.unsupported) {
+          throw new Error(`Mermaid "${det.unsupported}" diagrams are not supported yet.`);
+        }
+        if (det.kind && det.kind !== plugin.id) {
+          throw new Error(`This is a ${MERMAID_TYPE_NAME[det.kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[det.kind]} page to import it.`);
+        }
+        let res;
+        try { res = plugin.fromMermaid(det.text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+        return applyImportedMermaid(res);
       }
 
       let importEl = null;
@@ -3122,6 +3211,59 @@
         done.append(close);
         close.focus();
       }
+      function showMermaidNotes(notes) {
+        ui.closeConfirm();
+        closeMermaidImport();
+        const box = document.createElement('div');
+        box.className = 'confirm confirm-wide';
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Imported, with notes');
+        box.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
+          if (ev.key !== 'Tab') ev.stopPropagation();
+        });
+        document.body.appendChild(box);
+        importEl = box;
+        showImportNotesBox(box, notes);
+        positionImportBox(box);
+      }
+      function showMermaidWarning(title, message) {
+        closeMermaidImport();
+        ui.confirm(null, {
+          label: title,
+          title,
+          message,
+          ok: 'OK',
+          okClass: 'btn-primary',
+          noCancel: true,
+        });
+      }
+      function confirmPlaygroundSwitchAndPaste(targetKind, cleanText) {
+        const targetEntry = playground && playground.types.find((x) => x.id === targetKind);
+        if (!targetEntry) return false;
+        const targetLabel = MERMAID_TYPE_NAME[targetKind] || targetEntry.name.toLowerCase();
+        const targetTitle = targetLabel.charAt(0).toUpperCase() + targetLabel.slice(1);
+        const currentLabel = MERMAID_TYPE_NAME[plugin.id] || ((playground.types.find((x) => x.id === playground.type) || {}).name || '').toLowerCase();
+        const proceed = () => {
+          savePendingMermaidPaste(targetKind, cleanText);
+          navigatePlaygroundType(targetKind);
+        };
+        const opts = {
+          label: `Switch to ${targetTitle} and paste Mermaid`,
+          title: `Switch to ${targetTitle}?`,
+          message: hasUnsavedChanges
+            ? `Detected a ${targetLabel}. Your edits to this ${currentLabel} will be lost unless you save.`
+            : `Detected a ${targetLabel}. Switch to ${targetTitle} and replace the diagram with the pasted Mermaid?`,
+          ok: 'Switch & Replace',
+          okClass: 'btn-primary',
+        };
+        if (hasUnsavedChanges) {
+          opts.alt = { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) proceed(); } };
+        }
+        ui.confirm(null, opts, proceed);
+        return true;
+      }
       function openMermaidImport() {
         ui.closeConfirm();
         closeMermaidImport();
@@ -3133,7 +3275,9 @@
         const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
         const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
         add('div', 'confirm-title', 'Paste Mermaid');
-        add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
+        add('div', 'confirm-msg', playground
+          ? 'Paste Mermaid text. The diagram type is detected automatically and replaces the diagram. Undo brings the old diagram back.'
+          : `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
         const field = add('textarea', 'confirm-field');
         field.spellcheck = false;
         field.setAttribute('aria-label', 'Mermaid text');
@@ -3146,6 +3290,12 @@
         const ok = button('btn btn-primary confirm-ok', 'Import');
         row.append(cancel, ok);
         const run = () => {
+          const det = detectMermaid(field.value);
+          if (playground && det.kind && det.kind !== plugin.id && playground.types.some((x) => x.id === det.kind)) {
+            closeMermaidImport();
+            confirmPlaygroundSwitchAndPaste(det.kind, det.text);
+            return;
+          }
           let notes;
           try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
           if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
@@ -3172,29 +3322,44 @@
       }
       window.addEventListener('paste', (e) => {
         if (document.body.classList.contains('presentation') || !(plugin && typeof plugin.fromMermaid === 'function')) return;
+        if (importEl) return;
         const t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-        const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
-        if (!text.trim() || !mermaidTypeOf(text)) return;
+        const raw = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+        const det = detectMermaid(raw);
+        if (!det.kind && !det.unsupported) return;
         e.preventDefault();
-        let notes;
-        try { notes = importMermaid(text); } catch (err) { showToast(err.message); return; }
-        if (!notes.length) { flashStatus('Imported Mermaid'); return; }
-        ui.closeConfirm();
-        closeMermaidImport();
-        const box = document.createElement('div');
-        box.className = 'confirm confirm-wide';
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Imported, with notes');
-        box.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
-          if (ev.key !== 'Tab') ev.stopPropagation();
+        if (det.unsupported) {
+          showMermaidWarning(
+            'Unsupported Mermaid diagram',
+            `Mermaid "${det.unsupported}" diagrams are not supported yet. Supported types: flowchart, use case, sequence, ER, C4, and Gantt.`
+          );
+          return;
+        }
+        if (det.kind !== plugin.id) {
+          if (playground && confirmPlaygroundSwitchAndPaste(det.kind, det.text)) return;
+          showMermaidWarning(
+            'Wrong diagram type',
+            `This is a ${MERMAID_TYPE_NAME[det.kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[det.kind]} page to paste it.`
+          );
+          return;
+        }
+        let parsed;
+        try { parsed = plugin.fromMermaid(det.text); } catch (err) {
+          showMermaidWarning('Could not read Mermaid', `This Mermaid text has an error and could not be imported (${err.message}).`);
+          return;
+        }
+        ui.confirm(null, {
+          label: 'Replace diagram with pasted Mermaid',
+          title: 'Replace diagram?',
+          message: `Replace this ${MERMAID_TYPE_NAME[plugin.id]} with the pasted Mermaid? It will be laid out fresh, and Undo brings the old diagram back.`,
+          ok: 'Replace',
+          okClass: 'btn-primary',
+        }, () => {
+          const notes = applyImportedMermaid(parsed);
+          if (!notes.length) { flashStatus('Imported Mermaid'); return; }
+          showMermaidNotes(notes);
         });
-        document.body.appendChild(box);
-        importEl = box;
-        showImportNotesBox(box, notes);
-        positionImportBox(box);
       });
 
       // --- DOCK: layout group, popovers, delete ---
@@ -3490,7 +3655,7 @@
         if (!dockMoreWrap.contains(e.target)) setDockMoreOpen(false);
       }
       function syncDockOverflow() {
-        if (!dockCenter || !dockMoreWrap || syncingDock) return;
+        if (!dockCenter || !dockMoreWrap || syncingDock || dockCenter.dataset.flipping === '1') return;
         if (document.body.classList.contains('presentation') || document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return;
         if (getComputedStyle(dockCenter).display === 'none') return;
         syncingDock = true;
@@ -3657,23 +3822,12 @@
       }
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
-      // Remember per-file handles and linked top-level workspace folders (IndexedDB) so reopened or
-      // newly created diagrams inside a linked folder save straight back to disk without a file dialog.
-      const FOLDER_STORE_LIMIT = 20;
-      let dirPickerBlocked = false;   // flipped if the host rejects showDirectoryPicker as unsupported here
-      function isEmbeddedFrame() {
-        try { return window.self !== window.top; } catch (_) { return true; }
-      }
+      // Remember per-file handles (IndexedDB) so reopened diagrams save straight back to disk without a file dialog.
       function isElectronHost() {
         return typeof window.acquireVsCodeApi === 'function' || /\b(Electron|Code)\b/i.test(navigator.userAgent || '');
       }
       function canPickSaveFile() {
         return 'showSaveFilePicker' in window && !isElectronHost();
-      }
-      function canPickDirectory() {
-        if (dirPickerBlocked || !('showDirectoryPicker' in window)) return false;
-        if (isEmbeddedFrame() || isElectronHost()) return false;
-        return true;
       }
       function handleStorageKey() { return location.href.split(/[?#]/)[0]; }
       function handleDb() {
@@ -3682,7 +3836,6 @@
           req.onupgradeneeded = () => {
             const db = req.result;
             if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
-            if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { autoIncrement: true });
           };
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
@@ -3721,101 +3874,6 @@
           const db = await handleDb();
           db.transaction('handles', 'readwrite').objectStore('handles').put(h, handleStorageKey());
         } catch (_) {}
-      }
-      async function readStoredFolders() {
-        try {
-          const db = await handleDb();
-          if (!db.objectStoreNames.contains('folders')) return [];
-          return await new Promise((resolve, reject) => {
-            const out = [];
-            const r = db.transaction('folders').objectStore('folders').openCursor(null, 'prev');
-            r.onsuccess = () => {
-              const cur = r.result;
-              if (!cur) { resolve(out); return; }
-              if (cur.value) out.push({ key: cur.key, handle: cur.value });
-              cur.continue();
-            };
-            r.onerror = () => reject(r.error);
-          });
-        } catch (_) { return []; }
-      }
-      async function storeFolderHandle(dir) {
-        try {
-          const existing = await readStoredFolders();
-          for (const item of existing) {
-            if (item.handle && typeof item.handle.isSameEntry === 'function') {
-              try { if (await item.handle.isSameEntry(dir)) return; } catch (_) {}
-            }
-          }
-          const db = await handleDb();
-          const tx = db.transaction('folders', 'readwrite');
-          const store = tx.objectStore('folders');
-          store.add(dir);
-          // Trim oldest entries beyond the cap (existing is newest-first)
-          for (const stale of existing.slice(FOLDER_STORE_LIMIT - 1)) store.delete(stale.key);
-        } catch (_) {}
-      }
-      function extractDataBlockText(htmlText) {
-        const openTag = `<script id="diagram-data" type="${['application', 'json'].join('/')}">`;
-        const closeTag = '<' + '/script>';
-        const start = htmlText.indexOf(openTag);
-        if (start < 0) return null;
-        const bodyStart = start + openTag.length;
-        const end = htmlText.indexOf(closeTag, bodyStart);
-        if (end < 0) return null;
-        return htmlText.slice(bodyStart, end).trim().replace(/\r\n?/g, '\n');
-      }
-      function localPathSegments(loc) {
-        const raw = loc.file.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
-        return raw.split('/').filter(Boolean);
-      }
-      function sameSegment(a, b, win) {
-        return win ? a.toLowerCase() === b.toLowerCase() : a === b;
-      }
-      async function resolveFileInFolder(dir, loc, { askPermission = false } = {}) {
-        if (!dir || !dir.name || !loc) return null;
-        const segs = localPathSegments(loc);
-        const matches = [];
-        for (let i = 0; i < segs.length - 1; i++) {
-          if (sameSegment(segs[i], dir.name, loc.win)) matches.push(i);
-        }
-        if (!matches.length) return null;
-        const opts = { mode: 'readwrite' };
-        try {
-          const curPerm = typeof dir.queryPermission === 'function' ? await dir.queryPermission(opts) : 'granted';
-          if (curPerm !== 'granted') {
-            if (!askPermission || typeof dir.requestPermission !== 'function') return null;
-            showToast(`Your browser asks once per session to edit files in ${dir.name}.`);
-            if ((await dir.requestPermission(opts)) !== 'granted') return null;
-          }
-        } catch (_) { return null; }
-
-        for (const idx of matches) {
-          try {
-            let cur = dir;
-            for (let j = idx + 1; j < segs.length - 1; j++) {
-              cur = await cur.getDirectoryHandle(segs[j]);
-            }
-            const fh = await cur.getFileHandle(segs[segs.length - 1]);
-            // Verify on-disk diagram-data matches what this page originally loaded, so same-named folders can never collide
-            if (initialDataText !== null && typeof fh.getFile === 'function') {
-              const diskText = await (await fh.getFile()).text();
-              const diskData = extractDataBlockText(diskText);
-              if (diskData !== initialDataText) continue;
-            }
-            return fh;
-          } catch (_) { /* try next candidate segment */ }
-        }
-        return null;
-      }
-      async function loadFromLinkedFolders(loc, { askPermission = true } = {}) {
-        if (!loc) return null;
-        const folders = await readStoredFolders();
-        for (const item of folders) {
-          const fh = await resolveFileInFolder(item.handle, loc, { askPermission });
-          if (fh) return fh;
-        }
-        return null;
       }
 
       // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
@@ -4124,73 +4182,32 @@
       // Copy text from inside a click. Try the async clipboard first, falling back to execCommand when missing or rejected.
       function copyText(text) {
         const legacyCopy = () => {
+          const previousFocus = document.activeElement;
+          const host = document.querySelector('dialog[open]') || document.body;
           const ta = document.createElement('textarea');
           ta.value = text;
           ta.setAttribute('readonly', '');
-          ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-          document.body.appendChild(ta);
+          ta.style.cssText = 'position:fixed;inset-block-start:0;opacity:0;pointer-events:none';
+          host.appendChild(ta);
+          ta.focus({ preventScroll: true });
           ta.select();
+          ta.setSelectionRange(0, text.length);
           let ok = false;
           try { ok = document.execCommand('copy'); } catch (_) {}
           ta.remove();
+          if (previousFocus && typeof previousFocus.focus === 'function') {
+            previousFocus.focus({ preventScroll: true });
+          }
           return ok;
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
+          try {
+            return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
+          } catch (_) {
+            return Promise.resolve(legacyCopy());
+          }
         }
         return Promise.resolve(legacyCopy());
-      }
-
-      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
-      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
-      // Where directory picking is available, offer Link folder as the primary one-time setup (and copy the parent folder
-      // when clicked so the user can paste it straight into the folder picker).
-      async function askSaveLocation(loc, choose, linkFolder) {
-        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
-        const mac = !loc.win && /mac/.test(plat);
-        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
-        const text = mac ? loc.folder : loc.file;
-        const copied = await copyText(text);
-        const where = loc.win
-          ? 'paste in File name (Ctrl+A, Ctrl+V), Save, and overwrite.'
-          : mac
-            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
-            : 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
-        const extra = document.createDocumentFragment();
-        const path = document.createElement('code');
-        path.className = 'save-where';
-        path.textContent = text;
-        extra.appendChild(path);
-        if (linkFolder) {
-          const addTip = (lead, body) => {
-            const p = document.createElement('div');
-            p.className = 'save-folder-tip';
-            const b = document.createElement('strong');
-            b.textContent = lead;
-            p.append(b, body);
-            extra.appendChild(p);
-          };
-          addTip('Link folder: ', 'copies this file\u2019s folder to paste. Pick it (or a higher project folder) once so diagrams inside save in one click.');
-          addTip('Choose file: ', copied ? 'path copied \u2014 ' + where : 'copy path, ' + where);
-          ui.confirm(btnSave, {
-            label: 'Save over the file you opened',
-            title: 'Save to disk',
-            message: 'Link a project folder once, or pick just this file.',
-            extra,
-            alt: { text: 'Choose file\u2026', onClick: choose },
-            ok: 'Link folder\u2026',
-            okClass: 'btn-primary'
-          }, linkFolder);
-          return;
-        }
-        ui.confirm(btnSave, {
-          label: 'Save over the file you opened',
-          title: copied ? 'Path copied' : 'Save over this file',
-          message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
-          extra,
-          ok: 'Choose\u2026',
-          okClass: 'btn-primary'
-        }, choose);
       }
 
       async function writeToHandle(handle, replacedHtml) {
@@ -4202,42 +4219,6 @@
         everSaved = true;
         updateStatus(false);
         motion.pulseEl(btnSave.querySelector('svg'));
-      }
-
-      async function linkFolderAndSave(loc, replacedHtml) {
-        // Copy this diagram's parent folder so the user can paste it straight into the folder picker
-        await copyText(loc.folder);
-        let dir;
-        try {
-          dir = await window.showDirectoryPicker({ id: 'ultimate-diagram-root', mode: 'readwrite' });
-        } catch (err) {
-          if (!err || err.name === 'AbortError') return;
-          const msg = err.message || '';
-          if (/system files|sensitive/i.test(msg)) {
-            showToast('Your browser blocks system folders (like Downloads or C:\\). Pick a project subfolder instead.');
-          } else if (err.name === 'SecurityError') {
-            dirPickerBlocked = true;
-            showToast('Folder linking is not supported in this browser window. Open the diagram in Chrome or Edge to link a folder.');
-          } else {
-            showToast('Could not link folder: ' + (msg || err.name));
-          }
-          return;
-        }
-        const fh = await resolveFileInFolder(dir, loc, { askPermission: true });
-        if (!fh) {
-          showToast(`${dir.name} does not contain ${loc.name}. Pick a folder that contains this file.`);
-          return;
-        }
-        await storeFolderHandle(dir);
-        fileHandle = fh;
-        storeHandle(fh);
-        try {
-          await writeToHandle(fh, replacedHtml);
-          showToast(`Linked ${dir.name} \u2014 diagrams in it and its subfolders will save directly.`);
-        } catch (err) {
-          if (err && err.name === 'AbortError') return;
-          showToast('Save failed: ' + ((err && err.message) || err));
-        }
       }
 
       async function pickSaveFile() {
@@ -4303,10 +4284,10 @@
         modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
       })();
 
-      async function openSaveModal(loc, onContinue) {
+      async function openSaveModal(loc, onContinue, preCopy) {
         const modal = document.getElementById('save-modal');
         const { text, mac } = savePathText(loc);
-        const copied = text ? await copyText(text) : false;
+        const copied = text ? await (preCopy || copyText(text)) : false;
         if (!modal || typeof modal.showModal !== 'function') {
           onContinue();
           return;
@@ -4338,6 +4319,7 @@
           const rv = modal.returnValue;
           modal.returnValue = '';
           if (rv !== 'continue') return;
+          if (!copied && text) copyText(text);
           if (skipEl && skipEl.checked) markSkipSaveModal();
           onContinue();
         };
@@ -4345,17 +4327,13 @@
         modal.showModal();
       }
 
-      async function writeFile(replacedHtml, picked) {
+      async function writeFile(replacedHtml, picked, preCopy) {
         const usePicker = canPickSaveFile();
         let loc = null;
         if (usePicker && !picked) {
           try {
             if (!fileHandle) fileHandle = await loadStoredHandle();
             loc = !fileHandle ? localFilePath() : null;
-            if (!fileHandle && loc && canPickDirectory()) {
-              fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
-              if (fileHandle) storeHandle(fileHandle);
-            }
           } catch (_) {}
         } else if (!picked) {
           loc = localFilePath();
@@ -4368,11 +4346,11 @@
                 ? buildSavedHtml(await loadSourceText())
                 : replacedHtml;
               await writeFile(html, true);
-            });
+            }, preCopy);
             return;
           }
           const { text } = savePathText(loc);
-          if (text) await copyText(text);
+          if (text) await (preCopy || copyText(text));
         }
 
         if (usePicker) {
@@ -4451,15 +4429,18 @@
 
       async function findHelperPort() {
         const ports = helperPortsToProbe();
-        for (const port of ports) {
+        const found = await Promise.all(ports.map(async (port) => {
           try {
             const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
-            if (!resp.ok) continue;
+            if (!resp.ok) return null;
             const info = await resp.json();
-            if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
-          } catch (_) {}
-        }
-        return null;
+            return (info && info.ok && info.app === 'ultimate-diagram-save-helper') ? port : null;
+          } catch (_) {
+            return null;
+          }
+        }));
+        const hit = found.find((p) => p !== null);
+        return hit !== undefined ? hit : null;
       }
 
       async function postSaveToHelper(port, payload) {
@@ -4514,23 +4495,29 @@
       }
 
       async function saveToFile() {
-        if (playground) {
+        const downloadDirect = async () => {
           try {
             await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
             savedJson = JSON.stringify(chartData);
             everSaved = true;
             updateStatus(false);
           } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
-          return;
-        }
+        };
+        if (playground) return downloadDirect();
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+        if ((location.protocol === 'https:' || location.protocol === 'http:') && !isLoopbackPreviewOrigin()) return downloadDirect();
+        // Copy the local file path synchronously inside the Save gesture before async helper/source/IndexedDB work
+        // can expire user activation (especially in Electron / VS Code integrated browser).
+        const earlyLoc = (!fileHandle && !storedName && helperPort === null) ? localFilePath() : null;
+        const earlyText = earlyLoc ? savePathText(earlyLoc).text : '';
+        const earlyCopy = earlyText ? copyText(earlyText) : null;
         if (await saveViaLocalHelper()) return;
         const html = document.getElementById('diagram-data')
           ? buildSavedHtml(await loadSourceText())
           : await buildExportHtmlFile();
-        await writeFile(html);
+        await writeFile(html, false, earlyCopy);
       }
 
       // --- CLAUDE.AI ARTIFACT: which Save this page has ---
@@ -4569,15 +4556,10 @@
       }
 
       btnSave.addEventListener('click', saveToFile);
-      // A file opened from disk that was saved before (or sits inside a linked workspace folder): show which file Save writes to
+      // A file opened from disk that was saved before: show which file Save writes to
       if (!claudeHost && location.protocol === 'file:' && canPickSaveFile()) {
-        readStoredHandle().then(async (h) => {
-          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
-          if (!fileHandle && canPickDirectory()) {
-            const loc = localFilePath();
-            const fh = loc ? await loadFromLinkedFolders(loc, { askPermission: false }) : null;
-            if (fh && fh.name && !fileHandle) { storedName = fh.name; setStatusBadge(hasUnsavedChanges); }
-          }
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
         });
       }
 
@@ -4607,7 +4589,7 @@
         wrap.append(btn, menu);
         const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
         // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
-        const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
+        const goTo = navigatePlaygroundType;
         window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
         for (const t of playground.types) {
           const item = document.createElement('button');

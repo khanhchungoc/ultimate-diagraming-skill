@@ -1,0 +1,193 @@
+{
+  "diagramType": "erd",
+  "title": "Multi-Tenant SaaS Marketplace & Billing",
+  "colorKey": {
+    "1": "Identity & Tenants",
+    "2": "Orders & Fulfillment",
+    "3": "Catalog & Inventory",
+    "5": "Billing & Ledger"
+  },
+  "entities": [
+    {
+      "id": "organization",
+      "name": "organization",
+      "color": "1",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "slug", "type": "text", "unique": true },
+        { "name": "name", "type": "text" },
+        { "name": "tier", "type": "text", "note": "free, pro, enterprise" }
+      ]
+    },
+    {
+      "id": "user_account",
+      "name": "user_account",
+      "color": "1",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "org_id", "type": "uuid", "fk": true },
+        { "name": "email", "type": "text", "unique": true },
+        { "name": "role", "type": "text" }
+      ]
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "color": "1",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "org_id", "type": "uuid", "fk": true },
+        { "name": "line1", "type": "text" },
+        { "name": "country", "type": "char(2)" }
+      ]
+    },
+    {
+      "id": "subscription",
+      "name": "subscription",
+      "color": "5",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "org_id", "type": "uuid", "fk": true },
+        { "name": "plan_id", "type": "uuid", "fk": true },
+        { "name": "status", "type": "text" },
+        { "name": "renews_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "id": "plan",
+      "name": "plan",
+      "color": "5",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "code", "type": "text", "unique": true },
+        { "name": "monthly_price", "type": "numeric" }
+      ]
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "color": "5",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "subscription_id", "type": "uuid", "fk": true, "nullable": true },
+        { "name": "order_id", "type": "uuid", "fk": true, "nullable": true },
+        { "name": "total_amount", "type": "numeric" },
+        { "name": "status", "type": "text" }
+      ]
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "color": "5",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "invoice_id", "type": "uuid", "fk": true },
+        { "name": "provider_ref", "type": "text", "unique": true },
+        { "name": "amount", "type": "numeric" },
+        { "name": "settled_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "color": "2",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "org_id", "type": "uuid", "fk": true },
+        { "name": "buyer_id", "type": "uuid", "fk": true },
+        { "name": "ship_address_id", "type": "uuid", "fk": true },
+        { "name": "status", "type": "text" },
+        { "name": "placed_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "id": "order_item",
+      "name": "order_item",
+      "color": "2",
+      "columns": [
+        { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "qty", "type": "int" },
+        { "name": "unit_price", "type": "numeric" }
+      ]
+    },
+    {
+      "id": "shipment",
+      "name": "shipment",
+      "color": "2",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "order_id", "type": "uuid", "fk": true },
+        { "name": "warehouse_id", "type": "uuid", "fk": true },
+        { "name": "tracking_no", "type": "text", "unique": true },
+        { "name": "dispatched_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "color": "3",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "category_id", "type": "uuid", "fk": true },
+        { "name": "sku", "type": "text", "unique": true },
+        { "name": "name", "type": "text" },
+        { "name": "list_price", "type": "numeric" }
+      ]
+    },
+    {
+      "id": "category",
+      "name": "category",
+      "color": "3",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "name", "type": "text", "unique": true }
+      ]
+    },
+    {
+      "id": "warehouse",
+      "name": "warehouse",
+      "color": "3",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "region_code", "type": "text", "unique": true },
+        { "name": "name", "type": "text" }
+      ]
+    },
+    {
+      "id": "stock_level",
+      "name": "stock_level",
+      "color": "3",
+      "columns": [
+        { "name": "warehouse_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "on_hand", "type": "int" },
+        { "name": "reserved", "type": "int" }
+      ]
+    }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "user_account", "to": "organization", "columns": ["org_id"], "fromEnd": "oneOrMany", "toEnd": "one", "label": "belongs to" },
+    { "id": "r2", "from": "address", "to": "organization", "columns": ["org_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "has" },
+    { "id": "r3", "from": "subscription", "to": "organization", "columns": ["org_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "subscribes" },
+    { "id": "r4", "from": "subscription", "to": "plan", "columns": ["plan_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "uses" },
+    { "id": "r5", "from": "invoice", "to": "subscription", "columns": ["subscription_id"], "fromEnd": "zeroOrMany", "toEnd": "zeroOrOne", "label": "bills" },
+    { "id": "r6", "from": "invoice", "to": "order", "columns": ["order_id"], "fromEnd": "zeroOrOne", "toEnd": "zeroOrOne", "label": "charges" },
+    { "id": "r7", "from": "payment", "to": "invoice", "columns": ["invoice_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "settles" },
+    { "id": "r8", "from": "order", "to": "organization", "columns": ["org_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "places" },
+    { "id": "r9", "from": "order", "to": "user_account", "columns": ["buyer_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "ordered by" },
+    { "id": "r10", "from": "order", "to": "address", "columns": ["ship_address_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "ships to" },
+    { "id": "r11", "from": "order_item", "to": "order", "columns": ["order_id"], "fromEnd": "oneOrMany", "toEnd": "one", "identifying": true },
+    { "id": "r12", "from": "order_item", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "identifying": true },
+    { "id": "r13", "from": "shipment", "to": "order", "columns": ["order_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "fulfills" },
+    { "id": "r14", "from": "shipment", "to": "warehouse", "columns": ["warehouse_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "dispatched from" },
+    { "id": "r15", "from": "product", "to": "category", "columns": ["category_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "in" },
+    { "id": "r16", "from": "stock_level", "to": "warehouse", "columns": ["warehouse_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "identifying": true },
+    { "id": "r17", "from": "stock_level", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "identifying": true }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Invoices are immutable once issued; refunds create credit notes.", "entities": ["invoice"] },
+    { "id": "n2", "text": "Composite PK ensures one line item per SKU per order.", "entities": ["order_item"] },
+    { "id": "n3", "text": "Reserved stock is held with a 15-minute checkout TTL.", "entities": ["stock_level"] }
+  ]
+}

@@ -20,6 +20,7 @@
       const NS = 'http://www.w3.org/2000/svg';
       const canvas = document.getElementById('c4-canvas');
       const svg = document.getElementById('c4-svg');
+      const noteLeadersG = document.getElementById('c4-note-leaders');
       const edgesG = document.getElementById('c4-edges');
       const html = document.getElementById('c4-html');
       const rubber = document.getElementById('c4-rubber');
@@ -341,13 +342,13 @@
         const n = notesList().find((x) => noteText(x) && (kind === 'element' ? (x.elements || []).includes(id) : (x.groups || []).includes(id)));
         return n ? n.id : null;
       }
-      function notePin(label) {   // a press shows every note and selects the box's note (ITEM EVENTS)
-        const b = htmlEl('button', 'c4-note-pin');
+      function notePin(label) {   // hover peeks the note callout; click shows all notes and selects it (ITEM EVENTS)
+        const b = htmlEl('button', 'note-badge c4-note-pin');
         b.type = 'button';
         b.dataset.exportSkip = '';
         b.title = `Show note on ${label}`;
         b.setAttribute('aria-label', b.title);
-        b.innerHTML = ui.icon('notes', { size: 'xs' });
+        b.innerHTML = ui.icon('note', { size: 'xs' });
         return b;
       }
 
@@ -634,12 +635,22 @@
         else if (chev) { ev.stopPropagation(); toggleGroup(it.id); }
       });
       html.addEventListener('pointerenter', (ev) => {
+        if (ev.target && ev.target.classList && ev.target.classList.contains('c4-note-pin') && ev.pointerType !== 'touch') {
+          const it = itemAt(ev.target);
+          const id = it && pinNoteOf(it.kind, it.id);
+          if (id) peekNote(id, ev.target);
+          return;
+        }
         const it = itemAt(ev.target);
         if (!it || it.el !== ev.target) return;
         if (it.kind === 'edge') { hoverEdgeId = it.id; applyState(); }
         else if ((it.kind === 'element' || it.el.classList.contains('is-tile')) && ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = it.id; applyState(); }   // no hover dimming while boxes are carried
       }, true);
       html.addEventListener('pointerleave', (ev) => {
+        if (ev.target && ev.target.classList && ev.target.classList.contains('c4-note-pin')) {
+          if (peekNoteId) unpeekSoon();
+          return;
+        }
         const it = itemAt(ev.target);
         if (!it || it.el !== ev.target) return;
         if (it.kind === 'edge') { if (hoverEdgeId === it.id) { hoverEdgeId = null; applyState(); } }
@@ -1512,6 +1523,8 @@
       // item that has one edits it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
       const btnNotes = document.getElementById('btn-notes');
+      let peekNoteId = null;
+      let peekTimer = null;
       const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
       const noteOf = (id) => notesList().find((n) => n.id === id);
       const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
@@ -1519,25 +1532,59 @@
       const isFreeNote = (n) => !!n && !noteTargets(n).length && !!n.pos && typeof n.pos.x === 'number' && typeof n.pos.y === 'number';
       const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
       const noteAnchor = (n) => noteTargets(n).find(targetEl);
-      const noteShown = (n) => (isFreeNote(n) || !!noteAnchor(n)) && (n.id === noteCtl.editingId() || (!!noteText(n) && chartData.showNotes === true));
+      const noteShown = (n) => (isFreeNote(n) || !!noteAnchor(n)) && (n.id === noteCtl.editingId() || (!!noteText(n) && (chartData.showNotes === true || n.id === peekNoteId)));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
       const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
 
+      function targetAnchorBox(t) {
+        if (t.kind === 'element') return boxOf(elementOf(t.id));
+        const g = groupOf(t.id), el = els.groups.get(t.id);
+        if (!g) return null;
+        if (el && !el.classList.contains('is-tile')) {
+          const tag = el.querySelector('.frame-tag');
+          if (tag && tag.offsetWidth > 0) return { x: g.x + tag.offsetLeft, y: g.y + tag.offsetTop, w: tag.offsetWidth, h: tag.offsetHeight };
+        }
+        return boxOf(g);
+      }
+      function leaderLineEnds(cardBox, tBox) {
+        const cx = cardBox.x + cardBox.w / 2, cy = cardBox.y + cardBox.h / 2;
+        const tx = Math.max(tBox.x, Math.min(tBox.x + tBox.w, cx));
+        const ty = Math.max(tBox.y, Math.min(tBox.y + tBox.h, cy));
+        return { x1: Math.round(cx), y1: Math.round(cy), x2: Math.round(tx), y2: Math.round(ty) };
+      }
+
       function renderNotes() {
+        if (notesLayer && notesLayer.isConnected) notesLayer.remove();
         notesLayer = null;
+        if (noteLeadersG) noteLeadersG.textContent = '';
         const live = notesList().filter(noteShown);
         if (selNoteId && !live.some((n) => n.id === selNoteId)) selNoteId = null;
         if (!live.length) return;
         notesLayer = htmlEl('div', 'note-layer');
         notesLayer.id = 'c4-notes';
-        live.forEach((n) => notesLayer.appendChild(buildNoteCard(n)));
+        live.forEach((n) => {
+          notesLayer.appendChild(buildNoteCard(n));
+          if (noteLeadersG && !isFreeNote(n)) {
+            const isPeek = chartData.showNotes !== true && n.id === peekNoteId && n.id !== noteCtl.editingId();
+            noteTargets(n).forEach((t) => {
+              if (!targetEl(t)) return;
+              noteLeadersG.appendChild(svgEl('line', {
+                class: `note-leader ${isPeek ? 'peek' : 'show'}`,
+                'data-note-id': n.id,
+                'data-target-kind': t.kind,
+                'data-target-id': t.id
+              }));
+            });
+          }
+        });
         html.appendChild(notesLayer);
         placeNotes();
       }
       function buildNoteCard(n) {
         const edit = !presenting();
+        const isPeek = chartData.showNotes !== true && n.id === peekNoteId && n.id !== noteCtl.editingId();
         const { card, text } = ui.noteCard(n, edit ? { onDelete: () => removeNote(n.id), onCommit: (el) => commitNote(n, el), onInput: placeNotes } : {});
-        card.classList.add('show');
+        card.classList.add(isPeek ? 'peek' : 'show');
         card.tabIndex = 0;
         card.setAttribute('role', 'note');
         const names = noteNames(n);
@@ -1549,12 +1596,36 @@
           if (edit) selectNote(n.id);
         });
         card.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editNote(n.id); });
+        card.addEventListener('mouseenter', () => { if (peekNoteId === n.id) clearTimeout(peekTimer); });
+        card.addEventListener('mouseleave', () => { if (peekNoteId === n.id) unpeekSoon(); });
         card.addEventListener('keydown', (ev) => {
           if (ev.target !== card || !edit) return;
           if (ev.key === 'Enter' || ev.key === 'F2') { ev.preventDefault(); ev.stopPropagation(); editNote(n.id); }
           else if (ev.key === 'Delete' || ev.key === 'Backspace') selectNote(n.id);   // the shell's Delete handler then removes it
         });
         return card;
+      }
+
+      function peekNote(id, pinEl) {
+        clearTimeout(peekTimer);
+        if (chartData.showNotes === true || peekNoteId === id) return;
+        peekNoteId = id;
+        renderNotes();
+        const card = noteCard(id);
+        const leader = noteLeadersG && noteLeadersG.querySelector(`.note-leader[data-note-id="${CSS.escape(id)}"]`);
+        if (card) motion.unfoldNote(card, pinEl, leader);
+      }
+      function unpeekSoon() {
+        clearTimeout(peekTimer);
+        peekTimer = setTimeout(() => {
+          if (!peekNoteId) return;
+          const card = noteCard(peekNoteId);
+          const n = noteOf(peekNoteId);
+          const pin = n && notePinEl(n);
+          if (card) motion.foldNote(card, pin);
+          peekNoteId = null;
+          renderNotes();
+        }, 180);
       }
 
       // Fit every card into a free spot beside its target: the nearest one (about NOTE_IDEAL_GAP away) that overlaps no tile,
@@ -1577,21 +1648,37 @@
         });
         const cards = [...notesLayer.children];
         const sizes = cards.map((c) => ({ w: c.offsetWidth, h: c.offsetHeight }));
+        const placedById = new Map();
         cards.forEach((card, i) => {
           const n = noteOf(card.dataset.noteId);
           if (isFreeNote(n)) {
             const b = { x: Math.round(n.pos.x), y: Math.round(n.pos.y), w: sizes[i].w, h: sizes[i].h };
             boxes.push(b);
+            placedById.set(n.id, b);
             card.style.left = px(b.x);
             card.style.top = px(b.y);
             return;
           }
           const t = noteAnchor(n);
-          const b = fitNote(boxOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id)), sizes[i], boxes, segs, C);
+          const anchorBox = targetAnchorBox(t) || boxOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id));
+          const b = fitNote(anchorBox, sizes[i], boxes, segs, C);
           boxes.push(b);   // a placed card is an obstacle for the next
+          placedById.set(n.id, b);
           card.style.left = px(b.x);
           card.style.top = px(b.y);
         });
+        if (noteLeadersG) {
+          [...noteLeadersG.children].forEach((line) => {
+            const b = placedById.get(line.dataset.noteId);
+            const tBox = targetAnchorBox({ kind: line.dataset.targetKind, id: line.dataset.targetId });
+            if (!b || !tBox) return;
+            const pts = leaderLineEnds(b, tBox);
+            line.setAttribute('x1', pts.x1);
+            line.setAttribute('y1', pts.y1);
+            line.setAttribute('x2', pts.x2);
+            line.setAttribute('y2', pts.y2);
+          });
+        }
       }
       const boxHit = (b, o, g) => b.x < o.x + o.w + g && b.x + b.w + g > o.x && b.y < o.y + o.h + g && b.y + b.h + g > o.y;
       function fitNote(a, s, boxes, segs, C) {
@@ -1631,6 +1718,8 @@
       }
       function setShowNotes(on) {
         if ((chartData.showNotes === true) === on) return;
+        clearTimeout(peekTimer);
+        peekNoteId = null;
         motion.cancelAll();
         const useMotion = motion.enabled() && html.childElementCount > 0;
         const fromRects = new Map();
@@ -1652,6 +1741,11 @@
               fromRects.forEach((fr, id) => {
                 const c = noteCard(id);
                 if (c) motion.morphRect(fr, c, { duration: 170, easing: 'curve-spring-tactile' });
+                if (noteLeadersG) {
+                  noteLeadersG.querySelectorAll(`.note-leader[data-note-id="${CSS.escape(id)}"]`).forEach((l) => {
+                    motion.drawPath(l, { duration: 150, easing: 'curve-out' });
+                  });
+                }
               });
             } else if (snap) {
               for (const [, prev] of snap) {
@@ -1941,7 +2035,6 @@
         const iconBtn = abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo');
         iconBtn.removeAttribute('title');
         bar.appendChild(iconBtn);
-        if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
         bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(colourPicker(o.color));
         bar.appendChild(ui.abSep('ab-sep'));
@@ -1957,8 +2050,6 @@
             bar.appendChild(abMenu('side', 'direction-lr', SIDE_LABELS[g.side || sharedDefaultSide()], 'Which side of the layers this shared layer sits on'));
             bar.appendChild(abMenu('span', 'columns', sharedSpanLabel(g), 'Which layers this shared layer spans'));
           }
-        } else if (!g.parent) {
-          bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
         }
         bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
         bar.appendChild(ui.abSep('ab-sep'));

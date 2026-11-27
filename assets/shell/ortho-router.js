@@ -774,7 +774,18 @@
             const [sx, sy] = anchor(f, fp), [ex, ey] = anchor(t, tp);
             const add = (pts, dev = 0) => out.push({ fp, tp, pts, dev });
             if (horiz(fp) && horiz(tp)) {
-              if (fp === tp) return;
+              if (fp === tp) {
+                const seenG = new Set();
+                const tryU = g => {
+                  if (fp === 'left' ? g > Math.min(sx, ex) - 12 : g < Math.max(sx, ex) + 12) return;
+                  const q = Math.round(g / 8);
+                  if (seenG.has(q)) return;
+                  seenG.add(q);
+                  add([[sx, sy], [g, sy], [g, ey], [ex, ey]]);
+                };
+                [16, 28, 36, 48].forEach(d => tryU(fp === 'left' ? Math.max(8, Math.min(sx, ex) - d) : Math.max(sx, ex) + d));
+                return;
+              }
               const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
               if (!dirOk) return;
               if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }

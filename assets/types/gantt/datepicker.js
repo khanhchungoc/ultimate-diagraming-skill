@@ -210,7 +210,7 @@
     weekdaysRow.setAttribute('aria-hidden', 'true');
     for (var w = 0; w < WEEKDAYS.length; w++) {
       var wd = document.createElement('div');
-      wd.className = 'gantt-cal-weekday';
+      wd.className = 'gantt-cal-weekday' + (w === 0 || w === 6 ? ' is-weekend' : '');
       wd.textContent = WEEKDAYS[w];
       weekdaysRow.appendChild(wd);
     }
@@ -230,12 +230,13 @@
     btnToday.type = 'button';
     btnToday.className = 'gantt-cal-today';
     btnToday.textContent = 'Today';
-    if (!isWithinRange(todayStr, minStr, maxStr)) {
-      btnToday.disabled = true;
-    }
     btnToday.addEventListener('click', function () {
-      if (!isWithinRange(todayStr, minStr, maxStr)) return;
-      selectAndClose(todayStr);
+      var tDt = ganttParseDate(todayStr);
+      if (!tDt) return;
+      viewYear = tDt.getUTCFullYear();
+      viewMonth = tDt.getUTCMonth();
+      focusedDateStr = todayStr;
+      renderGrid(true);
     });
     footer.appendChild(btnToday);
 
@@ -477,12 +478,35 @@
     global.addEventListener('resize', onReposition);
     global.addEventListener('scroll', onReposition, true);
 
-    focusDayButton(focusedDateStr);
+    if (opts.stealFocus !== false) {
+      focusDayButton(focusedDateStr);
+    }
   }
 
   function resolveBound(bound) {
     if (typeof bound === 'function') return bound() || '';
     if (typeof bound === 'string') return bound;
+    return '';
+  }
+
+  function parseTypedDate(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    var s = raw.trim();
+    if (!s) return '';
+    var direct = normalizeDateStr(s);
+    if (direct) return direct;
+    var mYmd = /^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})$/.exec(s);
+    if (mYmd) {
+      return normalizeDateStr(
+        mYmd[1] + '-' + String(Number(mYmd[2])).padStart(2, '0') + '-' + String(Number(mYmd[3])).padStart(2, '0')
+      );
+    }
+    var mMdy = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(s);
+    if (mMdy) {
+      return normalizeDateStr(
+        mMdy[3] + '-' + String(Number(mMdy[1])).padStart(2, '0') + '-' + String(Number(mMdy[2])).padStart(2, '0')
+      );
+    }
     return '';
   }
 
@@ -494,22 +518,39 @@
       var prev = attachedInputs.get(inputEl);
       inputEl.removeEventListener('click', prev.onClick);
       inputEl.removeEventListener('keydown', prev.onKeyDown);
+      inputEl.removeEventListener('blur', prev.onBlur);
     }
 
     inputEl.type = 'text';
-    inputEl.readOnly = true;
+    inputEl.readOnly = false;
     inputEl.placeholder = 'YYYY-MM-DD';
     inputEl.classList.add('gantt-cal-input');
     inputEl.autocomplete = 'off';
-    inputEl.inputMode = 'none';
+    inputEl.removeAttribute('inputmode');
 
-    function openForInput() {
+    function commitTypedValue() {
+      var parsed = parseTypedDate(inputEl.value);
+      if (parsed) {
+        var minStr = normalizeDateStr(resolveBound(opts.min));
+        var maxStr = normalizeDateStr(resolveBound(opts.max));
+        parsed = clampToRange(parsed, minStr, maxStr);
+        if (inputEl.value !== parsed) {
+          inputEl.value = parsed;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (typeof opts.onChange === 'function') opts.onChange(parsed);
+      }
+    }
+
+    function openForInput(stealFocus) {
       open(inputEl, {
-        value: inputEl.value,
+        value: parseTypedDate(inputEl.value) || inputEl.value,
         min: resolveBound(opts.min),
         max: resolveBound(opts.max),
         allowClear: Boolean(opts.allowClear),
         title: opts.title,
+        stealFocus: stealFocus,
         onSelect: function (dateStr) {
           inputEl.value = dateStr;
           inputEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -521,23 +562,33 @@
       });
     }
 
-    function onClick(e) {
-      e.preventDefault();
-      openForInput();
+    function onClick() {
+      openForInput(false);
     }
 
     function onKeyDown(e) {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
-        openForInput();
+        openForInput(true);
+      } else if (e.key === 'Enter') {
+        commitTypedValue();
+        closeInternal(false);
+      } else if (e.key === 'Tab') {
+        commitTypedValue();
+        closeInternal(false);
       }
+    }
+
+    function onBlur() {
+      commitTypedValue();
     }
 
     inputEl.addEventListener('click', onClick);
     inputEl.addEventListener('keydown', onKeyDown);
+    inputEl.addEventListener('blur', onBlur);
 
     if (attachedInputs) {
-      attachedInputs.set(inputEl, { onClick: onClick, onKeyDown: onKeyDown });
+      attachedInputs.set(inputEl, { onClick: onClick, onKeyDown: onKeyDown, onBlur: onBlur });
     }
   }
 
@@ -545,6 +596,7 @@
     open: open,
     close: close,
     isOpen: isOpen,
-    attachInput: attachInput
+    attachInput: attachInput,
+    parseTypedDate: parseTypedDate
   };
 })(window);

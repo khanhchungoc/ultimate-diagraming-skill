@@ -1,0 +1,51 @@
+{
+  "diagramType": "sequence",
+  "title": "Distributed Checkout with 3DS Auth & Saga Recovery",
+  "participants": [
+    { "id": "p1", "name": "Customer", "kind": "actor" },
+    { "id": "p2", "name": "Web App", "kind": "system" },
+    { "id": "p3", "name": "Order API", "kind": "system" },
+    { "id": "p4", "name": "Inventory", "kind": "system" },
+    { "id": "p5", "name": "Payment Gateway", "kind": "system" },
+    { "id": "p6", "name": "3DS Bank ACS", "kind": "system" },
+    { "id": "p7", "name": "Fulfillment", "kind": "system" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Click Place Order" },
+    { "id": "m2", "from": "p2", "to": "p3", "label": "POST /orders", "detail": "cart_id, idempotency_key, payment_method" },
+    { "id": "m3", "from": "p3", "to": "p4", "label": "Reserve line items", "detail": "sku_list, ttl=900s" },
+    { "id": "m4", "from": "p4", "to": "p3", "label": "Reservation confirmed", "kind": "reply" },
+    { "id": "m5", "from": "p3", "to": "p5", "label": "Create payment intent", "detail": "amount, currency, card_token" },
+    { "id": "m6", "from": "p5", "to": "p3", "label": "3DS challenge required", "kind": "reply" },
+    { "id": "m7", "from": "p3", "to": "p2", "label": "Return 3DS challenge URL", "kind": "reply" },
+    { "id": "m8", "from": "p2", "to": "p6", "label": "Open OTP challenge" },
+    { "id": "m9", "from": "p1", "to": "p6", "label": "Submit SMS OTP" },
+    { "id": "m10", "from": "p6", "to": "p5", "label": "Signed 3DS cryptogram", "kind": "reply" },
+    { "id": "m11", "from": "p5", "to": "p3", "label": "Capture payment", "detail": "tx_id, eci=05" },
+    { "id": "m12", "from": "p3", "to": "p7", "label": "Enqueue pick & pack", "kind": "async", "detail": "order_id, warehouse_id" },
+    { "id": "m13", "from": "p3", "to": "p2", "label": "201 Order Confirmed", "kind": "reply" },
+    { "id": "m14", "from": "p2", "to": "p1", "label": "Show confirmation & ETA", "kind": "reply" },
+    { "id": "m15", "from": "p3", "to": "p4", "label": "Release reserved stock", "detail": "reason=payment_failed" },
+    { "id": "m16", "from": "p4", "to": "p3", "label": "Stock released", "kind": "reply" },
+    { "id": "m17", "from": "p3", "to": "p2", "label": "402 Payment Declined", "kind": "reply" },
+    { "id": "m18", "from": "p2", "to": "p1", "label": "Prompt retry or new card", "kind": "reply" }
+  ],
+  "fragments": [
+    { "id": "f1", "kind": "opt", "label": "3DS challenge needed (SCA)", "from": "m6", "to": "m10" },
+    {
+      "id": "f2",
+      "kind": "alt",
+      "label": "capture succeeded",
+      "from": "m12",
+      "to": "m18",
+      "branches": [
+        { "at": "m15", "label": "capture failed (saga rollback)" }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Idempotency key prevents double charges on network retry.", "over": "p3", "after": "m2" },
+    { "id": "n2", "text": "Soft stock hold auto-expires after 15 minutes if abandoned.", "over": "p4", "after": "m4" },
+    { "id": "n3", "text": "Outbox worker guarantees at-least-once handoff to Fulfillment.", "over": "p7", "after": "m12" }
+  ]
+}
