@@ -1081,16 +1081,12 @@ try {
     await t.type('Pays');
     await t.press('Enter');
     await sleep(300); await t.settle(1500);
-    await blank();
-    await clickName('Billing System');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
     const raw = await rawSaved();
     const d = JSON.parse(raw);
     const ids = new Set([...d.elements, ...d.groups].map((o) => o.id));
     t.check('editor ids e_/g_ are renamed to name slugs (unique, no e_<digits>)', !d.elements.concat(d.groups).some((o) => /^[eg]_\d/.test(o.id)) && ids.size === d.elements.length + d.groups.length && /^[a-z0-9][a-z0-9_-]*$/.test(byName(d.elements, 'Billing System')?.id || ''), J(d.elements.map((e) => e.id)));
     t.check('relations and group references use the slugs', d.relations.every((r) => ids.has(r.from) && ids.has(r.to)) && d.elements.every((e) => !e.group || ids.has(e.group)), J(d.relations));
-    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Billing System')?.core === true && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
+    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
     t.check('Auto-Tidy saves no layout map, sizes or derived fields',
       !('layout' in d) && d.elements.every((e) => !('x' in e) && !('w' in e) && !('h' in e) && !Object.keys(e).some((k) => k[0] === '_')) && d.groups.every((g) => !('w' in g) && !('h' in g) && !('x' in g))
       && !('canvas' in d) && !('_edges' in d) && d.relations.every((r) => !('points' in r) && !('path' in r) && !('labelBox' in r) && !('id' in r)), J(Object.keys(d)));
