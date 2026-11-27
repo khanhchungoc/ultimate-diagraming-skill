@@ -150,14 +150,16 @@ function c4Links(m) {
     const hasLbl = Boolean(r.label && String(r.label).trim());
     const d = c4EdgeDims(r.label, r.tech, r.step);
     const expTrim = ((x.kind === 'g' && !x.self ? 1 : 0) + (y.kind === 'g' && !y.self ? 1 : 0)) * C4.pad;
-    const vn = c4EdgeClear(d, true, expTrim), hn = c4EdgeClear(d, false, expTrim);
+    const vn = c4EdgeClear(d, true, expTrim), hn = c4EdgeClear(d, false, expTrim), hnRaw = c4EdgeClear(d, false, 0);
+    const ea = a === x ? a0 : b0, eb = a === x ? b0 : a0;
     if (e) {
       e[2]++; if (hasLbl) e[3] = true;
       if (vn > e[4]) e[4] = vn;
       if (hn > e[5]) e[5] = hn;
       if (d.w > e[6]) e[6] = d.w;
       if (d.h > e[7]) e[7] = d.h;
-    } else mp.set(k, [a.ci, b.ci, 1, hasLbl, vn, hn, d.w, d.h]);
+      e[8].push([ea, eb, hnRaw]);
+    } else mp.set(k, [a.ci, b.ci, 1, hasLbl, vn, hn, d.w, d.h, [[ea, eb, hnRaw]]]);
   });
   return sets;
 }
@@ -247,8 +249,13 @@ function c4Flow(its, edges) {
     let x = -tot / 2;
     row.its.forEach((i, k) => { if (k) x += pairGap(row, k); xa[i] = x; x += its[i].w; });
   });
+  const hasSpine = rows.filter((row) => row.its.length === 1).length >= 2;
   const relax = (ri) => {
     const row = rows[ri], len = row.its.length, d = new Array(len), s = new Array(len);
+    if (hasSpine && len === 1) {
+      xa[row.its[0]] = -its[row.its[0]].w / 2;
+      return;
+    }
     let off = 0;
     row.its.forEach((i, k) => {
       if (k) off += pairGap(row, k) + its[row.its[k - 1]].w;
@@ -374,11 +381,35 @@ function c4Line(its, vert, gapOf) {
   return vert ? { w: cross, h: p } : { w: p, h: cross };
 }
 
-const c4LinkGap = (a, b, vert, link = true) => {
+const c4InsetX = (m, anc, node, fromRight) => {
+  if (!m || !anc || !node || anc === node || anc.kind !== 'g' || anc.self) return 0;
+  let x = 0, cur = node;
+  while (cur && cur !== anc) {
+    x += cur.rx;
+    const p = m.gN.get(cur.par);
+    if (!p) return 0;
+    x += C4.pad + (p.cx || 0);
+    cur = p;
+  }
+  if (cur !== anc) return 0;
+  return fromRight ? Math.max(0, anc.fw - (x + node.w)) : Math.max(0, x);
+};
+const c4LinkGap = (a, b, vert, link = true, m = null) => {
   const labeled = typeof link === 'boolean' ? link : Boolean(link && link[3]);
   if (vert) return Math.max(C4.innerLinkY, (Array.isArray(link) && link[4]) || 0);
   if (!labeled) return Math.max(C4.innerGap, 56);
   const exp = (it) => it && it.kind === 'g' && !it.self;
+  if ((exp(a) || exp(b)) && Array.isArray(link) && Array.isArray(link[8]) && m) {
+    const flipped = a.ci > b.ci;
+    let need = C4.innerGap * 2;
+    for (const [e0, e1, hnRaw] of link[8]) {
+      const leftEnd = flipped ? e1 : e0, rightEnd = flipped ? e0 : e1;
+      const trim = c4InsetX(m, a, leftEnd, true) + c4InsetX(m, b, rightEnd, false);
+      const ext = Math.max(C4.innerGap * 2, hnRaw - trim);
+      if (ext > need) need = ext;
+    }
+    return need;
+  }
   const baseH = exp(a) || exp(b) ? Math.max(C4.innerGap, Math.round(C4.innerLinkX * 0.55)) : C4.innerLinkX;
   return Math.max(baseH, (Array.isArray(link) && link[5]) || 0);
 };
@@ -402,7 +433,7 @@ function c4Size(m, g, vert) {
   else if (pairs.some((p) => p[1] - p[0] !== 1) || (pairs.length && n > C4.rowMax)) c = c4Flow(its, pairs);
   else {
     const linked = new Map(pairs.map((p) => [p[0], p]));
-    const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert, linked.get(a.ci)) : C4.innerGap);
+    const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert, linked.get(a.ci), m) : C4.innerGap);
     const lines = [];
     for (let o = 0; o < n; o += C4.rowMax) lines.push(its.slice(o, o + C4.rowMax));
     if (lines.length === 1) g.line = vert ? 'col' : 'row';
@@ -806,7 +837,7 @@ function c4Order(m) {
     const base = seq.map((k, i) => {
       if (!i) return 0;
       const lk = linked.get(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci));
-      return lk ? c4LinkGap(seq[i - 1], k, vert, lk) : C4.innerGap;
+      return lk ? c4LinkGap(seq[i - 1], k, vert, lk, m) : C4.innerGap;
     });
     const total = seq.reduce((s, k, i) => s + size(k) + base[i], 0);
     const old = Math.max.apply(null, its.map((k) => (vert ? k.ry : k.rx) + size(k)));
@@ -1180,19 +1211,43 @@ function c4OrderRings(m) {
       const gaps = seq.map((it, k) => (k ? (it.nb.has(seq[k - 1]) ? (vert ? C4.ringLinkX : C4.ringLinkY) : C4.ringGap) : 0));
       const total = seq.reduce((t, it, k) => t + it[sz] + gaps[k], 0);
       if (total > maxB - minB) return;
-      // Shift the lane as one evenly-spaced unit to align with its connected inner targets (never breaking uniform gaps)
+      // Align each outer-ring item to its own connected inner targets while preserving order and minimum gaps (PAV isotonic)
       const off = [0];
       for (let i = 1; i < seq.length; i++) off.push(off[i - 1] + seq[i - 1][sz] + gaps[i]);
-      let sum = 0, cnt = 0;
-      seq.forEach((it, i) => {
+      const baseP0 = lo + (hi - lo - total) / 2;
+      const desired = seq.map((it, i) => {
         const ps = innerPairs.get(it);
-        if (!ps) return;
-        for (const p of ps) { sum += p[0][coord] - (off[i] + (p[1][coord] - it[ax])); cnt++; }
+        if (!ps || !ps.length) return baseP0 + off[i];
+        let sum = 0;
+        for (const p of ps) sum += p[0][coord] - (p[1][coord] - it[ax]);
+        return sum / ps.length;
       });
-      let p0 = cnt ? sum / cnt : lo + (hi - lo - total) / 2;
-      p0 = Math.max(minB, Math.min(maxB - total, p0));
+      const blocks = [];
+      for (let i = 0; i < seq.length; i++) {
+        blocks.push({ sum: desired[i] - off[i], cnt: 1, from: i });
+        while (blocks.length > 1) {
+          const b = blocks[blocks.length - 1], a = blocks[blocks.length - 2];
+          if (a.sum / a.cnt <= b.sum / b.cnt) break;
+          a.sum += b.sum; a.cnt += b.cnt; blocks.pop();
+        }
+      }
+      const pos = new Array(seq.length);
+      blocks.forEach((b) => {
+        const v = b.sum / b.cnt;
+        for (let k = b.from; k < b.from + b.cnt; k++) pos[k] = v + off[k];
+      });
+      // Clamp within [minB, maxB] without breaking minimum gaps
+      if (pos[0] < minB) {
+        pos[0] = minB;
+        for (let i = 1; i < seq.length; i++) pos[i] = Math.max(pos[i], pos[i - 1] + seq[i - 1][sz] + gaps[i]);
+      }
+      const last = seq.length - 1;
+      if (pos[last] + seq[last][sz] > maxB) {
+        pos[last] = maxB - seq[last][sz];
+        for (let i = last - 1; i >= 0; i--) pos[i] = Math.min(pos[i], pos[i + 1] - gaps[i + 1] - seq[i][sz]);
+      }
       seq.forEach((it, i) => {
-        it[ax] = Math.round(p0 + off[i]);
+        it[ax] = Math.round(pos[i]);
         c4Assign(it);
       });
     });

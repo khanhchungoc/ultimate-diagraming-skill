@@ -53,10 +53,7 @@
       padding: var(--space-4) var(--space-8) var(--space-8) var(--space-8);
     }
     .note-layer .note.show, .note-layer .note.peek { display: block; }
-    .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
-    @keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
-    @media (prefers-reduced-motion: reduce) { .note-layer .note.peek:not(.show) { animation: none; } }
-    html[data-noanim] .note-layer .note.peek:not(.show) { animation: none; }
+    .note-layer .note.peek:not(.show) { box-shadow: var(--shadow-lg); }
     .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 
     /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
@@ -121,9 +118,9 @@
        The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */
     .note-badge, .note-add {
       position: absolute;
-      top: -8px; right: -8px;
+      top: -9px; right: -9px;
       z-index: 3;   /* above the decision diamond (1) and its label (2) */
-      width: 18px; height: 18px;
+      width: 20px; height: 20px;
       box-sizing: border-box;
       padding: 0;
       display: inline-flex;
@@ -135,10 +132,10 @@
       transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
     }
     .note-badge {
-      border: 1px solid var(--note-border);
+      border: 1.5px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-accent);
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 0 0 var(--space-2) var(--bg-page), var(--shadow-sm);
     }
     .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
     .note-add {

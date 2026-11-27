@@ -1,0 +1,91 @@
+{
+  "diagramType": "flowchart",
+  "title": "Global Trade & Customs Clearance Process",
+  "direction": "TB",
+  "lanes": [
+    { "id": "lane-exporter", "name": "Exporter / Shipper", "icon": "truck" },
+    { "id": "lane-broker", "name": "Customs Broker", "icon": "briefcase" },
+    { "id": "lane-engine", "name": "Automated Risk & Tariff Engine", "icon": "cpu" },
+    { "id": "lane-border", "name": "Border Inspection Authority", "icon": "shield" },
+    { "id": "lane-finance", "name": "Trade Finance & Settlement", "icon": "banknote" }
+  ],
+  "nodes": [
+    { "id": "n_create_shipment", "laneId": "lane-exporter", "type": "start", "label": "Create Export Shipment" },
+    { "id": "n_attach_docs", "laneId": "lane-exporter", "type": "io", "label": "Upload Invoice & Packing List" },
+    { "id": "n_fix_docs", "laneId": "lane-exporter", "type": "io", "label": "Submit Amended Declarations" },
+    { "id": "n_validate_docs", "laneId": "lane-broker", "type": "decision", "label": "Docs Valid & Complete?" },
+    { "id": "n_classify_hs", "laneId": "lane-broker", "type": "task", "label": "Assign HS Tariff Codes" },
+    { "id": "n_file_entry", "laneId": "lane-broker", "type": "document", "label": "File Electronic Customs Entry" },
+    { "id": "n_store_manifest", "laneId": "lane-engine", "type": "database", "label": "Persist Manifest Record" },
+    { "id": "n_screen_sanctions", "laneId": "lane-engine", "type": "subprocess", "label": "Run Sanctions & Tariff Screening" },
+    { "id": "n_risk_tier", "laneId": "lane-engine", "type": "decision", "label": "High Risk Flagged?" },
+    { "id": "n_calc_duties", "laneId": "lane-engine", "type": "task", "label": "Calculate Duties & VAT" },
+    { "id": "n_physical_inspect", "laneId": "lane-border", "type": "task", "label": "Conduct Physical Inspection" },
+    { "id": "n_inspect_pass", "laneId": "lane-border", "type": "decision", "label": "Cargo Compliant?" },
+    { "id": "n_seize_cargo", "laneId": "lane-border", "type": "document", "label": "Issue Hold & Seizure Notice" },
+    { "id": "n_cargo_held", "laneId": "lane-border", "type": "end", "label": "Shipment Detained" },
+    { "id": "n_issue_duty_bill", "laneId": "lane-finance", "type": "document", "label": "Issue Duty Assessment Bill" },
+    { "id": "n_pay_duties", "laneId": "lane-exporter", "type": "task", "label": "Authorize Duty Payment" },
+    { "id": "n_settle_funds", "laneId": "lane-finance", "type": "task", "label": "Verify Settlement & Post Receipt" },
+    { "id": "n_release_wait", "laneId": "lane-border", "type": "delay", "label": "Await Port Gate Release Window" },
+    { "id": "n_issue_release", "laneId": "lane-border", "type": "document", "label": "Issue Customs Release Order" },
+    { "id": "n_dispatch_carrier", "laneId": "lane-exporter", "type": "task", "label": "Dispatch Final-Mile Carrier" },
+    { "id": "n_cleared", "laneId": "lane-exporter", "type": "end", "label": "Cargo Cleared & Delivered" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n_create_shipment", "to": "n_attach_docs", "label": "" },
+    { "id": "e2", "from": "n_attach_docs", "to": "n_validate_docs", "label": "" },
+    { "id": "e3", "from": "n_validate_docs", "to": "n_fix_docs", "label": "No" },
+    { "id": "e4", "from": "n_fix_docs", "to": "n_validate_docs", "label": "Resubmit", "feedback": true },
+    { "id": "e5", "from": "n_validate_docs", "to": "n_classify_hs", "label": "Yes" },
+    { "id": "e6", "from": "n_classify_hs", "to": "n_file_entry", "label": "" },
+    { "id": "e7", "from": "n_file_entry", "to": "n_store_manifest", "label": "" },
+    { "id": "e8", "from": "n_store_manifest", "to": "n_screen_sanctions", "label": "" },
+    { "id": "e9", "from": "n_screen_sanctions", "to": "n_risk_tier", "label": "" },
+    { "id": "e10", "from": "n_risk_tier", "to": "n_physical_inspect", "label": "Yes" },
+    { "id": "e11", "from": "n_risk_tier", "to": "n_calc_duties", "label": "No" },
+    { "id": "e12", "from": "n_physical_inspect", "to": "n_inspect_pass", "label": "" },
+    { "id": "e13", "from": "n_inspect_pass", "to": "n_calc_duties", "label": "Yes" },
+    { "id": "e14", "from": "n_inspect_pass", "to": "n_seize_cargo", "label": "No" },
+    { "id": "e15", "from": "n_seize_cargo", "to": "n_cargo_held", "label": "" },
+    { "id": "e16", "from": "n_calc_duties", "to": "n_issue_duty_bill", "label": "" },
+    { "id": "e17", "from": "n_issue_duty_bill", "to": "n_pay_duties", "label": "" },
+    { "id": "e18", "from": "n_pay_duties", "to": "n_settle_funds", "label": "" },
+    { "id": "e19", "from": "n_settle_funds", "to": "n_release_wait", "label": "" },
+    { "id": "e20", "from": "n_release_wait", "to": "n_issue_release", "label": "" },
+    { "id": "e21", "from": "n_issue_release", "to": "n_dispatch_carrier", "label": "" },
+    { "id": "e22", "from": "n_dispatch_carrier", "to": "n_cleared", "label": "" }
+  ],
+  "notes": [
+    { "id": "note-1", "text": "Commercial invoice, certificate of origin, and bill of lading required.", "nodes": ["n_attach_docs"] },
+    { "id": "note-2", "text": "Checks OFAC, EU, and UN restricted party lists plus dual-use HS codes.", "nodes": ["n_screen_sanctions"] },
+    { "id": "note-3", "text": "X-ray scan or container opening; average hold is 18-36 hours.", "nodes": ["n_physical_inspect"] },
+    { "id": "note-4", "text": "Duty deferment accounts settle automatically within 15 minutes.", "nodes": ["n_settle_funds"] },
+    { "id": "note-5", "text": "Terminal gate slot assigned based on vessel unload schedule.", "nodes": ["n_release_wait"] }
+  ],
+  "children": {
+    "n_screen_sanctions": {
+      "name": "Run Sanctions & Tariff Screening",
+      "laneOrder": ["lane-engine", "lane-border"],
+      "nodes": [
+        { "id": "sub_s_start", "laneId": "lane-engine", "type": "start", "label": "Ingest Manifest Payload" },
+        { "id": "sub_s_party", "laneId": "lane-engine", "type": "io", "label": "Query Global Watchlists" },
+        { "id": "sub_s_dual", "laneId": "lane-engine", "type": "task", "label": "Check Dual-Use Export Controls" },
+        { "id": "sub_s_hit", "laneId": "lane-engine", "type": "decision", "label": "Watchlist Hit?" },
+        { "id": "sub_s_officer", "laneId": "lane-border", "type": "task", "label": "Manual Compliance Escalation" },
+        { "id": "sub_s_score", "laneId": "lane-engine", "type": "task", "label": "Compute Composite Risk Score" },
+        { "id": "sub_s_done", "laneId": "lane-engine", "type": "end", "label": "Return Risk Tier" }
+      ],
+      "edges": [
+        { "id": "sub_e1", "from": "sub_s_start", "to": "sub_s_party", "label": "" },
+        { "id": "sub_e2", "from": "sub_s_party", "to": "sub_s_dual", "label": "" },
+        { "id": "sub_e3", "from": "sub_s_dual", "to": "sub_s_hit", "label": "" },
+        { "id": "sub_e4", "from": "sub_s_hit", "to": "sub_s_officer", "label": "Yes" },
+        { "id": "sub_e5", "from": "sub_s_officer", "to": "sub_s_score", "label": "" },
+        { "id": "sub_e6", "from": "sub_s_hit", "to": "sub_s_score", "label": "No" },
+        { "id": "sub_e7", "from": "sub_s_score", "to": "sub_s_done", "label": "" }
+      ],
+      "notes": []
+    }
+  }
+}

@@ -1519,19 +1519,24 @@
           const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
           if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
           const ghost = freezeClone(toEl);
+          const inStage = stage.contains(toEl);
+          const ow = inStage && toEl.offsetWidth ? toEl.offsetWidth : tr.width;
+          const oh = inStage && toEl.offsetHeight ? toEl.offsetHeight : tr.height;
+          const endSx = ow ? tr.width / ow : 1, endSy = oh ? tr.height / oh : 1;
+          const endTransform = (Math.abs(endSx - 1) > 0.01 || Math.abs(endSy - 1) > 0.01) ? `scale(${endSx}, ${endSy})` : 'none';
           ghost.style.position = 'fixed';
           ghost.style.left = `${tr.left}px`;
           ghost.style.top = `${tr.top}px`;
-          ghost.style.width = `${tr.width}px`;
-          ghost.style.height = `${tr.height}px`;
+          ghost.style.width = `${ow}px`;
+          ghost.style.height = `${oh}px`;
           ghost.style.margin = '0';
           ghost.style.transformOrigin = 'top left';
           ensureGhostLayer().appendChild(ghost);
           toEl.style.opacity = '0';
           hiddenWhile.add(toEl);
           const a = ghost.animate([
-            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
-            { transform: 'none' }
+            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / ow}, ${fromRect.height / oh})` },
+            { transform: endTransform }
           ], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
           const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
           a.addEventListener('finish', done, { once: true });
@@ -1572,6 +1577,7 @@
           trackAnim(ring, anim);
         };
 
+        let flipDockSeq = 0;
         const flipDock = (mutateFn) => {
           const dock = document.querySelector('.toolbar-center');
           if (!dock || !enabled()) { mutateFn(); return; }
@@ -1584,15 +1590,25 @@
           mutateFn();
           const durMs = Math.round(dur('dur-base', 180) * speedScale());
           const eas = curve('curve-spring-settle');
+          const anims = [];
           for (let i = 0; i < kids.length; i++) {
             const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
             if (!newR.width) continue;
             if (oldR) {
               const dx = oldR.left - newR.left;
-              if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
+              if (Math.abs(dx) > 0.5) anims.push(trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas })));
             } else {
-              trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
+              anims.push(trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas })));
             }
+          }
+          if (anims.length) {
+            const seq = ++flipDockSeq;
+            dock.dataset.flipping = '1';
+            Promise.all(anims.map((a) => a.finished.catch(() => {}))).then(() => {
+              if (flipDockSeq !== seq) return;
+              delete dock.dataset.flipping;
+              if (typeof queueDockSync === 'function') queueDockSync();
+            });
           }
         };
 
@@ -2534,6 +2550,7 @@
       const btnSearch = document.getElementById('btn-search');
       const searchBar = document.getElementById('search-bar');
       const searchInput = document.getElementById('search-input');
+      const searchClear = document.getElementById('search-clear');
       const searchCount = document.getElementById('search-count');
       const searchPrev = document.getElementById('search-prev');
       const searchNext = document.getElementById('search-next');
@@ -2565,6 +2582,7 @@
             if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
           }
         } else searchIndex = 0;
+        if (searchClear) searchClear.hidden = !searchInput.value;
         searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
         searchPrev.disabled = searchNext.disabled = !searchMatches.length;
       }
@@ -2626,6 +2644,7 @@
         btnSearch.hidden = !(plugin && plugin.searchItems);
         if (btnSearch.hidden) return;
         btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
+        if (searchClear) searchClear.addEventListener('click', () => { searchInput.value = ''; searchIndex = 0; applySearch(); searchInput.focus(); });
         searchPrev.addEventListener('click', () => stepSearch(-1));
         searchNext.addEventListener('click', () => stepSearch(1));
         searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
@@ -3575,7 +3594,7 @@
         if (!dockMoreWrap.contains(e.target)) setDockMoreOpen(false);
       }
       function syncDockOverflow() {
-        if (!dockCenter || !dockMoreWrap || syncingDock) return;
+        if (!dockCenter || !dockMoreWrap || syncingDock || dockCenter.dataset.flipping === '1') return;
         if (document.body.classList.contains('presentation') || document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return;
         if (getComputedStyle(dockCenter).display === 'none') return;
         syncingDock = true;
@@ -4574,18 +4593,19 @@
       }
 
       async function saveToFile() {
-        if (playground) {
+        const downloadDirect = async () => {
           try {
             await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
             savedJson = JSON.stringify(chartData);
             everSaved = true;
             updateStatus(false);
           } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
-          return;
-        }
+        };
+        if (playground) return downloadDirect();
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+        if ((location.protocol === 'https:' || location.protocol === 'http:') && !isLoopbackPreviewOrigin()) return downloadDirect();
         if (await saveViaLocalHelper()) return;
         const html = document.getElementById('diagram-data')
           ? buildSavedHtml(await loadSourceText())

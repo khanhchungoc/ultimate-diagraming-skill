@@ -588,7 +588,6 @@
           const pill = document.createElement('div');
           pill.className = 'lane-pill swatch-pill';
           pill.draggable = editable;
-          pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
           pill.addEventListener('click', (e) => {
             e.stopPropagation();
             if (editable && !pill.classList.contains('is-editing')) selectLane(lane.id);
@@ -3285,7 +3284,7 @@
       const NOTE_REACH = 168;        // how far (px) from its nodes a note may be fitted
       const NOTE_STEP = 8;           // fitting grid
       const NOTE_PEEK_DELAY = 100;   // ms on a node before its notes peek: feels instant, skips quick fly-overs (the badge peeks at once)
-      const NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
+      const NOTE_ICON = ui.icon('note', { size: 'xs' });
       let noteOffsets = {};          // noteId -> {x, y}: last fitted top-left relative to its anchor (screen px)
       let noteSizes = {};            // noteId -> {w, h}: measured card size
       let peekNodeId = null;         // node whose notes are peeked by hover
@@ -3557,7 +3556,7 @@
               if (note.id === noteCtl.editingId()) {
                 motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 170, easing: motion.curve('curve-spring-tactile') });
               } else if (br) {
-                motion.ghostMorph(br, card, 170, 'curve-spring-tactile');
+                motion.morphRect(br, card, { duration: 170, easing: 'curve-spring-tactile' });
                 if (leaderEl) motion.drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
               } else if (leaderEl) {
                 motion.drawPath(leaderEl, { duration: 150, easing: 'curve-out' });

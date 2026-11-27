@@ -29,7 +29,7 @@
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
       const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
       const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
-      const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
+      const ERD_NOTE_ICON = ui.icon('note', { size: 'xs' });
 
       // --- STATE ---
       let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col } | { kind: 'key', color }: class `selected`

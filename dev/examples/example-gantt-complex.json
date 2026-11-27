@@ -1,0 +1,97 @@
+{
+  "diagramType": "gantt",
+  "schemaVersion": 1,
+  "title": "Global Core Banking Migration Program (2026-2027)",
+  "zoom": "month",
+  "showNotes": false,
+  "showToday": true,
+  "colorKey": {
+    "1": "Core Engineering",
+    "2": "Data & Migration",
+    "3": "Security & Risk",
+    "4": "Operations & Comms",
+    "5": "QA & Readiness"
+  },
+  "holidays": [
+    { "date": "2026-05-25", "end": "2026-05-25", "name": "Memorial Day" },
+    { "date": "2026-07-03", "end": "2026-07-03", "name": "Independence Day" },
+    { "date": "2026-09-07", "end": "2026-09-07", "name": "Labor Day" },
+    { "date": "2026-11-26", "end": "2026-11-27", "name": "Thanksgiving" },
+    { "date": "2026-12-25", "end": "2026-12-25", "name": "Christmas Day" }
+  ],
+  "markers": [
+    { "id": "m_freeze", "label": "Schema Freeze", "date": "2026-05-15", "color": "2" },
+    { "id": "m_parallel", "label": "Parallel Run Start", "date": "2026-08-17", "color": "5" },
+    { "id": "m_cutover", "label": "Primary Cutover", "date": "2026-11-06", "color": "4" }
+  ],
+  "items": [
+    { "id": "p1", "kind": "group", "label": "Phase 1 · Architecture & Governance" },
+    { "id": "p1_charter", "kind": "task", "label": "Program charter & regulator notice", "parent": "p1", "start": "2026-02-02", "end": "2026-02-27", "color": "4" },
+    { "id": "p1_arch", "kind": "task", "label": "Target ledger & event-bus blueprint", "parent": "p1", "start": "2026-02-09", "end": "2026-03-20", "color": "1" },
+    { "id": "p1_sec_model", "kind": "task", "label": "Threat model & PCI-DSS scope", "parent": "p1", "start": "2026-02-23", "end": "2026-03-27", "color": "3" },
+    { "id": "p1_gate", "kind": "milestone", "label": "Architecture sign-off", "parent": "p1", "start": "2026-03-27", "end": "2026-03-27", "color": "1" },
+
+    { "id": "p2", "kind": "group", "label": "Phase 2 · Cloud & Ledger Foundation" },
+    { "id": "p2_landing", "kind": "task", "label": "Active-active multi-region landing zone", "parent": "p2", "start": "2026-03-16", "end": "2026-04-24", "color": "1" },
+    { "id": "p2_ledger", "kind": "task", "label": "Double-entry ledger service build", "parent": "p2", "start": "2026-03-30", "end": "2026-06-12", "color": "1" },
+    { "id": "p2_cards", "kind": "task", "label": "ISO 8583 card rails adapter", "parent": "p2", "start": "2026-04-13", "end": "2026-06-05", "color": "1" },
+    { "id": "p2_wires", "kind": "task", "label": "SWIFT / SEPA ISO 20022 gateway", "parent": "p2", "start": "2026-04-27", "end": "2026-06-19", "color": "1" },
+    { "id": "p2_kms", "kind": "task", "label": "HSM key ceremony & mTLS mesh", "parent": "p2", "start": "2026-04-20", "end": "2026-05-29", "color": "3" },
+    { "id": "p2_ready", "kind": "milestone", "label": "Core services feature-complete", "parent": "p2", "start": "2026-06-19", "end": "2026-06-19", "color": "1" },
+
+    { "id": "p3", "kind": "group", "label": "Phase 3 · Data Extraction & Reconciliation" },
+    { "id": "p3_map", "kind": "task", "label": "Legacy mainframe schema mapping", "parent": "p3", "start": "2026-03-30", "end": "2026-05-15", "color": "2" },
+    { "id": "p3_etl", "kind": "task", "label": "CDC streaming & backfill pipelines", "parent": "p3", "start": "2026-05-18", "end": "2026-07-03", "color": "2" },
+    { "id": "p3_recon", "kind": "task", "label": "Automated penny-exact reconciliation", "parent": "p3", "start": "2026-06-08", "end": "2026-07-24", "color": "2" },
+    { "id": "p3_mock1", "kind": "task", "label": "Mock migration rehearsal #1", "parent": "p3", "start": "2026-07-06", "end": "2026-07-24", "color": "2" },
+    { "id": "p3_mock2", "kind": "task", "label": "Mock migration rehearsal #2 (full volume)", "parent": "p3", "start": "2026-07-27", "end": "2026-08-14", "color": "2" },
+    { "id": "p3_gate", "kind": "milestone", "label": "Zero-variance recon signed off", "parent": "p3", "start": "2026-08-14", "end": "2026-08-14", "color": "2" },
+
+    { "id": "p4", "kind": "group", "label": "Phase 4 · Security, Chaos & Parallel Run" },
+    { "id": "p4_pentest", "kind": "task", "label": "Red-team & external penetration test", "parent": "p4", "start": "2026-06-22", "end": "2026-07-24", "color": "3" },
+    { "id": "p4_chaos", "kind": "task", "label": "Region failover & chaos game days", "parent": "p4", "start": "2026-07-20", "end": "2026-08-14", "color": "5" },
+    { "id": "p4_shadow", "kind": "task", "label": "Live shadow traffic parallel run", "parent": "p4", "start": "2026-08-17", "end": "2026-10-09", "color": "5" },
+    { "id": "p4_load", "kind": "task", "label": "Peak Black-Friday 5x soak testing", "parent": "p4", "start": "2026-09-07", "end": "2026-10-02", "color": "5" },
+    { "id": "p4_audit", "kind": "task", "label": "External PCI-DSS & SOC 2 attestation", "parent": "p4", "start": "2026-09-14", "end": "2026-10-23", "color": "3" },
+    { "id": "p4_go", "kind": "milestone", "label": "Go / No-Go board approval", "parent": "p4", "start": "2026-10-23", "end": "2026-10-23", "color": "3" },
+
+    { "id": "p5", "kind": "group", "label": "Phase 5 · Cutover & Legacy Decommission" },
+    { "id": "p5_runbook", "kind": "task", "label": "Command-center runbooks & staff drills", "parent": "p5", "start": "2026-09-21", "end": "2026-10-23", "color": "4" },
+    { "id": "p5_comms", "kind": "task", "label": "Customer maintenance notices & FAQ", "parent": "p5", "start": "2026-10-05", "end": "2026-11-05", "color": "4" },
+    { "id": "p5_cutover", "kind": "milestone", "label": "Production cutover weekend", "parent": "p5", "start": "2026-11-06", "end": "2026-11-06", "color": "4" },
+    { "id": "p5_hyper", "kind": "task", "label": "24/7 hypercare & statement verification", "parent": "p5", "start": "2026-11-09", "end": "2026-12-11", "color": "4" },
+    { "id": "p5_decom", "kind": "task", "label": "Mainframe read-only archive & sunset", "parent": "p5", "start": "2026-12-14", "end": "2027-01-22", "color": "1" },
+    { "id": "p5_close", "kind": "milestone", "label": "Program closure", "parent": "p5", "start": "2027-01-22", "end": "2027-01-22", "color": "4" }
+  ],
+  "dependencies": [
+    { "from": "p1_arch", "to": "p1_gate", "type": "fs" },
+    { "from": "p1_sec_model", "to": "p1_gate", "type": "fs" },
+    { "from": "p1_gate", "to": "p2_ledger", "type": "fs" },
+    { "from": "p2_landing", "to": "p2_kms", "type": "ss" },
+    { "from": "p2_ledger", "to": "p2_ready", "type": "fs" },
+    { "from": "p2_cards", "to": "p2_ready", "type": "fs" },
+    { "from": "p2_wires", "to": "p2_ready", "type": "fs" },
+    { "from": "p3_map", "to": "p3_etl", "type": "fs" },
+    { "from": "p3_etl", "to": "p3_mock1", "type": "fs" },
+    { "from": "p3_recon", "to": "p3_mock2", "type": "fs" },
+    { "from": "p3_mock1", "to": "p3_mock2", "type": "fs" },
+    { "from": "p3_mock2", "to": "p3_gate", "type": "fs" },
+    { "from": "p2_ready", "to": "p4_pentest", "type": "fs" },
+    { "from": "p2_ready", "to": "p4_chaos", "type": "fs" },
+    { "from": "p3_gate", "to": "p4_shadow", "type": "fs" },
+    { "from": "p4_chaos", "to": "p4_shadow", "type": "fs" },
+    { "from": "p4_shadow", "to": "p4_go", "type": "fs" },
+    { "from": "p4_audit", "to": "p4_go", "type": "fs" },
+    { "from": "p4_go", "to": "p5_cutover", "type": "fs" },
+    { "from": "p5_runbook", "to": "p5_cutover", "type": "fs" },
+    { "from": "p5_cutover", "to": "p5_hyper", "type": "fs" },
+    { "from": "p5_hyper", "to": "p5_decom", "type": "fs" },
+    { "from": "p5_decom", "to": "p5_close", "type": "fs" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Requires 60-day advance notification to banking supervisor.", "target": "p1_charter" },
+    { "id": "n2", "text": "Must reconcile 14M accounts to 0.00 variance across 3 currencies.", "target": "p3_recon" },
+    { "id": "n3", "text": "Shadow run replays 100% of live production transactions.", "target": "p4_shadow" },
+    { "id": "n4", "text": "6-hour Sunday maintenance window with automated rollback trigger.", "target": "p5_cutover" }
+  ]
+}
