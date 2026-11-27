@@ -1162,12 +1162,14 @@ try {
 
   // --- Shared C4-style icon picker & note-next-to-delete order ---
   await t.section('icon-picker-and-note', async () => {
+  await t.mockDevicon('local');
   await t.open(page);
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   const pActs = await t.ev(`[...document.querySelectorAll('.seq-actionbar .seq-ab-btn[data-act]')].map((b) => b.dataset.act)`);
   t.check('participant bar uses the shared Icon button (not inline pkind buttons) and places note right before delete',
     pActs.includes('icon') && !pActs.includes('pkind') && pActs[pActs.length - 2] === 'note' && pActs[pActs.length - 1] === 'delete', JSON.stringify(pActs));
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="icon"]');
+  await t.waitFor(`!!document.querySelector('#seq-icons button[data-icon="logo:devicon/postgresql"]')`, 4000);
   const pickerOpen = await t.ev(`(() => { const p = document.getElementById('seq-icons'); return !!(p && p.querySelector('#seq-icon-search') && p.querySelectorAll('button[data-icon]').length > 20); })()`);
   t.check('clicking Icon opens the shared #seq-icons picker with search and grouped icons', pickerOpen);
   await t.type('postgresql');

@@ -13,7 +13,8 @@ export const BASELINE_ROUTER = at('../tests/fixtures/router/ortho-router.baselin
 // Loads a router file in its own scope and returns its routeEdgesOrthogonal
 export function loadRouter(routerPath = at('../../assets/shell/ortho-router.js')) {
   const tokens = JSON.parse(readFileSync(at('../../assets/tokens/default.json'), 'utf8'));
-  return new Function('TOKENS', `${readFileSync(routerPath, 'utf8')}\nreturn routeEdgesOrthogonal;`)(tokens);
+  const prefix = routerPath === BASELINE_ROUTER ? '' : `${readFileSync(at('../../assets/shell/curve-path.js'), 'utf8')}\n`;
+  return new Function('TOKENS', `${prefix}${readFileSync(routerPath, 'utf8')}\nreturn routeEdgesOrthogonal;`)(tokens);
 }
 
 // The grid the review measured: sqrt(N) columns, 220 x 140 px pitch, 160 x 60 px boxes, LR, no lanes

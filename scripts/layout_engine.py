@@ -41,7 +41,7 @@ from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, ru
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
                          handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
-from strip_bundle import strip_css, strip_js
+from strip_bundle import minify_css, minify_js, strip_css, strip_js
 from version_check import REPO as GITHUB_REPO, start_async_check as start_version_check
 
 
@@ -1579,10 +1579,10 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         return expand_icons(text, tokens, icons)
 
     logos = load_logos(logo_refs(data), ICON_DIRS)[0]
-    if kind in ("c4", "sequence") and BUNDLED_LOGOS_DIR.is_dir():
-        logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
+    embedded_logos = logos if (logos or kind in ("c4", "sequence")) else None
     extra_css = [type_dir / name for name in meta.get("extraCss", ())]
     extra_js = [type_dir / name for name in meta.get("extraJs", ())]
+    shell_helpers = [ASSETS_DIR / "shell" / name for name in meta.get("shellHelpers", ())]
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "REPO_NAME": html.escape(GITHUB_REPO, quote=True),
@@ -1601,16 +1601,16 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "DATA": payload,
         "THEME": theme_script(theme),
         "SHELL_JS": "\n".join(_read_asset(ASSETS_DIR / "shell" / f).rstrip(chr(10)) for f in ("shell.js", "notes.js")),   # notes.js: the shared notes controller, after the shell it builds on
-        "TOKENS_JS": tokens_js(tokens, logos),
-        "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
+        "TOKENS_JS": tokens_js(tokens, embedded_logos),
+        "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (*shell_helpers, type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
         "TYPE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (*extra_js, type_dir / f"{kind}.js")),
     }
     for key in ("TOKENS_CSS", "COMPONENTS_CSS", "SHELL_CSS", "TYPE_CSS"):
-        parts[key] = strip_css(parts[key])
-    for key in ("SHELL_JS", "TOKENS_JS", "ENGINE_JS", "MERMAID_JS", "TYPE_JS"):
-        parts[key] = strip_js(parts[key])
+        parts[key] = minify_css(parts[key])
+    for key in ("SHELL_JS", "ENGINE_JS", "MERMAID_JS", "TYPE_JS"):
+        parts[key] = minify_js(parts[key])
     return parts, tokens, icons
 
 

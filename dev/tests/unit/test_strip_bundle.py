@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import layout_engine  # noqa: E402
-from strip_bundle import strip_css, strip_js  # noqa: E402
+from strip_bundle import minify_css, minify_js, strip_css, strip_js  # noqa: E402
 
 NODE = shutil.which("node")
 
@@ -51,8 +51,8 @@ class JsCases(unittest.TestCase):
     def test_whole_line_comments_and_indent(self):
         self.check("  // c\n  a = 1;\n\n    b = 2;\n", "a = 1;\nb = 2;\n")
 
-    def test_trailing_comment_kept(self):
-        self.check("  a = 1; // keep\n", "a = 1; // keep\n")
+    def test_trailing_comment_stripped_unless_license(self):
+        self.check("  a = 1; // drop\n  b = 2; // MIT License\n", "a = 1;\nb = 2; // MIT License\n")
 
     def test_slashes_in_strings(self):
         self.check("  a = '//x';\n  b = \"// y\";\n", "a = '//x';\nb = \"// y\";\n")
@@ -89,6 +89,10 @@ class JsCases(unittest.TestCase):
         src = "  // c\n  a = `x\n  y`;\n"
         self.assertEqual(strip_js(src), strip_js(src))
 
+    def test_minify_escapes_close_script(self):
+        out = minify_js("const s = '<' + '/script>';\n")
+        self.assertNotIn("</script>", out.lower())
+
 
 class CssCases(unittest.TestCase):
     def test_comments_and_indent(self):
@@ -101,49 +105,60 @@ class CssCases(unittest.TestCase):
     def test_license_kept(self):
         self.assertEqual(strip_css("/*! keep */\n/* license x */\n/* drop */\na{}"), "/*! keep */\n/* license x */\na{}")
 
+    def test_minify_css_wraps_long_blocks(self):
+        big = ":root {\n" + "".join(f"  --var-{i}: #123456;\n" for i in range(150)) + "}\n"
+        out = minify_css(big)
+        self.assertTrue(all(len(line) < 2000 for line in out.splitlines()))
+
 
 @unittest.skipUnless(NODE, "node not installed")
 class RealPages(unittest.TestCase):
-    def build(self, kind: str, strip: bool) -> str:
-        if strip:
+    def build(self, kind: str, mode: str) -> str:
+        if mode == "minify":
             return layout_engine.assemble_page(kind)
-        with mock.patch.object(layout_engine, "strip_js", lambda s: s), mock.patch.object(layout_engine, "strip_css", lambda s: s):
+        if mode == "strip":
+            with mock.patch.object(layout_engine, "minify_js", strip_js), mock.patch.object(layout_engine, "minify_css", strip_css):
+                return layout_engine.assemble_page(kind)
+        with mock.patch.object(layout_engine, "minify_js", lambda s: s), mock.patch.object(layout_engine, "minify_css", lambda s: s):
             return layout_engine.assemble_page(kind)
 
-    def test_pages_parse_and_keep_literals(self):
+    def test_pages_parse_and_keep_literals_in_strip_mode(self):
         kinds = sorted(p.name for p in (REPO_ROOT / "assets" / "types").iterdir() if p.is_dir())
         self.assertTrue(kinds)
         for kind in kinds:
             with self.subTest(kind=kind):
-                before, after = page_scripts(self.build(kind, False)), page_scripts(self.build(kind, True))
-                self.assertLess(len(after), len(before))
+                raw = page_scripts(self.build(kind, "raw"))
+                stripped = page_scripts(self.build(kind, "strip"))
+                minified = page_scripts(self.build(kind, "minify"))
+                self.assertLess(len(stripped), len(raw))
+                self.assertLessEqual(len(minified), len(stripped))
                 with tempfile.TemporaryDirectory() as tmp:
-                    f = Path(tmp) / "page.js"
-                    f.write_text(after, encoding="utf-8")
-                    r = subprocess.run([NODE, "--check", str(f)], capture_output=True, text=True)
-                    self.assertEqual(r.returncode, 0, r.stderr)
-                r = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([before, after]),
+                    for name, code in (("strip.js", stripped), ("min.js", minified)):
+                        f = Path(tmp) / name
+                        f.write_text(code, encoding="utf-8")
+                        r = subprocess.run([NODE, "--check", str(f)], capture_output=True, text=True)
+                        self.assertEqual(r.returncode, 0, f"{kind}/{name}: {r.stderr}")
+                r = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([raw, stripped]),
                                    capture_output=True, text=True)
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_pages_shrink_keep_html_comments(self):
         for kind in ("flowchart", "gantt"):
-            before = self.build(kind, False)
-            after = self.build(kind, True)
+            before = self.build(kind, "raw")
+            after = self.build(kind, "minify")
             self.assertLess(len(after), len(before))
             self.assertIn("<!-- ", after)  # HTML comments (repo link) stay
 
     def test_each_js_asset_parses_alone(self):
         files = sorted((REPO_ROOT / "assets").rglob("*.js"))
-        with tempfile.TemporaryDirectory() as tmp:
-            for f in files:
-                src = f.read_text(encoding="utf-8")
-                out = strip_js(src)
-                r0 = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([src, src]), capture_output=True, text=True)
-                if r0.returncode != 0:
-                    continue  # not parseable as a plain script on its own: covered by the page test
-                r = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([src, out]), capture_output=True, text=True)
-                self.assertEqual(r.returncode, 0, f"{f}: {r.stdout}{r.stderr}")
+        for f in files:
+            src = f.read_text(encoding="utf-8")
+            out = strip_js(src)
+            r0 = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([src, src]), capture_output=True, text=True)
+            if r0.returncode != 0:
+                continue  # not parseable as a plain script on its own: covered by the page test
+            r = subprocess.run([NODE, "--expose-internals", "-e", LITERALS_JS], input=json.dumps([src, out]), capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, f"{f}: {r.stdout}{r.stderr}")
 
 
 if __name__ == "__main__":

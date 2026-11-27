@@ -690,9 +690,11 @@ try {
     const groupedActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
     t.check('grouped element action bar has icon, color, note, delete',
       J(groupedActs) === J(['color', 'delete', 'icon', 'note']), J(groupedActs));
-    // icon picker
+    // icon picker (intercepts remote devicon.json locally for deterministic online testing)
+    await t.mockDevicon('local');
     await clickName('Customer');
     await clickAct('icon');
+    await t.waitFor(`!!document.querySelector('#c4-icons button[data-icon="logo:devicon/postgresql"]')`, 4000);
     t.check('the icon picker #c4-icons opens with a search box and icons', (await present('#c4-icons')) && (await present(A.iconSearch)) && (await count(A.iconBtn)) > 3, `${await count(A.iconBtn)}`);
     const all = await count(A.iconBtn);
     await t.clickOn(A.iconSearch);
