@@ -1081,6 +1081,52 @@ function erSqueeze(c, score) {
   }
 }
 
+// Pull-in: move any table left stranded away from its connected neighbours toward their centroid when that
+// cuts total edge length without adding hits, crossings, or expanding the bounding box.
+function erPullIn(c, score, adj) {
+  const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h })), all = sizes.map((_, i) => i);
+  const bArea = (bx) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    bx.forEach((b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+    return (x1 - x0) * (y1 - y0);
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    let moved = false;
+    const baseArea = bArea(c.boxes);
+    for (let i = 0; i < sizes.length; i++) {
+      const nb = adj[i];
+      if (!nb || !nb.length) continue;
+      const P = { x: Float64Array.from(c.boxes, (b) => b.x + b.w / 2), y: Float64Array.from(c.boxes, (b) => b.y + b.h / 2) };
+      let tx = 0, ty = 0;
+      nb.forEach((j) => { tx += P.x[j]; ty += P.y[j]; });
+      tx /= nb.length; ty /= nb.length;
+      if (Math.hypot(tx - P.x[i], ty - P.y[i]) < 60) continue;
+      let pick = null;
+      const targets = [
+        [tx, ty],
+        [tx, P.y[i]],
+        [P.x[i], ty]
+      ];
+      for (const [gx, gy] of targets) {
+        if (Math.hypot(gx - P.x[i], gy - P.y[i]) < 40) continue;
+        for (const f of [1, 0.75, 0.5, 0.25]) {
+          const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+          Q.x[i] = P.x[i] + (gx - P.x[i]) * f;
+          Q.y[i] = P.y[i] + (gy - P.y[i]) * f;
+          if (!erSeparate(all, Q, sizes, 40, [i])) continue;
+          const bx = sizes.map((z, k) => ({ x: Q.x[k] - z.w / 2, y: Q.y[k] - z.h / 2, w: z.w, h: z.h }));
+          if (bArea(bx) > baseArea * 1.02) continue;
+          const key = score(bx, c.key);
+          if (key[0] > c.key[0] || key[1] > c.key[1]) continue;
+          if (key[2] < c.key[2] - 20 && (!pick || key[2] < pick.key[2])) pick = { key, boxes: bx };
+        }
+      }
+      if (pick) { c.key = pick.key; c.boxes = pick.boxes; moved = true; }
+    }
+    if (!moved) break;
+  }
+}
+
 // Full layout: node-graph placement, then the candidate with the fewest line-over-table hits, then the fewest crossings,
 // then the shortest total length. opts.warm starts from the saved positions instead of the seed.
 function layoutDiagram(data, opts) {
@@ -1166,6 +1212,7 @@ function layoutDiagram(data, opts) {
   };
   best.key = altScore(best.boxes);
   if (best.key[0] && !warm) { erClearHits(best, altScore); erSqueeze(best, altScore); }
+  if (!warm && !best.key[0]) { erPullIn(best, altScore, adj); erSqueeze(best, altScore); }
   // If obstacle routing added crossings above the target (e.g. boxed-in hub/leaf), try moving or swapping a nearby blocked/alt/neighbor table
   if (!warm && !best.key[0] && best.key[1] > Math.max(2, preCross)) {
     const targetX = Math.max(2, preCross), all = best.boxes.map((_, i) => i);

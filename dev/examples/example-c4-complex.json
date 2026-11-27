@@ -1,0 +1,59 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "FinBank Digital Banking Platform",
+  "colorKey": {
+    "1": "People",
+    "2": "Internal Systems",
+    "3": "Core Banking Platform",
+    "5": "Event Streaming",
+    "8": "Data Stores",
+    "9": "External Networks"
+  },
+  "groups": [
+    { "id": "finbank", "name": "FinBank Enterprise", "kind": "boundary" },
+    { "id": "core", "name": "Core Banking Platform", "kind": "system", "parent": "finbank", "collapsed": false, "core": true, "color": "3" },
+    { "id": "external", "name": "External Financial Networks", "kind": "boundary", "side": "E" }
+  ],
+  "elements": [
+    { "id": "retail", "kind": "person", "name": "Retail Customer", "description": "Manages accounts & cards", "color": "1" },
+    { "id": "treasurer", "kind": "person", "name": "Corporate Treasurer", "description": "Approves wire transfers", "color": "1" },
+    { "id": "analyst", "kind": "person", "name": "Fraud Analyst", "description": "Reviews flagged alerts", "color": "1" },
+    { "id": "mobile", "kind": "container", "name": "Mobile & Web Banking", "tech": "React Native, Next.js", "group": "core", "icon": "mobile" },
+    { "id": "edge_gw", "kind": "container", "name": "API Edge Gateway", "tech": "Envoy, OAuth2", "group": "core", "icon": "gateway" },
+    { "id": "ledger_svc", "kind": "container", "name": "Ledger & Payments Service", "tech": "Go, gRPC", "group": "core", "icon": "server" },
+    { "id": "ledger_db", "kind": "database", "name": "Double-Entry Ledger DB", "tech": "PostgreSQL", "group": "core", "icon": "database" },
+    { "id": "kafka", "kind": "queue", "name": "Transaction Event Bus", "tech": "Apache Kafka", "group": "core", "icon": "queue" },
+    { "id": "settlement", "kind": "container", "name": "Clearing & Settlement Worker", "tech": "Java, Spring", "group": "core", "icon": "function" },
+    { "id": "fraud_sys", "kind": "system", "name": "Fraud & AML Engine", "description": "Real-time risk scoring", "color": "2", "group": "finbank", "icon": "shield" },
+    { "id": "crm_sys", "kind": "system", "name": "Customer KYC Vault", "description": "Identity & tier records", "color": "2", "group": "finbank", "icon": "users" },
+    { "id": "card_net", "kind": "external", "name": "Card Networks", "description": "Visa / Mastercard auth", "group": "external", "icon": "credit-card" },
+    { "id": "swift", "kind": "external", "name": "SWIFT / SEPA Rail", "description": "Cross-border wire rails", "group": "external", "icon": "building" },
+    { "id": "kyc_ext", "kind": "external", "name": "KYC / Sanctions API", "description": "Identity & PEP checks", "group": "external", "icon": "scale" },
+    { "id": "notify", "kind": "external", "name": "Notification Hub", "description": "Push, SMS & email alerts", "group": "external", "icon": "bell" },
+    { "id": "regulator", "kind": "external", "name": "Regulatory Reporting", "description": "SAR & tax filings", "group": "external", "icon": "cloud" }
+  ],
+  "relations": [
+    { "from": "retail", "to": "mobile", "label": "Checks balances & pays", "tech": "HTTPS" },
+    { "from": "treasurer", "to": "mobile", "label": "Initiates batch wires", "tech": "HTTPS" },
+    { "from": "analyst", "to": "fraud_sys", "label": "Investigates alerts", "tech": "HTTPS" },
+    { "from": "mobile", "to": "edge_gw", "label": "Sends signed requests", "tech": "JSON/HTTPS" },
+    { "from": "edge_gw", "to": "ledger_svc", "label": "Routes payment calls", "tech": "gRPC" },
+    { "from": "ledger_svc", "to": "ledger_db", "label": "Posts journal entries", "tech": "SQL" },
+    { "from": "ledger_svc", "to": "kafka", "label": "Publishes tx events", "tech": "Avro", "async": true },
+    { "from": "kafka", "to": "settlement", "label": "Streams cleared items", "tech": "Avro", "async": true },
+    { "from": "ledger_svc", "to": "fraud_sys", "label": "Scores transaction risk", "tech": "gRPC" },
+    { "from": "ledger_svc", "to": "crm_sys", "label": "Checks customer limits", "tech": "REST" },
+    { "from": "fraud_sys", "to": "crm_sys", "label": "Reads KYC profile", "tech": "REST" },
+    { "from": "ledger_svc", "to": "card_net", "label": "Authorizes card holds", "tech": "ISO 8583" },
+    { "from": "settlement", "to": "swift", "label": "Submits wire batches", "tech": "ISO 20022" },
+    { "from": "settlement", "to": "notify", "label": "Sends payment receipts", "tech": "REST", "async": true },
+    { "from": "settlement", "to": "regulator", "label": "Files daily SAR reports", "tech": "SFTP", "async": true },
+    { "from": "ledger_svc", "to": "kyc_ext", "label": "Screens new payees", "tech": "REST" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "All balance mutations use serializable double-entry postings.", "elements": ["ledger_svc"] },
+    { "id": "n2", "text": "Collapse Core Banking Platform to view the L1 System Context.", "groups": ["core"] },
+    { "id": "n3", "text": "Sub-50ms p99 ML scoring SLA before card authorization.", "elements": ["fraud_sys"] }
+  ]
+}

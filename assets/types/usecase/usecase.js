@@ -1040,7 +1040,7 @@
         b.type = 'button';
         b.dataset.exportSkip = '';
         b.setAttribute('aria-label', notes.map((n) => `Note: ${noteText(n)}`).join(' · '));
-        b.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
+        b.innerHTML = ui.icon('note', { size: 'xs' });
         return b;   // its pointer, hover and click are handled by the layer listeners (ITEM EVENTS)
 
       }

@@ -676,8 +676,8 @@ try {
     await clickName('Customer');
     const topOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const topActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level element action bar has icon, core, color, note, delete (note before delete)',
-      (await present(A.bar)) && J(topActs) === J(['color', 'core', 'delete', 'icon', 'note']) && /,"note","delete"\]$/.test(topOrder), `${topActs} ${topOrder}`);
+    t.check('top-level element action bar has icon, color, note, delete (note before delete, no core ring button)',
+      (await present(A.bar)) && J(topActs) === J(['color', 'delete', 'icon', 'note']) && /,"note","delete"\]$/.test(topOrder), `${topActs} ${topOrder}`);
     await clickAct('note');
     await sleep(200);
     await t.type('Component note');
@@ -688,7 +688,7 @@ try {
     await blank();
     await clickName('Web API');
     const groupedActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('grouped element action bar omits core (icon, color, note, delete)',
+    t.check('grouped element action bar has icon, color, note, delete',
       J(groupedActs) === J(['color', 'delete', 'icon', 'note']), J(groupedActs));
     // icon picker
     await clickName('Customer');
@@ -740,16 +740,6 @@ try {
       t.check('choosing a swatch colours the element', !!byName((await saved()).elements, 'Customer')?.color, J(byName((await saved()).elements, 'Customer')));
     } else t.check('the colour action shows a swatch row', false, `swatches: ${sw}`);
     await blank();
-    // core
-    await clickName('Customer');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core toggle sets core on the element', byName((await saved()).elements, 'Customer')?.core === true);
-    await tidy('making it the centre');
-    await clickName('Customer');
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core toggled again removes it', !byName((await saved()).elements, 'Customer')?.core);
     // delete
     await clickName('Customer');
     await clickAct('delete');
@@ -766,16 +756,16 @@ try {
     await sleep(150);
     const gOrder = await t.ev(`JSON.stringify([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))`);
     const gActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('top-level group action bar has core, ungroup, color, note, delete (no connect button; note before delete)',
-      (await present(A.bar)) && J(gActs) === J(['color', 'core', 'delete', 'note', 'ungroup']) && /,"note","delete"\]$/.test(gOrder), `${gActs} ${gOrder}`);
-    // nested group omits core
+    t.check('top-level group action bar has ungroup, color, note, delete (no connect or core button; note before delete)',
+      (await present(A.bar)) && J(gActs) === J(['color', 'delete', 'note', 'ungroup']) && /,"note","delete"\]$/.test(gOrder), `${gActs} ${gOrder}`);
+    // nested group
     await tile('group');
     await t.press('a', { modifiers: 2 });
     await t.type('Inner');
     await t.press('Enter');
     await sleep(250); await t.settle(1500);
     const nActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
-    t.check('nested group action bar omits core (ungroup, color, note, delete)', J(nActs) === J(['color', 'delete', 'note', 'ungroup']), J(nActs));
+    t.check('nested group action bar has ungroup, color, note, delete', J(nActs) === J(['color', 'delete', 'note', 'ungroup']), J(nActs));
     await undo();
     await blank();
     await t.clickOn(A.tag);
@@ -785,11 +775,6 @@ try {
     await t.press('Escape');
     await sleep(250); await t.settle(1500);
     t.check('group action bar note button adds a note on the group', (await saved()).notes?.some((n) => n.text === 'Platform rule' && (n.groups || []).length === 1), J((await saved()).notes));
-    await undo();
-    await t.clickOn(A.tag);
-    await clickAct('core');
-    await sleep(300); await t.settle(1500);
-    t.check('core on the group toggles it off', !(await saved()).groups[0].core);
     await undo();
     await t.clickOn(A.tag);
     await t.clickOn('.c4-actionbar .swatch-trigger');

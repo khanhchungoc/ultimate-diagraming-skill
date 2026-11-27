@@ -1008,7 +1008,7 @@
     const badge = htmlEl('button', 'note-badge');
     badge.type = 'button';
     badge.setAttribute('data-export-skip', '');
-    badge.innerHTML = ui.icon('note-lines', { size: 'xs', bold: true });
+    badge.innerHTML = ui.icon('note', { size: 'xs' });
     return badge;
   }
 

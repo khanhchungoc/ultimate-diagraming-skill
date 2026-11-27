@@ -88,8 +88,8 @@
   <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
   <div id="search-dock">
     <div id="search-bar" role="search" hidden>
-      <span class="search-glyph" aria-hidden="true">{{icon:search}}</span>
       <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <button id="search-clear" class="btn btn-icon" type="button" title="Clear search" aria-label="Clear search" hidden>{{icon:close}}</button>
       <span id="search-count" role="status" aria-live="polite"></span>
       <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled>{{icon:chevron-up}}</button>
       <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled>{{icon:chevron-down}}</button>

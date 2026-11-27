@@ -1,0 +1,60 @@
+{
+  "diagramType": "usecase",
+  "title": "Telehealth & Clinical Care Platform",
+  "colorKey": {
+    "1": "Appointments & Care",
+    "2": "Prescriptions & Labs",
+    "3": "Billing & Compliance"
+  },
+  "subjects": [
+    { "id": "portal", "name": "Patient Portal" },
+    { "id": "clinical", "name": "Clinical Operations" }
+  ],
+  "actors": [
+    { "id": "patient", "name": "Patient" },
+    { "id": "doctor", "name": "Primary Physician" },
+    { "id": "specialist", "name": "Specialist" },
+    { "id": "pharmacist", "name": "Pharmacist" },
+    { "id": "ehr", "name": "EHR & Lab Gateway", "kind": "system" },
+    { "id": "payer", "name": "Insurance Payer API", "kind": "system" }
+  ],
+  "useCases": [
+    { "id": "book_visit", "name": "Book video visit", "subject": "portal", "color": "1", "refs": ["FR-1"], "extensionPoints": ["Triage"] },
+    { "id": "join_call", "name": "Join video consultation", "subject": "portal", "color": "1", "refs": ["FR-2"] },
+    { "id": "triage", "name": "Run symptom triage", "subject": "portal", "color": "1", "refs": ["FR-3"] },
+    { "id": "view_records", "name": "View lab results", "subject": "portal", "color": "2", "refs": ["FR-4"] },
+    { "id": "verify_id", "name": "Verify identity (MFA)", "subject": "portal", "color": "3", "level": "subfunction", "refs": ["FR-10"] },
+    { "id": "chart_notes", "name": "Record clinical notes", "subject": "clinical", "color": "1", "refs": ["FR-5"], "extensionPoints": ["Referral"] },
+    { "id": "refer_spec", "name": "Escalate to specialist", "subject": "clinical", "color": "1", "refs": ["FR-6"] },
+    { "id": "order_lab", "name": "Order diagnostic lab", "subject": "clinical", "color": "2", "refs": ["FR-7"] },
+    { "id": "e_prescribe", "name": "Issue e-prescription", "subject": "clinical", "color": "2", "refs": ["FR-8"] },
+    { "id": "dispense", "name": "Verify & dispense Rx", "subject": "clinical", "color": "2", "refs": ["FR-9"] },
+    { "id": "submit_claim", "name": "Submit insurance claim", "subject": "clinical", "color": "3", "refs": ["FR-11"] },
+    { "id": "audit_log", "name": "Write HIPAA audit trail", "subject": "clinical", "color": "3", "level": "subfunction", "refs": ["FR-12"] }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "patient", "to": "book_visit" },
+    { "id": "l2", "type": "association", "from": "patient", "to": "join_call" },
+    { "id": "l3", "type": "association", "from": "patient", "to": "view_records" },
+    { "id": "l4", "type": "association", "from": "doctor", "to": "join_call" },
+    { "id": "l5", "type": "association", "from": "doctor", "to": "chart_notes" },
+    { "id": "l6", "type": "association", "from": "doctor", "to": "order_lab" },
+    { "id": "l7", "type": "association", "from": "doctor", "to": "e_prescribe" },
+    { "id": "l8", "type": "generalization", "from": "specialist", "to": "doctor" },
+    { "id": "l9", "type": "association", "from": "pharmacist", "to": "dispense" },
+    { "id": "l10", "type": "association", "from": "order_lab", "to": "ehr" },
+    { "id": "l11", "type": "association", "from": "view_records", "to": "ehr" },
+    { "id": "l12", "type": "association", "from": "submit_claim", "to": "payer" },
+    { "id": "l13", "type": "include", "from": "book_visit", "to": "verify_id" },
+    { "id": "l14", "type": "include", "from": "view_records", "to": "verify_id" },
+    { "id": "l15", "type": "extend", "from": "triage", "to": "book_visit", "condition": "urgent symptoms reported", "extensionPoint": "Triage" },
+    { "id": "l16", "type": "extend", "from": "refer_spec", "to": "chart_notes", "condition": "specialist consult needed", "extensionPoint": "Referral" },
+    { "id": "l17", "type": "include", "from": "chart_notes", "to": "audit_log" },
+    { "id": "l18", "type": "include", "from": "e_prescribe", "to": "audit_log" },
+    { "id": "l19", "type": "include", "from": "chart_notes", "to": "submit_claim" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Controlled substances require EPCS hardware token signing.", "useCases": ["e_prescribe"] },
+    { "id": "n2", "text": "All PHI reads and writes are logged for 7 years under HIPAA.", "useCases": ["audit_log"] }
+  ]
+}

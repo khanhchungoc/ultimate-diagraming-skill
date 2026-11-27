@@ -218,23 +218,11 @@
     body.presentation:not(.capture) .dock-area .toolbar-center { display: flex !important; }
     body.presentation:not(.capture) .dock-area .toolbar-center > :not([data-level]):not([data-steps]) { display: none !important; }
 
-    /* Notes: the shared card (components/note.css) in a layer of its own; c4 cards are placed by c4.js and do not drag */
+    /* Notes: the shared card, leader and badge live in components/note.css; here only C4-specific tag positioning */
     #c4-notes .note { cursor: default; }
     #c4-notes .note:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     .c4-node.note-linked, .c4-group.note-linked { outline-offset: 5px; }
-    .c4-note-pin {
-      display: inline-flex; align-items: center; justify-content: center;
-      padding: var(--space-2) var(--space-4); border: 1px solid var(--note-border); border-radius: var(--radius-pill);
-      background: var(--note-bg); color: var(--note-ink); cursor: pointer; line-height: var(--leading-none);
-    }
-    .c4-node > .c4-note-pin, .c4-group.is-tile > .c4-note-pin { position: absolute; top: 6px; right: 6px; }
-    .c4-tag .c4-note-pin { position: relative; margin-left: var(--space-4); padding: var(--space-2) var(--space-4); }
-    /* Invisible hit area of at least 24x24 (WCAG 2.5.8) */
-    .c4-note-pin::before {
-      content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
-      width: var(--hit-min); height: var(--hit-min);
-    }
-    .c4-note-pin:hover { border-color: var(--primary); color: var(--primary); }
+    .c4-tag .c4-note-pin { position: relative; top: auto; right: auto; margin-left: var(--space-4); }
     .c4-note-pin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     body.capture .c4-note-pin, body.exporting .c4-note-pin { display: none !important; }
 
