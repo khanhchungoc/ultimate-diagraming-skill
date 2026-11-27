@@ -2,8 +2,9 @@
 """Runtime-agnostic async version check for ultimate-diagram.
 
 Checks the installed version (SKILL.md / package.json) against the latest
-GitHub Release using a 24-hour local cache and a detached background refresh
-worker so neither session startup nor layout_engine.py ever blocks on network.
+GitHub Release using a 1-hour local cache with conditional ETag requests
+(HTTP 304 does not consume GitHub API rate-limit quota) and non-blocking
+background refreshes so neither session startup nor layout_engine.py hangs.
 
 Zero external dependencies (Python 3.9+ stdlib only).
 
@@ -23,6 +24,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -31,7 +33,7 @@ from typing import Any, Optional, Tuple
 
 REPO = "khanhchungoc/ultimate-diagraming-skill"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
-CACHE_TTL = 24 * 60 * 60      # 24 hours for a successful check
+CACHE_TTL = 1 * 60 * 60       # 1 hour for a successful check (ETag 304 uses 0 API quota)
 ERROR_BACKOFF = 4 * 60 * 60   # 4 hours backoff after a network/API error
 FETCH_TIMEOUT = 3.0           # seconds
 OPT_OUT_ENV = "ULTIMATE_DIAGRAM_NO_UPDATE_CHECK"
@@ -167,18 +169,20 @@ def fetch_latest_release(
     timeout: float = FETCH_TIMEOUT,
     prev_cache: Optional[dict] = None,
 ) -> dict:
-    """Fetch the latest GitHub release metadata and return a cache record."""
+    """Fetch the latest GitHub release metadata (with ETag conditional request) and return a cache record."""
     now = int(time.time())
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "ultimate-diagram-version-check",
-        },
-    )
+    prev_etag = prev_cache.get("etag") if isinstance(prev_cache, dict) and isinstance(prev_cache.get("etag"), str) else None
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "ultimate-diagram-version-check",
+    }
+    if prev_etag:
+        headers["If-None-Match"] = prev_etag
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
+            etag = resp.headers.get("ETag") or prev_etag
         tag = payload.get("tag_name") if isinstance(payload, dict) else None
         parsed = parse_version(tag)
         if not parsed:
@@ -189,13 +193,31 @@ def fetch_latest_release(
             "checked_at": now,
             "latest": latest,
             "release_url": release_url,
+            "etag": etag,
             "error": None,
+        }
+    except urllib.error.HTTPError as exc:
+        if exc.code == 304 and isinstance(prev_cache, dict):
+            return {
+                "checked_at": now,
+                "latest": prev_cache.get("latest"),
+                "release_url": prev_cache.get("release_url"),
+                "etag": exc.headers.get("ETag") if exc.headers else prev_etag,
+                "error": None,
+            }
+        return {
+            "checked_at": now,
+            "latest": prev_cache.get("latest") if isinstance(prev_cache, dict) else None,
+            "release_url": prev_cache.get("release_url") if isinstance(prev_cache, dict) else None,
+            "etag": prev_etag,
+            "error": str(exc)[:200],
         }
     except (OSError, ValueError, urllib.error.URLError) as exc:
         return {
             "checked_at": now,
             "latest": prev_cache.get("latest") if isinstance(prev_cache, dict) else None,
             "release_url": prev_cache.get("release_url") if isinstance(prev_cache, dict) else None,
+            "etag": prev_etag,
             "error": str(exc)[:200],
         }
 
@@ -261,6 +283,65 @@ def check_nonblocking(
         cmd = detect_update_command(skill_dir)
         return f"[INFO] {format_update_notice(current, cache['latest'], cmd)}"
     return None
+
+
+class BackgroundVersionCheck:
+    """Overlaps a stale-cache refresh with caller work and caps wait time at the end."""
+
+    def __init__(
+        self,
+        current: Optional[str],
+        skill_dir: Optional[Path],
+        cache: Optional[dict],
+        thread: Optional[threading.Thread],
+        result_box: list[dict],
+    ) -> None:
+        self._current = current
+        self._skill_dir = skill_dir
+        self._cache = cache
+        self._thread = thread
+        self._result_box = result_box
+
+    def result(self, wait: float = 0.5) -> Optional[str]:
+        """Return an [INFO] update notice if outdated, waiting at most `wait` seconds for an in-flight refresh."""
+        if not self._current:
+            return None
+        if self._thread is not None and self._thread.is_alive() and wait > 0:
+            self._thread.join(timeout=wait)
+        cache = self._result_box[0] if self._result_box else self._cache
+        if cache and is_newer(cache.get("latest"), self._current):
+            cmd = detect_update_command(self._skill_dir)
+            return f"[INFO] {format_update_notice(self._current, cache['latest'], cmd)}"
+        return None
+
+
+def start_async_check(
+    skill_dir: Optional[Path] = None,
+    cache_file: Optional[Path] = None,
+    url: str = API_URL,
+    timeout: float = FETCH_TIMEOUT,
+    now: Optional[float] = None,
+) -> BackgroundVersionCheck:
+    """Start a daemon refresh thread if the cache is stale; call .result() once main work finishes."""
+    if is_disabled():
+        return BackgroundVersionCheck(None, skill_dir, None, None, [])
+    current = read_installed_version(skill_dir)
+    if not current:
+        return BackgroundVersionCheck(None, skill_dir, None, None, [])
+    p = cache_file if cache_file is not None else cache_path()
+    cache = read_cache(p)
+    result_box: list[dict] = []
+    thread: Optional[threading.Thread] = None
+    if not cache_is_fresh(cache, now=now):
+        def _worker() -> None:
+            try:
+                result_box.append(refresh_cache(path=p, url=url, timeout=timeout))
+            except Exception:
+                pass
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+    return BackgroundVersionCheck(current, skill_dir, cache, thread, result_box)
 
 
 def run_hook(
