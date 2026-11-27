@@ -794,6 +794,7 @@ sys.stdout.write(f.format_json(out))`;
   t.check('Tidy leaves a free note in place', J(freeOf(await saved(), 'Dropped free').pos) === J(posBefore) && Math.abs(at0.left - at1.left) <= 2 && Math.abs(at0.top - at1.top) <= 2, `${J(posBefore)} ${J(at0)} ${J(at1)}`);
   // the link handle: a free note dragged onto an actor links it, staying put (the relative offset is not saved); the last link stays
   await t.click(at1.x, at1.y);
+  await t.waitFor(`(() => { const h = ${noteCard('Dropped free')}?.querySelector('.note-link')?.getBoundingClientRect(); if (!h || h.width <= 0 || h.height <= 0) return false; return !!document.elementFromPoint(h.left + h.width / 2, h.top + h.height / 2)?.closest('.note-link'); })()`);
   const handle = await t.ev(`(() => { const h = ${noteCard('Dropped free')}.querySelector('.note-link').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; })()`);
   const cu = await t.at(item('customer'));
   await t.dragTo(handle.x, handle.y, cu.x, cu.y, { steps: 8 });

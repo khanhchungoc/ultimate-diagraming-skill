@@ -929,10 +929,10 @@
         if (!dx && !dy) return;
         erdEntities().forEach((e) => { e.x += dx; e.y += dy; });
       }
-      // Put a table's top-left at a screen point (exact: whole pixels, a snapped drop keeps its alignment; else the 4px grid)
-      function erdPlaceAt(e, x, y, exact) {
-        e.x = exact ? Math.round(x) : erdRound4(x);
-        e.y = exact ? Math.round(y) : erdRound4(y);
+      // Put a table's top-left at a screen point (exact: whole pixels on a snapped axis keeps its alignment; else the 4px grid)
+      function erdPlaceAt(e, x, y, exactX, exactY = exactX) {
+        e.x = exactX ? Math.round(x) : erdRound4(x);
+        e.y = exactY ? Math.round(y) : erdRound4(y);
       }
       // Re-route from the saved positions (after a hand move; no relayout)
       function erdRoute() {
@@ -1870,7 +1870,7 @@
               });
               if (sx !== null) { dx += sx - cx; erdGuideV.style.left = erdPx(sx); erdGuideV.style.display = 'block'; } else erdGuideV.style.display = 'none';
               if (sy !== null) { dy += sy - cy; erdGuideH.style.top = erdPx(sy); erdGuideH.style.display = 'block'; } else erdGuideH.style.display = 'none';
-              d.sdx = dx; d.sdy = dy; d.snapped = sx !== null || sy !== null;
+              d.sdx = dx; d.sdy = dy; d.snappedX = sx !== null; d.snappedY = sy !== null;
             }
             els.forEach((x) => { x.style.translate = `${dx}px ${dy}px`; });
           },
@@ -1881,7 +1881,7 @@
             const ents = ids.map(erdEntity).filter((x) => x && x.box);
             if (!ents.length) { render(); return; }
             const snap = erdCapture();
-            ents.forEach((t) => erdPlaceAt(t, t.box.x + dx, t.box.y + dy, !!d.snapped));   // a snapped drop keeps its exact alignment
+            ents.forEach((t) => erdPlaceAt(t, t.box.x + dx, t.box.y + dy, !!d.snappedX, !!d.snappedY));   // a snapped axis keeps its exact alignment
             const beforeSettle = new Map(ents.map((t) => [t.id, { x: t.x, y: t.y }]));
             erdSettled({ tables: new Set(ids) });
             const skipKeys = new Set();
