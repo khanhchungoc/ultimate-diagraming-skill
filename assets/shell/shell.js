@@ -4284,7 +4284,7 @@
         modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
       })();
 
-      async function openSaveModal(loc, onContinue, preCopy) {
+      async function openSaveModal(loc, onContinue, preCopy, usePicker) {
         const modal = document.getElementById('save-modal');
         const { text, mac } = savePathText(loc);
         const copied = text ? await (preCopy || copyText(text)) : false;
@@ -4293,26 +4293,51 @@
           return;
         }
         const titleEl = document.getElementById('save-modal-title');
+        const subEl = document.getElementById('save-modal-sub');
         const msgEl = document.getElementById('save-modal-msg');
+        const pathWrap = document.getElementById('save-modal-path-wrap');
+        const copiedEl = document.getElementById('save-modal-copied');
         const pathEl = document.getElementById('save-modal-path');
+        const checkWrap = document.getElementById('save-modal-check-wrap');
         const skipEl = document.getElementById('save-modal-skip');
-        const pasteHint = mac
-          ? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
-          : (loc && !loc.win
-            ? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
-            : 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
-        if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+        if (titleEl) titleEl.textContent = 'Save over this file';
+        if (subEl) {
+          subEl.textContent = usePicker
+            ? 'Only needed once. Future saves overwrite automatically.'
+            : 'This browser cannot remember the file path, so you will paste and overwrite on each save.';
+        }
         if (msgEl) {
-          msgEl.textContent = text
-            ? (copied
-              ? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
-              : `Copy the path below, then in the next window ${pasteHint}`)
-            : 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+          msgEl.textContent = '';
+          const addStep = (parts) => {
+            const li = document.createElement('li');
+            const span = document.createElement('span');
+            parts.forEach((p) => {
+              if (typeof p === 'string') span.appendChild(document.createTextNode(p));
+              else {
+                const el = document.createElement(p[0]);
+                el.textContent = p[1];
+                span.appendChild(el);
+              }
+            });
+            li.appendChild(span);
+            msgEl.appendChild(li);
+          };
+          if (text) {
+            if (copied) addStep(['Click ', ['strong', 'Continue'], ' to open the file picker.']);
+            else addStep(['Copy the path below, then click ', ['strong', 'Continue'], '.']);
+            if (mac) addStep(['Press ', ['kbd', '\u2318\u21e7G'], ', paste with ', ['kbd', '\u2318V'], ', and press ', ['kbd', 'Return'], '.']);
+            else if (loc && !loc.win) addStep(['Press ', ['kbd', 'Ctrl+L'], ', then paste with ', ['kbd', 'Ctrl+V'], '.']);
+            else addStep(['Press ', ['kbd', 'Ctrl+V'], ' in the file picker to paste the path.']);
+            addStep(['Click ', ['strong', 'Save'], ' and confirm ', ['strong', 'overwrite'], '.']);
+          } else {
+            addStep(['Click ', ['strong', 'Continue'], ' to open the file picker.']);
+            addStep(['Choose your existing file and ', ['strong', 'overwrite'], ' it to save.']);
+          }
         }
-        if (pathEl) {
-          pathEl.textContent = text;
-          pathEl.hidden = !text;
-        }
+        if (pathEl) pathEl.textContent = text;
+        if (pathWrap) pathWrap.hidden = !text;
+        if (copiedEl) copiedEl.hidden = !copied;
+        if (checkWrap) checkWrap.hidden = !!usePicker;
         if (skipEl) skipEl.checked = false;
         modal.returnValue = '';
         const onClose = () => {
@@ -4320,7 +4345,7 @@
           modal.returnValue = '';
           if (rv !== 'continue') return;
           if (!copied && text) copyText(text);
-          if (skipEl && skipEl.checked) markSkipSaveModal();
+          if (!usePicker && skipEl && skipEl.checked) markSkipSaveModal();
           onContinue();
         };
         modal.addEventListener('close', onClose, { once: true });
@@ -4340,13 +4365,13 @@
         }
 
         if (!fileHandle && !picked) {
-          if (!shouldSkipSaveModal()) {
+          if (usePicker || !shouldSkipSaveModal()) {
             await openSaveModal(loc, async () => {
               const html = skipSaveModalFlag && document.getElementById('diagram-data')
                 ? buildSavedHtml(await loadSourceText())
                 : replacedHtml;
               await writeFile(html, true);
-            }, preCopy);
+            }, preCopy, usePicker);
             return;
           }
           const { text } = savePathText(loc);
