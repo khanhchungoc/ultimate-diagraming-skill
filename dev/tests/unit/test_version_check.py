@@ -177,6 +177,76 @@ def test_extract_stdout_stays_clean() -> None:
         assert "[INFO] Update available" in res.stderr
 
 
+def test_etag_304_and_async_check() -> None:
+    payload = {"tag_name": "v2.5.0", "html_url": "https://example.invalid/releases/v2.5.0"}
+    etag_val = 'W/"v2.5.0-etag"'
+    seen_if_none_match: list[str | None] = []
+    delay = [0.0]
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            if delay[0] > 0:
+                time.sleep(delay[0])
+            inm = self.headers.get("If-None-Match")
+            seen_if_none_match.append(inm)
+            if inm == etag_val:
+                self.send_response(304)
+                self.send_header("ETag", etag_val)
+                self.end_headers()
+                return
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("ETag", etag_val)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            pass
+
+    with socketserver.TCPServer(("127.0.0.1", 0), Handler) as srv:
+        port = srv.server_address[1]
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{port}/latest"
+            with tempfile.TemporaryDirectory() as d:
+                root = Path(d) / "skill"
+                root.mkdir()
+                (root / "SKILL.md").write_text("---\nversion: 1.2.2\n---\n", encoding="utf-8")
+                cache_file = Path(d) / "version.json"
+
+                # 1. Stale/missing cache: start_async_check notifies on the SAME run and stores ETag
+                with mock.patch.object(vc, "is_disabled", return_value=False):
+                    chk = vc.start_async_check(skill_dir=root, cache_file=cache_file, url=url)
+                    line = chk.result(wait=2.0)
+                assert line is not None and "v1.2.2 -> v2.5.0" in line, line
+                cached = vc.read_cache(cache_file)
+                assert cached is not None and cached.get("etag") == etag_val, cached
+                assert seen_if_none_match == [None]
+
+                # 2. Expired cache with ETag: sends If-None-Match, gets 304, preserves latest and error=None
+                stale_ts = int(time.time()) - vc.CACHE_TTL - 10
+                vc.write_cache({**cached, "checked_at": stale_ts}, cache_file)
+                rec = vc.refresh_cache(path=cache_file, url=url)
+                assert seen_if_none_match[-1] == etag_val
+                assert rec["latest"] == "2.5.0" and rec["etag"] == etag_val and rec["error"] is None
+                assert rec["checked_at"] > stale_ts
+
+                # 3. Slow server: result(wait=0.05) does not block and falls back cleanly
+                delay[0] = 0.4
+                cache_file.unlink()
+                t0 = time.monotonic()
+                with mock.patch.object(vc, "is_disabled", return_value=False):
+                    chk2 = vc.start_async_check(skill_dir=root, cache_file=cache_file, url=url, timeout=1.0)
+                    line2 = chk2.result(wait=0.05)
+                elapsed = time.monotonic() - t0
+                assert line2 is None and elapsed < 0.35, f"line2={line2!r} elapsed={elapsed:.3f}s"
+        finally:
+            srv.shutdown()
+
+
 def main() -> None:
     test_semver_comparison()
     test_read_installed_version_and_update_command()
@@ -184,6 +254,7 @@ def main() -> None:
     test_nonblocking_check_and_opt_out()
     test_refresh_and_hooks_with_mock_http()
     test_extract_stdout_stays_clean()
+    test_etag_304_and_async_check()
     print("[PASS] version_check.py")
 
 
