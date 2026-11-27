@@ -176,16 +176,25 @@
 
   <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
   <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
-    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
-    <p id="save-modal-msg" class="save-modal-msg"></p>
-    <code id="save-modal-path" class="save-where" hidden></code>
-    <label class="save-modal-check">
-      <input id="save-modal-skip" type="checkbox">
-      <span>Don’t show this again</span>
-    </label>
-    <form method="dialog" class="confirm-actions">
-      <button type="submit" value="cancel" class="btn">Cancel</button>
-      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    <div class="save-modal-head">
+      <span class="save-modal-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg></span>
+      <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    </div>
+    <p id="save-modal-sub" class="save-modal-sub"></p>
+    <ol id="save-modal-msg" class="save-modal-steps"></ol>
+    <div id="save-modal-path-wrap" class="save-where-wrap" hidden>
+      <code id="save-modal-path" class="save-where"></code>
+      <span id="save-modal-copied" class="save-where-badge" hidden><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/></svg> Copied</span>
+    </div>
+    <form method="dialog" class="save-modal-foot">
+      <label id="save-modal-check-wrap" class="save-modal-check">
+        <input id="save-modal-skip" type="checkbox">
+        <span>Don’t show this again</span>
+      </label>
+      <div class="confirm-actions">
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+      </div>
     </form>
   </dialog>
 
