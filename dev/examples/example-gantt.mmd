@@ -3,136 +3,136 @@ gantt
     dateFormat YYYY-MM-DD
     %% @zoom month
     %% @holidays none
-    %% @holiday 2026-05-25 Memorial Day
-    %% @holiday 2026-07-03 Independence Day (Observed)
-    %% @holiday 2026-09-07 Labor Day
+    %% @holiday 2026-11-26 Thanksgiving Day
+    %% @holiday 2027-01-01 New Year's Day
+    %% @holiday 2027-01-18 Martin Luther King Jr. Day
     %% @colorKey 1: Engineering, 2: Design, 3: Security, 4: Go-to-Market, 5: Data & AI
-    %% @marker Beta Freeze : 2026-06-22 1
-    %% @marker Launch Day : 2026-08-20 4
+    %% @marker Beta Freeze : 2026-12-21 1
+    %% @marker Launch Day : 2027-02-18 4
 
     section Phase 1 · Discovery & Strategy
-    User research & interviews       :res, 2026-02-02, 2026-02-20
+    User research & interviews       :res, 2026-08-03, 2026-08-21
     %% @color res 2
     %% @note res Interview 18 enterprise buyers across US, EU, and APAC.
-    Competitive & pricing teardown   :market, 2026-02-09, 2026-02-27
+    Competitive & pricing teardown   :market, 2026-08-10, 2026-08-28
     %% @color market 4
-    Wireframes & interactive prototypes :ux, 2026-02-21, 2026-03-18
+    Wireframes & interactive prototypes :ux, 2026-08-22, 2026-09-16
     %% @color ux 2
     %% @dep ux fs res
-    Technical architecture RFC       :spec, 2026-02-23, 2026-03-20
+    Technical architecture RFC       :spec, 2026-08-24, 2026-09-18
     %% @color spec 1
     %% @dep spec ss res
-    Scope sign-off                   :milestone, signoff, 2026-03-20, 0d
+    Scope sign-off                   :milestone, signoff, 2026-09-18, 0d
     %% @color signoff 2
     %% @dep signoff fs ux
-    Customer advisory board sync     :cab, 2026-05-04, 2026-06-12
+    Customer advisory board sync     :cab, 2026-11-02, 2026-12-11
     %% @color cab 4
     %% @note cab Monthly executive check-in carried over from Discovery.
 
     section Phase 2 · Cloud Foundations
-    Multi-region Kubernetes clusters :infra, 2026-03-02, 2026-03-27
+    Multi-region Kubernetes clusters :infra, 2026-08-31, 2026-09-25
     %% @color infra 1
     %% @dep infra ss spec
-    CI/CD & canary rollout pipeline  :ci, 2026-03-16, 2026-04-10
+    CI/CD & canary rollout pipeline  :ci, 2026-09-14, 2026-10-09
     %% @color ci 1
     %% @dep ci ss infra
-    OpenTelemetry & SLO dashboards   :obs, 2026-03-28, 2026-04-24
+    OpenTelemetry & SLO dashboards   :obs, 2026-09-26, 2026-10-23
     %% @color obs 1
-    Disaster recovery failover drill :dr, 2026-07-06, 2026-07-24
+    Disaster recovery failover drill :dr, 2027-01-04, 2027-01-22
     %% @color dr 3
 
     section Phase 3 · Core Platform Build
-    Core platform                    :plat, 2026-04-13, 2026-06-26
+    Core platform                    :plat, 2026-10-12, 2026-12-25
     %% @color plat 1
-    API layer & webhooks             :api, 2026-04-13, 2026-05-28
+    API layer & webhooks             :api, 2026-10-12, 2026-11-26
     %% @parent api plat
     %% @color api 1
     %% @dep api fs spec
     %% @note api GraphQL and REST endpoints with versioned webhooks.
-    Auth & enterprise SSO            :auth, 2026-04-20, 2026-05-12
+    Auth & enterprise SSO            :auth, 2026-10-19, 2026-11-10
     %% @parent auth api
     %% @color auth 3
     %% @dep auth ss api
-    Security review                  :audit, 2026-05-12, 2026-05-26
+    Security review                  :audit, 2026-11-10, 2026-11-24
     %% @parent audit api
     %% @color audit 3
     %% @dep audit fs auth
     %% @note audit External pen-test and SOC 2 access controls check.
-    Edge caching & rate limits       :cache, 2026-05-04, 2026-06-05
+    Edge caching & rate limits       :cache, 2026-11-02, 2026-12-04
     %% @parent cache plat
     %% @color cache 1
-    Web application shell            :ui, 2026-05-18, 2026-06-18
+    Web application shell            :ui, 2026-11-16, 2026-12-17
     %% @parent ui plat
     %% @color ui 2
     %% @dep ui fs api
     %% @note ui Starts on mocked API contracts; intentional overlap with API freeze.
-    Responsive mobile workflows      :mobile, 2026-05-25, 2026-06-22
+    Responsive mobile workflows      :mobile, 2026-11-23, 2026-12-21
     %% @parent mobile plat
     %% @color mobile 2
-    Integration & load testing       :qa, 2026-06-15, 2026-06-26
+    Integration & load testing       :qa, 2026-12-14, 2026-12-25
     %% @parent qa plat
     %% @color qa 1
     %% @dep qa fs ui
-    Beta ready                       :milestone, beta, 2026-06-26, 0d
+    Beta ready                       :milestone, beta, 2026-12-25, 0d
     %% @parent beta plat
     %% @color beta 1
     %% @dep beta fs qa
 
     section Phase 4 · Data & AI Pipeline
-    Streaming event ingestion        :ingest, 2026-06-01, 2026-06-26
+    Streaming event ingestion        :ingest, 2026-11-30, 2026-12-25
     %% @color ingest 5
     %% @dep ingest fs api
-    Analytics warehouse schema       :warehouse, 2026-06-22, 2026-07-17
+    Analytics warehouse schema       :warehouse, 2026-12-21, 2027-01-15
     %% @color warehouse 5
     %% @dep warehouse fs ingest
-    Semantic search indexing         :search_idx, 2026-07-06, 2026-07-31
+    Semantic search indexing         :search_idx, 2027-01-04, 2027-01-29
     %% @color search_idx 5
     %% @dep search_idx ss warehouse
-    Copilot quality & safety evals   :evals, 2026-07-20, 2026-08-14
+    Copilot quality & safety evals   :evals, 2027-01-18, 2027-02-12
     %% @color evals 5
     %% @dep evals ss search_idx
-    AI pipeline ready                :milestone, ai_ready, 2026-08-14, 0d
+    AI pipeline ready                :milestone, ai_ready, 2027-02-12, 0d
     %% @color ai_ready 5
     %% @dep ai_ready fs evals
 
     section Phase 5 · Security & Compliance
-    SOC 2 Type II evidence collection :soc2, 2026-05-04, 2026-06-19
+    SOC 2 Type II evidence collection :soc2, 2026-11-02, 2026-12-18
     %% @color soc2 3
-    External penetration test        :pentest, 2026-05-18, 2026-06-12
+    External penetration test        :pentest, 2026-11-16, 2026-12-11
     %% @color pentest 3
     %% @dep pentest ss audit
-    Vulnerability remediation        :remed, 2026-06-12, 2026-06-26
+    Vulnerability remediation        :remed, 2026-12-11, 2026-12-25
     %% @color remed 3
     %% @dep remed fs pentest
-    EU data residency sign-off       :gdpr, 2026-06-29, 2026-07-17
+    EU data residency sign-off       :gdpr, 2026-12-28, 2027-01-15
     %% @color gdpr 3
     %% @dep gdpr fs remed
-    Compliance cleared               :milestone, comp_done, 2026-07-17, 0d
+    Compliance cleared               :milestone, comp_done, 2027-01-15, 0d
     %% @color comp_done 3
     %% @dep comp_done fs gdpr
 
     section Phase 6 · Launch & Rollout
-    Docs & migration guide           :docs, 2026-06-22, 2026-07-24
+    Docs & migration guide           :docs, 2026-12-21, 2027-01-22
     %% @color docs 4
     %% @dep docs ss qa
-    Customer beta pilot              :pilot, 2026-06-29, 2026-08-07
+    Customer beta pilot              :pilot, 2026-12-28, 2027-02-05
     %% @color pilot 4
     %% @dep pilot fs beta
     %% @note pilot Five design-partner teams running production workloads.
-    Metered billing & plans          :billing, 2026-07-06, 2026-07-31
+    Metered billing & plans          :billing, 2027-01-04, 2027-01-29
     %% @color billing 1
-    Support playbooks & training     :support, 2026-07-20, 2026-08-14
+    Support playbooks & training     :support, 2027-01-18, 2027-02-12
     %% @color support 4
-    Launch campaign & press kit      :gtm, 2026-07-27, 2026-08-28
+    Launch campaign & press kit      :gtm, 2027-01-25, 2027-02-26
     %% @color gtm 4
     %% @dep gtm ss pilot
-    General availability             :milestone, ga, 2026-08-20, 0d
+    General availability             :milestone, ga, 2027-02-18, 0d
     %% @color ga 4
     %% @dep ga fs pilot
     %% @dep ga fs comp_done
     %% @dep ga fs ai_ready
-    Enterprise customer migration    :onboard, 2026-08-24, 2026-09-25
+    Enterprise customer migration    :onboard, 2027-02-22, 2027-03-26
     %% @color onboard 4
     %% @dep onboard fs ga
-    Post-launch telemetry review     :post_tel, 2026-09-01, 2026-09-30
+    Post-launch telemetry review     :post_tel, 2027-03-02, 2027-03-31
     %% @color post_tel 5

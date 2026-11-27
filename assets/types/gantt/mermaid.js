@@ -1,7 +1,7 @@
 // Gantt diagram <-> Mermaid. Plain script, no DOM, no imports; concatenated after assets/shell/mermaid-flow.js
 // (uses mmdText, mmdSafeId). Spec: dev/plans/plan-gantt.md.
 
-const MMD_GANTT_ZOOMS = ['day', 'week', 'month', 'quarter', 'year'];
+const MMD_GANTT_ZOOMS = ['day', 'week', '2week', 'month', 'quarter', 'year'];
 const MMD_GANTT_TAGS = new Set(['done', 'active', 'crit', 'milestone', 'vert']);
 const MMD_GANTT_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MMD_GANTT_COLOR_RE = /^(?:[1-9]|#[0-9a-f]{3,8})$/i;
