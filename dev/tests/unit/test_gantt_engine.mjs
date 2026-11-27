@@ -96,10 +96,11 @@ test('determinism: two runs produce identical JSON', () => {
   assert.equal(JSON.stringify(a), JSON.stringify(b));
 });
 
-test('all 5 zoom presets and 1-day bar width', () => {
+test('all 6 zoom presets and 1-day bar width', () => {
   const expected = {
     day:     { pxPerDay: 44,  snapDays: 1, showWeekends: true,  label: 'Day' },
     week:    { pxPerDay: 18,  snapDays: 1, showWeekends: true,  label: 'Week' },
+    '2week': { pxPerDay: 11,  snapDays: 1, showWeekends: true,  label: '2 Weeks' },
     month:   { pxPerDay: 6,   snapDays: 1, showWeekends: false, label: 'Month' },
     quarter: { pxPerDay: 2.4, snapDays: 7, showWeekends: false, label: 'Quarter' },
     year:    { pxPerDay: 1.0, snapDays: 7, showWeekends: false, label: 'Year' }
@@ -107,7 +108,7 @@ test('all 5 zoom presets and 1-day bar width', () => {
   assert.deepEqual(GANTT_ZOOMS, expected);
 
   const widths = {};
-  for (const zoom of ['day', 'week', 'month', 'quarter', 'year']) {
+  for (const zoom of ['day', 'week', '2week', 'month', 'quarter', 'year']) {
     const data = {
       diagramType: 'gantt',
       zoom,
@@ -123,7 +124,8 @@ test('all 5 zoom presets and 1-day bar width', () => {
     widths[zoom] = data._range.timelineWidth;
   }
   assert.ok(widths.day > widths.week);
-  assert.ok(widths.week > widths.month);
+  assert.ok(widths.week > widths['2week']);
+  assert.ok(widths['2week'] > widths.month);
   assert.ok(widths.month > widths.quarter);
   assert.ok(widths.quarter > widths.year);
 });

@@ -7,6 +7,7 @@
 const GANTT_ZOOMS = {
   day:     { pxPerDay: 44,  snapDays: 1, showWeekends: true,  label: 'Day' },
   week:    { pxPerDay: 18,  snapDays: 1, showWeekends: true,  label: 'Week' },
+  '2week': { pxPerDay: 11,  snapDays: 1, showWeekends: true,  label: '2 Weeks' },
   month:   { pxPerDay: 6,   snapDays: 1, showWeekends: false, label: 'Month' },
   quarter: { pxPerDay: 2.4, snapDays: 7, showWeekends: false, label: 'Quarter' },
   year:    { pxPerDay: 1.0, snapDays: 7, showWeekends: false, label: 'Year' }
@@ -15,6 +16,7 @@ const GANTT_ZOOMS = {
 const GANTT_PAD_DAYS = {
   day:     { before: 90,  after: 180 },
   week:    { before: 180, after: 365 },
+  '2week': { before: 240, after: 480 },
   month:   { before: 365, after: 730 },
   quarter: { before: 730, after: 1095 },
   year:    { before: 730, after: 1460 }
@@ -361,11 +363,12 @@ function layoutDiagram(data) {
     );
     let points;
 
+    const DEP_IN_LEAD = 18;
     if (type === 'ss') {
       // 2-bend C-bracket
       const sx = ganttRound1(fb.x);
       const ex = ganttRound1(tb.x);
-      const leftX = ganttRound1(Math.min(sx, ex) - 10);
+      const leftX = ganttRound1(Math.min(sx, ex) - DEP_IN_LEAD);
       points = [
         [sx, fy],
         [leftX, fy],
@@ -386,10 +389,10 @@ function layoutDiagram(data) {
         : ganttRound1(
             fb.w <= 12
               ? fb.x + fb.w / 2
-              : Math.max(fb.x + 6, Math.min(fromRight - 8, toLeft - 10))
+              : Math.max(fb.x + 6, Math.min(fromRight - 8, toLeft - DEP_IN_LEAD))
           );
 
-      if (lExitX < toLeft) {
+      if (lExitX <= toLeft - DEP_IN_LEAD) {
         // 1-bend L-shape exiting bottom/top edge of fromBar (keeps violated dashed styling if overlapping)
         points = [
           [lExitX, fromEdgeY],
@@ -406,7 +409,7 @@ function layoutDiagram(data) {
                 : Math.max(fb.x + 4, fromRight - 4)
             );
         const gutterY = ganttRound1(goingDown ? fb.y + fb.h + 5 : fb.y - 5);
-        const inX = ganttRound1(toLeft - 10);
+        const inX = ganttRound1(toLeft - DEP_IN_LEAD);
         points = [
           [exitX, fromEdgeY],
           [exitX, gutterY],

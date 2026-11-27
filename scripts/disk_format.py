@@ -54,7 +54,7 @@ C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved 
 GANTT_KEYS = ("diagramType", "schemaVersion", "title", "zoom", "showNotes", "showToday", "showWeekends", "colorKey",
               "holidays", "markers", "items", "dependencies", "notes")
 GANTT_SCHEMA_VERSION = 1
-GANTT_ZOOMS = ("day", "week", "month", "quarter", "year")
+GANTT_ZOOMS = ("day", "week", "2week", "month", "quarter", "year")
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane|t|m)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]

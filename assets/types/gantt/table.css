@@ -22,71 +22,20 @@
   display: none;
 }
 
-/* --- Top summary bar --- */
-.gt-topbar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-  min-height: 40px;
-  padding: var(--space-4) var(--space-12);
-  background: var(--bg-page);
-  border-bottom: 1px solid var(--border-color);
-  box-sizing: border-box;
-}
-
-.gt-topbar-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  min-width: 0;
-  flex: 1;
-}
-
-.gt-count {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-2) var(--space-8);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--bg-soft);
-  color: var(--text-main);
-  font-size: var(--text-rem-sm);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.gt-hint {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: var(--text-rem-md);
-}
-
-.gt-topbar-actions {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
+/* --- Shared buttons --- */
 .gt-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
-  min-height: 28px;
+  min-height: 30px;
   padding: var(--space-4) var(--space-8);
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   font-weight: var(--weight-medium);
   line-height: var(--leading-none);
   white-space: nowrap;
@@ -152,6 +101,65 @@
   color: var(--danger);
 }
 
+/* --- Sticky parent phase breadcrumb bar --- */
+#gt-sticky-phase,
+.gt-sticky-phase {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 36px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-4) var(--space-12);
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-page) 94%, transparent);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--text-rem-md);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--curve-out);
+}
+
+#gt-sticky-phase[hidden],
+.gt-sticky-phase[hidden] {
+  display: none;
+}
+
+.gt-sticky-phase:hover {
+  background: var(--bg-hover);
+}
+
+.gt-sticky-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--primary);
+}
+
+.gt-sticky-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-sticky-cue {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-rem-md);
+}
+
 /* --- Main scrollable container --- */
 .gt-scroll {
   flex: 1;
@@ -162,10 +170,55 @@
   background: var(--bg-panel);
 }
 
+/* --- Subtle modern scrollbars --- */
+.gt-scroll,
+.gt-dep-list,
+.gt-cat-list,
+.gt-markers-body {
+  --scrollbar-thumb: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  --scrollbar-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+@supports not (scrollbar-color: auto) {
+  .gt-scroll,
+  .gt-dep-list,
+  .gt-cat-list,
+  .gt-markers-body {
+    scrollbar-width: auto;
+  }
+
+  .gt-scroll::-webkit-scrollbar,
+  .gt-dep-list::-webkit-scrollbar,
+  .gt-cat-list::-webkit-scrollbar,
+  .gt-markers-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .gt-scroll::-webkit-scrollbar-track,
+  .gt-dep-list::-webkit-scrollbar-track,
+  .gt-cat-list::-webkit-scrollbar-track,
+  .gt-markers-body::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  .gt-scroll::-webkit-scrollbar-thumb,
+  .gt-dep-list::-webkit-scrollbar-thumb,
+  .gt-cat-list::-webkit-scrollbar-thumb,
+  .gt-markers-body::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-pill);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
 /* --- Spreadsheet table --- */
 .gantt-sheet {
   width: 100%;
-  min-width: 880px;
+  min-width: 900px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -178,14 +231,14 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  min-height: 34px;
-  padding: var(--space-4);
+  min-height: 36px;
+  padding: var(--space-8) var(--space-8);
   background: var(--bg-page);
   border-bottom: 1px solid var(--border-dark);
   border-right: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   box-shadow: var(--shadow-band);
   color: var(--text-muted);
-  font-size: var(--text-rem-sm);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -193,6 +246,8 @@
   white-space: nowrap;
   user-select: none;
   box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
 }
 
 .gantt-sheet thead th:last-child {
@@ -200,21 +255,31 @@
 }
 
 /* Column widths */
-.gt-col-check { width: 36px; text-align: center; }
-.gt-col-num   { width: 42px; text-align: center; }
-.gt-col-task  { width: 24%; min-width: 180px; }
-.gt-col-type  { width: 56px; text-align: center; }
-.gt-col-start { width: 112px; }
-.gt-col-end   { width: 112px; }
-.gt-col-dur   { width: 78px; text-align: right; }
-.gt-col-dep   { width: 96px; }
-.gt-col-cat   { width: 164px; }
+.gt-col-num   { width: 44px; text-align: center; }
+.gt-col-task  { width: 25%; min-width: 200px; }
+.gt-col-type  { width: 58px; text-align: center; }
+.gt-col-start { width: 148px; }
+.gt-col-end   { width: 148px; }
+.gt-col-dur   { width: 82px; text-align: right; }
+.gt-col-dep   { width: 108px; }
+.gt-col-cat   { width: 168px; }
 .gt-col-note  { width: auto; min-width: 150px; }
 
-.gantt-sheet thead th.gt-col-check,
 .gantt-sheet thead th.gt-col-num {
   text-align: center;
-  padding: 0 var(--space-4);
+  padding: var(--space-8) var(--space-4);
+  cursor: pointer;
+}
+
+.gantt-sheet thead th.gt-col-num:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.gantt-sheet thead th.gt-col-num.is-all-selected,
+.gantt-sheet thead th.gt-col-num.is-some-selected {
+  color: var(--primary);
+  background: var(--primary-wash);
 }
 
 .gantt-sheet thead th.gt-col-dur {
@@ -251,9 +316,23 @@
   background: color-mix(in srgb, var(--primary) 18%, var(--bg-panel));
 }
 
+.gantt-sheet tbody tr.is-dragging {
+  opacity: 0.45;
+}
+
+.gantt-sheet tbody tr.is-drop-inside td {
+  background: color-mix(in srgb, var(--primary) 14%, var(--bg-panel));
+  border-bottom-color: var(--primary);
+}
+
+.gantt-sheet tbody tr.is-drop-inside td:first-child {
+  box-shadow: inset var(--ring-lg) 0 0 var(--primary);
+}
+
 .gantt-sheet tbody td {
-  height: 38px;
-  padding: var(--space-2) var(--space-4);
+  min-height: 40px;
+  height: 40px;
+  padding: var(--space-4) var(--space-8);
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--border-color) 45%, transparent);
   vertical-align: middle;
@@ -261,22 +340,41 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
 .gantt-sheet tbody td:last-child {
   border-right: 0;
 }
 
-.gantt-sheet tbody td.gt-col-check,
 .gantt-sheet tbody td.gt-col-num {
   text-align: center;
-  padding: 0 var(--space-4);
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-sheet tbody td.gt-col-num:hover {
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-hover));
+  color: var(--text-main);
+}
+
+.gantt-sheet tbody tr.is-selected td.gt-col-num {
+  background: color-mix(in srgb, var(--primary) 18%, var(--bg-panel));
+  color: var(--primary);
+  font-weight: var(--weight-semibold);
 }
 
 .gantt-sheet thead th.gt-col-task,
 .gantt-sheet tbody td.gt-col-task {
   padding-left: var(--space-4);
-  padding-right: var(--space-4);
+  padding-right: var(--space-8);
 }
 
 .gantt-sheet tbody td.gt-col-dur {
@@ -284,15 +382,34 @@
   font-variant-numeric: tabular-nums;
 }
 
-.gantt-sheet tbody td.gt-col-num {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
-  font-variant-numeric: tabular-nums;
-  user-select: none;
+/* Column + row hover crosshair highlight */
+#gantt-sheet[data-hover-col="num"] tbody td[data-col="num"],
+#gantt-sheet[data-hover-col="task"] tbody td[data-col="task"],
+#gantt-sheet[data-hover-col="type"] tbody td[data-col="type"],
+#gantt-sheet[data-hover-col="start"] tbody td[data-col="start"],
+#gantt-sheet[data-hover-col="end"] tbody td[data-col="end"],
+#gantt-sheet[data-hover-col="dur"] tbody td[data-col="dur"],
+#gantt-sheet[data-hover-col="dep"] tbody td[data-col="dep"],
+#gantt-sheet[data-hover-col="cat"] tbody td[data-col="cat"],
+#gantt-sheet[data-hover-col="note"] tbody td[data-col="note"] {
+  background: color-mix(in srgb, var(--primary) 4.5%, transparent);
 }
 
-/* Roving-tabindex cell focus */
+#gantt-sheet[data-hover-col="num"] thead th[data-col="num"],
+#gantt-sheet[data-hover-col="task"] thead th[data-col="task"],
+#gantt-sheet[data-hover-col="type"] thead th[data-col="type"],
+#gantt-sheet[data-hover-col="start"] thead th[data-col="start"],
+#gantt-sheet[data-hover-col="end"] thead th[data-col="end"],
+#gantt-sheet[data-hover-col="dur"] thead th[data-col="dur"],
+#gantt-sheet[data-hover-col="dep"] thead th[data-col="dep"],
+#gantt-sheet[data-hover-col="cat"] thead th[data-col="cat"],
+#gantt-sheet[data-hover-col="note"] thead th[data-col="note"] {
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-page));
+  color: var(--text-main);
+}
+
+/* Roving-tabindex & Excel-like active cell focus */
+.gantt-sheet td[data-gt-cell].is-active-cell,
 .gantt-sheet td[data-gt-cell]:focus {
   outline: none;
   box-shadow: inset 0 0 0 var(--ring-md) var(--focus-ring);
@@ -304,7 +421,12 @@
   box-shadow: inset 0 0 0 var(--ring-md) var(--focus-ring);
 }
 
-/* Checkboxes */
+.gantt-sheet td[data-gt-cell].is-copied {
+  box-shadow: inset 0 0 0 var(--ring-md) var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, var(--bg-panel));
+}
+
+/* Checkboxes (used inside depends-on popover checklist) */
 .gt-checkbox {
   position: relative;
   width: 15px;
@@ -321,13 +443,59 @@
   inset: -6px;
 }
 
-/* Task cell with tree indent + chevron */
+/* Task cell with drag grip + tree indent + chevron */
 .gt-task-cell {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
   min-width: 0;
   width: 100%;
+  height: 100%;
+}
+
+.gt-row-grip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--dur-micro) var(--curve-out),
+              background-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
+}
+
+.gantt-sheet tbody tr:hover .gt-row-grip,
+.gantt-sheet tbody tr:focus-within .gt-row-grip,
+.gantt-sheet tbody tr.is-selected .gt-row-grip {
+  opacity: 0.75;
+}
+
+.gt-row-grip:hover {
+  opacity: 1;
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.gt-row-grip:active,
+body.gt-dragging {
+  cursor: grabbing;
+}
+
+body.gt-dragging {
+  user-select: none;
+}
+
+.gt-task-indent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
   height: 100%;
 }
 
@@ -357,19 +525,56 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: text;
+  cursor: default;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
-.gt-label-text:hover {
-  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+/* Drag-and-drop line & floating badge */
+.gt-drop-line {
+  position: fixed;
+  z-index: 105;
+  height: 2px;
+  background: var(--primary);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  box-shadow: var(--shadow-ring);
 }
 
-/* Inline text / duration / note editor */
+.gt-drop-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  background: var(--primary);
+}
+
+.gt-drop-badge {
+  position: fixed;
+  z-index: 106;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-rem-md);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+/* Inline text / date / duration / note editor */
 .gt-inline-input {
   width: 100%;
-  min-height: 28px;
+  min-height: 30px;
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
@@ -385,17 +590,17 @@
 .gt-inline-input.is-num {
   text-align: right;
   font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
-/* Type icon toggle (Task bar vs Milestone diamond) */
+/* Type icon toggle (Task vs Milestone) */
 .gt-type-btn,
 .gt-type-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -447,68 +652,45 @@
   box-shadow: inset var(--ring-lg) 0 0 var(--sw-4-line, var(--primary));
 }
 
-/* Selects (Type, Category) */
-.gt-select {
+/* --- Category trigger button & typeahead popover --- */
+.gt-cat-btn,
+.gt-cat-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
   width: 100%;
-  min-height: 28px;
-  padding: var(--space-2) var(--space-12) var(--space-2) var(--space-4);
+  min-width: 0;
+  min-height: 30px;
+  padding: var(--space-2) var(--space-8);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--text-rem-md);
-  cursor: pointer;
+  font-size: var(--t-body-rem-size, 0.875rem);
+  text-align: left;
   box-sizing: border-box;
   transition: background-color var(--dur-micro) var(--curve-out),
               border-color var(--dur-micro) var(--curve-out);
 }
 
-.gt-select:hover {
+.gt-cat-btn {
+  cursor: pointer;
+}
+
+.gt-cat-btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-color);
 }
 
-.gt-select:focus-visible {
+.gt-cat-btn:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 0;
-  background: var(--bg-input);
 }
 
-.gt-select option {
-  background: var(--bg-panel);
-  color: var(--text-main);
-}
-
-.gt-cat-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.gt-cat-wrap::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 5px;
-  height: 5px;
-  border-right: 1.5px solid var(--text-muted);
-  border-bottom: 1.5px solid var(--text-muted);
-  transform: translateY(-65%) rotate(45deg);
-  pointer-events: none;
-}
-
-.gt-cat-select {
-  flex: 1;
-  min-width: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  padding: var(--space-2) var(--space-24) var(--space-2) var(--space-4);
+.gt-cat-btn.is-empty .gt-cat-label,
+.gt-cat-label.is-empty {
+  color: var(--text-muted);
 }
 
 .gt-cat-dot {
@@ -525,41 +707,182 @@
   border-style: dashed;
 }
 
-/* Date buttons & rolled-up values */
-.gt-date-btn {
+.gt-cat-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-cat-caret {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.gt-cat-pop {
+  position: fixed;
+  z-index: 96;
+  width: 240px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  box-sizing: border-box;
+}
+
+.gt-cat-input {
   width: 100%;
-  min-height: 28px;
+  min-height: 30px;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  box-sizing: border-box;
+}
+
+.gt-cat-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-ring);
+}
+
+.gt-cat-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gt-cat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: 32px;
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.gt-cat-item:hover,
+.gt-cat-item.is-active {
+  background: var(--bg-hover);
+}
+
+.gt-cat-item.is-add {
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+
+.gt-cat-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-cat-check {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary);
+}
+
+.gt-cat-empty {
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  text-align: center;
+}
+
+/* --- Date cells (typed value + calendar icon) & rolled-up values --- */
+.gt-date-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.gt-date-val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--t-body-rem-size, 0.875rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+}
+
+.gt-date-val.is-empty {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+
+.gt-date-cal-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-main);
-  font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  color: var(--text-muted);
   cursor: pointer;
-  box-sizing: border-box;
-  transition: background-color var(--dur-micro) var(--curve-out),
-              border-color var(--dur-micro) var(--curve-out);
+  opacity: 0.65;
+  transition: opacity var(--dur-micro) var(--curve-out),
+              background-color var(--dur-micro) var(--curve-out),
+              color var(--dur-micro) var(--curve-out);
 }
 
-.gt-date-btn:hover {
+.gantt-sheet tbody tr:hover .gt-date-cal-btn,
+.gantt-sheet td.is-active-cell .gt-date-cal-btn,
+#gantt-markers-table tbody tr:hover .gt-date-cal-btn,
+.gt-date-cal-btn:focus-visible {
+  opacity: 1;
+}
+
+.gt-date-cal-btn:hover {
+  opacity: 1;
   background: var(--bg-hover);
   border-color: var(--border-color);
+  color: var(--text-main);
 }
 
-.gt-date-btn:focus-visible {
+.gt-date-cal-btn:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 0;
-}
-
-.gt-date-btn.is-empty {
-  color: var(--text-muted);
-  font-family: var(--font-ui);
 }
 
 .gt-rolled {
@@ -567,13 +890,14 @@
   color: var(--text-muted);
   font-style: italic;
   font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   font-variant-numeric: tabular-nums;
   padding: 0 var(--space-4);
 }
 
 .gt-muted-dash {
   color: var(--text-muted);
+  font-size: var(--t-body-rem-size, 0.875rem);
   padding: 0 var(--space-4);
 }
 
@@ -584,15 +908,16 @@
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   font-variant-numeric: tabular-nums;
   color: var(--text-main);
-  cursor: text;
+  cursor: default;
   box-sizing: border-box;
 }
 
-.gt-dur-val:hover {
-  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+.gt-dur-val.is-empty {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
 }
 
 /* Dependency cell */
@@ -600,14 +925,14 @@
   display: inline-flex;
   align-items: center;
   width: 100%;
-  min-height: 28px;
+  min-height: 30px;
   padding: var(--space-2) var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-main);
   font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -638,13 +963,9 @@
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
   color: var(--text-soft);
-  font-size: var(--text-rem-md);
-  cursor: text;
+  font-size: var(--t-body-rem-size, 0.875rem);
+  cursor: default;
   box-sizing: border-box;
-}
-
-.gt-note-preview:hover {
-  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
 }
 
 .gt-note-preview.is-empty {
@@ -653,7 +974,7 @@
 
 /* Bottom quick-add row */
 #gantt-sheet-add-row td {
-  height: 40px;
+  height: 44px;
   padding: var(--space-4) var(--space-8);
   background: var(--bg-page);
   border-top: 1px solid var(--border-color);
@@ -662,8 +983,8 @@
 
 #gantt-sheet-quick-add {
   width: 100%;
-  min-height: 30px;
-  padding: var(--space-2) var(--space-8);
+  min-height: 32px;
+  padding: var(--space-4) var(--space-8);
   border: 1px dashed var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
@@ -690,7 +1011,7 @@
 .gt-dep-pop {
   position: fixed;
   z-index: 95;
-  width: 280px;
+  width: 300px;
   max-width: calc(100vw - 24px);
   display: flex;
   flex-direction: column;
@@ -698,11 +1019,11 @@
   padding: var(--space-8);
   background: var(--bg-panel);
   border: 1px solid var(--border-dark);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   box-sizing: border-box;
 }
 
@@ -716,7 +1037,7 @@
 .gt-dep-pop-title {
   font-size: var(--text-rem-md);
   font-weight: var(--weight-semibold);
-  color: var(--text-main);
+  color: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -731,14 +1052,14 @@
 .gt-dep-input {
   flex: 1;
   min-width: 0;
-  min-height: 28px;
-  padding: var(--space-2) var(--space-8);
+  min-height: 30px;
+  padding: var(--space-4) var(--space-8);
   border: 1px solid var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
   color: var(--text-main);
-  font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-family: var(--font-ui);
+  font-size: var(--t-body-rem-size, 0.875rem);
   box-sizing: border-box;
 }
 
@@ -749,7 +1070,7 @@
 }
 
 .gt-dep-list {
-  max-height: 210px;
+  max-height: 220px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -761,22 +1082,23 @@
 .gt-dep-item {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-4);
-  border-radius: var(--radius-sm);
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
-.gt-dep-item:hover {
+.gt-dep-item:hover,
+.gt-dep-item.is-active {
   background: var(--bg-hover);
 }
 
 .gt-dep-item-num {
   flex: none;
   font-family: var(--font-mono);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   color: var(--text-muted);
-  min-width: 24px;
+  min-width: 28px;
 }
 
 .gt-dep-item-label {
@@ -785,7 +1107,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-main);
+  color: inherit;
 }
 
 .gt-dep-type-btn {
@@ -798,7 +1120,7 @@
   background: var(--bg-page);
   color: var(--text-soft);
   font-family: var(--font-mono);
-  font-size: var(--text-rem-sm);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-bold);
   cursor: pointer;
 }
@@ -817,11 +1139,11 @@
 .gt-dep-empty {
   padding: var(--space-8) var(--space-4);
   color: var(--text-muted);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   text-align: center;
 }
 
-/* --- Collapsible Date Lines section (#gantt-markers-section) --- */
+/* --- Collapsible Milestones section (#gantt-markers-section) --- */
 #gantt-markers-section {
   margin: var(--space-16) var(--space-12) var(--space-12);
   border: 1px solid var(--border-color);
@@ -848,7 +1170,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-4);
+  padding: var(--space-4);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -894,12 +1216,12 @@
 }
 
 #gantt-markers-table th {
-  min-height: 30px;
-  padding: var(--space-4) var(--space-8);
+  min-height: 34px;
+  padding: var(--space-8);
   background: var(--bg-page);
   border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
-  font-size: var(--text-rem-sm);
+  font-size: var(--text-rem-md);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -907,30 +1229,32 @@
 }
 
 #gantt-markers-table td {
-  height: 38px;
-  padding: var(--space-2) var(--space-8);
+  min-height: 40px;
+  height: 40px;
+  padding: var(--space-4) var(--space-8);
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
   vertical-align: middle;
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
 #gantt-markers-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
-#gantt-markers-table .gt-marker-col-date { width: 130px; }
-#gantt-markers-table .gt-marker-col-cat  { width: 160px; }
+#gantt-markers-table .gt-marker-col-date { width: 150px; }
+#gantt-markers-table .gt-marker-col-cat  { width: 170px; }
 #gantt-markers-table .gt-marker-col-del  { width: 48px; text-align: center; }
 
 .gt-marker-empty {
   padding: var(--space-12) var(--space-8);
   color: var(--text-muted);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
   text-align: center;
 }
 
 .gt-icon-del {
-  min-width: 26px;
-  min-height: 26px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -969,11 +1293,11 @@
   padding: var(--space-4) var(--space-8);
   background: var(--bg-panel);
   border: 1px solid var(--border-dark);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: var(--text-rem-md);
+  font-size: var(--t-body-rem-size, 0.875rem);
 }
 
 #gantt-table-bulkbar[hidden] {
@@ -996,49 +1320,55 @@
 }
 
 .gt-btn-icon {
-  width: 28px;
+  width: 30px;
   padding: 0;
   justify-content: center;
 }
 
-.gt-bulk-cat-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.gt-bulk-cat-wrap::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 5px;
-  height: 5px;
-  border-right: 1.5px solid var(--text-muted);
-  border-bottom: 1.5px solid var(--text-muted);
-  transform: translateY(-65%) rotate(45deg);
-  pointer-events: none;
-}
-
-.gt-bulk-cat-select {
-  width: 142px;
-  min-height: 28px;
-  appearance: none;
-  -webkit-appearance: none;
-  padding: var(--space-2) var(--space-24) var(--space-2) var(--space-8);
-  border: 1px solid var(--border-dark);
+.gt-bulk-cat-btn {
+  width: auto;
+  min-width: 132px;
+  border-color: var(--border-dark);
   border-radius: var(--radius-md);
   background: var(--bg-input);
-  color: var(--text-main);
-  font-family: var(--font-ui);
-  font-size: var(--text-rem-md);
-  cursor: pointer;
+}
+
+/* --- Glass transparency on Table popups, dropdowns, and bulk toolbar --- */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gt-cat-pop,
+  .gt-dep-pop,
+  #gantt-table-bulkbar {
+    background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
+    border-color: var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+    box-shadow: var(--shadow-glass-lg);
+    color: var(--text-glass);
+  }
+
+  .gt-cat-item:hover,
+  .gt-cat-item.is-active,
+  .gt-dep-item:hover,
+  .gt-dep-item.is-active,
+  #gantt-table-bulkbar .gt-btn:hover,
+  #gantt-table-bulkbar .gt-cat-btn:hover {
+    background: var(--glass-hover);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .gt-cat-pop,
+  .gt-dep-pop,
+  #gantt-table-bulkbar {
+    background: var(--bg-panel);
+    border-color: var(--border-dark);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    color: var(--text-main);
+  }
 }
 
 /* --- Present / read-only mode --- */
-body.presentation #gantt-table-view .gt-col-check,
-body.present #gantt-table-view .gt-col-check,
-#gantt-table-view.is-presenting .gt-col-check,
 body.presentation #gantt-sheet-add-row,
 body.present #gantt-sheet-add-row,
 #gantt-table-view.is-presenting #gantt-sheet-add-row,
@@ -1054,19 +1384,17 @@ body.present #gantt-table-view .gt-marker-col-del,
   display: none !important;
 }
 
+#gantt-table-view.is-presenting .gt-col-num,
 #gantt-table-view.is-presenting .gt-label-text,
 #gantt-table-view.is-presenting .gt-dur-val,
 #gantt-table-view.is-presenting .gt-note-preview,
-#gantt-table-view.is-presenting .gt-date-btn,
-#gantt-table-view.is-presenting .gt-dep-btn {
+#gantt-table-view.is-presenting .gt-dep-btn,
+#gantt-table-view.is-presenting .gt-cat-btn {
   cursor: default;
 }
 
-#gantt-table-view.is-presenting .gt-label-text:hover,
-#gantt-table-view.is-presenting .gt-dur-val:hover,
-#gantt-table-view.is-presenting .gt-note-preview:hover,
-#gantt-table-view.is-presenting .gt-date-btn:hover,
-#gantt-table-view.is-presenting .gt-dep-btn:hover {
+#gantt-table-view.is-presenting .gt-dep-btn:hover,
+#gantt-table-view.is-presenting .gt-cat-btn:hover {
   background: transparent;
   border-color: transparent;
 }
@@ -1076,7 +1404,9 @@ body.present #gantt-table-view .gt-marker-col-del,
   #gantt-table-view,
   #gantt-table-view *,
   .gt-dep-pop,
-  .gt-dep-pop * {
+  .gt-dep-pop *,
+  .gt-cat-pop,
+  .gt-cat-pop * {
     transition: none !important;
     animation: none !important;
   }
@@ -1085,7 +1415,9 @@ body.present #gantt-table-view .gt-marker-col-del,
 html[data-noanim] #gantt-table-view,
 html[data-noanim] #gantt-table-view *,
 html[data-noanim] .gt-dep-pop,
-html[data-noanim] .gt-dep-pop * {
+html[data-noanim] .gt-dep-pop *,
+html[data-noanim] .gt-cat-pop,
+html[data-noanim] .gt-cat-pop * {
   transition: none !important;
   animation: none !important;
 }

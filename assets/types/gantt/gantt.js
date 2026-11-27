@@ -6,7 +6,7 @@
   'use strict';
 
   const NS = 'http://www.w3.org/2000/svg';
-  const ZOOM_ORDER = ['day', 'week', 'month', 'quarter', 'year'];
+  const ZOOM_ORDER = ['day', 'week', '2week', 'month', 'quarter', 'year'];
   const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const MONTH_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -74,7 +74,7 @@
   const modeSwitchEl = document.getElementById('gantt-mode-switch');
   const tableViewEl = document.getElementById('gantt-table-view');
 
-  const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
+  const EXTEND_DAYS = { day: 90, week: 180, '2week': 180, month: 180, quarter: 365, year: 365 };
   const VIEW_LABELS = {
     active: 'Active & Upcoming',
     'in-view': 'In View',
@@ -97,10 +97,15 @@
   let displayMode = initialDisplayMode(); // 'timeline' | 'table'
   let tableCtrl = null;            // GanttTable controller instance
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
+  let selSource = null;            // 'bar' | 'row' | null (tracks whether selection came from timeline bar or sidebar row)
   let lastSelItemId = null;        // anchor for Shift+click range selection
   let selMarkerId = null;          // selected chart-wide vertical marker ID
   let selDepKey = null;            // selected dependency key `${from}|${to}|${type}`
   let selNoteId = null;            // selected note ID
+  let lastGridLines = [];          // gridline x-positions from last renderHeader() for column hover highlight
+  let colHoverEl = null;           // reusable column hover highlight element inside #gantt-grid
+  let modeAnimTimer = null;        // clears view transition class after completion
+  let categoryCycleCursor = 0;     // cycles 1..9 when all 9 category slots are full
   const noteCtl = createNotes({    // the note currently open for typing
     data: () => chartData,
     cardOf: (id) => els.notes.get(id),
@@ -391,11 +396,16 @@
       const it = itemById(id);
       if (!it) return;
       if (it._hasChildren || it.kind === 'group') {
+        let foundDesc = false;
         getDescendants(it.id).forEach((ch) => {
           if (!ch._hasChildren && ch.kind !== 'group' && (ch.start || ch._start)) {
             leafMap.set(ch.id, ch);
+            foundDesc = true;
           }
         });
+        if (!foundDesc && (it.start || it._start)) {
+          leafMap.set(it.id, it);
+        }
       } else if (it.start || it._start) {
         leafMap.set(it.id, it);
       }
@@ -735,6 +745,30 @@
         if (left > 0) gridLines.push({ x: left, major: dt.getUTCDate() <= 7 });
         curIso = ganttAddDays(curIso, 7);
       }
+    } else if (zoomKey === '2week') {
+      forEachMonth(({ y, m, left, width }) => {
+        addTick(headerTop, left, width, `${MONTH_LONG[m]} ${y}`, 'gantt-tick-top');
+      });
+      // Align 2-week blocks to Mondays
+      const startDow = startDt.getUTCDay();
+      const backToMon = startDow === 0 ? 6 : startDow - 1;
+      let curIso = ganttAddDays(range.start, -backToMon);
+      while (curIso <= range.end) {
+        const blkEnd = ganttAddDays(curIso, 13);
+        const cStart = curIso < range.start ? range.start : curIso;
+        const cEnd = blkEnd > range.end ? range.end : blkEnd;
+        const left = ganttDiffDays(range.start, cStart) * pxPerDay;
+        const days = ganttDiffDays(cStart, cEnd) + 1;
+        const sDt = ganttParseDate(curIso);
+        const eDt = ganttParseDate(blkEnd);
+        const sameMonth = sDt.getUTCMonth() === eDt.getUTCMonth() && sDt.getUTCFullYear() === eDt.getUTCFullYear();
+        const lbl = sameMonth
+          ? `${MONTH_SHORT[sDt.getUTCMonth()]} ${sDt.getUTCDate()}-${eDt.getUTCDate()}`
+          : `${MONTH_SHORT[sDt.getUTCMonth()]} ${sDt.getUTCDate()} - ${MONTH_SHORT[eDt.getUTCMonth()]} ${eDt.getUTCDate()}`;
+        addTick(headerBottom, left, days * pxPerDay, lbl, 'gantt-tick-bot');
+        if (left > 0) gridLines.push({ x: left, major: sDt.getUTCDate() <= 14 });
+        curIso = ganttAddDays(curIso, 14);
+      }
     } else if (zoomKey === 'month') {
       forEachYear(({ y, left, width }) => {
         addTick(headerTop, left, width, String(y), 'gantt-tick-top');
@@ -820,6 +854,15 @@
     });
     dropUnseen(els.rowBgs, seen);
 
+    // Reusable hovered column highlight layer
+    if (!colHoverEl) {
+      colHoverEl = htmlEl('div', 'gantt-col-hover');
+      colHoverEl.setAttribute('aria-hidden', 'true');
+      colHoverEl.setAttribute('data-export-skip', '');
+    }
+    setStyle(colHoverEl, 'height', `${totalH}px`);
+    order.push(colHoverEl);
+
     // Weekend bands (Day / Week only, when showWeekends is enabled)
     let nWeekend = 0;
     if (showWeekendsActive(zoomKey)) {
@@ -880,7 +923,7 @@
     if (isParent) row.classList.add('is-parent');
     if (edit) {
       row.draggable = false; // pointer-based row drag
-      const grip = htmlEl('span', 'gantt-row-grip', '⋮');
+      const grip = htmlEl('span', 'gantt-row-grip', '⋮⋮');
       grip.setAttribute('aria-hidden', 'true');
       grip.setAttribute('data-export-skip', '');
       row.appendChild(grip);
@@ -1006,7 +1049,7 @@
 
     // Task bar or Parent summary bar (never render task text inside bars; sidebar is frozen)
     const isParent = kind === 'group';
-    const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary' : 'gantt-bar');
+    const bar = htmlEl('div', isParent ? 'gantt-bar gantt-summary is-group' : 'gantt-bar');
     if (!isParent) bar.dataset.item = '';   // a summary bar is a bracket, not a box: it keeps its own states
     bar.dataset.itemId = it.id;
     bar.dataset.nodeId = it.id;
@@ -1015,7 +1058,7 @@
       bar.classList.add('has-note');
       bar.appendChild(makeNoteBadge());
     }
-    if (edit && !isParent) {
+    if (edit) {
       bar.setAttribute('data-touch-drag', '1');
       const resL = htmlEl('span', 'gantt-resize gantt-resize-l');
       resL.title = 'Resize start date';
@@ -1024,8 +1067,8 @@
       resR.title = 'Resize end date';
       resR.setAttribute('data-export-skip', '');
       bar.append(resL, resR);
+      makePorts(bar);
     }
-    if (edit) makePorts(bar);
     return bar;
   }
 
@@ -1091,6 +1134,7 @@
   function patchMarker(rec, m) {
     setStyle(rec.line, 'left', `${m.x}px`);
     setStyle(rec.flag, 'left', `${m.x}px`);
+    rec.flag.dataset.anchorX = String(m.x);
     setText(rec.flag, m.date ? `${m.label || 'Milestone'} · ${formatShortDate(m.date)}` : (m.label || 'Milestone'));
   }
 
@@ -1149,8 +1193,31 @@
     if (headerMarkers) {
       const pill = htmlEl('div', 'gantt-today-pill', `Today · ${formatShortDate(todayStr)}`);
       pill.style.left = `${x}px`;
+      pill.dataset.anchorX = String(x);
       pill.title = `Today · ${todayStr}`;
       headerMarkers.appendChild(pill);
+    }
+  }
+
+  function layoutHeaderMarkerPills() {
+    if (!headerMarkers) return;
+    const pills = [...headerMarkers.querySelectorAll('.gantt-marker-flag, .gantt-today-pill')];
+    if (pills.length < 2) return;
+    const items = pills.map((el) => {
+      const rawX = Number(el.dataset.anchorX);
+      const x = Number.isFinite(rawX) ? rawX : parseFloat(el.style.left) || 0;
+      const w = el.offsetWidth || Math.max(72, (el.textContent || '').length * 7 + 18);
+      return { el, x, w };
+    });
+    items.sort((a, b) => a.x - b.x);
+    let prevRight = -Infinity;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      let center = it.x;
+      const minCenter = prevRight + 4 + it.w / 2;
+      if (center < minCenter) center = minCenter;
+      setStyle(it.el, 'left', `${Math.round(center * 10) / 10}px`);
+      prevRight = center + it.w / 2;
     }
   }
 
@@ -1173,7 +1240,7 @@
     setStyle(svg, 'width', `${totalW}px`);
     setStyle(svg, 'height', `${totalH}px`);
 
-    // Arrowhead defs
+    // Arrowhead defs (flowchart-style open chevron)
     if (!depsDefs) {
       depsDefs = svgEl('defs');
       [
@@ -1186,11 +1253,12 @@
           viewBox: '0 0 10 10',
           refX: '8.5',
           refY: '5',
-          markerWidth: '7',
-          markerHeight: '7',
-          orient: 'auto-start-reverse'
+          markerWidth: '10',
+          markerHeight: '10',
+          orient: 'auto',
+          markerUnits: 'userSpaceOnUse'
         });
-        mk.appendChild(svgEl('path', { d: 'M 1 1.5 L 9 5 L 1 8.5 z', class: cls }));
+        mk.appendChild(svgEl('polyline', { points: '1.5 1.5, 8.5 5, 1.5 8.5', class: cls }));
         depsDefs.appendChild(mk);
       });
     }
@@ -1745,18 +1813,41 @@
     });
   }
 
-  function captureLayoutRects() {
+  function captureLayoutRects(opts = {}) {
     const bars = new Map();
-    els.bars.forEach((el, id) => { bars.set(id, el.getBoundingClientRect()); });
+    const barSnapshots = opts.captureExits ? new Map() : null;
+    els.bars.forEach((el, id) => {
+      bars.set(id, el.getBoundingClientRect());
+      if (barSnapshots) {
+        barSnapshots.set(id, {
+          clone: el.cloneNode(true),
+          left: el.style.left,
+          top: el.style.top,
+          width: el.style.width,
+          height: el.style.height
+        });
+      }
+    });
     const rows = new Map();
-    els.rows.forEach((el, id) => { rows.set(id, el.getBoundingClientRect()); });
-    return { bars, rows };
+    const rowSnapshots = opts.captureExits ? new Map() : null;
+    els.rows.forEach((el, id) => {
+      rows.set(id, el.getBoundingClientRect());
+      if (rowSnapshots) {
+        rowSnapshots.set(id, {
+          clone: el.cloneNode(true),
+          top: el.offsetTop,
+          height: el.offsetHeight || GANTT_METRICS.ROW_H
+        });
+      }
+    });
+    return { bars, rows, barSnapshots, rowSnapshots };
   }
 
-  function playLayoutMorph(oldRects) {
+  function playLayoutMorph(oldRects, opts = {}) {
     if (!motion.enabled() || !oldRects) return;
-    const dur = motion.dur('dur-base', 200);
-    const easing = motion.curve('curve-out');
+    const isSlow = Boolean(opts.slow);
+    const dur = isSlow ? 380 : motion.dur('dur-base', 200);
+    const easing = isSlow ? 'cubic-bezier(0.22, 1, 0.36, 1)' : motion.curve('curve-out');
     const animateMap = (domMap, prevMap) => {
       if (!prevMap || !prevMap.size) return;
       domMap.forEach((el, id) => {
@@ -1774,6 +1865,54 @@
     };
     animateMap(els.bars, oldRects.bars);
     animateMap(els.rows, oldRects.rows);
+
+    // Animate exiting rows/bars smoothly collapsing & fading out before removal
+    if (isSlow && oldRects.rowSnapshots && treeEl) {
+      oldRects.rowSnapshots.forEach((snap, id) => {
+        if (els.rows.has(id)) return;
+        const clone = snap.clone;
+        clone.removeAttribute('id');
+        clone.style.position = 'absolute';
+        clone.style.left = '0';
+        clone.style.right = '0';
+        clone.style.top = `${snap.top}px`;
+        clone.style.height = `${snap.height}px`;
+        clone.style.pointerEvents = 'none';
+        clone.style.zIndex = '1';
+        clone.style.transformOrigin = 'top center';
+        treeEl.appendChild(clone);
+        const anim = motion.anim(clone, [
+          { transform: 'scaleY(1)', opacity: 1 },
+          { transform: 'scaleY(0.2)', opacity: 0 }
+        ], { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+        const cleanup = () => { if (clone.parentNode) clone.remove(); };
+        if (anim && anim.finished) anim.finished.then(cleanup, cleanup);
+        else setTimeout(cleanup, 340);
+      });
+    }
+    if (isSlow && oldRects.barSnapshots && barsEl) {
+      oldRects.barSnapshots.forEach((snap, id) => {
+        if (els.bars.has(id)) return;
+        const clone = snap.clone;
+        clone.removeAttribute('id');
+        clone.style.position = 'absolute';
+        clone.style.left = snap.left;
+        clone.style.top = snap.top;
+        clone.style.width = snap.width;
+        clone.style.height = snap.height;
+        clone.style.pointerEvents = 'none';
+        clone.style.zIndex = '1';
+        clone.style.transformOrigin = 'top center';
+        barsEl.appendChild(clone);
+        const anim = motion.anim(clone, [
+          { transform: 'scaleY(1)', opacity: 1 },
+          { transform: 'scaleY(0.2)', opacity: 0 }
+        ], { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+        const cleanup = () => { if (clone.parentNode) clone.remove(); };
+        if (anim && anim.finished) anim.finished.then(cleanup, cleanup);
+        else setTimeout(cleanup, 340);
+      });
+    }
   }
 
   function setViewMode(nextMode, opts = {}) {
@@ -1787,9 +1926,12 @@
       syncViewFilterUi();
       return;
     }
-    const oldRects = (opts.animate !== false && motion.enabled()) ? captureLayoutRects() : null;
+    const isInView = nextMode === 'in-view';
+    const oldRects = (opts.animate !== false && motion.enabled())
+      ? captureLayoutRects({ captureExits: isInView })
+      : null;
     render();
-    if (oldRects) playLayoutMorph(oldRects);
+    if (oldRects) playLayoutMorph(oldRects, { slow: isInView });
   }
 
   function toggleColorFilter(slot) {
@@ -2014,10 +2156,16 @@
       if (!win) return;
       const key = `${win.start}|${win.end}`;
       if (key === lastInViewWindowKey) return;
-      const oldRects = motion.enabled() ? captureLayoutRects() : null;
+      const oldRects = motion.enabled() ? captureLayoutRects({ captureExits: true }) : null;
       render();
-      if (oldRects) playLayoutMorph(oldRects);
+      if (oldRects) playLayoutMorph(oldRects, { slow: true });
     }, 220);
+  }
+
+  function syncTreeBottomPad() {
+    if (!treeEl || !timeline) return;
+    const hScroll = Math.max(0, timeline.offsetHeight - timeline.clientHeight);
+    treeEl.style.paddingBottom = `${hScroll}px`;
   }
 
   function syncDisplayModeUi() {
@@ -2036,11 +2184,36 @@
   function setDisplayMode(nextMode) {
     const mode = nextMode === 'table' ? 'table' : 'timeline';
     if (mode === displayMode) return;
+    const prevPill = modeSwitchEl ? modeSwitchEl.querySelector('.gantt-mode-pill.is-active') : null;
+    const prevRect = (prevPill && motion.enabled()) ? prevPill.getBoundingClientRect() : null;
     removeActionBar();
     if (window.GanttDatePicker) window.GanttDatePicker.close();
     displayMode = mode;
     syncDisplayModeUi();
     render();
+    if (motion.enabled()) {
+      const nextPill = modeSwitchEl ? modeSwitchEl.querySelector('.gantt-mode-pill.is-active') : null;
+      if (prevRect && nextPill) {
+        const nextRect = nextPill.getBoundingClientRect();
+        const dx = prevRect.left - nextRect.left;
+        const sx = nextRect.width > 0 ? prevRect.width / nextRect.width : 1;
+        motion.anim(nextPill, [
+          { transform: `translateX(${dx}px) scaleX(${sx})` },
+          { transform: 'none' }
+        ], { duration: 200, easing: motion.curve('curve-out') });
+      }
+      if (root) {
+        clearTimeout(modeAnimTimer);
+        root.classList.remove('is-mode-enter-table', 'is-mode-enter-timeline');
+        void root.offsetWidth;
+        const cls = mode === 'table' ? 'is-mode-enter-table' : 'is-mode-enter-timeline';
+        root.classList.add(cls);
+        modeAnimTimer = setTimeout(() => {
+          root.classList.remove('is-mode-enter-table', 'is-mode-enter-timeline');
+          modeAnimTimer = null;
+        }, 220);
+      }
+    }
   }
 
   // --- MAIN RENDER ---
@@ -2085,11 +2258,13 @@
     }
 
     const gridLines = renderHeader(range, zoomKey, fullW);
+    lastGridLines = gridLines || [];
     renderGrid(range, zoomKey, visItems, gridLines, fullW);
     renderSidebar(visItems);
     renderBars(visItems, todayStr);
     renderMarkers(visItems);
     renderToday(range, visItems, todayStr);
+    layoutHeaderMarkerPills();
     renderDependencies(range, visItems);
     renderNotes();
     renderColorKey();
@@ -2102,6 +2277,7 @@
     renderHolidaysList();
     syncSelectionUi();
     syncZoomPills(zoomKey);
+    syncTreeBottomPad();
     if (typeof showZoom === 'function') showZoom();
 
     if (!didInitialScroll && timeline && range) {
@@ -2125,6 +2301,7 @@
       lastScrollLeft = timeline.scrollLeft;
       requestAnimationFrame(() => {
         isExtendingTimeline = false;
+        syncTreeBottomPad();
         if (viewMode === 'in-view') render();
         else scheduleScrollOverlays();
       });
@@ -2148,6 +2325,7 @@
       const rec = els.markers.get(m.id);
       if (rec) patchMarker(rec, m);
     });
+    layoutHeaderMarkerPills();
     renderDependencies(range, visItems, true);
   }
 
@@ -2168,6 +2346,7 @@
   // --- SELECTION & ACTION BAR ---
   function clearSelection() {
     selItems.clear();
+    selSource = null;
     lastSelItemId = null;
     selMarkerId = null;
     selDepKey = null;
@@ -2182,9 +2361,10 @@
     return !presenting() && (selItems.size > 0 || !!selMarkerId || !!selDepKey || !!selNoteId);
   }
 
-  function selectSingleItem(id) {
+  function selectSingleItem(id, source) {
     selItems.clear();
     selItems.add(id);
+    selSource = source || null;
     lastSelItemId = id;
     selMarkerId = null;
     selDepKey = null;
@@ -2194,17 +2374,19 @@
     renderNotes();
   }
 
-  function toggleItemSelection(id) {
+  function toggleItemSelection(id, source) {
     selMarkerId = null;
     selDepKey = null;
     selNoteId = null;
+    if (source) selSource = source;
     if (selItems.has(id)) selItems.delete(id);
     else selItems.add(id);
+    if (!selItems.size) selSource = null;
     lastSelItemId = id;
     syncSelectionUi();
   }
 
-  function selectItemRange(toId) {
+  function selectItemRange(toId, source) {
     const vis = visibleItems();
     const toIdx = vis.findIndex((it) => it.id === toId);
     if (toIdx < 0) return;
@@ -2214,6 +2396,7 @@
     selMarkerId = null;
     selDepKey = null;
     selNoteId = null;
+    if (source) selSource = source;
     selItems.clear();
     for (let i = lo; i <= hi; i++) selItems.add(vis[i].id);
     syncSelectionUi();
@@ -2221,6 +2404,7 @@
 
   function selectMarker(id) {
     selItems.clear();
+    selSource = null;
     selDepKey = null;
     selNoteId = null;
     selMarkerId = id;
@@ -2229,6 +2413,7 @@
 
   function selectDependency(key) {
     selItems.clear();
+    selSource = null;
     selMarkerId = null;
     selNoteId = null;
     selDepKey = key;
@@ -2348,7 +2533,22 @@
       anchor = rec.flag;
 
       const btnDate = ui.abButton('ab-btn', 'date', ui.icon('calendar', { size: 'sm' }), `Date: ${m.date}`);
-      btnDate.addEventListener('click', () => openMarkerDatePop(btnDate, m));
+      btnDate.addEventListener('click', () => {
+        if (window.GanttDatePicker && typeof window.GanttDatePicker.open === 'function') {
+          window.GanttDatePicker.open(btnDate, {
+            value: m.date,
+            title: 'Milestone date',
+            onSelect: (d) => {
+              if (!d) return;
+              m.date = d;
+              render();
+              updateStatus(true);
+            }
+          });
+        } else {
+          openMarkerDatePop(btnDate, m);
+        }
+      });
 
       const swatches = pickColor(m.color, (slot) => {
         if (slot) m.color = slot; else delete m.color;
@@ -2404,11 +2604,9 @@
       const isParent = Boolean(it._hasChildren || it.kind === 'group');
       const isMilestone = it.kind === 'milestone' && !it._hasChildren;
 
-      if (!isParent) {
-        const btnDates = ui.abButton('ab-btn', 'dates', ui.icon('calendar', { size: 'sm' }), isMilestone ? 'Set date' : 'Set dates');
-        btnDates.addEventListener('click', () => openItemDatesPop(btnDates, it, isMilestone));
-        bar.append(btnDates, ui.abSep('ab-sep'));
-      }
+      const btnDates = ui.abButton('ab-btn', 'dates', ui.icon('calendar', { size: 'sm' }), isMilestone ? 'Set date' : 'Set dates');
+      btnDates.addEventListener('click', () => openItemDatesPop(btnDates, it, isMilestone));
+      bar.append(btnDates, ui.abSep('ab-sep'));
 
       const swatches = pickColor(effectiveColor(it), (slot) => {
         if (slot) it.color = slot; else delete it.color;
@@ -2444,7 +2642,8 @@
       btnNote.addEventListener('click', () => addOrEditNoteForTarget(id));
       bar.append(btnNote, ui.abSep('ab-sep'));
 
-      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete');
+      const canClearBar = selSource === 'bar' && Boolean(it.start || it.end) && (!isParent || !getDescendants(it.id).some((ch) => ch.start || ch._start));
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), canClearBar ? 'Clear dates (remove bar)' : 'Delete');
       btnDel.addEventListener('click', () => deleteSelection(btnDel));
       bar.append(btnDel);
     } else if (selItems.size > 1) {
@@ -2472,7 +2671,11 @@
       btnShift.addEventListener('click', () => openShiftDatesPop(btnShift, ids));
       bar.append(btnShift, ui.abSep('ab-sep'));
 
-      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), 'Delete selected');
+      const canClearBars = selSource === 'bar' && ids.some((id) => {
+        const it = itemById(id);
+        return it && Boolean(it.start || it.end) && ((!it._hasChildren && it.kind !== 'group') || !getDescendants(it.id).some((ch) => ch.start || ch._start));
+      });
+      const btnDel = ui.abButton('ab-btn btn-danger-hover', 'delete', ui.icon('trash', { size: 'sm' }), canClearBars ? 'Clear dates (remove bars)' : 'Delete selected');
       btnDel.addEventListener('click', () => deleteSelection(btnDel));
       bar.append(btnDel);
     } else {
@@ -2524,14 +2727,55 @@
       apply.addEventListener('click', () => {
         const s = ganttFormatDate(inStart.value);
         if (!s) { ui.toast('Invalid start date'); return; }
+        const isParent = Boolean(it._hasChildren || it.kind === 'group');
         if (isMilestone) {
           it.start = s;
           it.end = s;
         } else {
-          const e = ganttFormatDate(inEnd.value);
-          if (!e) { ui.toast('Invalid end date'); return; }
-          it.start = s;
-          it.end = e < s ? s : e;
+          const rawE = ganttFormatDate(inEnd.value);
+          if (!rawE) { ui.toast('Invalid end date'); return; }
+          const e = rawE < s ? s : rawE;
+          const descLeaves = isParent
+            ? getDescendants(it.id).filter((ch) => !ch._hasChildren && ch.kind !== 'group' && (ch.start || ch._start))
+            : [];
+          if (isParent && descLeaves.length > 0) {
+            const origStart = it._start || it.start || s;
+            const origEnd = it._end || it.end || e;
+            const dStart = ganttDiffDays(origStart, s);
+            const dEnd = ganttDiffDays(origEnd, e);
+            if (dStart === dEnd && dStart !== 0) {
+              descLeaves.forEach((ch) => {
+                const cs = ch.start || ch._start;
+                const ce = ch.end || ch._end || cs;
+                ch.start = ganttAddDays(cs, dStart);
+                ch.end = ch.kind === 'milestone' ? ch.start : ganttAddDays(ce, dStart);
+              });
+            } else {
+              descLeaves.forEach((ch) => {
+                let cs = ch.start || ch._start;
+                let ce = ch.end || ch._end || cs;
+                if (s < origStart && cs === origStart) {
+                  cs = s;
+                  if (ch.kind === 'milestone') ce = s;
+                } else if (s > origStart && cs < s) {
+                  cs = s;
+                  if (ch.kind === 'milestone' || ce < s) ce = s;
+                }
+                if (e > origEnd && ce === origEnd) {
+                  ce = e;
+                  if (ch.kind === 'milestone') cs = e;
+                } else if (e < origEnd && ce > e) {
+                  ce = e;
+                  if (ch.kind === 'milestone' || cs > e) cs = e;
+                }
+                ch.start = cs;
+                ch.end = ch.kind === 'milestone' ? cs : ce;
+              });
+            }
+          } else {
+            it.start = s;
+            it.end = e;
+          }
         }
         closeFloatingPop();
         render();
@@ -2822,6 +3066,22 @@
     }
     if (!selItems.size) return;
 
+    if (selSource === 'bar') {
+      const scheduled = [...selItems]
+        .map((id) => itemById(id))
+        .filter((it) => it && Boolean(it.start || it.end) && ((!it._hasChildren && it.kind !== 'group') || !getDescendants(it.id).some((ch) => ch.start || ch._start)));
+      if (scheduled.length > 0) {
+        scheduled.forEach((it) => {
+          delete it.start;
+          delete it.end;
+        });
+        render();
+        updateStatus(true);
+        ui.toast(scheduled.length === 1 ? 'Cleared task dates' : `Cleared dates for ${scheduled.length} tasks`);
+        return;
+      }
+    }
+
     const toRemove = new Set(selItems);
     selItems.forEach((id) => {
       getDescendants(id).forEach((ch) => toRemove.add(ch.id));
@@ -2833,6 +3093,7 @@
       if (!chartData.notes.length) delete chartData.notes;
     }
     selItems.clear();
+    selSource = null;
     lastSelItemId = null;
     render();
     updateStatus(true);
@@ -2852,15 +3113,17 @@
     }
 
     if (e.shiftKey) {
-      selectItemRange(it.id);
+      selectItemRange(it.id, 'bar');
       return;
     }
     if (e.ctrlKey || e.metaKey) {
-      toggleItemSelection(it.id);
+      toggleItemSelection(it.id, 'bar');
       return;
     }
     if (!selItems.has(it.id)) {
-      selectSingleItem(it.id);
+      selectSingleItem(it.id, 'bar');
+    } else {
+      selSource = 'bar';
     }
 
     if (presenting()) return;
@@ -2939,12 +3202,24 @@
   function onResizePointerDown(e, it, edge) {
     if (e.button !== 0 || presenting()) return;
     e.stopPropagation();
-    selectSingleItem(it.id);
+    selectSingleItem(it.id, 'bar');
 
     const range = chartData._range;
     const snapDays = GANTT_ZOOMS[currentZoom()].snapDays;
-    const origStart = it.start || it._start;
-    const origEnd = it.end || it._end || origStart;
+    const origStart = it._start || it.start;
+    const origEnd = it._end || it.end || origStart;
+    if (!origStart || !origEnd) return;
+    const isStart = edge === 'start' || edge === 'left';
+    const isParent = Boolean(it._hasChildren || it.kind === 'group');
+    const descLeaves = isParent
+      ? getDescendants(it.id)
+          .filter((ch) => !ch._hasChildren && ch.kind !== 'group' && (ch.start || ch._start))
+          .map((ch) => ({
+            item: ch,
+            start: ch.start || ch._start,
+            end: ch.end || ch._end || ch.start || ch._start
+          }))
+      : [];
 
     activeDrag = {
       kind: 'resize',
@@ -2955,6 +3230,7 @@
       snapDays,
       origStart,
       origEnd,
+      descLeaves,
       lastDelta: 0,
       moved: false
     };
@@ -2975,7 +3251,59 @@
         return;
       }
       activeDrag.lastDelta = snapped;
-      if (edge === 'start') {
+      if (isParent && descLeaves.length > 0) {
+        if (isStart) {
+          const rawStart = ganttAddDays(origStart, snapped);
+          const newStart = rawStart > origEnd ? origEnd : rawStart;
+          descLeaves.forEach(({ item, start, end }) => {
+            if (snapped < 0) {
+              if (start === origStart) {
+                item.start = newStart;
+                item.end = item.kind === 'milestone' ? newStart : end;
+              } else {
+                item.start = start;
+                item.end = end;
+              }
+            } else if (snapped > 0) {
+              if (start < newStart) {
+                item.start = newStart;
+                item.end = item.kind === 'milestone' ? newStart : (end < newStart ? newStart : end);
+              } else {
+                item.start = start;
+                item.end = end;
+              }
+            } else {
+              item.start = start;
+              item.end = end;
+            }
+          });
+        } else {
+          const rawEnd = ganttAddDays(origEnd, snapped);
+          const newEnd = rawEnd < origStart ? origStart : rawEnd;
+          descLeaves.forEach(({ item, start, end }) => {
+            if (snapped > 0) {
+              if (end === origEnd) {
+                item.end = newEnd;
+                item.start = item.kind === 'milestone' ? newEnd : start;
+              } else {
+                item.start = start;
+                item.end = end;
+              }
+            } else if (snapped < 0) {
+              if (end > newEnd) {
+                item.end = newEnd;
+                item.start = item.kind === 'milestone' ? newEnd : (start > newEnd ? newEnd : start);
+              } else {
+                item.start = start;
+                item.end = end;
+              }
+            } else {
+              item.start = start;
+              item.end = end;
+            }
+          });
+        }
+      } else if (isStart) {
         const nextStart = ganttAddDays(origStart, snapped);
         it.start = nextStart > origEnd ? origEnd : nextStart;
       } else {
@@ -3468,6 +3796,52 @@
         selectDependency(key);
       });
     }
+
+    const updateColHover = (ev) => {
+      if (!colHoverEl || !bodyEl || !chartData._range) return;
+      if (activeDrag || connectState) {
+        colHoverEl.classList.remove('is-visible');
+        return;
+      }
+      const rect = bodyEl.getBoundingClientRect();
+      const relX = ev.clientX - rect.left;
+      const range = chartData._range;
+      const totalW = Math.max(range.timelineWidth, (timeline && timeline.clientWidth) || 0);
+      if (relX < 0 || relX > totalW) {
+        colHoverEl.classList.remove('is-visible');
+        return;
+      }
+      let colX = 0;
+      let colW = range.pxPerDay;
+      if (currentZoom() === 'day') {
+        colX = Math.floor(relX / range.pxPerDay) * range.pxPerDay;
+        colW = range.pxPerDay;
+      } else if (lastGridLines.length > 0) {
+        let prevX = 0;
+        let nextX = totalW;
+        for (let i = 0; i < lastGridLines.length; i++) {
+          const gx = lastGridLines[i].x;
+          if (gx <= relX) prevX = gx;
+          else { nextX = gx; break; }
+        }
+        colX = prevX;
+        colW = Math.max(4, nextX - prevX);
+      } else {
+        colX = Math.floor(relX / Math.max(1, range.pxPerDay)) * range.pxPerDay;
+        colW = range.pxPerDay;
+      }
+      colHoverEl.style.transform = `translateX(${colX}px)`;
+      colHoverEl.style.width = `${colW}px`;
+      colHoverEl.classList.add('is-visible');
+    };
+
+    if (bodyEl) bodyEl.addEventListener('pointermove', updateColHover, { passive: true });
+    if (headerEl) headerEl.addEventListener('pointermove', updateColHover, { passive: true });
+    if (timeline) {
+      timeline.addEventListener('pointerleave', () => {
+        if (colHoverEl) colHoverEl.classList.remove('is-visible');
+      });
+    }
   }
   wireLayerEvents();
 
@@ -3477,22 +3851,44 @@
     if (e.target.closest('button') || e.target.isContentEditable) return;
     e.stopPropagation();
 
-    if (e.shiftKey) { selectItemRange(it.id); return; }
-    if (e.ctrlKey || e.metaKey) { toggleItemSelection(it.id); return; }
-    selectSingleItem(it.id);
+    if (e.shiftKey) { selectItemRange(it.id, 'row'); return; }
+    if (e.ctrlKey || e.metaKey) { toggleItemSelection(it.id, 'row'); return; }
+    selectSingleItem(it.id, 'row');
     if (presenting()) return;
 
+    const startX = e.clientX;
     const startY = e.clientY;
     let dragging = false;
     let dropTarget = null;
     let dropMode = null; // 'before' | 'after' | 'inside'
+    let dropParentId = undefined;
+    let dropBadge = null;
+
+    const hideDropBadge = () => {
+      if (dropBadge && dropBadge.parentNode) dropBadge.remove();
+      dropBadge = null;
+    };
+
+    const showDropBadge = (clientX, clientY, text) => {
+      if (!text) { hideDropBadge(); return; }
+      if (!dropBadge) {
+        dropBadge = htmlEl('div', 'gantt-drop-badge');
+        document.body.appendChild(dropBadge);
+      }
+      setText(dropBadge, text);
+      dropBadge.style.left = `${Math.round(clientX + 14)}px`;
+      dropBadge.style.top = `${Math.round(clientY - 12)}px`;
+    };
 
     const clearDropIndicators = () => {
-      els.rows.forEach((r) => r.classList.remove('drop-before', 'drop-after', 'drop-inside', 'is-row-dragging'));
+      els.rows.forEach((r) => {
+        r.classList.remove('drop-before', 'drop-after', 'drop-inside', 'is-row-dragging');
+        r.style.removeProperty('--drop-depth');
+      });
     };
 
     const onMove = (ev) => {
-      if (!dragging && Math.abs(ev.clientY - startY) < 6) return;
+      if (!dragging && Math.abs(ev.clientY - startY) < 6 && Math.abs(ev.clientX - startX) < 6) return;
       if (!dragging) {
         dragging = true;
         removeActionBar();
@@ -3505,29 +3901,107 @@
 
       dropTarget = null;
       dropMode = null;
+      dropParentId = undefined;
+
       const hit = document.elementFromPoint(ev.clientX, ev.clientY);
-      const targetRow = hit && hit.closest('.gantt-tree-row');
-      if (!targetRow) return;
+      let targetRow = hit && hit.closest ? hit.closest('.gantt-tree-row') : null;
+      let edgeSnap = null;
+
+      // Handle dragging near the very top/bottom edge of #gantt-tree
+      if (!targetRow && treeEl) {
+        const treeRect = treeEl.getBoundingClientRect();
+        if (ev.clientX >= treeRect.left - 40 && ev.clientX <= treeRect.right + 40) {
+          const vis = visibleItems();
+          if (vis.length > 0) {
+            if (ev.clientY <= treeRect.top + 16) {
+              targetRow = els.rows.get(vis[0].id) || null;
+              edgeSnap = 'before';
+            } else if (ev.clientY >= treeRect.bottom - 16) {
+              targetRow = els.rows.get(vis[vis.length - 1].id) || null;
+              edgeSnap = 'after';
+            }
+          }
+        }
+      }
+
+      if (!targetRow) {
+        hideDropBadge();
+        return;
+      }
       const tid = targetRow.dataset.itemId;
-      if (!tid || tid === it.id || isAncestor(it.id, tid)) return;
+      if (!tid || tid === it.id || isAncestor(it.id, tid)) {
+        hideDropBadge();
+        return;
+      }
 
       const r = targetRow.getBoundingClientRect();
       const rel = (ev.clientY - r.top) / Math.max(1, r.height);
       const targetItem = itemById(tid);
-      if (rel < 0.28) {
-        dropMode = 'before';
-        targetRow.classList.add('drop-before');
-      } else if (rel > 0.72) {
-        dropMode = 'after';
-        targetRow.classList.add('drop-after');
-      } else if (targetItem && targetItem.kind !== 'milestone') {
-        dropMode = 'inside';
-        targetRow.classList.add('drop-inside');
-      } else {
-        dropMode = 'after';
-        targetRow.classList.add('drop-after');
+      if (!targetItem) {
+        hideDropBadge();
+        return;
       }
+
+      const dx = ev.clientX - startX;
+      let baseMode;
+      if (edgeSnap) {
+        baseMode = edgeSnap;
+      } else if (rel < 0.35) {
+        baseMode = 'before';
+      } else if (rel > 0.65) {
+        baseMode = 'after';
+      } else if (targetItem.kind !== 'milestone') {
+        baseMode = 'inside';
+      } else {
+        baseMode = 'after';
+      }
+
+      let dropDepth = targetItem._depth || 0;
+      let badgeText = '';
+
+      if (baseMode === 'inside') {
+        dropMode = 'inside';
+        dropParentId = targetItem.id;
+        dropDepth = (targetItem._depth || 0) + 1;
+        targetRow.classList.add('drop-inside');
+        badgeText = `Indent under ${targetItem.label || targetItem.id}`;
+      } else if (dx > 24 && baseMode === 'after') {
+        if (targetItem.kind !== 'milestone') {
+          dropMode = 'inside';
+          dropParentId = targetItem.id;
+          dropDepth = (targetItem._depth || 0) + 1;
+          targetRow.style.setProperty('--drop-depth', String(dropDepth));
+          targetRow.classList.add('drop-after');
+          badgeText = `Indent under ${targetItem.label || targetItem.id}`;
+        } else {
+          dropMode = 'after';
+          dropParentId = targetItem.parent || null;
+          targetRow.style.setProperty('--drop-depth', String(dropDepth));
+          targetRow.classList.add('drop-after');
+        }
+      } else if (dx < -24 && targetItem.parent) {
+        dropMode = baseMode;
+        if (dx < -48) {
+          dropParentId = null;
+          dropDepth = 0;
+          badgeText = 'Outdent';
+        } else {
+          const parentItem = itemById(targetItem.parent);
+          dropParentId = (parentItem && parentItem.parent) ? parentItem.parent : null;
+          dropDepth = Math.max(0, (targetItem._depth || 1) - 1);
+          badgeText = 'Outdent';
+        }
+        targetRow.style.setProperty('--drop-depth', String(dropDepth));
+        targetRow.classList.add(baseMode === 'before' ? 'drop-before' : 'drop-after');
+      } else {
+        dropMode = baseMode;
+        dropParentId = targetItem.parent || null;
+        targetRow.style.setProperty('--drop-depth', String(dropDepth));
+        targetRow.classList.add(baseMode === 'before' ? 'drop-before' : 'drop-after');
+      }
+
       dropTarget = tid;
+      showDropBadge(ev.clientX, ev.clientY, badgeText);
     };
 
     const onUp = () => {
@@ -3535,8 +4009,9 @@
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       clearDropIndicators();
+      hideDropBadge();
       if (dragging && dropTarget && dropMode) {
-        reorderOrReparent(it.id, dropTarget, dropMode);
+        reorderOrReparent(it.id, dropTarget, dropMode, dropParentId);
       } else {
         renderActionBar();
       }
@@ -3547,7 +4022,7 @@
     window.addEventListener('pointercancel', onUp);
   }
 
-  function reorderOrReparent(sourceId, targetId, mode) {
+  function reorderOrReparent(sourceId, targetId, mode, explicitParentId) {
     if (sourceId === targetId || isAncestor(sourceId, targetId)) return;
     const src = itemById(sourceId);
     const tgt = itemById(targetId);
@@ -3557,7 +4032,17 @@
     const srcIdx = list.indexOf(src);
     if (srcIdx < 0) return;
 
-    if (mode === 'inside') {
+    if (explicitParentId !== undefined) {
+      if (explicitParentId === sourceId || (explicitParentId && isAncestor(sourceId, explicitParentId))) return;
+      if (explicitParentId) {
+        const parentItem = itemById(explicitParentId);
+        if (!parentItem || parentItem.kind === 'milestone') return;
+        src.parent = explicitParentId;
+        if (parentItem.collapsed) delete parentItem.collapsed;
+      } else {
+        delete src.parent;
+      }
+    } else if (mode === 'inside') {
       if (tgt.kind === 'milestone') return;
       src.parent = tgt.id;
       if (tgt.collapsed) delete tgt.collapsed;
@@ -3738,7 +4223,10 @@
       scheduleScrollOverlays();
     }, { passive: true });
   }
-  window.addEventListener('resize', scheduleScrollOverlays, { passive: true });
+  window.addEventListener('resize', () => {
+    syncTreeBottomPad();
+    scheduleScrollOverlays();
+  }, { passive: true });
 
   // --- ZOOM CONTROLLER & MORPH TRANSITION ("morph, not fade") ---
   function captureBarRects() {
@@ -4636,6 +5124,7 @@
       getSelectedIds: () => selItems,
       setSelectedIds: (nextSet) => {
         selItems = nextSet instanceof Set ? new Set(nextSet) : new Set(nextSet || []);
+        selSource = null;
         selMarkerId = null;
         selDepKey = null;
         selNoteId = null;
@@ -4651,6 +5140,7 @@
       newId: (prefix) => newId(prefix),
       getTodayStr: () => getTodayStr(),
       cleanLabel: (val, fallback) => cleanLabel(val, fallback),
+      reorderOrReparent: (sourceId, targetId, mode, explicitParentId) => reorderOrReparent(sourceId, targetId, mode, explicitParentId),
       getNoteForItem: (id) => notesList().find((n) => n && n.target === id) || null,
       setNoteForItem: (id, text) => {
         const trimmed = String(text == null ? '' : text).trim();
@@ -4668,6 +5158,56 @@
         }
         render();
         updateStatus(true);
+      },
+      getCategories: () => {
+        const ck = (chartData && chartData.colorKey) || {};
+        const usedSlots = new Set();
+        Object.keys(ck).forEach((k) => {
+          if (ck[k] && String(ck[k]).trim()) usedSlots.add(String(k));
+        });
+        itemsList().forEach((it) => { if (it && it.color) usedSlots.add(String(it.color)); });
+        markersList().forEach((m) => { if (m && m.color) usedSlots.add(String(m.color)); });
+        const out = [];
+        for (let i = 1; i <= 9; i++) {
+          const slot = String(i);
+          if (!usedSlots.has(slot)) continue;
+          const sw = swatchColors(slot);
+          const lbl = (ck[slot] && String(ck[slot]).trim()) || `Color ${slot}`;
+          out.push({ slot, label: lbl, color: sw.solid || sw.border || sw.fill });
+        }
+        return out;
+      },
+      addCategory: (name) => {
+        const trimmed = String(name == null ? '' : name).trim();
+        if (!trimmed) return null;
+        if (!chartData.colorKey || typeof chartData.colorKey !== 'object') chartData.colorKey = {};
+        const ck = chartData.colorKey;
+        const lower = trimmed.toLowerCase();
+        for (let i = 1; i <= 9; i++) {
+          const slot = String(i);
+          if (ck[slot] && String(ck[slot]).trim().toLowerCase() === lower) {
+            const sw = swatchColors(slot);
+            return { slot, label: String(ck[slot]).trim(), color: sw.solid || sw.border || sw.fill };
+          }
+        }
+        const usedSlots = new Set();
+        Object.keys(ck).forEach((k) => {
+          if (ck[k] && String(ck[k]).trim()) usedSlots.add(String(k));
+        });
+        itemsList().forEach((it) => { if (it && it.color) usedSlots.add(String(it.color)); });
+        markersList().forEach((m) => { if (m && m.color) usedSlots.add(String(m.color)); });
+        let chosen = null;
+        for (let i = 1; i <= 9; i++) {
+          const slot = String(i);
+          if (!usedSlots.has(slot)) { chosen = slot; break; }
+        }
+        if (!chosen) {
+          categoryCycleCursor = (categoryCycleCursor % 9) + 1;
+          chosen = String(categoryCycleCursor);
+        }
+        ck[chosen] = trimmed;
+        const sw = swatchColors(chosen);
+        return { slot: chosen, label: trimmed, color: sw.solid || sw.border || sw.fill };
       },
       getPaletteSlots: () => {
         const ck = (chartData && chartData.colorKey) || {};

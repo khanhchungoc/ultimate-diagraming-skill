@@ -29,7 +29,7 @@ if (!browser) {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const noAnim = isNoAnim();
-const todayParam = '2026-05-20';
+const todayParam = '2026-11-18';
 const defaultQuery = `?today=${todayParam}${noAnim ? '&noanim=1' : ''}`;
 const baseQuery = `?today=${todayParam}&view=all${noAnim ? '&noanim=1' : ''}`;
 const presentQuery = `?present&today=${todayParam}${noAnim ? '&noanim=1' : ''}`;
@@ -161,7 +161,7 @@ try {
     cdp.check('initial: #gantt-markers has vertical marker line & flag', state.markerCount >= 1 && state.markerFlagCount >= 1, `lines=${state.markerCount} flags=${state.markerFlagCount}`);
     cdp.check('initial: #gantt-deps has SVG dependency paths', state.depGroupCount >= 1 && state.depPathCount >= 1, `groups=${state.depGroupCount}`);
     cdp.check('initial: overlapping FS dependency has .violated class', state.violatedCount >= 1, `violated=${state.violatedCount}`);
-    cdp.check('initial: #gantt-today vertical line & Today pill rendered', state.todayAttr === todayParam && state.todayPillText.startsWith('Today') && state.todayPillText.includes('May 20'), `today=${state.todayAttr} pill=${state.todayPillText}`);
+    cdp.check('initial: #gantt-today vertical line & Today pill rendered', state.todayAttr === todayParam && state.todayPillText.startsWith('Today') && state.todayPillText.includes('Nov 18'), `today=${state.todayAttr} pill=${state.todayPillText}`);
     cdp.check('initial: past/active/upcoming time states all present', state.past > 0 && state.active > 0 && state.upcoming > 0, `past=${state.past} active=${state.active} upcoming=${state.upcoming}`);
     checkNoErrors('initial-render');
   });
@@ -187,6 +187,7 @@ try {
 
     const steps = [
       { select: false, label: 'Month', key: 'month', weekends: false },
+      { select: true, label: '2 Weeks', key: '2week', weekends: true },
       { select: true, label: 'Week', key: 'week', weekends: true },
       { select: true, label: 'Day', key: 'day', weekends: true },
       { select: true, label: 'Week', key: 'week', weekends: true },
@@ -948,18 +949,24 @@ try {
     );
 
     // Calendar picker in Table Start cell updates date
-    const startBefore = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]')?.textContent?.trim()`);
-    await cdp.clickOn('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]');
+    const startBefore = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] td[data-col="start"] .gt-date-val')?.textContent?.trim()`);
+    await cdp.clickOn('#gantt-sheet tr[data-item-id="res"] .gt-date-cal-btn[data-field="start"]');
     await sleep(noAnim ? 20 : 60);
     const tableCalOpen = await cdp.ev(`!!document.querySelector('.gantt-cal-pop .gantt-cal-day')`);
-    cdp.check('table: clicking Start date cell opens .gantt-cal-pop', tableCalOpen);
+    cdp.check('table: clicking Start calendar icon opens .gantt-cal-pop', tableCalOpen);
+    // Today button navigates without selecting/closing
+    await cdp.clickOn('.gantt-cal-pop .gantt-cal-today');
+    await sleep(noAnim ? 16 : 40);
+    const calStillOpenAfterToday = await cdp.ev(`!!document.querySelector('.gantt-cal-pop')`);
+    cdp.check('calendar: Today button navigates without selecting/closing', calStillOpenAfterToday);
     await cdp.clickOn('.gantt-cal-pop .gantt-cal-day:not(.is-outside):not(.is-selected)');
     await cdp.settle();
-    const startAfter = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-date-btn[data-field="start"]')?.textContent?.trim()`);
+    const startAfter = await cdp.ev(`document.querySelector('#gantt-sheet tr[data-item-id="res"] td[data-col="start"] .gt-date-val')?.textContent?.trim()`);
     cdp.check('table: picking calendar day updates Start date', Boolean(startAfter && startAfter !== startBefore), `${startBefore} -> ${startAfter}`);
 
-    // Editing Duration recalculates End date
+    // Double-clicking Duration edits and recalculates End date
     await cdp.clickOn('#gantt-sheet tr[data-item-id="res"] .gt-col-dur');
+    await cdp.press('Enter');
     await sleep(noAnim ? 20 : 50);
     await cdp.ev(`(() => {
       const inp = document.querySelector('#gantt-sheet tr[data-item-id="res"] .gt-col-dur input');
@@ -992,19 +999,19 @@ try {
     await cdp.ev(`(() => {
       const host = document.getElementById('gantt-table-view');
       const dt = new DataTransfer();
-      dt.setData('text/plain', 'Task\\tStart\\tEnd\\nPasted Row A\\t2026-06-01\\t2026-06-10\\nPasted Row B\\t2026-06-11\\t2026-06-20');
+      dt.setData('text/plain', 'Task\\tStart\\tEnd\\nPasted Row A\\t2026-12-01\\t2026-12-10\\nPasted Row B\\t2026-12-11\\t2026-12-20');
       host.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     })()`);
     await cdp.settle();
     const afterPaste = await cdp.ev(`document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').length`);
     cdp.check('table: pasting TSV from Excel creates 2 tasks', afterPaste === beforePaste + 2, `${beforePaste} -> ${afterPaste}`);
 
-    // Bulk selection shows bulk action bar
+    // Bulk selection via # column shows bulk action bar
     await cdp.ev(`document.querySelector('#gantt-sheet tbody tr[data-item-id="res"]')?.scrollIntoView({ block: 'center' })`);
-    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox');
+    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="res"] .gt-col-num');
     await cdp.settle();
     const bulkVisible = await cdp.ev(`!document.getElementById('gantt-table-bulkbar')?.hidden`);
-    cdp.check('table: checking row shows bulk action bar', bulkVisible);
+    cdp.check('table: clicking # column selects row and shows bulk action bar', bulkVisible);
 
     // Switch back to Timeline and confirm newly added Table tasks render as bars
     await cdp.clickOn('#btn-mode-timeline');
@@ -1049,18 +1056,18 @@ try {
     const barSel = await cdp.ev(`document.querySelector('.gantt-bar[data-item-id="res"]')?.classList.contains('selected')`);
     cdp.check('timeline: delegated click on a kept bar selects it', barSel === true);
 
-    // Table view: marking rows, toggling checkbox keeps every <tr> DOM identity
+    // Table view: marking rows, toggling # column selection keeps every <tr> DOM identity
     await cdp.clickOn('#btn-mode-table');
     await cdp.settle();
-    const wasChecked = await cdp.ev(`document.querySelector('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox')?.checked`);
+    const wasSelected = await cdp.ev(`document.querySelector('#gantt-sheet tbody tr[data-item-id="ux"]')?.classList.contains('is-selected')`);
     await cdp.ev(`document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]').forEach((tr) => { tr.__mark = tr.dataset.itemId; })`);
-    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox');
+    await cdp.clickOn('#gantt-sheet tbody tr[data-item-id="ux"] .gt-col-num');
     await cdp.settle();
     const tblKept = await cdp.ev(`(() => {
       const rows = [...document.querySelectorAll('#gantt-sheet tbody tr[data-item-id]')];
-      return { n: rows.length, lost: rows.filter((tr) => tr.__mark !== tr.dataset.itemId).map((tr) => tr.dataset.itemId), checked: document.querySelector('#gantt-sheet tbody tr[data-item-id="res"] .gt-checkbox')?.checked };
+      return { n: rows.length, lost: rows.filter((tr) => tr.__mark !== tr.dataset.itemId).map((tr) => tr.dataset.itemId), selected: document.querySelector('#gantt-sheet tbody tr[data-item-id="ux"]')?.classList.contains('is-selected') };
     })()`);
-    cdp.check('table: re-rendering on selection keeps every row DOM identity', tblKept.n >= 4 && tblKept.lost.length === 0 && tblKept.checked !== wasChecked, JSON.stringify({ wasChecked, ...tblKept }));
+    cdp.check('table: re-rendering on selection keeps every row DOM identity', tblKept.n >= 4 && tblKept.lost.length === 0 && tblKept.selected !== wasSelected, JSON.stringify({ wasSelected, ...tblKept }));
 
     checkNoErrors('render-reuse-and-delegation');
   });

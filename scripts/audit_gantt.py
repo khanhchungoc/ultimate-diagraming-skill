@@ -9,7 +9,7 @@ import datetime
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-ZOOM_PRESETS = ("day", "week", "month", "quarter", "year")
+ZOOM_PRESETS = ("day", "week", "2week", "month", "quarter", "year")
 ITEM_KINDS = ("group", "task", "milestone")
 DEP_TYPES = ("fs", "ss")
 MAX_LABEL = 60  # characters; longer labels truncate on bars and in the sidebar
