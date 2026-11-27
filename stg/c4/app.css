@@ -1273,10 +1273,7 @@ max-width: 200px;
 padding: var(--space-4) var(--space-8) var(--space-8) var(--space-8);
 }
 .note-layer .note.show, .note-layer .note.peek { display: block; }
-.note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
-@keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
-@media (prefers-reduced-motion: reduce) { .note-layer .note.peek:not(.show) { animation: none; } }
-html[data-noanim] .note-layer .note.peek:not(.show) { animation: none; }
+.note-layer .note.peek:not(.show) { box-shadow: var(--shadow-lg); }
 .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 .note-leader {
 display: none;
@@ -1331,9 +1328,9 @@ animation: note-chip-in var(--dur-micro) var(--curve-spring-tactile);
 @keyframes note-chip-in { from { transform: scale(0.6); } to { transform: scale(1); } }
 .note-badge, .note-add {
 position: absolute;
-top: -8px; right: -8px;
+top: -9px; right: -9px;
 z-index: 3;
-width: 18px; height: 18px;
+width: 20px; height: 20px;
 box-sizing: border-box;
 padding: 0;
 display: inline-flex;
@@ -1345,10 +1342,10 @@ font: inherit;
 transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
 }
 .note-badge {
-border: 1px solid var(--note-border);
+border: 1.5px solid var(--note-border);
 background: var(--note-bg);
 color: var(--note-accent);
-box-shadow: var(--shadow-sm);
+box-shadow: 0 0 0 var(--space-2) var(--bg-page), var(--shadow-sm);
 }
 .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
 .note-add {
@@ -1718,7 +1715,7 @@ transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur
 }
 #search-bar:focus-within { border-color: var(--primary); }
 #search-bar[hidden] { display: none; }
-.search-glyph { display: inline-flex; align-items: center; color: var(--text-muted); margin-right: var(--space-4); }
+#search-clear[hidden] { display: none; }
 #search-input {
 width: 190px; min-height: 28px; padding: 0 var(--space-4); box-sizing: border-box; border: 0; background: transparent; outline: none;
 font-size: var(--t-control-size); color: var(--text-main);
@@ -2496,18 +2493,7 @@ body.presentation:not(.capture) .dock-area .toolbar-center > :not([data-level]):
 #c4-notes .note { cursor: default; }
 #c4-notes .note:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .c4-node.note-linked, .c4-group.note-linked { outline-offset: 5px; }
-.c4-note-pin {
-display: inline-flex; align-items: center; justify-content: center;
-padding: var(--space-2) var(--space-4); border: 1px solid var(--note-border); border-radius: var(--radius-pill);
-background: var(--note-bg); color: var(--note-ink); cursor: pointer; line-height: var(--leading-none);
-}
-.c4-node > .c4-note-pin, .c4-group.is-tile > .c4-note-pin { position: absolute; top: 6px; right: 6px; }
-.c4-tag .c4-note-pin { position: relative; margin-left: var(--space-4); padding: var(--space-2) var(--space-4); }
-.c4-note-pin::before {
-content: ''; position: absolute; top: 50%; left: 50%; translate: -50% -50%;
-width: var(--hit-min); height: var(--hit-min);
-}
-.c4-note-pin:hover { border-color: var(--primary); color: var(--primary); }
+.c4-tag .c4-note-pin { position: relative; top: auto; right: auto; margin-left: var(--space-4); }
 .c4-note-pin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 body.capture .c4-note-pin, body.exporting .c4-note-pin { display: none !important; }
 body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
