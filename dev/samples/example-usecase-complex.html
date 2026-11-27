@@ -1219,11 +1219,41 @@ border: 1px solid var(--border-color); border-radius: var(--radius-md);
 }
 .confirm-list { margin: 0 0 var(--space-12); padding-left: var(--space-16); max-height: 200px; overflow: auto; color: var(--text-soft); }
 .confirm-list li { margin-bottom: var(--space-4); overflow-wrap: anywhere; }
-.save-where {
-display: block; margin-bottom: var(--space-8); padding: var(--space-4) var(--space-8); overflow-wrap: anywhere; user-select: all;
-font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
-border: 1px solid var(--border-color); border-radius: var(--radius-md);
+.save-where-wrap {
+display: flex;
+align-items: center;
+gap: var(--space-12);
+margin-bottom: var(--space-16);
+padding: var(--space-8) var(--space-12);
+background: var(--bg-hover);
+border: 1px solid var(--border-color);
+border-radius: var(--radius-lg);
 }
+.save-where-wrap[hidden] { display: none; }
+.save-where {
+flex: 1 1 auto;
+min-width: 0;
+display: block;
+margin: 0;
+padding: 0;
+overflow-wrap: anywhere;
+user-select: text;
+font-family: var(--font-mono);
+font-size: var(--text-xs);
+line-height: var(--leading-normal);
+color: var(--text-main);
+}
+.save-where-badge {
+flex: none;
+display: inline-flex;
+align-items: center;
+gap: var(--space-4);
+font-size: var(--text-2xs);
+font-weight: var(--weight-semibold);
+color: var(--success);
+user-select: none;
+}
+.save-where-badge[hidden] { display: none; }
 @media (max-width: 560px) {
 .confirm,
 .confirm.has-alt,
@@ -1235,10 +1265,10 @@ transform: translateX(-50%);
 }
 }
 dialog.save-modal {
-width: 400px;
+width: 440px;
 max-width: calc(100vw - 24px);
 margin: auto;
-padding: var(--space-16);
+padding: var(--space-20);
 box-sizing: border-box;
 border-radius: var(--radius-3xl);
 border: 1px solid var(--border-dark);
@@ -1270,13 +1300,137 @@ backdrop-filter: none;
 -webkit-backdrop-filter: none;
 }
 }
-.save-modal-title { margin: 0 0 var(--space-8); font-weight: var(--weight-semibold); font-size: var(--text-lg); color: var(--text-main); }
-.save-modal-msg { margin: 0 0 var(--space-12); color: var(--text-soft); overflow-wrap: anywhere; }
-.save-modal-check {
-display: flex; align-items: center; gap: var(--space-8); margin: var(--space-8) 0 var(--space-16);
-font-size: var(--text-xs); color: var(--text-soft); cursor: pointer; user-select: none;
+.save-modal-head {
+display: flex;
+align-items: center;
+gap: var(--space-8);
+margin-bottom: var(--space-8);
 }
-.save-modal-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+.save-modal-icon {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+width: 28px;
+height: 28px;
+flex: none;
+border-radius: var(--radius-md);
+background: var(--bg-hover);
+border: 1px solid var(--border-color);
+color: var(--primary);
+}
+.save-modal-title {
+margin: 0;
+font-weight: var(--weight-semibold);
+font-size: var(--text-xl);
+line-height: var(--leading-tight);
+color: var(--text-main);
+}
+.save-modal-sub {
+margin: 0 0 var(--space-16);
+font-size: var(--text-xs);
+line-height: var(--leading-normal);
+color: var(--text-muted);
+}
+.save-modal-steps {
+list-style: none;
+counter-reset: save-step;
+margin: 0 0 var(--space-16);
+padding: 0;
+display: flex;
+flex-direction: column;
+gap: var(--space-8);
+color: var(--text-soft);
+}
+.save-modal-steps li {
+counter-increment: save-step;
+display: flex;
+align-items: baseline;
+gap: var(--space-8);
+}
+.save-modal-steps li::before {
+content: counter(save-step);
+display: inline-flex;
+align-items: center;
+justify-content: center;
+width: 18px;
+height: 18px;
+flex: none;
+border-radius: var(--radius-round);
+background: var(--bg-hover);
+border: 1px solid var(--border-color);
+font-size: var(--text-2xs);
+font-weight: var(--weight-bold);
+color: var(--text-muted);
+}
+.save-modal-steps strong {
+font-weight: var(--weight-semibold);
+color: var(--text-main);
+}
+dialog.save-modal kbd {
+display: inline-flex;
+align-items: center;
+padding: var(--space-2) var(--space-4);
+border-radius: var(--radius-sm);
+background: var(--bg-hover);
+border: 1px solid var(--border-dark);
+font-size: var(--text-xs);
+font-weight: var(--weight-semibold);
+line-height: var(--leading-snug);
+color: var(--text-main);
+}
+.save-modal-foot {
+display: flex;
+align-items: center;
+justify-content: space-between;
+flex-wrap: wrap;
+gap: var(--space-12);
+}
+.save-modal-foot .confirm-actions { margin-left: auto; }
+.save-modal-check {
+display: inline-flex;
+align-items: center;
+gap: var(--space-8);
+margin: 0;
+font-size: var(--text-xs);
+color: var(--text-soft);
+cursor: pointer;
+user-select: none;
+}
+.save-modal-check[hidden] { display: none; }
+.save-modal-check input {
+appearance: none;
+-webkit-appearance: none;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+flex: none;
+width: 16px;
+height: 16px;
+margin: 0;
+border-radius: var(--radius-sm);
+border: 1.5px solid var(--border-dark);
+background: var(--bg-panel);
+cursor: pointer;
+transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
+}
+.save-modal-check:hover input {
+border-color: var(--primary);
+background: var(--primary-wash);
+}
+.save-modal-check input:checked {
+background: var(--primary);
+border-color: var(--primary);
+}
+.save-modal-check input:checked::after {
+content: '';
+width: 4px;
+height: 7px;
+border: solid var(--on-primary);
+border-width: 0 2px 2px 0;
+transform: translateY(-1px) rotate(45deg);
+}
+.save-modal-check input:active { transform: scale(0.92); }
+.save-modal-check input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 dialog.save-modal .btn { padding: var(--space-4) var(--space-12); font-size: var(--t-control-size); white-space: nowrap; }
 .icon-picker {
 position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-8);
@@ -2749,16 +2903,25 @@ transition: border-color var(--dur-micro) var(--curve-out);
 
   <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
   <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
-    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
-    <p id="save-modal-msg" class="save-modal-msg"></p>
-    <code id="save-modal-path" class="save-where" hidden></code>
-    <label class="save-modal-check">
-      <input id="save-modal-skip" type="checkbox">
-      <span>Don’t show this again</span>
-    </label>
-    <form method="dialog" class="confirm-actions">
-      <button type="submit" value="cancel" class="btn">Cancel</button>
-      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    <div class="save-modal-head">
+      <span class="save-modal-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg></span>
+      <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    </div>
+    <p id="save-modal-sub" class="save-modal-sub"></p>
+    <ol id="save-modal-msg" class="save-modal-steps"></ol>
+    <div id="save-modal-path-wrap" class="save-where-wrap" hidden>
+      <code id="save-modal-path" class="save-where"></code>
+      <span id="save-modal-copied" class="save-where-badge" hidden><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/></svg> Copied</span>
+    </div>
+    <form method="dialog" class="save-modal-foot">
+      <label id="save-modal-check-wrap" class="save-modal-check">
+        <input id="save-modal-skip" type="checkbox">
+        <span>Don’t show this again</span>
+      </label>
+      <div class="confirm-actions">
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+      </div>
     </form>
   </dialog>
 
@@ -6677,7 +6840,7 @@ let pressedOutside = false;
 modal.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
 modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
 })();
-async function openSaveModal(loc, onContinue, preCopy) {
+async function openSaveModal(loc, onContinue, preCopy, usePicker) {
 const modal = document.getElementById('save-modal');
 const { text, mac } = savePathText(loc);
 const copied = text ? await (preCopy || copyText(text)) : false;
@@ -6686,26 +6849,51 @@ onContinue();
 return;
 }
 const titleEl = document.getElementById('save-modal-title');
+const subEl = document.getElementById('save-modal-sub');
 const msgEl = document.getElementById('save-modal-msg');
+const pathWrap = document.getElementById('save-modal-path-wrap');
+const copiedEl = document.getElementById('save-modal-copied');
 const pathEl = document.getElementById('save-modal-path');
+const checkWrap = document.getElementById('save-modal-check-wrap');
 const skipEl = document.getElementById('save-modal-skip');
-const pasteHint = mac
-? 'press \u2318\u21e7G, paste (\u2318V), press Return, then save and overwrite the existing file if asked.'
-: (loc && !loc.win
-? 'press Ctrl+L, paste (Ctrl+V), then save and overwrite the existing file if asked.'
-: 'paste the path (Ctrl+V) in the file browser popup, then save and overwrite the existing file if asked.');
-if (titleEl) titleEl.textContent = copied ? 'Path copied — save over this file' : 'Save over this file';
+if (titleEl) titleEl.textContent = 'Save over this file';
+if (subEl) {
+subEl.textContent = usePicker
+? 'Only needed once. Future saves overwrite automatically.'
+: 'This browser cannot remember the file path, so you will paste and overwrite on each save.';
+}
 if (msgEl) {
-msgEl.textContent = text
-? (copied
-? `The file path is copied to your clipboard. In the next window, ${pasteHint}`
-: `Copy the path below, then in the next window ${pasteHint}`)
-: 'In the next window, choose your existing diagram file and overwrite it if asked to save your changes.';
+msgEl.textContent = '';
+const addStep = (parts) => {
+const li = document.createElement('li');
+const span = document.createElement('span');
+parts.forEach((p) => {
+if (typeof p === 'string') span.appendChild(document.createTextNode(p));
+else {
+const el = document.createElement(p[0]);
+el.textContent = p[1];
+span.appendChild(el);
 }
-if (pathEl) {
-pathEl.textContent = text;
-pathEl.hidden = !text;
+});
+li.appendChild(span);
+msgEl.appendChild(li);
+};
+if (text) {
+if (copied) addStep(['Click ', ['strong', 'Continue'], ' to open the file picker.']);
+else addStep(['Copy the path below, then click ', ['strong', 'Continue'], '.']);
+if (mac) addStep(['Press ', ['kbd', '\u2318\u21e7G'], ', paste with ', ['kbd', '\u2318V'], ', and press ', ['kbd', 'Return'], '.']);
+else if (loc && !loc.win) addStep(['Press ', ['kbd', 'Ctrl+L'], ', then paste with ', ['kbd', 'Ctrl+V'], '.']);
+else addStep(['Press ', ['kbd', 'Ctrl+V'], ' in the file picker to paste the path.']);
+addStep(['Click ', ['strong', 'Save'], ' and confirm ', ['strong', 'overwrite'], '.']);
+} else {
+addStep(['Click ', ['strong', 'Continue'], ' to open the file picker.']);
+addStep(['Choose your existing file and ', ['strong', 'overwrite'], ' it to save.']);
 }
+}
+if (pathEl) pathEl.textContent = text;
+if (pathWrap) pathWrap.hidden = !text;
+if (copiedEl) copiedEl.hidden = !copied;
+if (checkWrap) checkWrap.hidden = !!usePicker;
 if (skipEl) skipEl.checked = false;
 modal.returnValue = '';
 const onClose = () => {
@@ -6713,7 +6901,7 @@ const rv = modal.returnValue;
 modal.returnValue = '';
 if (rv !== 'continue') return;
 if (!copied && text) copyText(text);
-if (skipEl && skipEl.checked) markSkipSaveModal();
+if (!usePicker && skipEl && skipEl.checked) markSkipSaveModal();
 onContinue();
 };
 modal.addEventListener('close', onClose, { once: true });
@@ -6731,13 +6919,13 @@ loc = !fileHandle ? localFilePath() : null;
 loc = localFilePath();
 }
 if (!fileHandle && !picked) {
-if (!shouldSkipSaveModal()) {
+if (usePicker || !shouldSkipSaveModal()) {
 await openSaveModal(loc, async () => {
 const html = skipSaveModalFlag && document.getElementById('diagram-data')
 ? buildSavedHtml(await loadSourceText())
 : replacedHtml;
 await writeFile(html, true);
-}, preCopy);
+}, preCopy, usePicker);
 return;
 }
 const { text } = savePathText(loc);
