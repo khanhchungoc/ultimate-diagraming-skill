@@ -211,7 +211,6 @@ try {
   await t.open(laid);
   await t.ev(`(() => {
     try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
-    delete window.showDirectoryPicker;
     window.__picked = []; window.__copied = []; window.__written = null;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
       createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
@@ -282,7 +281,6 @@ try {
 
   await t.open(laid);
   await t.ev(`(() => {
-    delete window.showDirectoryPicker;
     window.__picked = []; window.__execCopied = 0; window.__execOk = true;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
     navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
@@ -305,13 +303,28 @@ try {
     noCopy.open && noCopy.title === 'Save over this file' && /^Copy the path below, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
   await t.ev(`document.querySelector('#save-modal button[value="cancel"]').click()`);
   await sleep(100);
+  await t.ev(`(() => {
+    window.__order = []; window.__execCopied = 0; window.__execOk = false;
+    const origFetch = window.fetch;
+    window.fetch = (...args) => { window.__order.push('fetch'); return origFetch.apply(window, args); };
+    navigator.clipboard.writeText = () => { window.__order.push('copy'); return Promise.reject(new DOMException('denied', 'NotAllowedError')); };
+    document.execCommand = (cmd) => { if (cmd === 'copy') { window.__execCopied++; return window.__execOk; } return false; };
+  })()`);
+  await t.ev(`document.getElementById('btn-save').click()`);
+  await sleep(300);
+  const syncCopy = await t.ev(`({ first: window.__order[0], open: !!document.getElementById('save-modal')?.open, execBeforeContinue: window.__execCopied })`);
+  await t.ev(`window.__execOk = true; document.querySelector('#save-modal button[value="continue"]').click()`);
+  await sleep(200);
+  const retryCopy = await t.ev(`({ execAfterContinue: window.__execCopied })`);
+  t.check('save location: Save starts copying synchronously before async fetches and retries on Continue when initial copy failed',
+    syncCopy.first === 'copy' && syncCopy.open && syncCopy.execBeforeContinue === 1 && retryCopy.execAfterContinue === 2,
+    JSON.stringify({ syncCopy, retryCopy }));
 
   // 6e. "Don't show this again" (#save-modal-skip): checking it and clicking Continue persists
   //     <meta name="diagram-save-prompt" content="off"> in the saved HTML and skips the modal on reopen.
   await t.open(laid);
   await t.ev(`(() => {
     try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
-    delete window.showDirectoryPicker;
     window.__picked = []; window.__written = null;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
       createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
@@ -335,7 +348,6 @@ try {
   await t.open(skipFile);
   await t.ev(`(() => {
     try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
-    delete window.showDirectoryPicker;
     window.__picked = []; window.__written = null;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
       createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
@@ -1105,7 +1117,6 @@ try {
       await t.ev(`(() => {
         try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
         window.__ULTIMATE_DIAGRAM_HELPER_PORTS__ = [${port}];
-        delete window.showDirectoryPicker;
         navigator.clipboard.writeText = async () => {};
         window.showSaveFilePicker = async () => { throw new DOMException('x', 'AbortError'); };
         const h = document.getElementById('chart-title');
