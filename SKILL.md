@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-version: 1.2.2
+version: 1.2.3
 description: "Create, edit, and read interactive HTML/Artifact diagrams (swimlane flowcharts, sequence, ERD, UML use case, C4, Gantt). To read/explain a diagram-data .html, run --extract; never open it whole."
 ---
 
