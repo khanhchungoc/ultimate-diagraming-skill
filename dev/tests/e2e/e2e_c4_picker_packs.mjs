@@ -47,21 +47,33 @@ try {
     disc: getComputedStyle(b.querySelector('.c4-icon-logo')).backgroundColor, svg: !!b.querySelector('svg') })))`).then(JSON.parse);
   const heads = () => t.ev(`[...document.querySelectorAll('#c4-icons .c4-icon-head')].map((h) => h.textContent).join('|')`);
   const search = (q) => t.ev(`(() => { const i = document.getElementById('c4-icon-search'); i.value = ${J(q)}; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  const openPicker = async (name) => {
+  const openPicker = async (name, waitDevicon = true) => {
     await t.open(page);
     const id = await t.ev(`(() => { const n = [...document.querySelectorAll('.c4-node')].find((e) => e.querySelector('.c4-name').textContent === ${J(name)}); return n.dataset.nodeId; })()`);
     await t.clickOn(`[data-node-id="${id}"]`);
     await sleep(150);
     await t.clickOn('.c4-actionbar [data-act="icon"]');
-    await sleep(200);
+    if (waitDevicon) await t.waitFor(`!!document.querySelector('#c4-icons button[data-icon="logo:devicon/postgresql"]')`, 4000);
+    else await t.waitFor(`/Offline/i.test((document.querySelector('.c4-icons-note') || {}).textContent || '')`, 4000);
   };
 
-  await openPicker('Plain');
+  // Offline check: page embeds only used local logos (0 unused devicon logos) and shows offline note when fetch fails
+  await t.mockDevicon('offline');
+  await openPicker('Plain', false);
+  const offlineTiles = await tiles();
+  t.check('offline: picker lists only embedded local logos (no unbundled devicon logos) with offline status note',
+    J(offlineTiles.map((x) => x.n)) === J(['logo:acme/box', 'logo:acme/ring'])
+    && /Offline/i.test(await t.ev(`document.querySelector('.c4-icons-note').textContent`)),
+    J(offlineTiles));
+
+  // Online check: devicon.json loads on demand via fetch
+  await t.mockDevicon('local');
+  await openPicker('Plain', true);
   t.check('the picker has Tech logos and Local packs groups after the generic ones', (await heads()).endsWith('Security|Tech logos|Local packs'), await heads());
   let ts = await tiles();
   const localTs = ts.filter((x) => !x.n.startsWith('logo:devicon/'));
   const deviconTs = ts.filter((x) => x.n.startsWith('logo:devicon/'));
-  t.check('it lists the used local entries only and >= 60 bundled devicon logos', J(localTs.map((x) => x.n)) === J(['logo:acme/box', 'logo:acme/ring']) && deviconTs.length >= 60, J({ local: localTs, deviconCount: deviconTs.length }));
+  t.check('it lists the used local entries only and >= 60 online devicon logos', J(localTs.map((x) => x.n)) === J(['logo:acme/box', 'logo:acme/ring']) && deviconTs.length >= 60, J({ local: localTs, deviconCount: deviconTs.length }));
   t.check('each tile is a logo on the white disc', ts.every((x) => x.svg && x.disc === 'rgb(255, 255, 255)'), J(ts.slice(0, 5)));
   t.check('no entry is marked for an element with no icon', ts.every((x) => x.pressed === 'false'), J(ts.slice(0, 5)));
   t.check('the missing-pack note stays', /Missing icon pack: logo:ghost\/x/.test(await t.ev(`(document.querySelector('.c4-icons-missing') || {}).textContent || ''`)), '');
@@ -85,7 +97,7 @@ try {
   t.check('choosing a pack entry sets the icon of the element', saved.elements.find((e) => e.name === 'Plain').icon === 'logo:acme/ring', J(saved.elements));
   t.check('the tile now draws the logo', await t.ev(`(() => { const n = [...document.querySelectorAll('.c4-node')].find((e) => e.querySelector('.c4-name').textContent === 'Plain'); return n.querySelector('.c4-disc').classList.contains('is-logo'); })()`), '');
 
-  await openPicker('Acme Box');
+  await openPicker('Acme Box', true);
   ts = await tiles();
   t.check('the current entry is marked', ts.filter((x) => x.pressed === 'true').map((x) => x.n).join() === 'logo:acme/box', J(ts));
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

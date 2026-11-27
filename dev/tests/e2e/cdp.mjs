@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export function findBrowser(explicit) {
   const chosen = explicit || process.env.CHROME || process.env.E2E_BROWSER;
@@ -191,11 +191,42 @@ export async function launch(browser) {
     || (process.env.E2E_SECTIONS ? new Set(process.env.E2E_SECTIONS.split(',').map((s) => s.trim()).filter(Boolean)) : null);
   const excludeSections = parseSections('exclude-section');
   let sectionIndex = 0;
+  let deviconMode = null;
+  let deviconBodyB64 = null;
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const api = { send,   // send: the raw DevTools call (e.g. Emulation.setDeviceMetricsOverride)
     get errors() { return state.errors; },
     /** Raw CDP command (e.g. Input.dispatchMouseEvent) and event subscription, for real input such as native drags. */
     send,
     on(method, fn) { (listeners[method] = listeners[method] || []).push(fn); },
+    /** Intercept remote devicon.json fetches: 'local' serves assets/logos/devicon.json, 'offline' fails the request. */
+    async mockDevicon(mode = 'local') {
+      const wasActive = deviconMode !== null;
+      deviconMode = mode;
+      if (mode === 'local' && !deviconBodyB64) {
+        deviconBodyB64 = readFileSync(join(repoRoot, 'assets', 'logos', 'devicon.json')).toString('base64');
+      }
+      if (!wasActive) {
+        (listeners['Fetch.requestPaused'] = listeners['Fetch.requestPaused'] || []).push(async (p) => {
+          try {
+            if (deviconMode === 'offline') {
+              await send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'InternetDisconnected' });
+            } else {
+              await send('Fetch.fulfillRequest', {
+                requestId: p.requestId,
+                responseCode: 200,
+                responseHeaders: [
+                  { name: 'Content-Type', value: 'application/json' },
+                  { name: 'Access-Control-Allow-Origin', value: '*' },
+                ],
+                body: deviconBodyB64,
+              });
+            }
+          } catch { /* target closed */ }
+        });
+        await send('Fetch.enable', { patterns: [{ urlPattern: '*devicon.json*' }] });
+      }
+    },
     async open(target, query = '', { motion = false } = {}) {
       state.errors = [];
       if (noAnim && !motion && !autoReduced) {

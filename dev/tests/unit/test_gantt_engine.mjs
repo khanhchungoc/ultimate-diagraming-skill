@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const tokens = JSON.parse(readFileSync(join(ROOT, 'assets/tokens/default.json'), 'utf8'));
-const routerSrc = readFileSync(join(ROOT, 'assets/shell/ortho-router.js'), 'utf8');
+const routerSrc = readFileSync(join(ROOT, 'assets/shell/curve-path.js'), 'utf8');
 const engineSrc = readFileSync(join(ROOT, 'assets/types/gantt/engine.js'), 'utf8');
 
 const engine = new Function(

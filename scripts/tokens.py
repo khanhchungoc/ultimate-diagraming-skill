@@ -400,11 +400,11 @@ def tokens_data(tokens: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def tokens_js(tokens: Dict[str, Any], logos: Optional[Dict[str, Dict[str, str]]] = None) -> str:
-    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type. LOGOS: only the local-pack entries the diagram
-    # uses ("<pack>/<icon>" -> {vb, body}) for ui.logo(); no logo, no LOGOS line, so such a page is unchanged.
+    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type. LOGOS: the local-pack entries the diagram
+    # uses ("<pack>/<icon>" -> {vb, body}) for ui.logo(); None omits the line, while {} emits an empty map for online picker types.
     text = (f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};\n"
             f"const ICONS = {json.dumps(load_icons(tokens), separators=(',', ':'))};")
-    if logos:
+    if logos is not None:
         text += f"\nconst LOGOS = {json.dumps(logos, separators=(',', ':'), sort_keys=True).replace('<', chr(92) + 'u003c')};"
     return text
 

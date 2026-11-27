@@ -8,7 +8,7 @@ const at = (p) => fileURLToPath(new URL(p, import.meta.url));
 const tokens = JSON.parse(readFileSync(at('../../../assets/tokens/default.json'), 'utf8'));
 const read = (p) => readFileSync(at(p), 'utf8');
 const hasRoute = existsSync(at('../../../assets/types/c4/route.js'));
-const routerSrc = read('../../../assets/shell/ortho-router.js'), engineSrc = read('../../../assets/types/c4/engine.js');
+const routerSrc = read('../../../assets/shell/curve-path.js'), engineSrc = read('../../../assets/types/c4/engine.js');
 const make = (routeSrc) => new Function('TOKENS', `${routerSrc}\n${routeSrc}\n${engineSrc}\nreturn { layoutDiagram, routeDiagram };`)(tokens);
 const routeSrc = hasRoute ? read('../../../assets/types/c4/route.js') : '';
 const { layoutDiagram, routeDiagram } = make(routeSrc);
