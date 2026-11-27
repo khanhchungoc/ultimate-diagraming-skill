@@ -227,7 +227,7 @@ try {
   const expectedPath = process.platform === 'darwin' ? dirname(laidPath) : laidPath;
   const saveShortcut = process.platform === 'win32' ? /Ctrl\+V/ : process.platform === 'darwin' ? /⌘⇧G/ : /Ctrl\+L/;
   t.check('save location: first Save opens #save-modal, copies the path, and shows overwrite instructions',
-    b1 && b1.open && b1.path === expectedPath && b1.title === 'Path copied — save over this file' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && b1.ok === 'Continue' && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
+    b1 && b1.open && b1.path === expectedPath && b1.title === 'Save over this file' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && b1.ok === 'Continue' && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
     JSON.stringify(b1));
   await t.ev(`document.querySelector('#save-modal button[value="continue"]').click()`);
   await sleep(300);
@@ -290,7 +290,7 @@ try {
   await sleep(300);
   const fb = await t.ev(`({ execCopied: window.__execCopied, open: !!document.getElementById('save-modal')?.open, title: document.getElementById('save-modal-title')?.textContent })`);
   t.check('save location: falls back to execCommand when clipboard.writeText rejects',
-    fb.execCopied === 1 && fb.open && fb.title === 'Path copied — save over this file', JSON.stringify(fb));
+    fb.execCopied === 1 && fb.open && fb.title === 'Save over this file', JSON.stringify(fb));
   await t.ev(`document.querySelector('#save-modal button[value="cancel"]').click()`);
   await sleep(100);
   t.check('save location: Cancel closes the modal without opening the dialog',
@@ -320,8 +320,9 @@ try {
     syncCopy.first === 'copy' && syncCopy.open && syncCopy.execBeforeContinue === 1 && retryCopy.execAfterContinue === 2,
     JSON.stringify({ syncCopy, retryCopy }));
 
-  // 6e. "Don't show this again" (#save-modal-skip): checking it and clicking Continue persists
-  //     <meta name="diagram-save-prompt" content="off"> in the saved HTML and skips the modal on reopen.
+  // 6e. "Don't show this again" (#save-modal-skip): hidden on browsers that remember the file handle
+  //     (where the modal is one-time only); shown on hosts that cannot remember the path (e.g. VS Code),
+  //     where checking it persists <meta name="diagram-save-prompt" content="off"> and skips the modal on reopen.
   await t.open(laid);
   await t.ev(`(() => {
     try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
@@ -332,32 +333,69 @@ try {
   })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(250);
-  const skipOpen = await t.ev(`!!document.getElementById('save-modal')?.open`);
+  const pickerModal = await t.ev(`({
+    open: !!document.getElementById('save-modal')?.open,
+    checkHidden: !!document.getElementById('save-modal-check-wrap')?.hidden,
+    sub: document.getElementById('save-modal-sub')?.textContent || ''
+  })`);
+  t.check('save modal: browsers that remember the file handle hide the checkbox and say it is only needed once',
+    pickerModal.open && pickerModal.checkHidden && /only needed once/i.test(pickerModal.sub), JSON.stringify(pickerModal));
+  await t.ev(`document.querySelector('#save-modal button[value="cancel"]').click()`);
+  await sleep(100);
+
+  await t.open(laid);
+  await t.ev(`(() => {
+    try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
+    window.acquireVsCodeApi = () => ({});
+    window.__downloaded = null;
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.download && this.href && this.href.startsWith('blob:')) {
+        fetch(this.href).then((r) => r.text()).then((txt) => { window.__downloaded = txt; });
+        return;
+      }
+      return origClick.apply(this, arguments);
+    };
+    navigator.clipboard.writeText = async () => {};
+  })()`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(250);
+  const repeatModal = await t.ev(`({
+    open: !!document.getElementById('save-modal')?.open,
+    checkHidden: !!document.getElementById('save-modal-check-wrap')?.hidden,
+    sub: document.getElementById('save-modal-sub')?.textContent || ''
+  })`);
   await t.ev(`(() => { const c = document.getElementById('save-modal-skip'); c.checked = true; document.querySelector('#save-modal button[value="continue"]').click(); })()`);
-  await sleep(300);
+  await sleep(400);
   const skipSaved = await t.ev(`({
     hasMetaInDom: !!document.querySelector('meta[name="diagram-save-prompt"][content="off"]'),
-    html: window.__written || '',
-    picked: window.__picked.length
+    html: window.__downloaded || ''
   })`);
-  t.check('save modal: checking "Don\'t show this again" persists <meta name="diagram-save-prompt" content="off"> in saved HTML',
-    skipOpen && skipSaved.hasMetaInDom && skipSaved.picked === 1 && skipSaved.html.includes('<meta name="diagram-save-prompt" content="off">'),
-    JSON.stringify({ skipOpen, hasMetaInDom: skipSaved.hasMetaInDom, picked: skipSaved.picked, hasMetaInHtml: skipSaved.html.includes('diagram-save-prompt') }));
+  t.check('save modal: non-remembering hosts show the checkbox and repeat-save note, and checking it persists diagram-save-prompt=off',
+    repeatModal.open && !repeatModal.checkHidden && /each save/i.test(repeatModal.sub) && skipSaved.hasMetaInDom && skipSaved.html.includes('<meta name="diagram-save-prompt" content="off">'),
+    JSON.stringify({ repeatModal, hasMetaInDom: skipSaved.hasMetaInDom, hasMetaInHtml: skipSaved.html.includes('diagram-save-prompt') }));
   const skipFile = join(dlDir, 'skip-prompt.html');
   writeFileSync(skipFile, skipSaved.html);
   await t.open(skipFile);
   await t.ev(`(() => {
     try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}
-    window.__picked = []; window.__written = null;
-    window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
-      createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
+    window.acquireVsCodeApi = () => ({});
+    window.__downloaded = null;
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.download && this.href && this.href.startsWith('blob:')) {
+        fetch(this.href).then((r) => r.text()).then((txt) => { window.__downloaded = txt; });
+        return;
+      }
+      return origClick.apply(this, arguments);
+    };
     navigator.clipboard.writeText = async () => {};
   })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
-  await sleep(300);
-  const skippedReopen = await t.ev(`({ modalOpen: !!document.getElementById('save-modal')?.open, picked: window.__picked.length, written: !!window.__written })`);
-  t.check('save modal: reopening a file with diagram-save-prompt=off skips #save-modal and saves directly',
-    !skippedReopen.modalOpen && skippedReopen.picked === 1 && skippedReopen.written, JSON.stringify(skippedReopen));
+  await sleep(400);
+  const skippedReopen = await t.ev(`({ modalOpen: !!document.getElementById('save-modal')?.open, downloaded: !!window.__downloaded })`);
+  t.check('save modal: reopening a file with diagram-save-prompt=off skips #save-modal on non-remembering hosts',
+    !skippedReopen.modalOpen && skippedReopen.downloaded, JSON.stringify(skippedReopen));
   await t.ev(`try { localStorage.removeItem('ultimate-diagram-skip-save-modal'); } catch (_) {}`);
 
   });

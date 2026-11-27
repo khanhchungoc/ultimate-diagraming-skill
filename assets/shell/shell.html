@@ -139,16 +139,25 @@
 
   <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
   <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
-    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
-    <p id="save-modal-msg" class="save-modal-msg"></p>
-    <code id="save-modal-path" class="save-where" hidden></code>
-    <label class="save-modal-check">
-      <input id="save-modal-skip" type="checkbox">
-      <span>Don’t show this again</span>
-    </label>
-    <form method="dialog" class="confirm-actions">
-      <button type="submit" value="cancel" class="btn">Cancel</button>
-      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    <div class="save-modal-head">
+      <span class="save-modal-icon" aria-hidden="true">{{icon:save}}</span>
+      <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    </div>
+    <p id="save-modal-sub" class="save-modal-sub"></p>
+    <ol id="save-modal-msg" class="save-modal-steps"></ol>
+    <div id="save-modal-path-wrap" class="save-where-wrap" hidden>
+      <code id="save-modal-path" class="save-where"></code>
+      <span id="save-modal-copied" class="save-where-badge" hidden>{{icon:check:xs}} Copied</span>
+    </div>
+    <form method="dialog" class="save-modal-foot">
+      <label id="save-modal-check-wrap" class="save-modal-check">
+        <input id="save-modal-skip" type="checkbox">
+        <span>Don’t show this again</span>
+      </label>
+      <div class="confirm-actions">
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+      </div>
     </form>
   </dialog>
 
