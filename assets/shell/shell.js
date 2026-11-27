@@ -1668,7 +1668,6 @@
       }
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
-      let initialDataText = null;   // raw inline #diagram-data text at load, used to verify linked-folder file matches
 
       async function loadInitialData() {
         try {
@@ -1677,7 +1676,6 @@
           if (dataEl) {
             // Read inline JSON synchronously before any await so --target file boots synchronously.
             raw = dataEl.textContent.trim();
-            initialDataText = raw.replace(/\r\n?/g, '\n');
           } else {
             const [text] = await Promise.all([
               fetch('diagram.json').then((r) => {
@@ -3761,23 +3759,12 @@
       }
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
-      // Remember per-file handles and linked top-level workspace folders (IndexedDB) so reopened or
-      // newly created diagrams inside a linked folder save straight back to disk without a file dialog.
-      const FOLDER_STORE_LIMIT = 20;
-      let dirPickerBlocked = false;   // flipped if the host rejects showDirectoryPicker as unsupported here
-      function isEmbeddedFrame() {
-        try { return window.self !== window.top; } catch (_) { return true; }
-      }
+      // Remember per-file handles (IndexedDB) so reopened diagrams save straight back to disk without a file dialog.
       function isElectronHost() {
         return typeof window.acquireVsCodeApi === 'function' || /\b(Electron|Code)\b/i.test(navigator.userAgent || '');
       }
       function canPickSaveFile() {
         return 'showSaveFilePicker' in window && !isElectronHost();
-      }
-      function canPickDirectory() {
-        if (dirPickerBlocked || !('showDirectoryPicker' in window)) return false;
-        if (isEmbeddedFrame() || isElectronHost()) return false;
-        return true;
       }
       function handleStorageKey() { return location.href.split(/[?#]/)[0]; }
       function handleDb() {
@@ -3786,7 +3773,6 @@
           req.onupgradeneeded = () => {
             const db = req.result;
             if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
-            if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { autoIncrement: true });
           };
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
@@ -3825,101 +3811,6 @@
           const db = await handleDb();
           db.transaction('handles', 'readwrite').objectStore('handles').put(h, handleStorageKey());
         } catch (_) {}
-      }
-      async function readStoredFolders() {
-        try {
-          const db = await handleDb();
-          if (!db.objectStoreNames.contains('folders')) return [];
-          return await new Promise((resolve, reject) => {
-            const out = [];
-            const r = db.transaction('folders').objectStore('folders').openCursor(null, 'prev');
-            r.onsuccess = () => {
-              const cur = r.result;
-              if (!cur) { resolve(out); return; }
-              if (cur.value) out.push({ key: cur.key, handle: cur.value });
-              cur.continue();
-            };
-            r.onerror = () => reject(r.error);
-          });
-        } catch (_) { return []; }
-      }
-      async function storeFolderHandle(dir) {
-        try {
-          const existing = await readStoredFolders();
-          for (const item of existing) {
-            if (item.handle && typeof item.handle.isSameEntry === 'function') {
-              try { if (await item.handle.isSameEntry(dir)) return; } catch (_) {}
-            }
-          }
-          const db = await handleDb();
-          const tx = db.transaction('folders', 'readwrite');
-          const store = tx.objectStore('folders');
-          store.add(dir);
-          // Trim oldest entries beyond the cap (existing is newest-first)
-          for (const stale of existing.slice(FOLDER_STORE_LIMIT - 1)) store.delete(stale.key);
-        } catch (_) {}
-      }
-      function extractDataBlockText(htmlText) {
-        const openTag = '<script id="diagram-data" type="application/' + 'json">';
-        const closeTag = '<' + '/script>';
-        const start = htmlText.indexOf(openTag);
-        if (start < 0) return null;
-        const bodyStart = start + openTag.length;
-        const end = htmlText.indexOf(closeTag, bodyStart);
-        if (end < 0) return null;
-        return htmlText.slice(bodyStart, end).trim().replace(/\r\n?/g, '\n');
-      }
-      function localPathSegments(loc) {
-        const raw = loc.file.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
-        return raw.split('/').filter(Boolean);
-      }
-      function sameSegment(a, b, win) {
-        return win ? a.toLowerCase() === b.toLowerCase() : a === b;
-      }
-      async function resolveFileInFolder(dir, loc, { askPermission = false } = {}) {
-        if (!dir || !dir.name || !loc) return null;
-        const segs = localPathSegments(loc);
-        const matches = [];
-        for (let i = 0; i < segs.length - 1; i++) {
-          if (sameSegment(segs[i], dir.name, loc.win)) matches.push(i);
-        }
-        if (!matches.length) return null;
-        const opts = { mode: 'readwrite' };
-        try {
-          const curPerm = typeof dir.queryPermission === 'function' ? await dir.queryPermission(opts) : 'granted';
-          if (curPerm !== 'granted') {
-            if (!askPermission || typeof dir.requestPermission !== 'function') return null;
-            showToast(`Your browser asks once per session to edit files in ${dir.name}.`);
-            if ((await dir.requestPermission(opts)) !== 'granted') return null;
-          }
-        } catch (_) { return null; }
-
-        for (const idx of matches) {
-          try {
-            let cur = dir;
-            for (let j = idx + 1; j < segs.length - 1; j++) {
-              cur = await cur.getDirectoryHandle(segs[j]);
-            }
-            const fh = await cur.getFileHandle(segs[segs.length - 1]);
-            // Verify on-disk diagram-data matches what this page originally loaded, so same-named folders can never collide
-            if (initialDataText !== null && typeof fh.getFile === 'function') {
-              const diskText = await (await fh.getFile()).text();
-              const diskData = extractDataBlockText(diskText);
-              if (diskData !== initialDataText) continue;
-            }
-            return fh;
-          } catch (_) { /* try next candidate segment */ }
-        }
-        return null;
-      }
-      async function loadFromLinkedFolders(loc, { askPermission = true } = {}) {
-        if (!loc) return null;
-        const folders = await readStoredFolders();
-        for (const item of folders) {
-          const fh = await resolveFileInFolder(item.handle, loc, { askPermission });
-          if (fh) return fh;
-        }
-        return null;
       }
 
       // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
@@ -4203,73 +4094,32 @@
       // Copy text from inside a click. Try the async clipboard first, falling back to execCommand when missing or rejected.
       function copyText(text) {
         const legacyCopy = () => {
+          const previousFocus = document.activeElement;
+          const host = document.querySelector('dialog[open]') || document.body;
           const ta = document.createElement('textarea');
           ta.value = text;
           ta.setAttribute('readonly', '');
-          ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-          document.body.appendChild(ta);
+          ta.style.cssText = 'position:fixed;inset-block-start:0;opacity:0;pointer-events:none';
+          host.appendChild(ta);
+          ta.focus({ preventScroll: true });
           ta.select();
+          ta.setSelectionRange(0, text.length);
           let ok = false;
           try { ok = document.execCommand('copy'); } catch (_) {}
           ta.remove();
+          if (previousFocus && typeof previousFocus.focus === 'function') {
+            previousFocus.focus({ preventScroll: true });
+          }
           return ok;
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
+          try {
+            return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
+          } catch (_) {
+            return Promise.resolve(legacyCopy());
+          }
         }
         return Promise.resolve(legacyCopy());
-      }
-
-      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
-      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
-      // Where directory picking is available, offer Link folder as the primary one-time setup (and copy the parent folder
-      // when clicked so the user can paste it straight into the folder picker).
-      async function askSaveLocation(loc, choose, linkFolder) {
-        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
-        const mac = !loc.win && /mac/.test(plat);
-        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
-        const text = mac ? loc.folder : loc.file;
-        const copied = await copyText(text);
-        const where = loc.win
-          ? 'paste in File name (Ctrl+A, Ctrl+V), Save, and overwrite.'
-          : mac
-            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
-            : 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
-        const extra = document.createDocumentFragment();
-        const path = document.createElement('code');
-        path.className = 'save-where';
-        path.textContent = text;
-        extra.appendChild(path);
-        if (linkFolder) {
-          const addTip = (lead, body) => {
-            const p = document.createElement('div');
-            p.className = 'save-folder-tip';
-            const b = document.createElement('strong');
-            b.textContent = lead;
-            p.append(b, body);
-            extra.appendChild(p);
-          };
-          addTip('Link folder: ', 'copies this file\u2019s folder to paste. Pick it (or a higher project folder) once so diagrams inside save in one click.');
-          addTip('Choose file: ', copied ? 'path copied \u2014 ' + where : 'copy path, ' + where);
-          ui.confirm(btnSave, {
-            label: 'Save over the file you opened',
-            title: 'Save to disk',
-            message: 'Link a project folder once, or pick just this file.',
-            extra,
-            alt: { text: 'Choose file\u2026', onClick: choose },
-            ok: 'Link folder\u2026',
-            okClass: 'btn-primary'
-          }, linkFolder);
-          return;
-        }
-        ui.confirm(btnSave, {
-          label: 'Save over the file you opened',
-          title: copied ? 'Path copied' : 'Save over this file',
-          message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
-          extra,
-          ok: 'Choose\u2026',
-          okClass: 'btn-primary'
-        }, choose);
       }
 
       async function writeToHandle(handle, replacedHtml) {
@@ -4281,42 +4131,6 @@
         everSaved = true;
         updateStatus(false);
         motion.pulseEl(btnSave.querySelector('svg'));
-      }
-
-      async function linkFolderAndSave(loc, replacedHtml) {
-        // Copy this diagram's parent folder so the user can paste it straight into the folder picker
-        await copyText(loc.folder);
-        let dir;
-        try {
-          dir = await window.showDirectoryPicker({ id: 'ultimate-diagram-root', mode: 'readwrite' });
-        } catch (err) {
-          if (!err || err.name === 'AbortError') return;
-          const msg = err.message || '';
-          if (/system files|sensitive/i.test(msg)) {
-            showToast('Your browser blocks system folders (like Downloads or C:\\). Pick a project subfolder instead.');
-          } else if (err.name === 'SecurityError') {
-            dirPickerBlocked = true;
-            showToast('Folder linking is not supported in this browser window. Open the diagram in Chrome or Edge to link a folder.');
-          } else {
-            showToast('Could not link folder: ' + (msg || err.name));
-          }
-          return;
-        }
-        const fh = await resolveFileInFolder(dir, loc, { askPermission: true });
-        if (!fh) {
-          showToast(`${dir.name} does not contain ${loc.name}. Pick a folder that contains this file.`);
-          return;
-        }
-        await storeFolderHandle(dir);
-        fileHandle = fh;
-        storeHandle(fh);
-        try {
-          await writeToHandle(fh, replacedHtml);
-          showToast(`Linked ${dir.name} \u2014 diagrams in it and its subfolders will save directly.`);
-        } catch (err) {
-          if (err && err.name === 'AbortError') return;
-          showToast('Save failed: ' + ((err && err.message) || err));
-        }
       }
 
       async function pickSaveFile() {
@@ -4382,10 +4196,10 @@
         modal.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) modal.close(); });
       })();
 
-      async function openSaveModal(loc, onContinue) {
+      async function openSaveModal(loc, onContinue, preCopy) {
         const modal = document.getElementById('save-modal');
         const { text, mac } = savePathText(loc);
-        const copied = text ? await copyText(text) : false;
+        const copied = text ? await (preCopy || copyText(text)) : false;
         if (!modal || typeof modal.showModal !== 'function') {
           onContinue();
           return;
@@ -4417,6 +4231,7 @@
           const rv = modal.returnValue;
           modal.returnValue = '';
           if (rv !== 'continue') return;
+          if (!copied && text) copyText(text);
           if (skipEl && skipEl.checked) markSkipSaveModal();
           onContinue();
         };
@@ -4424,17 +4239,13 @@
         modal.showModal();
       }
 
-      async function writeFile(replacedHtml, picked) {
+      async function writeFile(replacedHtml, picked, preCopy) {
         const usePicker = canPickSaveFile();
         let loc = null;
         if (usePicker && !picked) {
           try {
             if (!fileHandle) fileHandle = await loadStoredHandle();
             loc = !fileHandle ? localFilePath() : null;
-            if (!fileHandle && loc && canPickDirectory()) {
-              fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
-              if (fileHandle) storeHandle(fileHandle);
-            }
           } catch (_) {}
         } else if (!picked) {
           loc = localFilePath();
@@ -4447,11 +4258,11 @@
                 ? buildSavedHtml(await loadSourceText())
                 : replacedHtml;
               await writeFile(html, true);
-            });
+            }, preCopy);
             return;
           }
           const { text } = savePathText(loc);
-          if (text) await copyText(text);
+          if (text) await (preCopy || copyText(text));
         }
 
         if (usePicker) {
@@ -4530,15 +4341,18 @@
 
       async function findHelperPort() {
         const ports = helperPortsToProbe();
-        for (const port of ports) {
+        const found = await Promise.all(ports.map(async (port) => {
           try {
             const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
-            if (!resp.ok) continue;
+            if (!resp.ok) return null;
             const info = await resp.json();
-            if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
-          } catch (_) {}
-        }
-        return null;
+            return (info && info.ok && info.app === 'ultimate-diagram-save-helper') ? port : null;
+          } catch (_) {
+            return null;
+          }
+        }));
+        const hit = found.find((p) => p !== null);
+        return hit !== undefined ? hit : null;
       }
 
       async function postSaveToHelper(port, payload) {
@@ -4606,11 +4420,16 @@
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
         if ((location.protocol === 'https:' || location.protocol === 'http:') && !isLoopbackPreviewOrigin()) return downloadDirect();
+        // Copy the local file path synchronously inside the Save gesture before async helper/source/IndexedDB work
+        // can expire user activation (especially in Electron / VS Code integrated browser).
+        const earlyLoc = (!fileHandle && !storedName && helperPort === null) ? localFilePath() : null;
+        const earlyText = earlyLoc ? savePathText(earlyLoc).text : '';
+        const earlyCopy = earlyText ? copyText(earlyText) : null;
         if (await saveViaLocalHelper()) return;
         const html = document.getElementById('diagram-data')
           ? buildSavedHtml(await loadSourceText())
           : await buildExportHtmlFile();
-        await writeFile(html);
+        await writeFile(html, false, earlyCopy);
       }
 
       // --- CLAUDE.AI ARTIFACT: which Save this page has ---
@@ -4649,15 +4468,10 @@
       }
 
       btnSave.addEventListener('click', saveToFile);
-      // A file opened from disk that was saved before (or sits inside a linked workspace folder): show which file Save writes to
+      // A file opened from disk that was saved before: show which file Save writes to
       if (!claudeHost && location.protocol === 'file:' && canPickSaveFile()) {
-        readStoredHandle().then(async (h) => {
-          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
-          if (!fileHandle && canPickDirectory()) {
-            const loc = localFilePath();
-            const fh = loc ? await loadFromLinkedFolders(loc, { askPermission: false }) : null;
-            if (fh && fh.name && !fileHandle) { storedName = fh.name; setStatusBadge(hasUnsavedChanges); }
-          }
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
         });
       }
 

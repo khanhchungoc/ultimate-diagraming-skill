@@ -101,17 +101,12 @@
     .confirm-list li { margin-bottom: var(--space-4); overflow-wrap: anywhere; }
 
     /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
-       browser's Save dialog (shell.js askSaveLocation). */
+       browser's Save dialog (shell.js openSaveModal). */
     .save-where {
       display: block; margin-bottom: var(--space-8); padding: var(--space-4) var(--space-8); overflow-wrap: anywhere; user-select: all;
       font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
       border: 1px solid var(--border-color); border-radius: var(--radius-md);
     }
-    .save-folder-tip {
-      margin-bottom: var(--space-4); font-size: var(--text-xs); line-height: var(--t-control-leading); color: var(--text-soft);
-    }
-    .save-folder-tip:last-of-type { margin-bottom: var(--space-12); }
-    .save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
     @media (max-width: 560px) {
       .confirm,
       .confirm.has-alt,
