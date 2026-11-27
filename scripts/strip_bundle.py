@@ -14,17 +14,115 @@ License or attribution comments (`/*!`, or text mentioning license or copyright)
 
 from __future__ import annotations
 
+import functools
+import os
 import re
-from typing import List
+import shutil
+import subprocess
+from pathlib import Path
+from typing import List, Optional
 
 _KEEP = re.compile(r"licen[sc]e|copyright", re.I)
 _REGEX_AFTER_WORDS = {"return", "typeof", "case", "in", "of", "delete", "void", "throw", "new", "else", "do", "yield", "await", "instanceof"}
 _REGEX_AFTER_CHARS = set("(,=:[!&|?{};+-*%<>~^")
 _WORD = re.compile(r"[A-Za-z_$][\w$]*")
+_CLOSE_SCRIPT = re.compile(r"</script", re.I)
+_CTRL_BYTES = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _find_esbuild() -> Optional[str]:
+    """Return path to local or PATH esbuild binary, or None when unavailable (or disabled via env)."""
+    if os.environ.get("UD_NO_ESBUILD"):
+        return None
+    for name in ("esbuild", "esbuild.cmd"):
+        local = _REPO_ROOT / "node_modules" / ".bin" / name
+        if local.is_file():
+            return str(local)
+    return shutil.which("esbuild")
+
+
+def _wrap_css_lines(css: str, max_len: int = 160) -> str:
+    """Break minified CSS onto lines after `}` or `;` outside strings/parens so no line exceeds the 2000-char limit."""
+    out: List[str] = []
+    cur: List[str] = []
+    cur_len = 0
+    paren = 0
+    i, n = 0, len(css)
+    while i < n:
+        c = css[i]
+        if c in "'\"":
+            j = i + 1
+            while j < n and css[j] != c:
+                j += 2 if css[j] == "\\" else 1
+            tok = css[i:min(j + 1, n)]
+            cur.append(tok)
+            cur_len += len(tok)
+            i = j + 1
+            continue
+        if c == "(":
+            paren += 1
+        elif c == ")" and paren > 0:
+            paren -= 1
+        cur.append(c)
+        cur_len += 1
+        if paren == 0 and c in "};" and cur_len >= max_len:
+            out.append("".join(cur))
+            cur = []
+            cur_len = 0
+        i += 1
+    if cur:
+        out.append("".join(cur))
+    return "\n".join(out) + ("\n" if out else "")
+
+
+@functools.lru_cache(maxsize=256)
+def _esbuild_minify(src: str, loader: str) -> Optional[str]:
+    exe = _find_esbuild()
+    if not exe:
+        return None
+    try:
+        res = subprocess.run(
+            [exe, f"--loader={loader}", "--minify", "--legal-comments=inline"],
+            input=src,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError:
+        return None
+    if res.returncode != 0:
+        return None
+    return res.stdout
+
+
+def minify_js(src: str) -> str:
+    """Minify JS via esbuild when installed, else fall back to pure-Python strip_js()."""
+    if not src.strip():
+        return ""
+    out = _esbuild_minify(src, "js")
+    if out is None:
+        return strip_js(src)
+    # Never let a folded string literal like "</script>" terminate the enclosing HTML <script> tag,
+    # and keep ASCII control bytes escaped (Claude.ai artifact publishing rejects raw control bytes).
+    out = _CLOSE_SCRIPT.sub(lambda m: "<\\/" + m.group(0)[2:], out)
+    out = _CTRL_BYTES.sub(lambda m: f"\\x{ord(m.group(0)):02x}", out)
+    return out.rstrip("\n") + "\n"
+
+
+def minify_css(src: str) -> str:
+    """Minify CSS via esbuild when installed, else fall back to pure-Python strip_css()."""
+    if not src.strip():
+        return ""
+    out = _esbuild_minify(src, "css")
+    if out is None:
+        return strip_css(src)
+    return _wrap_css_lines(out.strip())
 
 
 def strip_js(src: str) -> str:
-    """Return `src` without whole-line `//` comments, block comments and leading indentation (see module doc)."""
+    """Return `src` without `//` comments, block comments and leading indentation (see module doc)."""
     out = _strip_js(src)
     return src if out is None else out
 
@@ -115,7 +213,10 @@ def _strip_js(src: str):
                 buf.append(c)
                 i += 1
             elif c == "/" and line.startswith("//", i):
-                buf.append(line[i:])  # trailing line comment: kept as is
+                if not top_level or _KEEP.search(line[i:]):
+                    buf.append(line[i:])
+                else:
+                    removed_comment = True
                 i = n
             elif c == "/" and line.startswith("/*", i):
                 j = line.find("*/", i + 2)
@@ -224,8 +325,7 @@ def _regex_end(line: str, i: int) -> int:
 
 
 def strip_css(src: str) -> str:
-    """Return `src` without `/* */` comments (outside strings) and leading indentation."""
-    out: List[str] = []
+    """Return `src` without `/* */` comments (outside strings) and compact whitespace."""
     i, n = 0, len(src)
     buf: List[str] = []
     while i < n:
@@ -251,6 +351,7 @@ def strip_css(src: str) -> str:
         else:
             buf.append(c)
             i += 1
+    out: List[str] = []
     for line in "".join(buf).split("\n"):
         line = line.strip(" \t")
         if line:

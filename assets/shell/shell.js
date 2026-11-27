@@ -266,8 +266,16 @@
         // A logo of a local icon pack (LOGOS, embedded by the build from icons/<pack>.json; name is "<pack>/<icon>"): the filled,
         // multi-colour <svg> text. Colours and aspect ratio stay as the vendor drew them (the viewBox fits it in a square of
         // the same sizes as icon(); no recolouring, no stretch). o: { size, class }. scripts/tokens.py logo_svg() builds the same text.
+        let remoteLogos = null;
+        let remoteLogosState = 'idle';
+        let remoteLogosPromise = null;
+        const DEVICON_CATALOG_URL = 'https://cdn.jsdelivr.net/gh/khanhchungoc/ultimate-diagraming-skill@main/assets/logos/devicon.json';
+        function getLogoEntry(name) {
+          if (typeof LOGOS !== 'undefined' && LOGOS[name] !== undefined) return LOGOS[name];
+          return remoteLogos && remoteLogos[name] !== undefined ? remoteLogos[name] : undefined;
+        }
         function logo(name, o) {
-          const e = typeof LOGOS === 'undefined' ? undefined : LOGOS[name], opts = o || {};
+          const e = getLogoEntry(name), opts = o || {};
           if (e === undefined) throw new Error(`unknown logo "${name}"`);
           const px = typeof opts.size === 'number' ? opts.size : TOKENS.icon.size[opts.size || 'md'];
           return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="${e.vb}" aria-hidden="true">${e.body}</svg>`;
@@ -611,7 +619,48 @@
             if (ICONS[n] === undefined) throw new Error(`Icon picker: "${n}" (${g}) is not in assets/icons/default.json`);
           }));
         }
-        const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
+        function loadRemoteLogos() {
+          if (remoteLogosState === 'ready' || remoteLogosState === 'loading') return remoteLogosPromise;
+          if (typeof fetch !== 'function') {
+            remoteLogosState = 'error';
+            return Promise.resolve(null);
+          }
+          remoteLogosState = 'loading';
+          remoteLogosPromise = fetch(DEVICON_CATALOG_URL)
+            .then((res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then((data) => {
+              const icons = data && typeof data.icons === 'object' ? data.icons : null;
+              if (!icons) throw new Error('invalid icon catalog');
+              const safe = {};
+              const keyRe = /^[a-z0-9][a-z0-9_-]*$/i;
+              const vbRe = /^[\d.\s-]+$/;
+              const badBodyRe = /<script\b|javascript:|on[a-z]+\s*=/i;
+              Object.keys(icons).forEach((k) => {
+                const v = icons[k];
+                if (!keyRe.test(k) || !v || typeof v.vb !== 'string' || typeof v.body !== 'string') return;
+                if (!vbRe.test(v.vb.trim()) || badBodyRe.test(v.body)) return;
+                safe[`devicon/${k}`] = { vb: v.vb.trim(), body: v.body };
+              });
+              remoteLogos = safe;
+              remoteLogosState = 'ready';
+              return remoteLogos;
+            })
+            .catch(() => {
+              remoteLogosState = 'error';
+              remoteLogosPromise = null;
+              return null;
+            });
+          return remoteLogosPromise;
+        }
+        const packEntries = () => {
+          const names = new Set();
+          if (typeof LOGOS !== 'undefined') Object.keys(LOGOS).forEach((n) => names.add(n));
+          if (remoteLogos) Object.keys(remoteLogos).forEach((n) => names.add(n));
+          return Array.from(names).sort().map((n) => `logo:${n}`);
+        };
         function buildIconPicker(opts) {
           const o = opts || {};
           const cls = o.classes || {};
@@ -656,7 +705,15 @@
                 b.setAttribute('aria-pressed', String(current === n));
                 if (n.startsWith('logo:')) b.innerHTML = `<span class="icon-picker-logo${cls.logo ? ` ${cls.logo}` : ''}">${logo(n.slice(5), { size: 'lg' })}</span>`;
                 else b.innerHTML = icon(n || defaultIcon, { size: 'md' });
-                b.addEventListener('click', () => { if (o.onPick) o.onPick(n); });
+                b.addEventListener('click', () => {
+                  if (n.startsWith('logo:') && typeof LOGOS !== 'undefined') {
+                    const key = n.slice(5);
+                    if (LOGOS[key] === undefined && remoteLogos && remoteLogos[key] !== undefined) {
+                      LOGOS[key] = remoteLogos[key];
+                    }
+                  }
+                  if (o.onPick) o.onPick(n);
+                });
                 grid.appendChild(b);
               });
               list.appendChild(grid);
@@ -668,7 +725,10 @@
             const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
             shown += techLogos.length; section('Tech logos', techLogos);
             shown += localPacks.length; section('Local packs', localPacks);
-            note.textContent = shown ? '' : 'No icon matches.';
+            if (!shown) note.textContent = remoteLogosState === 'loading' ? 'Loading tech logos…' : 'No icon matches.';
+            else if (remoteLogosState === 'loading') note.textContent = 'Loading more tech logos…';
+            else if (remoteLogosState === 'error') note.textContent = 'Offline — showing built-in icons and logos in this diagram.';
+            else note.textContent = '';
           };
           search.addEventListener('input', fill);
           box.append(search, list, note);
@@ -680,6 +740,9 @@
           box.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (o.onEscape) o.onEscape(); }
           });
+          if (typeof LOGOS !== 'undefined' && (remoteLogosState === 'idle' || remoteLogosState === 'error')) {
+            loadRemoteLogos().then(() => { if (box.isConnected) fill(); });
+          }
           fill();
           return { box, search };
         }
@@ -727,7 +790,7 @@
           search.focus();
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, buildIconPicker, openIconPicker, closeIconPicker, isIconPickerOpen: () => !!iconPickerEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, buildIconPicker, openIconPicker, closeIconPicker, isIconPickerOpen: () => !!iconPickerEl, noteCard, chevron, port, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, pinBar, clearBars, repositionBars, colorKey, icon, iconEl, logo, hasLogo: (n) => getLogoEntry(n) !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -735,9 +798,9 @@
       // work without plugins knowing how scripts or artifacts are packaged.
       const currentScriptEl = document.currentScript;
       function sliceEngineSource(text) {
-        const a = text.indexOf('//@engine' + '-begin');
+        const a = text.indexOf(['//@engine', '-begin'].join(''));
         if (a < 0) return '';
-        const b = text.indexOf('//@engine' + '-end', a);
+        const b = text.indexOf(['//@engine', '-end'].join(''), a);
         return b < 0 ? '' : text.slice(a, b);
       }
       let cachedEngineSrc = currentScriptEl && currentScriptEl.textContent
@@ -759,8 +822,8 @@
       const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}'; // tokens-ok: the platform's own reset, copied byte for byte
       const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
       const ARTIFACT_TAIL = '</body></html>';
-      // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
-      const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
+      // = ARTIFACT_END_MARKER in layout_engine.py; spelled via join so minification never folds it into a self-match
+      const ARTIFACT_END_MARKER = ['<!-- end ultimate-diagram ', 'page -->'].join('');
 
       // An artifact page has <title> as a direct child of <body>; a plain file keeps it in <head>.
       const artifactShaped = !!(document.body && document.body.querySelector(':scope > title'));
@@ -3693,7 +3756,7 @@
         } catch (_) {}
       }
       function extractDataBlockText(htmlText) {
-        const openTag = '<script id="diagram-data" type="application/' + 'json">';
+        const openTag = `<script id="diagram-data" type="${['application', 'json'].join('/')}">`;
         const closeTag = '<' + '/script>';
         const start = htmlText.indexOf(openTag);
         if (start < 0) return null;
@@ -3786,8 +3849,8 @@
       // rewritten, so this code's own text is never touched. Mirrors stamp_reading_guide() in disk_format.py.
       function stampReadingGuide(html) {
         const g = html.indexOf('<!-- For agents:');
-        const o = html.indexOf('<script id="diagram-data" type="application\/json">');
-        const e = html.indexOf('<!-- end diagram-' + 'data -->');
+        const o = html.indexOf(`<script id="diagram-data" type="${['application', 'json'].join('/')}">`);
+        const e = html.indexOf(['<!-- end diagram-', 'data -->'].join(''));
         if (g < 0 || o < 0 || e < 0) return html;
         let gEnd = html.indexOf('\n', g);
         if (gEnd < 0) gEnd = html.length;
@@ -3836,6 +3899,30 @@
         return formatJson(buildDiskData());
       }
 
+      function collectUsedLogoRefs(value, out) {
+        if (typeof value === 'string') {
+          if (value.startsWith('logo:')) out.add(value.slice(5));
+          return;
+        }
+        if (Array.isArray(value)) {
+          value.forEach((v) => collectUsedLogoRefs(v, out));
+        } else if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => { if (k !== '_readme') collectUsedLogoRefs(value[k], out); });
+        }
+      }
+
+      function replaceEmbeddedLogos(text) {
+        if (typeof LOGOS === 'undefined') return text;
+        const used = new Set();
+        collectUsedLogoRefs(chartData, used);
+        const kept = {};
+        Array.from(used).sort().forEach((k) => {
+          if (LOGOS[k] !== undefined) kept[k] = LOGOS[k];
+        });
+        const serialized = JSON.stringify(kept).replace(/</g, '\\u003c');
+        return text.replace(/(const LOGOS\s*=\s*)\{[^\n]*\};/, (_, prefix) => `${prefix}${serialized};`);
+      }
+
       // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
       // Shared by the file and artifact writers; only the source text differs.
       function buildSavedHtml(sourceText) {
@@ -3859,13 +3946,13 @@
         // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
         // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
         const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
-        const replacedHtml = stampReadingGuide(fullHtml
+        const replacedHtml = stampReadingGuide(replaceEmbeddedLogos(fullHtml
           .replace(
             /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
             (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
           )
           .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
-          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`)));
 
         const dataEl = document.getElementById('diagram-data');
         if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
@@ -3908,10 +3995,11 @@
           '     sed -n \'/<script id="diagram-data" type="application\\/json">/,/<\\/script>/p\' FILE\n' +
           '     python -c "import re,sys;print(re.search(r\'<script id=\\"diagram-data\\" type=\\"application\\/json\\">(.*?)<\\/script>\',open(sys.argv[1],encoding=\'utf8\').read(),re.S)[1])" FILE -->';
         const closeScript = '<' + '/script>';
-        const dataOpen = '<script id="diagram-data" type="application/' + 'json">';
+        const mimeJson = ['application', 'json'].join('/');
+        const dataOpen = `<script id="diagram-data" type="${mimeJson}">`;
         const dataEnd = '<!-- end diagram-' + 'data -->';
         const themeBlock = capturedThemeJson
-          ? `\n  <script id="diagram-theme" type="application/${'json'}">${capturedThemeJson.replace(/</g, '\\u003c')}${closeScript}`
+          ? `\n  <script id="diagram-theme" type="${mimeJson}">${capturedThemeJson.replace(/</g, '\\u003c')}${closeScript}`
           : '';
         const fontBlock = capturedFontLinks ? `\n${capturedFontLinks}` : '';
         const bodyMarkup = (pristineScaffoldHtml || '\n')
@@ -3927,7 +4015,7 @@
           '  <style>\n' + cssText.trimEnd() + '\n  </style>\n' +
           '</head>\n' +
           '<body>' + bodyMarkup +
-          '\n  <script>\n' + jsText.trimEnd() + `\n  ${closeScript}\n` +
+          '\n  <script>\n' + replaceEmbeddedLogos(jsText.trimEnd()) + `\n  ${closeScript}\n` +
           '</body>\n</html>\n';
         return stampReadingGuide(html);
       }

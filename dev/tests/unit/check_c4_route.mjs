@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const at = (p) => fileURLToPath(new URL(p, import.meta.url));
 const tokens = JSON.parse(readFileSync(at('../../../assets/tokens/default.json'), 'utf8'));
-const src = readFileSync(at('../../../assets/shell/ortho-router.js'), 'utf8') + '\n' + readFileSync(at('../../../assets/types/c4/route.js'), 'utf8');
+const src = readFileSync(at('../../../assets/shell/curve-path.js'), 'utf8') + '\n' + readFileSync(at('../../../assets/types/c4/route.js'), 'utf8');
 const { routeC4Edges } = new Function('TOKENS', `${src}\nreturn { routeC4Edges };`)(tokens);
 
 let failures = 0;

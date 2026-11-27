@@ -7,8 +7,10 @@ import { readFileSync, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
-// The shared orthogonal router, loaded ahead of every engine (the page joins it ahead of engine.js too: ENGINE_JS)
-const routerSrc = readFileSync(fileURLToPath(new URL('../assets/shell/ortho-router.js', import.meta.url)), 'utf8');
+// The shared curve-path and orthogonal router helpers, loaded ahead of engines in Node
+const routerSrc = ['../assets/shell/curve-path.js', '../assets/shell/ortho-router.js']
+  .map((p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8'))
+  .join('\n');
 const factories = new Map();
 const engines = new Map();
 
