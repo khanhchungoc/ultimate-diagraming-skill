@@ -1123,11 +1123,6 @@ display: block; margin-bottom: var(--space-8); padding: var(--space-4) var(--spa
 font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
 border: 1px solid var(--border-color); border-radius: var(--radius-md);
 }
-.save-folder-tip {
-margin-bottom: var(--space-4); font-size: var(--text-xs); line-height: var(--t-control-leading); color: var(--text-soft);
-}
-.save-folder-tip:last-of-type { margin-bottom: var(--space-12); }
-.save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
 @media (max-width: 560px) {
 .confirm,
 .confirm.has-alt,
