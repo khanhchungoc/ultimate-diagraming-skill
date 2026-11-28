@@ -71,8 +71,8 @@
   <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
   <div id="search-dock">
     <div id="search-bar" role="search" hidden>
-      <span class="search-glyph" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
       <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <button id="search-clear" class="btn btn-icon" type="button" title="Clear search" aria-label="Clear search" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
       <span id="search-count" role="status" aria-live="polite"></span>
       <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button>
       <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></button>
@@ -101,8 +101,8 @@
               <button id="btn-add-milestone" type="button" class="btn btn-shape" title="Row Milestone: add a diamond milestone row" aria-label="Row Milestone">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z"/></svg><span class="tile-caption">Row Milestone</span>
               </button>
-              <button id="btn-add-marker" type="button" class="btn btn-shape" title="Date Line: add a chart-wide vertical date marker line" aria-label="Date Line">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9"/><path d="M5 21v-7"/></svg><span class="tile-caption">Date Line</span>
+              <button id="btn-add-marker" type="button" class="btn btn-shape" title="Milestone Line: add a chart-wide vertical milestone line" aria-label="Milestone Line">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9"/><path d="M5 21v-7"/></svg><span class="tile-caption">Milestone Line</span>
               </button>
             </div>
           </div>
@@ -127,6 +127,7 @@
       <div id="gantt-zoom-pills" class="gantt-zoom-pills" role="group" aria-label="Timeline zoom">
         <button type="button" class="gantt-zoom-pill" data-zoom-set="day" aria-pressed="false">Day</button>
         <button type="button" class="gantt-zoom-pill" data-zoom-set="week" aria-pressed="false">Week</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="2week" aria-pressed="false">2 Weeks</button>
         <button type="button" class="gantt-zoom-pill" data-zoom-set="month" aria-pressed="true">Month</button>
         <button type="button" class="gantt-zoom-pill" data-zoom-set="quarter" aria-pressed="false">Quarter</button>
         <button type="button" class="gantt-zoom-pill" data-zoom-set="year" aria-pressed="false">Year</button>
@@ -290,16 +291,25 @@
 
   <!-- Standalone HTML save guide modal (shown before OS file browser when saving a local HTML file) -->
   <dialog id="save-modal" class="save-modal" closedby="any" aria-labelledby="save-modal-title" data-export-skip>
-    <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
-    <p id="save-modal-msg" class="save-modal-msg"></p>
-    <code id="save-modal-path" class="save-where" hidden></code>
-    <label class="save-modal-check">
-      <input id="save-modal-skip" type="checkbox">
-      <span>Don’t show this again</span>
-    </label>
-    <form method="dialog" class="confirm-actions">
-      <button type="submit" value="cancel" class="btn">Cancel</button>
-      <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+    <div class="save-modal-head">
+      <span class="save-modal-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg></span>
+      <h1 id="save-modal-title" class="save-modal-title">Save over this file</h1>
+    </div>
+    <p id="save-modal-sub" class="save-modal-sub"></p>
+    <ol id="save-modal-msg" class="save-modal-steps"></ol>
+    <div id="save-modal-path-wrap" class="save-where-wrap" hidden>
+      <code id="save-modal-path" class="save-where"></code>
+      <span id="save-modal-copied" class="save-where-badge" hidden><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 12l2 2l4 -4"/></svg> Copied</span>
+    </div>
+    <form method="dialog" class="save-modal-foot">
+      <label id="save-modal-check-wrap" class="save-modal-check">
+        <input id="save-modal-skip" type="checkbox">
+        <span>Don’t show this again</span>
+      </label>
+      <div class="confirm-actions">
+        <button type="submit" value="cancel" class="btn">Cancel</button>
+        <button type="submit" value="continue" class="btn btn-primary" autofocus>Continue</button>
+      </div>
     </form>
   </dialog>
 
@@ -332,6 +342,7 @@
           <li class="help-row"><span class="help-label">Zoom</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Scroll</kbd> &middot; <kbd>Pinch</kbd></span></li>
           <li class="help-row"><span class="help-label">Search</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>F</kbd> &middot; <kbd>/</kbd></span></li>
           <li class="help-row"><span class="help-label">Undo / Redo</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd> &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></li>
+          <li class="help-row"><span class="help-label">Paste Mermaid</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></li>
           <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
         </ul>
       </div>
